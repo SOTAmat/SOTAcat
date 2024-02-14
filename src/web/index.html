@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>SOTAcat KX SOTAmat CAT Control</title>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+    <body>
+        <div class="image-container">
+            <img src='sclogo.png' alt='SOTAcat Logo' class="responsive-image">
+        </div>
+        <h2>SOTAMAT CAT control for Elecraft KX</h2>
+        <div>
+            Battery: <span id='batteryPercent'></span>% [<span id='batteryVoltage'></span>v]
+        </div>
+        </br>
+        <a href='sotamat://api/v1' id='sotamat_action' onclick='updateSOTAmatLink()'>
+            <div class='button-container'>
+                <button type='button' class='button_emoji'>SOTAMAT &#128225;&#65039;</button>
+            </div>
+        </a>
+        </br></br>
+        <h2>SOTA Spots in prior hour</h2>
+        <div id='tableContainer'>
+            <table id='sotaTable'>
+                <thead>
+                    <tr>
+                        <th>UTC</th>
+                        <th>Summit</th>
+                        <th>Mode</th>
+                        <th>MHz</th>
+                        <th>Call</th>
+                        <th>Name</th>
+                        <th>Details</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <script src="script.js"></script>
+    </body>
+</html>

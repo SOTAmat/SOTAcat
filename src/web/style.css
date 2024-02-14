@@ -1,0 +1,45 @@
+:root {
+    --replaced-spot-background: #ffbdbd;
+}
+
+body { font-size: 14px; font-family: Arial, sans-serif; }
+
+h1 { font-size: 2.0em; font-family: Arial, sans-serif; font-weight: 800; background-color: #222222; color: #A7A7A7; text-align: center; padding: 0.5em; }
+
+h2 { font-size: 1.1em; font-family: Arial, sans-serif; font-weight: 800; background-color: #A7A7A7; color: #222222; text-align: center; padding: 0.5em; }
+
+h1, h2 { margin: 0; }
+.button_emoji { font-size: 1.1em; padding: 10px 20px; }
+.button-container { text-align: center; }
+table, th, td { border: 1px solid black; border-collapse: collapse; }
+th, td { padding: 5px; text-align: left; }
+
+/* @media (max-width: 600px)
+{
+    body { font-size: 14px; }
+    h1 { font-size: 2.0em; }
+    h2 { font-size: 1.1em; }
+    .button_emoji { font-size: 1.5em; padding: 8px 16px; }
+} */
+
+#tableContainer { overflow-x: auto;}
+
+th, td { white-space: nowrap; }
+
+th:nth-child(-n+6), td:nth-child(-n+6) { max-width: 120px; }
+
+.image-container {
+    background-color: #222222;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.responsive-image {
+    max-width: 100%;
+    max-height: 50px; /* Replace with your image's original height */
+    height: auto;
+    width: auto;
+    object-fit: contain;
+}
+

@@ -1,0 +1,27 @@
+{
+    "files.associations": {
+        "common.h": "c",
+        "uart_connect.h": "c",
+        "constants.h": "c",
+        "wifi.h": "c",
+        "common_includes.h": "c",
+        "idle_status_task.h": "c",
+        "webserver.h": "c",
+        "esp_http_server.h": "c",
+        "adc.h": "c",
+        "freertos.h": "c",
+        "get_battery_voltage.h": "c",
+        "esp_adc_cal.h": "c",
+        "adc_cali.h": "c",
+        "adc_continuous.h": "c",
+        "adc_oneshot.h": "c",
+        "esp_wifi.h": "c",
+        "esp_netif.h": "c",
+        "task.h": "c",
+        "globals.h": "c",
+        "nvs_flash.h": "c",
+        "esp_log.h": "c",
+        "settings.h": "c",
+        "kx_commands.h": "c"
+    }
+}

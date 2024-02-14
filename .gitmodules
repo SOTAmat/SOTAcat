@@ -1,0 +1,3 @@
+[submodule "ft8_encoder"]
+	path = lib/ft8_encoder
+	url = https://github.com/SOTAmat/ft8_encoder.git
