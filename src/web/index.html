@@ -20,7 +20,17 @@
             </div>
         </a>
         </br></br>
-        <h2>SOTA Spots in prior hour</h2>
+
+        <h2 id="tableTitle">
+            <div class="header-container">
+                <span>Spots in prior hour</span>
+                <select id="tableSelector" onchange="updateTableContent()">
+                    <option value="sotaSpots">SOTA</option>
+                    <option value="potaSpots">POTA</option>
+                </select>
+            </div>
+        </h2>
+        
         <div id='tableContainer'>
             <table id='sotaTable'>
                 <thead>
@@ -31,6 +41,21 @@
                         <th>MHz</th>
                         <th>Call</th>
                         <th>Name</th>
+                        <th>Details</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <table id='potaTable'>
+                <thead>
+                    <tr>
+                        <th>UTC</th>
+                        <th>Park</th>
+                        <th>Mode</th>
+                        <th>MHz</th>
+                        <th>Call</th>
+                        <th>Locator</th>
                         <th>Details</th>
                         <th>Notes</th>
                     </tr>

@@ -180,7 +180,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
                 {
                     put_to_kx("MD", 1, MODE_AM, 2);
                 }
-                else if (strcmp(bw, "DATA") == 0)
+                else if (strcmp(bw, "DATA") == 0 || strcmp(bw, "FT8") == 0 || strcmp(bw, "JS8") == 0 || strcmp(bw, "PSK31") == 0 || strcmp(bw, "FT4") == 0 || strcmp(bw, "RTTY") == 0) // FT8, JS8, PSK31, FT4, RTTY
                 {
                     put_to_kx("MD", 1, MODE_DATA, 2);
                 }

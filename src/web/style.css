@@ -43,3 +43,14 @@ th:nth-child(-n+6), td:nth-child(-n+6) { max-width: 120px; }
     object-fit: contain;
 }
 
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch; /* Use stretch to fill the height */
+}
+
+
+#tableSelector {
+    height: 100%;
+    width: auto; /* Adjust as needed */
+}
