@@ -1,0 +1,31 @@
+<h2 class="contentPageHeaderContainer">
+  <span class="spotsTableTitle">Spots in prior hour</span>
+  <div class="showDupsContainer">
+    <input
+      type="checkbox"
+      id="showDupsSelector"
+      class="showDups"
+      checked
+      onchange="updateSotaTable();  saveShowSotaSpotDupsCheckboxState();"
+    />
+    <label for="showDupsSelector" class="showDupsLabel">Dups</label>
+  </div>
+</h2>
+
+<div id="tableContainer">
+  <table id="sotaTable">
+    <thead>
+      <tr>
+        <th>UTC</th>
+        <th>Summit</th>
+        <th>Mode</th>
+        <th>MHz</th>
+        <th>Call</th>
+        <th>Name</th>
+        <th>Details</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>

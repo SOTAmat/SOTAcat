@@ -2,16 +2,20 @@
 #include "globals.h"
 #include "webserver.h"
 
-
 asset_entry_t asset_map[] = {
     {"/", index_html_srt, index_html_end, "text/html", 60}, // 1 minute cache
     {"/index.html", index_html_srt, index_html_end, "text/html", 60},
-    { "/style.css", style_css_srt, style_css_end, "text/css", 60 },
-    { "/script.js",  script_js_srt,  script_js_end, "text/javascript", 60 },
+    {"/style.css", style_css_srt, style_css_end, "text/css", 60},
+    {"/main.js", main_js_srt, main_js_end, "text/javascript", 60},
     {"/sclogo.png", sclogo_png_srt, sclogo_png_end, "image/png", 0}, // Cache forever
     {"/favicon.ico", favicon_ico_srt, favicon_ico_end, "image/x-icon", 0},
+    {"/sota.html", sota_html_srt, sota_html_end, "text/html", 60},
+    {"/sota.js", sota_js_srt, sota_js_end, "text/javascript", 60},
+    {"/pota.html", pota_html_srt, pota_html_end, "text/html", 60},
+    {"/pota.js", pota_js_srt, pota_js_end, "text/javascript", 60},
+    {"/settings.html", settings_html_srt, settings_html_end, "text/html", 60},
+    {"/about.html", about_html_srt, about_html_end, "text/html", 60},
     {NULL, NULL, NULL, NULL, 0}};
-
 
 // Arrays for GET, PUT, POST handlers
 const api_handler_t get_handlers[] = {
@@ -56,7 +60,6 @@ int find_and_execute_handler(const char *api_name, const api_handler_t *handlers
     return ESP_FAIL; // Handler not found
 }
 
-
 esp_err_t dynamic_file_handler(httpd_req_t *req)
 {
     const char *requested_path = req->uri;
@@ -90,14 +93,12 @@ esp_err_t dynamic_file_handler(httpd_req_t *req)
     httpd_resp_set_hdr(req, "Cache-Control", cache_header);
 
     httpd_resp_send(
-        req, 
-        (const char *)asset_map[ii].asset_start, 
+        req,
+        (const char *)asset_map[ii].asset_start,
         asset_map[ii].asset_end - asset_map[ii].asset_start - 1); // -1 to exclude the NULL terminator
-        
+
     return ESP_OK;
 }
-
-
 
 esp_err_t my_http_request_handler(httpd_req_t *req)
 {

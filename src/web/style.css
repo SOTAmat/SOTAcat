@@ -1,56 +1,205 @@
+/* =========================== Global Variables */
 :root {
-    --replaced-spot-background: #ffbdbd;
+    --primary-bg-color: #222222;
+    --secondary-bg-color: #A7A7A7;
+    --primary-text-color: #A7A7A7;
+    --secondary-text-color: #222222;
+    --button-color: #0A7AF3;
+    --active-tab-color: #007bff;
+    --responsive-image-height: 60px;
+    --tab-icon-size: 28px;
 }
 
-body { font-size: 14px; font-family: Arial, sans-serif; }
+/* =========================== Base Styles */
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+}
 
-h1 { font-size: 2.0em; font-family: Arial, sans-serif; font-weight: 800; background-color: #222222; color: #A7A7A7; text-align: center; padding: 0.5em; }
 
-h2 { font-size: 1.1em; font-family: Arial, sans-serif; font-weight: 800; background-color: #A7A7A7; color: #222222; text-align: center; padding: 0.5em; }
+h1, h2, h3 {
+    font-family: Arial, sans-serif;
+    background-color: var(--secondary-bg-color);
+    color: var(--secondary-text-color);
+    text-align: center;
+    margin: 0;
+    width: 100%;
+}
 
-h1, h2 { margin: 0; }
-.button_emoji { font-size: 1.1em; padding: 10px 20px; }
-.button-container { text-align: center; }
-table, th, td { border: 1px solid black; border-collapse: collapse; }
-th, td { padding: 5px; text-align: left; }
+h1 {
+    font-size: 2.0em;
+    font-weight: 800;
+    padding: 0.5em;
+}
 
-/* @media (max-width: 600px)
-{
-    body { font-size: 14px; }
-    h1 { font-size: 2.0em; }
-    h2 { font-size: 1.1em; }
-    .button_emoji { font-size: 1.5em; padding: 8px 16px; }
-} */
+h2 {
+    font-size: 1.2em;
+    font-weight: 600;
+    padding: 0.2em 0;
+}
 
-#tableContainer { overflow-x: auto;}
+h3 {
+    font-size: 1.0em;
+    font-weight: 400;
+    padding: 0.2em;
+}
 
-th, td { white-space: nowrap; }
+li {
+    margin: 15px 0 15px -20px;
+}
 
-th:nth-child(-n+6), td:nth-child(-n+6) { max-width: 120px; }
+/* =========================== Box Sizing */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* =========================== Header Bar */
+.headerLogoBar {
+    width: 100%;
+    overflow-x: hidden;
+}
 
 .image-container {
-    background-color: #222222;
+    background-color: var(--primary-bg-color);
+    display: flex;
+    justify-content: start;
+    align-items: center;
+    position: relative;
+}
+
+.responsive-image {
+    max-width: 100%;
+    max-height: var(--responsive-image-height);
+    height: auto;
+    object-fit: contain;
+}
+
+.battery-info-container {
+    color: var(--primary-text-color);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    justify-content: center;
+    padding-right: 5px;
+}
+
+.sotamatLaunchButtonContainer {
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-.responsive-image {
-    max-width: 100%;
-    max-height: 50px; /* Replace with your image's original height */
-    height: auto;
-    width: auto;
-    object-fit: contain;
-}
-
-.header-container {
+.sotamatLaunchButton {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--button-color);
+    padding: 1px 10px;
     display: flex;
-    justify-content: space-between;
-    align-items: stretch; /* Use stretch to fill the height */
+    align-items: center;
+    cursor: pointer;
+    border-radius: 999px;
+}
+
+.sotamatLaunchButtonIcon {
+    font-size: 1.5em;
+}
+
+/* =========================== Content Area */
+.contentSpace {
+    overflow-x: auto; /* Allows horizontal scrolling within the content area if needed */
+    padding-bottom: 60px; /* Space for tabBar, adjust based on actual tabBar height */
+}
+
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+    padding: 5px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.contentPageHeaderContainer {
+    display: flex;
+    justify-content: space-between; /* Ensures space between the title and the checkbox group */
+    align-items: center; /* Vertically centers children */
+    width: 100%;
+    padding: 0.2em 0;
+}
+
+.spotsTableTitle {
+    font-size: 1.2em;
+    font-family: Arial, sans-serif;
+    font-weight: 600;
+    background-color: var(--secondary-bg-color);
+    color: var(--secondary-text-color);
+    margin-left: 0.5em;
+    margin-right: auto; /* Ensures it stays left-aligned */
+}
+
+/* ---------------------------- SOTA content page */
+
+.showDupsContainer {
+    display: flex;
+    align-items: center; /* This will ensure vertical alignment */
+}
+
+.showDups {
+    margin-right: 5px; /* Adds a small gap between the checkbox and the label */
+}
+
+.showDupsLabel {
+    font-size: 0.6em;
+    margin-right: 5px; /* Adds a small gap between the checkbox and the label */
+    font-family: Arial, sans-serif;
+    color: #222222;
+}
+
+/* ----------------------------- About Page */
+
+.aboutParagraph {
+    padding: 1.5em;
+    margin: 0.5em;
 }
 
 
-#tableSelector {
-    height: 100%;
-    width: auto; /* Adjust as needed */
+/* =========================== Footer Navigation Bar */
+.tabBar {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%; /* Ensures it spans the full width without causing overflow */
+    background: var(--primary-bg-color);
+    height: 50px; /* Adjust as needed */
+    z-index: 1000; /* Keeps it above other content */
+}
+.tabBar button {
+    flex: 1;
+    font-size: medium;
+    font-weight: bolder;
+    text-align: center;
+    padding: 3px;
+    border: none;
+    background: none;
+    color: var(--primary-text-color);
+    outline: none;
+}
+
+.tabBar button.active {
+    font-size: large;
+    color: var(--active-tab-color);
+}
+
+.tabIcons {
+    font-size: var(--tab-icon-size);
 }

@@ -6,63 +6,37 @@
         <link rel="stylesheet" type="text/css" href="style.css">
     </head>
     <body>
-        <div class="image-container">
-            <img src='sclogo.png' alt='SOTAcat Logo' class="responsive-image">
-        </div>
-        <h2>SOTAMAT CAT control for Elecraft KX</h2>
-        <div>
-            Battery: <span id='batteryPercent'></span>% [<span id='batteryVoltage'></span>v]
-        </div>
-        </br>
-        <a href='sotamat://api/v1' id='sotamat_action' onclick='updateSOTAmatLink()'>
-            <div class='button-container'>
-                <button type='button' class='button_emoji'>SOTAMAT &#128225;&#65039;</button>
+        <div class="headerLogoBar">
+            <div class="image-container">
+                <img src='sclogo.png' alt='SOTAcat Logo' class="responsive-image">
+                <div class="battery-info-container">
+                    <div><span id='batteryPercent'></span>%&#x1F50B;</div>
+                    <div><span id='batteryVoltage'></span>v&#x26A1;</div>
+                </div>
             </div>
-        </a>
-        </br></br>
 
-        <h2 id="tableTitle">
-            <div class="header-container">
-                <span>Spots in prior hour</span>
-                <select id="tableSelector" onchange="updateTableContent()">
-                    <option value="sotaSpots">SOTA</option>
-                    <option value="potaSpots">POTA</option>
-                </select>
+            <h3>SOTAMAT wireless CAT control for Elecraft KX</h3></br>
+
+            <div class='sotamatLaunchButtonContainer'>
+                <button type='button' class='sotamatLaunchButton' onclick='launchSOTAmat()'>
+                    <span>SOTAMAT </span>  
+                    <span class="sotamatLaunchButtonIcon">&#128225;&#65039;</span>
+                </button>
             </div>
-        </h2>
-        
-        <div id='tableContainer'>
-            <table id='sotaTable'>
-                <thead>
-                    <tr>
-                        <th>UTC</th>
-                        <th>Summit</th>
-                        <th>Mode</th>
-                        <th>MHz</th>
-                        <th>Call</th>
-                        <th>Name</th>
-                        <th>Details</th>
-                        <th>Notes</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-            <table id='potaTable'>
-                <thead>
-                    <tr>
-                        <th>UTC</th>
-                        <th>Park</th>
-                        <th>Mode</th>
-                        <th>MHz</th>
-                        <th>Call</th>
-                        <th>Locator</th>
-                        <th>Details</th>
-                        <th>Notes</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+
+        </br></br>
         </div>
-        <script src="script.js"></script>
+
+        <div class="contentSpace" id="contentArea">
+        </div>
+
+        <div class="tabBar">
+            <button onclick="openTab('SOTA')" class="active">   <div class="tabIcons">&#x1F3D4;&#xFE0F;</div>SOTA</button>
+            <button onclick="openTab('POTA')">                  <div class="tabIcons">&#x1F3DE;&#xFE0F;</div>POTA</button>
+            <button onclick="openTab('Settings')">              <div class="tabIcons">&#x2699;&#xFE0F;</div>Settings</button>
+            <button onclick="openTab('About')">                 <div class="tabIcons">&#x2754;</div>About</button>
+        </div>
+
+        <script src="main.js"></script>
     </body>
 </html>
