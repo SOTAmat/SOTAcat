@@ -30,7 +30,7 @@ function updateSotaTable()
         // Check if the activatorCallsign is already seen
         if (seenCallsigns.has(spot.activatorCallsign.split("/")[0]))
         {
-            let replacedColor = getComputedStyle(document.documentElement).getPropertyValue('--backgroundSpotDuplicate').trim();
+            let replacedColor = getComputedStyle(document.documentElement).getPropertyValue('--backgroundSpotDuplicateColor').trim();
             row.style.backgroundColor = replacedColor;
         } else
         {
