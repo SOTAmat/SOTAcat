@@ -6,9 +6,13 @@
         <link rel="stylesheet" type="text/css" href="style.css">
     </head>
     <body>
-        <div class="headerLogoBar">
-            <div class="image-container">
+        <div class="mainHeaderContainer">
+            <div class="headerLogoBarContainer">
                 <img src='sclogo.png' alt='SOTAcat Logo' class="responsive-image">
+                <div class="status-container">
+                    <div><span id='currentUTCTime'></span>z</div>
+                    <div><span id='connectionStatus'></span>&#x1F7E2;</div>
+                </div>
                 <div class="battery-info-container">
                     <div><span id='batteryPercent'></span>%&#x1F50B;</div>
                     <div><span id='batteryVoltage'></span>v&#x26A1;</div>
@@ -31,10 +35,10 @@
         </div>
 
         <div class="tabBar">
-            <button onclick="openTab('SOTA')" class="active">   <div class="tabIcons">&#x1F3D4;&#xFE0F;</div>SOTA</button>
-            <button onclick="openTab('POTA')">                  <div class="tabIcons">&#x1F3DE;&#xFE0F;</div>POTA</button>
-            <button onclick="openTab('Settings')">              <div class="tabIcons">&#x2699;&#xFE0F;</div>Settings</button>
-            <button onclick="openTab('About')">                 <div class="tabIcons">&#x2754;</div>About</button>
+            <button onclick="openTab('SOTA')"       id="sotaTabButton" class="tabActive"> <div class="tabIcons">&#x1F3D4;&#xFE0F;</div>SOTA</button>
+            <button onclick="openTab('POTA')"       id="potaTabButton" >                  <div class="tabIcons">&#x1F3DE;&#xFE0F;</div>POTA</button>
+            <button onclick="openTab('Settings')"   id="settingsTabButton" >              <div class="tabIcons">&#x2699;&#xFE0F;</div>Settings</button>
+            <button onclick="openTab('About')"      id="aboutTabButton" >                 <div class="tabIcons">&#x2754;</div>About</button>
         </div>
 
         <script src="main.js"></script>

@@ -76,8 +76,16 @@ function cleanupCurrentTab() {
     if (currentTabName) {
         // Assuming global functions named after tabs with 'OnLeaving' suffix
         const onLeavingFunctionName = `${currentTabName}OnLeaving`;
-        if (typeof window[onLeavingFunctionName] === 'function') {
+        if (typeof window[onLeavingFunctionName] === 'function')
+        {
             window[onLeavingFunctionName]();
+        }
+
+        // De-highlight the tab by removing the "tabActive" class from the button with the ID of currentTabName + 'TabButton'
+        const tabButton = document.getElementById(currentTabName + 'TabButton');
+        if (tabButton)
+        {
+            tabButton.classList.remove('tabActive');
         }
     }
 }
@@ -126,7 +134,14 @@ function loadTabScriptIfNeeded(tabName)
 function openTab(tabName)
 {
     cleanupCurrentTab();
+
+    // Highlight the new current tab by adding the "tabActive" class to the button with the ID of currentTabName + 'TabButton'
     currentTabName = tabName.toLowerCase();
+    const tabButton = document.getElementById(currentTabName + 'TabButton');
+    if (tabButton)
+    {
+        tabButton.classList.add('tabActive');
+    }
 
     const contentPath = `${currentTabName}.html`;
     fetch(contentPath)
@@ -159,7 +174,7 @@ gLatestPotaJson = null;
 
 async function refreshSotaPotaJson()
 {
-    const sotaPromise = fetch('https://api2.sota.org.uk/api/spots/-3/all').then(res => res.json()).catch(error => ({ error }));
+    const sotaPromise = fetch('https://api2.sota.org.uk/api/spots/-1/all').then(res => res.json()).catch(error => ({ error }));
     const potaPromise = fetch('https://api.pota.app/spot/activator').then(res => res.json()).catch(error => ({ error }));
 
     const results = await Promise.allSettled([sotaPromise, potaPromise]); // Fetch both SOTA and POTA JSON in parallel, regardless of success
@@ -199,3 +214,13 @@ async function refreshSotaPotaJson()
 
 refreshSotaPotaJson(); // Initial refresh
 setInterval(refreshSotaPotaJson, 60000); // Refresh every minute
+
+function refreshUTCClock()
+{
+    // Update the UTC clock, but only show the hours and the minutes and nothging else
+    const utcTime = new Date().toUTCString();
+    document.getElementById('currentUTCTime').textContent = utcTime.slice(17, 22);
+}
+
+refreshUTCClock(); // Initial refresh
+setInterval(refreshUTCClock, 10000); // Refresh every 10 seconds

@@ -58,37 +58,49 @@ li {
 }
 
 /* =========================== Header Bar */
-.headerLogoBar {
+.mainHeaderContainer {
     width: 100%;
     overflow-x: hidden;
 }
 
-.image-container {
+.headerLogoBarContainer {
     background-color: var(--primary-bg-color);
     display: flex;
-    justify-content: start;
+    justify-content: flex-start; /* Ensure items start from the left */
     align-items: center;
     position: relative;
+    padding: 0; /* Maintain any necessary padding */
 }
 
 .responsive-image {
-    max-width: 100%;
     max-height: var(--responsive-image-height);
     height: auto;
     object-fit: contain;
 }
 
+.status-container {
+    color: var(--primary-text-color);
+    margin-left: auto; /* This pushes the status-container to the right */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    margin-right: 15px;
+}
+
+.status-container > div {
+    text-align: right; /* Ensures text within each div is right-aligned */
+    width: 100%; /* Ensures divs take full width of the status-container for proper text alignment */
+}
+
 .battery-info-container {
     color: var(--primary-text-color);
+    padding-right: 5px;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
     justify-content: center;
-    padding-right: 5px;
+
 }
 
 .sotamatLaunchButtonContainer {
@@ -181,22 +193,22 @@ table, th, td {
     bottom: 0;
     width: 100%; /* Ensures it spans the full width without causing overflow */
     background: var(--primary-bg-color);
-    height: 50px; /* Adjust as needed */
+    height: 56px; /* Adjust as needed */
     z-index: 1000; /* Keeps it above other content */
 }
 .tabBar button {
     flex: 1;
-    font-size: medium;
+    font-size: normal;
     font-weight: bolder;
     text-align: center;
-    padding: 3px;
+    padding: 10px 2px 10px 2px;
     border: none;
     background: none;
     color: var(--primary-text-color);
     outline: none;
 }
 
-.tabBar button.active {
+.tabBar button.tabActive {
     font-size: large;
     color: var(--active-tab-color);
 }
