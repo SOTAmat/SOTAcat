@@ -53,7 +53,7 @@ typedef struct
     const void *asset_start;
     const void *asset_end;
     const char *asset_type;
-    uint32_t cache_time; // Cache time in seconds
+    long cache_time; // Cache time in seconds
 } asset_entry_t;
 
 // Lookup table array
