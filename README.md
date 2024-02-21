@@ -16,7 +16,7 @@ SOTACAT can form a bidirectional connection with the SOTAMAT app on your phone a
 
 ## Current status:
 
-- [Written instructions](https://1drv.ms/b/s!AhZ33h8betkWj-kk9AK55GL0UKIKiQ?e=swovwE), for manually building your own SOTACAT, including the Bill Of Materials / Parts List, Schematic, and Assembly instructions
+- [Written instructions](https://github.com/SOTAmat/SOTAcat/blob/main/Docs/Hardware/SOTACAT%20BOM%20-%20schematic%20-%20assembly%20instructions.pdf), for manually building your own SOTACAT, including the Bill Of Materials / Parts List, Schematic, and Assembly instructions
 - [YouTube build instructions video](https://www.youtube.com/watch?v=iD3S-9icRn0) showing how to manually build your own SOTACAT
 - Firmware: found here on Github
 - Other hams (K5EM and KE6MT) have created custom circuit boards that implement a SOTACAT in a more compact and professionally designed package.
