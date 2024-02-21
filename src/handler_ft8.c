@@ -105,7 +105,7 @@ void sendFT8Tone(long prior_frequency, long frequency, TickType_t *lastWakeTime,
 
     for (int step = 1; step <= EASE_STEPS; step++)
     {
-        long eased_frequency = prior_frequency + round(delta_frequency * (step / EASE_STEPS));
+        long eased_frequency = prior_frequency + round(delta_frequency * ((float)step / EASE_STEPS));
         snprintf(command, sizeof(command), "FA%011ld;", eased_frequency);
 
         // Send the tone command over UART
