@@ -52,15 +52,16 @@ Mkfile.old
 dkms.conf
 
 # Original .gitignore from PlatformIO
+.fake
 .pio
 .vscode/.browse.c_cpp.db*
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
 
-.fake
+# emacs / LSP / platformio
+.cache
+compile_commands.json
 
 # ESP-IDF managed_compoments
 managed_components/
-/.cache/
-/compile_commands.json
