@@ -62,3 +62,5 @@ dkms.conf
 
 # ESP-IDF managed_compoments
 managed_components/
+/.cache/
+/compile_commands.json
