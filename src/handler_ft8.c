@@ -23,7 +23,7 @@ ft8_task_pack_t *ft8ConfigInfo = NULL;
 bool url_decode_in_place(char *str)
 {
     char *dst = str;
-    char a, b;
+    int a, b;
     while (*str)
     {
         if ((*str == '%') &&
