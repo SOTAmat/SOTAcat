@@ -6,7 +6,6 @@
 #include "globals.h"
 #include "settings.h"
 #include "setup_adc.h"
-#include "WiFi.h"
 
 void enter_deep_sleep()
 {
