@@ -61,6 +61,7 @@ dkms.conf
 
 # emacs / LSP / platformio
 .cache
+.ccls-cache
 compile_commands.json
 
 # ESP-IDF managed_compoments
