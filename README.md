@@ -39,9 +39,12 @@ Since this is pre-release, I am almost certain I've forgotten several steps. Let
 
 ## Attribution
 
-- Max Praglin KI6SYD helped figure out a few key things about the Elecraft that helped make direct FSK synthesis possible without resorting to a DAC.
-- My FT8 encoder submodule is a derivative of prior work by Karlis Goba, YL3JG. See the submodule Readme for more details.
-- Elecraft (Wayne and collaborators) provided technical and simulation assistance and we hope to collaborate further on some additional ideas in this project's direction...
+- AB6D, Brian Mathews: created the original SOTACAT concept, hardware, and firmware as well as a derivative version of the FT8 encoder originally developed by YL3JG, Karlis Goba.
+- KI6SYD, Max Praglin: provided key contributions to the implementation of direct FSK synthesis on the Elecraft KX radios, designed a [REST API](https://app.swaggerhub.com/apis-docs/KI6SYD_1/MAX-3B/1.0.2) which SOTACAT borrows from, and implemented a similar testbed with his [MAX-3B QRP transceiver](https://www.ki6syd.com/max-3b-qrp-radio) on which SOTAMAT-to-radio control was first implemented.
+- YL3JG, Karlis Goba: developed the original 'ft8_lib' FT8 CODEC. A derivative version was later created for encoding use in SOTACAT, and ported to C# for encoding in SOTAMAT by AB6D.
+- Elecraft: N6KR, Wayne Burdick, and N1AL, Alan, provided guidance on control of Elecraft radios and Mathcad analysis of FT8 FSK harmonics.
+- KC6X, Jeff Kowalski: a maintainer for the SOTACAT Github project, makes ongoing contributions to the SOTACAT code base.
+- Justin K5EM and Rex KE6MT: Created derivative hardware versions, custom SMT PCBs, and helped with packaging analysis, circuit analysis, and testing.
 
 ## Enjoy,
 
