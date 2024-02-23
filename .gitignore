@@ -64,5 +64,9 @@ dkms.conf
 .ccls-cache
 compile_commands.json
 
+# configs especially volatile during development
+dependencies.lock
+sdkconfig.*
+
 # ESP-IDF managed_compoments
 managed_components/
