@@ -33,12 +33,12 @@ int uart_connect()
         for (size_t i = 0; i < num_rates; ++i)
         {
             uart_set_baudrate(UART_NUM, baud_rates[i]); // Change baud rate
-            vTaskDelay(pdMS_TO_TICKS(500));             // Delay for stability before next try
+            vTaskDelay(pdMS_TO_TICKS(250));             // Delay for stability before next try
 
             uart_flush(UART_NUM);
             uart_write_bytes(UART_NUM, ";RVR;", strlen(";RVR;"));
 
-            int length = uart_read_bytes(UART_NUM, buffer, 256, 200 / portTICK_PERIOD_MS);
+            int length = uart_read_bytes(UART_NUM, buffer, 256, 250 / portTICK_PERIOD_MS);
             if (length > 0)
             {
                 buffer[length] = '\0'; // Null terminate the string
