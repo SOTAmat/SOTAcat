@@ -106,12 +106,47 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 }
 
 // ====================================================================================================
+// Set wifi TX power level down a bit to reduce battery load and avoid radio interference.
+static void wifi_attenuate_power() {
+    /*
+     * Wifi TX power levels are quantized.
+     * See https://demo-dijiudu.readthedocs.io/en/latest/api-reference/wifi/esp_wifi.html
+     * | range     | level             | net pwr  |
+     * |-----------+-------------------+----------|
+     * | [78, 127] | level0            | 19.5 dBm |
+     * | [76, 77]  | level1            | 19   dBm |
+     * | [74, 75]  | level2            | 18.5 dBm |
+     * | [68, 73]  | level3            | 17   dBm |
+     * | [60, 67]  | level4            | 15   dBm |
+     * | [52, 59]  | level5            | 13   dBm |
+     * | [44, 51]  | level5 -  2.0 dBm | 11   dBm |  <-- we'll use this
+     * | [34, 43]  | level5 -  4.5 dBm |  8.5 dBm |
+     * | [28, 33]  | level5 -  6.0 dBm |  7   dBm |
+     * | [20, 27]  | level5 -  8.0 dBm |  5   dBm |
+     * | [8,  19]  | level5 - 11.0 dBm |  2   dBm |
+     * | [-128, 7] | level5 - 14.0 dBm | -1   dBM |
+     */
+    // Not required, but we read the starting power just for informative purposes
+    int8_t curr_wifi_power = 0;
+    ESP_ERROR_CHECK(esp_wifi_get_max_tx_power(&curr_wifi_power));
+    ESP_LOGI(TAG, "Default max tx power: %d", curr_wifi_power);
+
+    const int8_t MAX_TX_PWR = 44; // level 5 - 2dBm = 11dBm, per chart above
+    ESP_LOGI(TAG, "Setting wifi max power to %d", MAX_TX_PWR);
+    ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(MAX_TX_PWR));
+
+    ESP_ERROR_CHECK(esp_wifi_get_max_tx_power(&curr_wifi_power));
+    ESP_LOGI(TAG, "Confirming new max tx power: %d", curr_wifi_power);
+}
+
+// ====================================================================================================
 void wifi_init()
 {
     s_connected = false;
 
     // Initialize the TCP/IP stack
     ESP_ERROR_CHECK(esp_netif_init());
+
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     // Register event handler for Wi-Fi events
@@ -119,6 +154,8 @@ void wifi_init()
 
     wifi_init_sta(); // Start by trying to connect to the Wi-Fi network
     // If the timer expires, we will switch to AP mode using the event handler to detect the failure
+
+    wifi_attenuate_power();
 
     // Wait here for a successful connection to the Wi-Fi network: either as a station or as an AP.
     while (!s_connected)
