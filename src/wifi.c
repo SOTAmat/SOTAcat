@@ -9,7 +9,7 @@
 static int s_retry_num = 0;
 static bool s_connected = false;
 
-void wifi_init_ap()
+static void wifi_init_ap()
 {
     ESP_LOGI(TAG, "Initializing WiFi in AP mode");
 
@@ -50,7 +50,7 @@ void wifi_init_ap()
 }
 
 // ====================================================================================================
-void wifi_init_sta()
+static void wifi_init_sta()
 {
     s_retry_num = 0;
     s_connected = false;
