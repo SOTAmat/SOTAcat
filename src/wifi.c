@@ -84,16 +84,26 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
-        if (!s_connected && s_retry_num < MAX_RETRY_WIFI_STATION_CONNECT)
+        if (!s_connected)
         {
-            ESP_LOGI(TAG, "Retrying to connect to the WiFi network...");
-            s_retry_num++;
-            esp_wifi_connect();
+            if (s_retry_num < MAX_RETRY_WIFI_STATION_CONNECT)
+            {
+                ESP_LOGI(TAG, "Retrying to connect to the WiFi network...");
+                s_retry_num++;
+                esp_wifi_connect();
+            }
+            else
+            {
+                ESP_LOGI(TAG, "============ Failed to connect to home WiFi, setting up stand-alone AP mode...");
+                wifi_init_ap(); // Switch to AP mode
+            }
         }
         else
         {
-            ESP_LOGI(TAG, "============ Failed to connect to home WiFi, setting up stand-alone AP mode...");
-            wifi_init_ap(); // Switch to AP mode
+            // formerly connected, but now getting a disconnected event => must be entering sleep
+            ESP_LOGI(TAG, "Disconnected from WiFi network");
+            s_connected = false;
+            s_retry_num = 0;
         }
     }
     else if (   (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) ||
