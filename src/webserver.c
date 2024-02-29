@@ -24,6 +24,7 @@ const api_handler_t get_handlers[] = {
     {"frequency", handler_frequency_get},
     {"mode", handler_mode_get},
     {"rxBandwidth", handler_rxBandwidth_get},
+    {"connectionStatus", handler_connectionStatus_get},
     {NULL, NULL} // Sentinel to mark end of array
 };
 

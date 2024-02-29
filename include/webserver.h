@@ -45,6 +45,7 @@ esp_err_t handler_ft8_post();
 esp_err_t handler_cancelft8_post();
 esp_err_t handler_batteryPercent_get();
 esp_err_t handler_batteryVoltage_get();
+esp_err_t handler_connectionStatus_get();
 
 // Structure to map URI to symbol
 typedef struct

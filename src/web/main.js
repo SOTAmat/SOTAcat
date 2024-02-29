@@ -67,6 +67,13 @@ updateBatteryInfo(); // Call the function immediately
 setInterval(updateBatteryInfo, 60000); // Then refresh it every 1 minute
 
 
+function updateConnectionStatus() {
+    fetchAndUpdateElement('/api/v1/connectionStatus', 'connectionStatus');
+}
+
+updateConnectionStatus(); // Call the function immediately
+setInterval(updateConnectionStatus, 5000); // Then refresh it every 5 seconds
+
 
 let currentTabName = null;
 
