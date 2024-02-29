@@ -3,7 +3,7 @@
 #include "settings_hardware_specific.h"
 
 // ADC Battery measurement
-#define BATTERY_SAMPLES_TO_AVERAGE 20
+#define BATTERY_SAMPLES_TO_AVERAGE 16
 #define BATTERY_CALIBRATION_VALUE 1.006879
 
 // LED behavior

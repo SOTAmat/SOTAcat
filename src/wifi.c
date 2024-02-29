@@ -21,7 +21,7 @@ static void wifi_init_ap()
             .ssid_len = strlen("SOTAcat"),
             .channel = 1,
             .password = "12345678",
-            .max_connection = 4,
+            .max_connection = 6,
             .authmode = WIFI_AUTH_WPA_WPA2_PSK},
     };
 
@@ -106,8 +106,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             s_retry_num = 0;
         }
     }
-    else if (   (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) ||
-                (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED))
+    else if ((event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) ||
+             (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED))
     {
         s_connected = true;
         s_retry_num = 0;
@@ -117,7 +117,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 
 // ====================================================================================================
 // Set wifi TX power level down a bit to reduce battery load and avoid radio interference.
-static void wifi_attenuate_power() {
+static void wifi_attenuate_power()
+{
     /*
      * Wifi TX power levels are quantized.
      * See https://demo-dijiudu.readthedocs.io/en/latest/api-reference/wifi/esp_wifi.html
