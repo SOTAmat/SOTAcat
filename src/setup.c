@@ -102,6 +102,7 @@ void setup()
     }
 
     // Find out what Baud rate the radio is running at by trying the possibilities until we get a valid response back.
+    // Once found, if the baud rate is not 38400, force it to 38400 for FSK use (FT8, etc.)
     uart_connect();
     ESP_LOGI(TAG, "Radio connection established");
 

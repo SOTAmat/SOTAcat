@@ -2,6 +2,7 @@
 #include "driver/uart.h"
 #include "esp_log.h"
 #include "globals.h"
+#include "kx_commands.h"
 #include "settings.h"
 #include "uart_connect.h"
 
@@ -49,6 +50,18 @@ int uart_connect()
                     ESP_LOGI(TAG, "-------------------Correct baud rate found: %d", baud_rates[i]);
                     free(buffer);
                     uart_write_bytes(UART_NUM, ";AI0;", strlen(";AI0;"));
+
+                    if (baud_rates[i] != 38400)
+                    {
+                        ESP_LOGI(TAG, "Forcing baud rate to 38400 for FSK use (FT8, etc.)...");
+                        // Normally we would call "put_to_kx()" but the KX BRn; command does not allow a "get" response so we can't use that function here.
+                        for (int j = 0; j < 2; j++)
+                        {
+                            uart_write_bytes(UART_NUM, "BR3;", strlen("BR3;"));
+                            empty_kx_input_buffer(100);
+                            uart_set_baudrate(UART_NUM, 38400); // Change baud rate
+                        }
+                    }
                     return baud_rates[i];
                 }
             }
