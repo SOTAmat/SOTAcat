@@ -66,7 +66,7 @@ compile_commands.json
 
 # configs especially volatile during development
 dependencies.lock
-sdkconfig.*
+# sdkconfig.*  <- this file is used by the ESP-IDF build system to store configuration options such as boot logging and partition table
 
 # ESP-IDF managed_compoments
 managed_components/
