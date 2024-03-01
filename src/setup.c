@@ -18,6 +18,7 @@
 time_t LastUserActivityUnixTime;
 bool CommandInProgress = false;
 
+
 // ====================================================================================================
 static void initialize_nvs()
 {
@@ -50,6 +51,7 @@ void setup()
     // }
 
     ESP_LOGI(TAG, "Setup starting...");
+    KXCommunicationMutex = xSemaphoreCreateMutex();
 
     //  Turn on the board LED to indicate that we are starting up
     gpio_set_direction(LED_BLUE, GPIO_MODE_OUTPUT);
@@ -104,7 +106,6 @@ void setup()
     // Once found, if the baud rate is not 38400, force it to 38400 for FSK use (FT8, etc.)
     uart_connect();
     ESP_LOGI(TAG, "Radio connection established");
-
     empty_kx_input_buffer(600);
 
     //  We exit with the LED off.

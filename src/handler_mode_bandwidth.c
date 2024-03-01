@@ -22,7 +22,9 @@ int get_radio_mode()
 {
     ESP_LOGI(TAG, "get_radio_mode()");
 
+    xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
     long mode = get_from_kx("MD", 2, 1);
+    xSemaphoreGive(KXCommunicationMutex);
 
     return mode;
 }
@@ -134,12 +136,12 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
         // Get the URL query
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK)
         {
-
             ESP_LOGI(TAG, "handler_rxBandwidth_put() called with query: %s", buf);
 
             // Parse the 'bw' parameter from the query
             if (httpd_query_key_value(buf, "bw", bw, sizeof(bw)) == ESP_OK)
             {
+                xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
                 // Send the mode to the radio based on the "bw" parameter
                 if (strcmp(bw, "SSB") == 0)
                 {
@@ -193,6 +195,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
                 {
                     httpd_resp_send_500(req); // Bad request if mode is not valid
                 }
+                xSemaphoreGive(KXCommunicationMutex);
 
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);

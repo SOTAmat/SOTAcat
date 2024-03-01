@@ -11,7 +11,9 @@ esp_err_t handler_connectionStatus_get(httpd_req_t *req)
 
     ESP_LOGI(TAG, "%s()", __func__);
 
+    xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
     long transmitting = get_from_kx("TQ", 2, 1);
+    xSemaphoreGive(KXCommunicationMutex);
 
     char * symbol;
     switch (transmitting) {

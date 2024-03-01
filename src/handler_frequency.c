@@ -11,7 +11,9 @@ esp_err_t handler_frequency_get(httpd_req_t *req)
 
     ESP_LOGI(TAG, "handler_frequency_get()");
 
+    xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
     long frequency = get_from_kx("FA", 2, 11);
+    xSemaphoreGive(KXCommunicationMutex);
 
     // Validate that frequency is a positive integer
     if (frequency > 0)
@@ -64,14 +66,12 @@ esp_err_t handler_frequency_put(httpd_req_t *req)
             {
                 freq = atoi(param_value); // Convert the parameter to an integer
 
+                xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
                 if (freq > 0 && put_to_kx("FA", 11, freq, 2))
-                {
-                        httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
-                }
+                    httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
                 else
-                {
                     httpd_resp_send_500(req); // Bad request if frequency is not positive
-                }
+                xSemaphoreGive(KXCommunicationMutex);
             }
             else
             {

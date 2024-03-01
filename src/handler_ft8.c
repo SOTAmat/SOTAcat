@@ -62,7 +62,7 @@ bool url_decode_in_place(char *str)
 }
 
 // ====================================================================================================
-long msUntilFT8Window()
+static long msUntilFT8Window()
 {
     // Obtain the current time with microsecond precision
     struct timeval tv_now;
@@ -82,7 +82,7 @@ long msUntilFT8Window()
 }
 
 // ====================================================================================================
-void waitForFT8Window()
+static void waitForFT8Window()
 {
     long delay_ms = msUntilFT8Window();
 
@@ -97,7 +97,7 @@ void waitForFT8Window()
 // ====================================================================================================
 #define EASE_STEPS 1
 
-void sendFT8Tone(long prior_frequency, long frequency, TickType_t *lastWakeTime, const TickType_t toneInterval)
+static void sendFT8Tone(long prior_frequency, long frequency, TickType_t *lastWakeTime, const TickType_t toneInterval)
 {
     char command[16];
     // Ease into the new frequency based on the prior frequency in x steps lasting 10% of the interval
@@ -117,7 +117,7 @@ void sendFT8Tone(long prior_frequency, long frequency, TickType_t *lastWakeTime,
 }
 
 // ====================================================================================================
-void xmit_ft8_task(void *pvParameter)
+static void xmit_ft8_task(void *pvParameter)
 {
     if (ft8TaskInProgress)
     {
@@ -132,6 +132,7 @@ void xmit_ft8_task(void *pvParameter)
         return;
     }
 
+    xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
     ft8TaskInProgress = true;
 
     ESP_LOGI(TAG, "xmit_ft8_task() started.");
@@ -179,14 +180,14 @@ void xmit_ft8_task(void *pvParameter)
     ESP_LOGI(TAG, "FT8 transmission time: %ld ms", totalTime);
 
     // Note that the cleanup will happen in the watchdog 'cleanup_ft8_task' function
-
+    xSemaphoreGive(KXCommunicationMutex);
     ft8TaskInProgress = false;
     ESP_LOGI(TAG, "xmit_ft8_task() completed.");
     vTaskDelete(NULL);
 }
 
 // ====================================================================================================
-void cleanup_ft8_task(void *pvParameter)
+static void cleanup_ft8_task(void *pvParameter)
 {
     ESP_LOGI(TAG, "cleanup_ft8_task() started.");
 
@@ -211,7 +212,10 @@ void cleanup_ft8_task(void *pvParameter)
     }
 
     // Restore the radio to its prior state
+    xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
     restore_kx_state(ft8ConfigInfo->kx_state, 4);
+    xSemaphoreGive(KXCommunicationMutex);
+
     free(ft8ConfigInfo->kx_state);
     free(ft8ConfigInfo->tones);
     free(ft8ConfigInfo);

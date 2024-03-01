@@ -7,6 +7,8 @@
 #include "settings.h"
 #include "settings_radio_specific.h"
 
+SemaphoreHandle_t KXCommunicationMutex = NULL;
+
 void empty_kx_input_buffer(int wait_ms)
 {
     char in_buff[64];
