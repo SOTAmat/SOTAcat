@@ -29,8 +29,7 @@ int get_radio_mode()
 
 esp_err_t handler_mode_get(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     ESP_LOGI(TAG, "handler_mode_get()");
 
@@ -71,8 +70,7 @@ esp_err_t handler_mode_get(httpd_req_t *req)
 
 esp_err_t handler_rxBandwidth_get(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     ESP_LOGI(TAG, "handler_rxBandwidth_get()");
 
@@ -114,8 +112,7 @@ esp_err_t handler_rxBandwidth_get(httpd_req_t *req)
 // ====================================================================================================
 esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     ESP_LOGI(TAG, "handler_rxBandwidth_put()");
 
@@ -222,8 +219,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
 
 esp_err_t handler_mode_put(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     ESP_LOGI(TAG, "handler_mode_put()");
 

@@ -224,8 +224,7 @@ void cleanup_ft8_task(void *pvParameter)
 // ====================================================================================================
 esp_err_t handler_prepareft8_post(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     if (CommandInProgress || ft8ConfigInfo != NULL)
     {
@@ -384,8 +383,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
 // ====================================================================================================
 esp_err_t handler_ft8_post(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     if (ft8TaskInProgress)
     {

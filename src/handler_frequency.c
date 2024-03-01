@@ -7,8 +7,7 @@
 
 esp_err_t handler_frequency_get(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     ESP_LOGI(TAG, "handler_frequency_get()");
 
@@ -36,8 +35,7 @@ esp_err_t handler_frequency_get(httpd_req_t *req)
 // ====================================================================================================
 esp_err_t handler_frequency_put(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     char *buf;
     size_t buf_len;

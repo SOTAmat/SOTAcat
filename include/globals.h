@@ -7,8 +7,8 @@
 extern const char *TAG;
 
 extern time_t LastUserActivityUnixTime;
-extern bool NewCommandReceived;
 extern bool CommandInProgress;
+extern void showActivity();
 
 extern adc_oneshot_unit_handle_t Global_adc1_handle;
 extern adc_oneshot_unit_init_cfg_t Global_init_config1;

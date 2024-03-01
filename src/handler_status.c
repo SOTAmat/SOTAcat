@@ -7,8 +7,7 @@
 
 esp_err_t handler_connectionStatus_get(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     ESP_LOGI(TAG, "%s()", __func__);
 

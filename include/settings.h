@@ -7,7 +7,7 @@
 #define BATTERY_CALIBRATION_VALUE 1.006879
 
 // LED behavior
-#define LED_FLASH_MSEC 30
+#define LED_FLASH_MSEC 25
 #define LED_OFF_TIME_MSEC 3000
 
 // Power management
