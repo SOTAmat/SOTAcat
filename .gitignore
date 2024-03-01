@@ -67,7 +67,10 @@ compile_commands.json
 # configs especially volatile during development
 dependencies.lock
 # Used by the ESP-IDF build system to store configuration options such as boot logging and partition table:
-sdkconfig.seeed*
+# We want to keep the default configuration file, but ignore the generated ones:
+sdkconfig.*
+!sdkconfig.default
+
 
 # ESP-IDF managed_compoments
 managed_components/

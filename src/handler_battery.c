@@ -56,8 +56,7 @@ float get_battery_percentage(float voltage)
 
 esp_err_t handler_batteryPercent_get(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     ESP_LOGI(TAG, "handler_batteryPercent_get()");
     float batt_voltage = get_battery_voltage();
@@ -70,8 +69,7 @@ esp_err_t handler_batteryPercent_get(httpd_req_t *req)
 
 esp_err_t handler_batteryVoltage_get(httpd_req_t *req)
 {
-    NewCommandReceived = true;
-    gpio_set_level(LED_RED, LED_ON);
+    showActivity();
 
     ESP_LOGI(TAG, "handler_batteryVoltage_get()");
     float batt_voltage = get_battery_voltage();

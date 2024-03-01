@@ -14,15 +14,6 @@ void idle_status_task(void *pvParameter)
 {
     while (1)
     {
-
-        if (NewCommandReceived)
-        {
-            // Reset the timer
-            NewCommandReceived = false;
-            time(&LastUserActivityUnixTime);
-            gpio_set_level(LED_RED, LED_OFF);
-        }
-
         get_battery_voltage();
 
         // Get the current time
@@ -56,4 +47,43 @@ void idle_status_task(void *pvParameter)
 
         vTaskDelay(LED_OFF_TIME_MSEC / portTICK_PERIOD_MS);
     }
+}
+
+// ====================================================================================================
+static TaskHandle_t showUserActivityBlinkTaskHandle = NULL;
+
+// LED Control Task
+void activityLedBlinkTask(void *param) 
+{
+    while(true)
+    {
+        // Wait for the signal to turn off the LED with after a timeout
+        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(LED_FLASH_MSEC)) == pdTRUE) 
+        {
+            // If we received a notification, it means the timer was reset
+            // Continue to wait again for 50ms or for another reset
+            continue;
+        }
+
+        gpio_set_level(LED_RED, LED_OFF);
+    }
+}
+
+// Function called by handlers to show the user that a command was received
+// by blinking the LED.  Needs to handle the reentrancy case where a new
+// command is received before the LED is done blinking.
+// This runs as a low priority task so it can be interrupted by real work.
+void showActivity()
+{
+    // The first time we setup the task that will turn off the LED
+    if (showUserActivityBlinkTaskHandle == NULL) {
+        xTaskCreate(activityLedBlinkTask, "ActivityLEDblinkControlTask", 2048, NULL, tskIDLE_PRIORITY, &showUserActivityBlinkTaskHandle);
+    }
+
+    // Reset the inactivity timer and remember how long it has been since the last user activity
+    time(&LastUserActivityUnixTime);
+    gpio_set_level(LED_RED, LED_ON);
+
+    // Signal the LED control task to reset its wait timer
+    xTaskNotifyGive(showUserActivityBlinkTaskHandle);
 }

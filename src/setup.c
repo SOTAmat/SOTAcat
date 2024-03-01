@@ -16,7 +16,6 @@
 #include "wifi.h"
 
 time_t LastUserActivityUnixTime;
-bool NewCommandReceived = true;
 bool CommandInProgress = false;
 
 // ====================================================================================================
