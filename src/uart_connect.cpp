@@ -10,27 +10,29 @@ static const char * TAG8 = "sc:uartconn";
 
 int uart_connect()
 {
+    const std::lock_guard<Lock> lock(RadioPortLock);
+    int baud_rates[] = {38400, 19200, 9600, 4800};
+    size_t num_rates = sizeof(baud_rates) / sizeof(baud_rates[0]);
+
+    // Install the UART driver using an event queue to handle UART events
+    uart_driver_install(UART_NUM, 1024, 0, 0, NULL, 0);
+
     // Configure the pins for UART2 (Serial2)
     uart_config_t uart_config = {
-        .baud_rate = 19200,
+        .baud_rate = baud_rates[0],
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .rx_flow_ctrl_thresh = 0, // not used since flow_ctrl disabled
         .source_clk = UART_SCLK_APB,
     };
-
-    // Install the UART driver using an event queue to handle UART events
-    uart_driver_install(UART_NUM, 1024, 0, 0, NULL, 0);
     uart_param_config(UART_NUM, &uart_config);
     uart_set_pin(UART_NUM, UART2_TX_PIN, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     // Invert UART2 TX and RX signals
     uart_set_line_inverse(UART_NUM, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
 
-    int baud_rates[] = {4800, 9600, 19200, 38400};
-    size_t num_rates = sizeof(baud_rates) / sizeof(baud_rates[0]);
     uint8_t buffer[256];
-
     while (true)
     {
         for (size_t i = 0; i < num_rates; ++i)
