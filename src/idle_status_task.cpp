@@ -18,6 +18,14 @@ void idle_status_task(void *pvParameter)
     {
         get_battery_voltage();
 
+        size_t _free = 0;
+        size_t _alloc = 0;
+        multi_heap_info_t hinfo;
+        heap_caps_get_info(&hinfo,  MALLOC_CAP_DEFAULT);
+        _free = hinfo.total_free_bytes;
+        _alloc = hinfo.total_allocated_bytes;
+        ESP_LOGV(TAG8,"heap: %u (used %u, free %u) [bytes]", _alloc + _free, _alloc, _free);
+
         // Get the current time
         time_t now;
         time(&now); // Time in seconds
