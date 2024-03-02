@@ -1,9 +1,11 @@
 #include "driver/gpio.h"
 #include "esp_http_server.h"
-#include "esp_log.h"
 #include "kx_commands.h"
 #include "globals.h"
 #include "settings.h"
+
+#include "esp_log.h"
+static const char * TAG8 = "sc:hdl_mode";
 
 typedef enum
 {
@@ -20,7 +22,7 @@ typedef enum
 
 radio_mode_t get_radio_mode()
 {
-    ESP_LOGI(TAG, "get_radio_mode()");
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     RadioPortLock.lock();
     long mode = get_from_kx("MD", 2, 1);
@@ -33,7 +35,7 @@ esp_err_t handler_mode_get(httpd_req_t *req)
 {
     showActivity();
 
-    ESP_LOGI(TAG, "handler_mode_get()");
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     radio_mode_t mode = get_radio_mode();
     switch (mode)
@@ -63,7 +65,7 @@ esp_err_t handler_mode_get(httpd_req_t *req)
         httpd_resp_send(req, "DATA-R", HTTPD_RESP_USE_STRLEN);
         break;
     default:
-        ESP_LOGI(TAG, "ERROR: Bad mode received: %d", mode);
+        ESP_LOGE(TAG8, "bad mode received: %d", mode);
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
@@ -74,10 +76,10 @@ esp_err_t handler_rxBandwidth_get(httpd_req_t *req)
 {
     showActivity();
 
-    ESP_LOGI(TAG, "handler_rxBandwidth_get()");
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     radio_mode_t mode = get_radio_mode();
-    ESP_LOGI(TAG, "handler_rxBandwidth_get() mode = %c", mode + '0');
+    ESP_LOGI(TAG8, "mode = %c", mode + '0');
 
     switch (mode)
     {
@@ -104,7 +106,7 @@ esp_err_t handler_rxBandwidth_get(httpd_req_t *req)
         httpd_resp_send(req, "DATA-R", HTTPD_RESP_USE_STRLEN);
         break;
     default:
-        ESP_LOGI(TAG, "ERROR: Bad mode received: %d", mode);
+        ESP_LOGE(TAG8, "bad mode received: %d", mode);
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
@@ -116,7 +118,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
 {
     showActivity();
 
-    ESP_LOGI(TAG, "handler_rxBandwidth_put()");
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     // Get the length of the URL query
     size_t buf_len = httpd_req_get_url_query_len(req) + 1;
@@ -132,7 +134,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
         // Get the URL query
         if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK)
         {
-            ESP_LOGI(TAG, "handler_rxBandwidth_put() called with query: %s", buf);
+            ESP_LOGI(TAG8, "query = \"%s\"", buf);
 
             char bw[32] = {0};
             // Parse the 'bw' parameter from the query
@@ -193,7 +195,7 @@ esp_err_t handler_mode_put(httpd_req_t *req)
 {
     showActivity();
 
-    ESP_LOGI(TAG, "handler_mode_put()");
+    ESP_LOGI(TAG8, "handler_mode_put()");
 
     httpd_resp_send_404(req); // No query string
     return ESP_FAIL;

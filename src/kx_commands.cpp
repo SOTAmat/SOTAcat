@@ -1,12 +1,13 @@
 #include "driver/uart.h"
 #include "esp_http_server.h"
-#include "esp_log.h"
 #include "esp_timer.h"
 #include "kx_commands.h"
 #include "globals.h"
 #include "settings.h"
 #include "settings_radio_specific.h"
 
+#include "esp_log.h"
+static const char * TAG8 = "sc:kx_cmds.";
 
 /**
  * The mutex lock on the serial port / uart for ACC comm to/fron the radio
@@ -18,20 +19,19 @@ Lock::Lock() :
 }
 
 void Lock::lock() {
-    ESP_LOGI(TAG, "locking radio");
+    ESP_LOGI(TAG8, "locking radio");
     xSemaphoreTake(m_mutex, portMAX_DELAY);
     m_locked = true;
-    ESP_LOGI(TAG, "radio LOCKED --");
+    ESP_LOGI(TAG8, "radio LOCKED --");
 }
 
 void Lock::unlock() {
     xSemaphoreGive(m_mutex);
     m_locked = false;
-    ESP_LOGI(TAG, "-- radio UNLOCKED");
+    ESP_LOGI(TAG8, "-- radio UNLOCKED");
 }
 
 Lock RadioPortLock;
-
 
 /**
  * Functions that directly communicate with the radio
@@ -41,13 +41,15 @@ Lock RadioPortLock;
 
 void empty_kx_input_buffer(int wait_ms)
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     if (!RadioPortLock.locked())
-        ESP_LOGI(TAG, "RADIO PORT NOT LOCKED! (coding error in caller)");
+        ESP_LOGE(TAG8, "RADIO PORT NOT LOCKED! (coding error in caller)");
 
     char in_buff[64];
     long returned_chars = uart_read_bytes(UART_NUM, in_buff, sizeof(in_buff) - 1, pdMS_TO_TICKS(wait_ms));
     in_buff[returned_chars] = '\0';
-    ESP_LOGI(TAG, "empty_kx_input_buffer() called, ate %ld bytes in %d ms with chars: %s", returned_chars, wait_ms, in_buff);
+    ESP_LOGV(TAG8, "empty_kx_input_buffer() called, ate %ld bytes in %d ms with chars: %s", returned_chars, wait_ms, in_buff);
 }
 
 // MDn; - Get the current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
@@ -57,10 +59,12 @@ void empty_kx_input_buffer(int wait_ms)
 // APn; - Get the current Audio Peaking filter setting for CW: 0 for APF OFF and 1 for APF ON
 
 // --------------------------------------------------------------------------------------------
-bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expected_chars, int tries, int wait_ms)
+static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expected_chars, int tries, int wait_ms)
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     if (!RadioPortLock.locked())
-        ESP_LOGI(TAG, "RADIO PORT NOT LOCKED! (coding error in caller)");
+        ESP_LOGE(TAG8, "RADIO PORT NOT LOCKED! (coding error in caller)");
 
     uart_flush(UART_NUM);
     uart_write_bytes(UART_NUM, cmd, strlen(cmd));
@@ -73,7 +77,7 @@ bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expec
     {
         // The radio is saying it was busy and unable to respond to the command yet.
         // We need to pause a bit and try again.  We don't count this as a "retry" since it wasn't an error.
-        ESP_LOGI(TAG, "Radio busy, retrying...");
+        ESP_LOGW(TAG8, "radio busy, retrying...");
         vTaskDelay(pdMS_TO_TICKS(30));
         return uart_get_command(cmd, cmd_length, out_buff, expected_chars, tries, wait_ms);
     }
@@ -100,10 +104,10 @@ bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expec
 
     if (bad_response)
     {
-        ESP_LOGI(TAG, "ERROR: uart_get_command() bad result from %s after %.3f ms, returned bytes=%d, out_buff=%c%c%c%c%c%c...", cmd, elapsed_ms, returned_chars, out_buff[0], out_buff[1], out_buff[2], out_buff[3], out_buff[4], out_buff[5]);
+        ESP_LOGE(TAG8, "bad result from command '%s' after %.3f ms, returned bytes=%d, out_buff=%c%c%c%c%c%c...", cmd, elapsed_ms, returned_chars, out_buff[0], out_buff[1], out_buff[2], out_buff[3], out_buff[4], out_buff[5]);
         if (--tries > 0)
         {
-            ESP_LOGI(TAG, "Retrying...");
+            ESP_LOGI(TAG8, "Retrying...");
             empty_kx_input_buffer(wait_ms);
             return uart_get_command(cmd, cmd_length, out_buff, expected_chars, tries - 1, wait_ms);
         }
@@ -112,7 +116,7 @@ bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expec
     }
 
     out_buff[expected_chars - 1] = '\0'; // Null terminate the string after the semicolon
-    ESP_LOGI(TAG, "uart_get_command(%s) returned %s after %.3f ms", cmd, out_buff, elapsed_ms);
+    ESP_LOGI(TAG8, "command '%s' returned '%s' after %.3f ms", cmd, out_buff, elapsed_ms);
     return true;
 }
 
@@ -149,13 +153,15 @@ static long parse_response(const char *out_buff, int num_digits)
 // --------------------------------------------------------------------------------------------
 long get_from_kx(const char *command, int tries, int num_digits)
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     char cmd_buff[8] = {0};
     char out_buff[16] = {0};
 
     int command_size = strlen(command);
     if ((command_size != 2 && command_size != 3) || num_digits < 1 || num_digits > 11)
     {
-        ESP_LOGI(TAG, "ERROR: get_from_kx() called with invalid command %s and expected digits of %d", command, num_digits);
+        ESP_LOGE(TAG8, "invalid command '%s' and expected digits of %d", command, num_digits);
         return '\0';
     }
 
@@ -174,13 +180,15 @@ long get_from_kx(const char *command, int tries, int num_digits)
         return -1; // Error was already logged
 
     long result = parse_response(out_buff, num_digits);
-    ESP_LOGI(TAG, "get_from_kx(%s) = %ld", command, result);
+    ESP_LOGI(TAG8, "kx command '%s' returns %ld", command, result);
     return result;
 }
 
 // ====================================================================================================
 long get_from_kx_menu_item(uint8_t menu_item, int tries)
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     put_to_kx("MN", 3, menu_item, 2); // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
 
     long value = get_from_kx("MP", tries, 3); // Get the menu item value
@@ -193,21 +201,21 @@ long get_from_kx_menu_item(uint8_t menu_item, int tries)
 // ====================================================================================================
 bool put_to_kx(const char *command, int num_digits, long value, int tries)
 {
-    char out_buff[16];
-    ESP_LOGI(TAG, "put_to_kx(%s) attempting value %ld", command, value);
+    ESP_LOGV(TAG8, "put_to_kx(%s) attempting value %ld", command, value);
 
     if (strlen(command) != 2 || value < 0)
     {
-        ESP_LOGI(TAG, "ERROR: put_to_kx() called with invalid command %s or value %ld", command, value);
+        ESP_LOGE(TAG8, "invalid command '%s' or value %ld", command, value);
         return false;
     }
 
+    char out_buff[16];
     switch (num_digits)
     {
     case 1: // Handling n-type response
         if (value > 9)
         {
-            ESP_LOGI(TAG, "ERROR: put_to_kx() called with invalid value %u for command %s", (unsigned int) value, command);
+            ESP_LOGE(TAG8, "invalid value %u for command '%s'", (unsigned int) value, command);
             return false;
         }
         snprintf(out_buff, sizeof(out_buff), "%s%u;", command, (unsigned int) value);
@@ -215,7 +223,7 @@ bool put_to_kx(const char *command, int num_digits, long value, int tries)
     case 3: // Handling nnn-type response
         if (value > 999)
         {
-            ESP_LOGI(TAG, "ERROR: put_to_kx_n() called with invalid value %u for command %s", (unsigned int) value, command);
+            ESP_LOGE(TAG8, "invalid value %u for command '%s'", (unsigned int) value, command);
             return false;
         }
         snprintf(out_buff, sizeof(out_buff), "%s%03u;", command, (unsigned int) value);
@@ -224,7 +232,7 @@ bool put_to_kx(const char *command, int num_digits, long value, int tries)
         snprintf(out_buff, sizeof(out_buff), "%s%011ld;", command, value);
         break;
     default:
-        ESP_LOGI(TAG, "ERROR: put_to_kx() called with invalid num_digits and command %s with value %ld", command, value);
+        ESP_LOGE(TAG8, "invalid num_digits and command '%s' with value %ld", command, value);
         return false;
     }
 
@@ -245,11 +253,11 @@ bool put_to_kx(const char *command, int num_digits, long value, int tries)
 
         if (out_value == adjusted_value)
         {
-            ESP_LOGI(TAG, "put_to_kx(%s) success with value %ld", command, adjusted_value);
+            ESP_LOGI(TAG8, "command '%s' successful; value = %ld", command, adjusted_value);
             return true;
         }
  
-        ESP_LOGI(TAG, "ERROR: put_to_kx() failed to set %s to %ld on %d tries", command, value, attempt + 1);
+        ESP_LOGE(TAG8, "failed to set '%s' to %ld on %d tries", command, value, attempt + 1);
     }
 
     return false;
@@ -258,6 +266,8 @@ bool put_to_kx(const char *command, int num_digits, long value, int tries)
 // ====================================================================================================
 bool put_to_kx_menu_item(uint8_t menu_item, long value, int tries)
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     put_to_kx("MN", 3, menu_item, 2); // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
 
     // Get the menu item value
@@ -272,7 +282,7 @@ bool put_to_kx_menu_item(uint8_t menu_item, long value, int tries)
 // ====================================================================================================
 void get_kx_state(kx_state_t *in_state)
 {
-    ESP_LOGI(TAG, "get_kx_state() called");
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     // Get the current radio state
     in_state->active_vfo = (uint8_t)get_from_kx("FT", 2, 1);   // FTn; - Get current VFO:  0 for VFO A, 1 for VFO B
@@ -283,15 +293,15 @@ void get_kx_state(kx_state_t *in_state)
     put_to_kx("MD", 1, 3, 2);                          // To get the peaking filter mode we have to be in CW mode
     in_state->audio_peaking = get_from_kx("AP", 2, 1); // APn; - Get Audio Peaking CW filter: 0 for APF OFF and 1 for APF ON
 
-    // // Now return to the prior mode
-
+    // FIXME:
+    // Now return to the prior mode
 }
 
 // ====================================================================================================
+// Restore the radio to its prior state
 void restore_kx_state(const kx_state_t *in_state, int tries)
 {
-    // Restore the radio to its prior state
-    ESP_LOGI(TAG, "restore_kx_state() called");
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     put_to_kx("MD", 1, 3, 2);                       // To reset the Peaking Filter mode we have to be in CW mode: MD3;
     put_to_kx("AP", 1, in_state->audio_peaking, 2); // APn;
@@ -301,5 +311,5 @@ void restore_kx_state(const kx_state_t *in_state, int tries)
     put_to_kx("FT", 1, in_state->active_vfo, 2);
     put_to_kx_menu_item(58, in_state->tun_pwr, 2);
 
-    ESP_LOGI(TAG, "restore_kx_state() done");
+    ESP_LOGI(TAG8, "restore done");
 }

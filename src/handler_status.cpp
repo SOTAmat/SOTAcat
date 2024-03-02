@@ -1,16 +1,18 @@
 #include "driver/gpio.h"
 #include "esp_http_server.h"
-#include "esp_log.h"
 #include "kx_commands.h"
 #include "globals.h"
 #include "settings.h"
 #include <mutex>
 
+#include "esp_log.h"
+static const char * TAG8 = "sc:hdl_stat";
+
 esp_err_t handler_connectionStatus_get(httpd_req_t *req)
 {
     showActivity();
 
-    ESP_LOGI(TAG, "%s()", __func__);
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     long transmitting;
     {
@@ -30,6 +32,6 @@ esp_err_t handler_connectionStatus_get(httpd_req_t *req)
             symbol = "⚪";
     }
     httpd_resp_send(req, symbol, HTTPD_RESP_USE_STRLEN);
-    ESP_LOGI(TAG, "Returning connection status: %s", symbol);
+    ESP_LOGI(TAG8, "returning connection status: %s", symbol);
     return ESP_OK;
 }

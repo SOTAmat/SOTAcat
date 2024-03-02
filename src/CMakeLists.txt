@@ -22,3 +22,5 @@ idf_component_register(
         "web/about.html"
         )
 
+# Apply compile definitions to this component
+target_compile_definitions(${COMPONENT_LIB} PRIVATE LOG_LOCAL_LEVEL=ESP_LOG_VERBOSE)

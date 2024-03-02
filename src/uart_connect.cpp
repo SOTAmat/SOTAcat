@@ -1,10 +1,12 @@
 #include <string.h>
 #include "driver/uart.h"
-#include "esp_log.h"
 #include "globals.h"
 #include "kx_commands.h"
 #include "settings.h"
 #include "uart_connect.h"
+
+#include "esp_log.h"
+static const char * TAG8 = "sc:uartconn";
 
 int uart_connect()
 {
@@ -43,16 +45,16 @@ int uart_connect()
             if (length > 0)
             {
                 buffer[length] = '\0'; // Null terminate the string
-                ESP_LOGI(TAG, "Received %d bytes: %s", length, buffer);
+                ESP_LOGV(TAG8, "received %d bytes: %s", length, buffer);
 
                 if (strstr((char *)buffer, "RVR99.99;") != NULL)
                 {
-                    ESP_LOGI(TAG, "-------------------Correct baud rate found: %d", baud_rates[i]);
+                    ESP_LOGI(TAG8, "correct baud rate found: %d", baud_rates[i]);
                     uart_write_bytes(UART_NUM, ";AI0;", strlen(";AI0;"));
 
                     if (baud_rates[i] != 38400)
                     {
-                        ESP_LOGI(TAG, "Forcing baud rate to 38400 for FSK use (FT8, etc.)...");
+                        ESP_LOGI(TAG8, "forcing baud rate to 38400 for fsk use (ft8, etc.)...");
                         // Normally we would call "put_to_kx()" but the KX BRn; command does not allow a "get" response so we can't use that function here.
                         for (int j = 0; j < 2; j++)
                         {
@@ -65,9 +67,7 @@ int uart_connect()
                 }
             }
             else
-            {
-                ESP_LOGI(TAG, "No response received for baud rate %d", baud_rates[i]);
-            }
+                ESP_LOGI(TAG8, "no response received for baud rate %d", baud_rates[i]);
         }
     }
 }

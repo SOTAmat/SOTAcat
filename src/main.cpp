@@ -1,11 +1,11 @@
-#include "esp_log.h"
 #include "loop.h"
 #include "setup.h"
 
-const char *TAG = "SOTAmat";
+#include "esp_log.h"
+static const char * TAG8 = "sc:SOTAcat.";
 
 extern "C" void app_main(void) {
-    ESP_LOGI(TAG, "app_main() started");
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     setup();
 

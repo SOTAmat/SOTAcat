@@ -1,48 +1,51 @@
-#include "esp_log.h"
 #include "globals.h"
 #include "webserver.h"
 
+#include "esp_log.h"
+static const char * TAG8 = "sc:webserve";
+
 asset_entry_t asset_map[] = {
-    {"/", index_html_srt, index_html_end, "text/html", 60}, // 1 minute cache
-    {"/index.html", index_html_srt, index_html_end, "text/html", 60},
-    {"/style.css", style_css_srt, style_css_end, "text/css", 60},
-    {"/main.js", main_js_srt, main_js_end, "text/javascript", 60},
-    {"/sclogo.png", sclogo_png_srt, sclogo_png_end, "image/png", 0}, // Cache forever
-    {"/favicon.ico", favicon_ico_srt, favicon_ico_end, "image/x-icon", 0},
-    {"/sota.html", sota_html_srt, sota_html_end, "text/html", 60},
-    {"/sota.js", sota_js_srt, sota_js_end, "text/javascript", 60},
-    {"/pota.html", pota_html_srt, pota_html_end, "text/html", 60},
-    {"/pota.js", pota_js_srt, pota_js_end, "text/javascript", 60},
-    {"/settings.html", settings_html_srt, settings_html_end, "text/html", 60},
-    {"/about.html", about_html_srt, about_html_end, "text/html", 60},
-    {NULL, NULL, NULL, NULL, 0}};
+    {"/",              index_html_srt,    index_html_end,    "text/html",       60}, // 1 minute cache
+    {"/index.html",    index_html_srt,    index_html_end,    "text/html",       60},
+    {"/style.css",     style_css_srt,     style_css_end,     "text/css",        60},
+    {"/main.js",       main_js_srt,       main_js_end,       "text/javascript", 60},
+    {"/sclogo.png",    sclogo_png_srt,    sclogo_png_end,    "image/png",       0}, // Cache forever
+    {"/favicon.ico",   favicon_ico_srt,   favicon_ico_end,   "image/x-icon",    0},
+    {"/sota.html",     sota_html_srt,     sota_html_end,     "text/html",       60},
+    {"/sota.js",       sota_js_srt,       sota_js_end,       "text/javascript", 60},
+    {"/pota.html",     pota_html_srt,     pota_html_end,     "text/html",       60},
+    {"/pota.js",       pota_js_srt,       pota_js_end,       "text/javascript", 60},
+    {"/settings.html", settings_html_srt, settings_html_end, "text/html",       60},
+    {"/about.html",    about_html_srt,    about_html_end,    "text/html",       60},
+    {NULL,             NULL,              NULL,              NULL,              0}
+};
 
 // Arrays for GET, PUT, POST handlers
 const api_handler_t get_handlers[] = {
-    {"batteryPercent", handler_batteryPercent_get},
-    {"batteryVoltage", handler_batteryVoltage_get},
-    {"frequency", handler_frequency_get},
-    {"mode", handler_mode_get},
-    {"rxBandwidth", handler_rxBandwidth_get},
+    {"batteryPercent",   handler_batteryPercent_get},
+    {"batteryVoltage",   handler_batteryVoltage_get},
+    {"frequency",        handler_frequency_get},
+    {"mode",             handler_mode_get},
+    {"rxBandwidth",      handler_rxBandwidth_get},
     {"connectionStatus", handler_connectionStatus_get},
-    {NULL, NULL} // Sentinel to mark end of array
+    {NULL,               NULL} // Sentinel to mark end of array
 };
 
 const api_handler_t put_handlers[] = {
-    {"frequency", handler_frequency_put},
-    {"mode", handler_mode_put},
-    {"rxBandwidth", handler_rxBandwidth_put},
-    {NULL, NULL} // Sentinel
+    {"frequency",        handler_frequency_put},
+    {"mode",             handler_mode_put},
+    {"rxBandwidth",      handler_rxBandwidth_put},
+    {NULL,               NULL} // Sentinel
 };
 
 const api_handler_t post_handlers[] = {
-    {"prepareft8", handler_prepareft8_post},
-    {"ft8", handler_ft8_post},
-    {"cancelft8", handler_cancelft8_post},
-    {NULL, NULL} // Sentinel
+    {"prepareft8",       handler_prepareft8_post},
+    {"ft8",              handler_ft8_post},
+    {"cancelft8",        handler_cancelft8_post},
+    {NULL,               NULL} // Sentinel
 };
 
-int find_and_execute_handler(const char *api_name, const api_handler_t *handlers, httpd_req_t *req)
+static int find_and_execute_handler(const char *api_name, const api_handler_t *handlers, httpd_req_t *req)
 {
     // Ignore any query string if there is one:
     size_t compare_length = strcspn(api_name, "?");
@@ -50,11 +53,9 @@ int find_and_execute_handler(const char *api_name, const api_handler_t *handlers
     for (int i = 0; handlers[i].api_name != NULL; i++)
     {
         if (strncmp(api_name, handlers[i].api_name, compare_length) == 0)
-        {
             return handlers[i].handler_func(req);
-        }
     }
-    ESP_LOGI(TAG, "find_and_execute_handler(): Handler not found for API: %s", api_name);
+    ESP_LOGE(TAG8, "handler not found for api: %s", api_name);
     httpd_resp_send_404(req);
     return ESP_FAIL; // Handler not found
 }
@@ -82,13 +83,9 @@ esp_err_t dynamic_file_handler(httpd_req_t *req)
 
     char cache_header[64];
     if (asset_map[ii].cache_time > 0)
-    {
         snprintf(cache_header, sizeof(cache_header), "max-age=%ld", asset_map[ii].cache_time);
-    }
     else // cache forever
-    {
         snprintf(cache_header, sizeof(cache_header), "max-age=31536000"); // 1 year
-    }
     httpd_resp_set_hdr(req, "Cache-Control", cache_header);
 
     httpd_resp_send(
@@ -101,7 +98,7 @@ esp_err_t dynamic_file_handler(httpd_req_t *req)
 
 esp_err_t my_http_request_handler(httpd_req_t *req)
 {
-    ESP_LOGI(TAG, "Call to my_http_request_handler() with URI: %s", req->uri);
+    ESP_LOGV(TAG8, "trace: %s() with URI: %s", __func__, req->uri);
     const char *requested_uri = req->uri;
 
     // 1. Check for REST API calls
@@ -131,19 +128,22 @@ esp_err_t my_http_request_handler(httpd_req_t *req)
 // bool custom_uri_matcher(httpd_req_t *r)
 bool custom_uri_matcher(const char *uri1, const char *uri2, unsigned int uri_len)
 {
-    // Since we want a catch-all, we always match:
-    return true;
+    return true;  // since we want a catch-all, we always match
 }
 
 void start_webserver()
 {
+    ESP_LOGV(TAG8, "trace: %s", __func__);
+
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     httpd_handle_t server = NULL;
 
     config.max_uri_handlers = 6;
     config.uri_match_fn = custom_uri_matcher; // Configure to use your matcher
 
-    if (httpd_start(&server, &config) == ESP_OK)
+    if (httpd_start(&server, &config) != ESP_OK)
+        ESP_LOGE(TAG8, "failed to start webserver.");
+    else
     {
         httpd_uri_t uri_api = {
             .uri = "/", // Not used: we match all URIs based on the custom_uri_matcher
@@ -156,6 +156,6 @@ void start_webserver()
         uri_api.method = HTTP_POST;
         httpd_register_uri_handler(server, &uri_api);
 
-        ESP_LOGI(TAG, "Completed defining Webserver callbacks");
+        ESP_LOGI(TAG8, "defined webserver callbacks.");
     }
 }

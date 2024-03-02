@@ -2,12 +2,14 @@
 #include <time.h>
 #include "driver/gpio.h"
 #include "enter_deep_sleep.h"
-#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "get_battery_voltage.h"
 #include "globals.h"
 #include "settings.h"
+
+#include "esp_log.h"
+static const char * TAG8 = "sc:idletask";
 
 // ====================================================================================================
 void idle_status_task(void *pvParameter)
@@ -21,7 +23,7 @@ void idle_status_task(void *pvParameter)
         time(&now); // Time in seconds
 
         int blinks = ceil((now - LastUserActivityUnixTime) / (AUTO_SHUTDOWN_TIME_SECONDS / 4.0));
-        ESP_LOGI(TAG, "Blinks %d", blinks);
+        ESP_LOGV(TAG8, "blinks %d", blinks);
         if (blinks > 4)
         {
             gpio_set_level(LED_BLUE, LED_ON);
@@ -31,7 +33,7 @@ void idle_status_task(void *pvParameter)
             gpio_set_level(LED_RED, LED_OFF);
 
             // Power off, the user has been idle for the limit.
-            ESP_LOGI(TAG, "Powering off due to inactivity");
+            ESP_LOGI(TAG8, "powering off due to inactivity");
 
             enter_deep_sleep();
         }

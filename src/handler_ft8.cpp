@@ -1,11 +1,9 @@
 #include <ctype.h>
 #include <math.h>
 #include <sys/time.h>
-
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "esp_http_server.h"
-#include "esp_log.h"
 #include "esp_timer.h"
 #include "handler_ft8.h"
 #include "globals.h"
@@ -16,11 +14,14 @@
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
 
+#include "esp_log.h"
+static const char * TAG8 = "sc:hdl_ft8.";
+
 int64_t CancelRadioFT8ModeTime = 0;
 bool ft8TaskInProgress = false;
 ft8_task_pack_t *ft8ConfigInfo = NULL;
 
-bool url_decode_in_place(char *str)
+static bool url_decode_in_place(char *str)
 {
     char *dst = str;
     int a, b;
@@ -82,6 +83,8 @@ static long msUntilFT8Window()
 // ====================================================================================================
 static void waitForFT8Window()
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     long delay_ms = msUntilFT8Window();
 
     // Use vTaskDelay to wait for the calculated delay in ticks
@@ -95,6 +98,8 @@ static void waitForFT8Window()
 
 static void sendFT8Tone(long prior_frequency, long frequency, TickType_t *lastWakeTime, const TickType_t toneInterval)
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     char command[16];
     // Ease into the new frequency based on the prior frequency in x steps lasting 10% of the interval
     long delta_frequency = frequency - prior_frequency;
@@ -115,15 +120,17 @@ static void sendFT8Tone(long prior_frequency, long frequency, TickType_t *lastWa
 // ====================================================================================================
 static void xmit_ft8_task(void *pvParameter)
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     if (ft8TaskInProgress)
     {
-        ESP_LOGI(TAG, "ERROR: xmit_ft8_task() called while another FT8 task is in progress.");
+        ESP_LOGE(TAG8, "%s called while another FT8 task is in progress.", __func__);
         vTaskDelete(NULL);
         return;
     }
     if (ft8ConfigInfo == NULL)
     {
-        ESP_LOGI(TAG, "ERROR: xmit_ft8_task() called with ft8ConfigInfo == NULL");
+        ESP_LOGE(TAG8, "%s called with ft8ConfigInfo == NULL", __func__);
         vTaskDelete(NULL);
         return;
     }
@@ -131,7 +138,7 @@ static void xmit_ft8_task(void *pvParameter)
     RadioPortLock.lock();
     ft8TaskInProgress = true;
 
-    ESP_LOGI(TAG, "xmit_ft8_task() started.");
+    ESP_LOGI(TAG8, "ft8 transmission starting--");
 
     // Get ready, do any pre-work before the 'waitForFT8Window()' call so we start at the right time
     struct timeval startTime;
@@ -171,19 +178,19 @@ static void xmit_ft8_task(void *pvParameter)
     struct timeval endTime;
     gettimeofday(&endTime, NULL);
     long totalTime = (endTime.tv_sec - startTime.tv_sec) * 1000 + (endTime.tv_usec - startTime.tv_usec) / 1000;
-    ESP_LOGI(TAG, "FT8 transmission time: %ld ms", totalTime);
+    ESP_LOGI(TAG8, "ft8 transmission time: %ld ms", totalTime);
 
     // Note that the cleanup will happen in the watchdog 'cleanup_ft8_task' function
     RadioPortLock.unlock();
     ft8TaskInProgress = false;
-    ESP_LOGI(TAG, "xmit_ft8_task() completed.");
+    ESP_LOGI(TAG8, "--ft8 transmission completed.");
     vTaskDelete(NULL);
 }
 
 // ====================================================================================================
 static void cleanup_ft8_task(void *pvParameter)
 {
-    ESP_LOGI(TAG, "cleanup_ft8_task() started.");
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     // Function gets called 15 seconds after the FT8 transmission starts so that we can clean up.
     // This acts as a watchdog which can be reset when repeated FT8 transmissions are sent, but
@@ -197,7 +204,7 @@ static void cleanup_ft8_task(void *pvParameter)
     if (ft8ConfigInfo == NULL)
     {
         // This should never happen, but just in case...
-        ESP_LOGI(TAG, "ERROR: cleanup_ft8_task called with ft8ConfigInfo == NULL");
+        ESP_LOGI(TAG8, "ERROR: cleanup_ft8_task called with ft8ConfigInfo == NULL");
         CommandInProgress = false;
         vTaskDelete(NULL);
         return;
@@ -213,7 +220,7 @@ static void cleanup_ft8_task(void *pvParameter)
     delete ft8ConfigInfo;
     ft8ConfigInfo = NULL;
     CommandInProgress = false;
-    ESP_LOGI(TAG, "cleanup_ft8_task() completed.");
+    ESP_LOGI(TAG8, "cleanup_ft8_task() completed.");
     vTaskDelete(NULL);
 }
 
@@ -222,9 +229,11 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
 {
     showActivity();
 
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     if (CommandInProgress || ft8ConfigInfo != NULL)
     {
-        ESP_LOGI(TAG, "ERROR: handler_prepareft8_post() called while another command is in progress.");
+        ESP_LOGE(TAG8, "%s called while another command is in progress", __func__);
         httpd_resp_send_500(req); // Bad request because another is in progress!
         return ESP_FAIL;
     }
@@ -238,7 +247,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
         char *buf = new char[buf_len + 1];
         if (!buf)
         {
-            ESP_LOGI(TAG, "ERROR: handler_prepareft8_post() : heap allocation failed.");
+            ESP_LOGE(TAG8, "heap allocation failed");
             httpd_resp_send_500(req);
             CommandInProgress = false;
             return ESP_FAIL;
@@ -256,7 +265,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
             int audioFreq = 0;
             char *timeStringEndChar = NULL;
 
-            ESP_LOGI(TAG, "handler_prepareft8_post() called with buffer len %d: %s", buf_len, buf);
+            ESP_LOGV(TAG8, "request buffer[%d] = \"%s\"", buf_len, buf);
 
             // Parse the 'messageText' parameter from the query
             if (httpd_query_key_value(buf, "messageText", ft8_msg, sizeof(ft8_msg)) == ESP_OK &&
@@ -280,7 +289,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 int rc = pack77(ft8_msg, packed);
                 if (rc < 0)
                 {
-                    ESP_LOGI(TAG, "ERROR: Can't parse FT8 message");
+                    ESP_LOGE(TAG8, "can't parse FT8 message");
                     httpd_resp_send_500(req); // Bad request for one of several reasons
                     CommandInProgress = false;
                     delete[] buf;
@@ -291,7 +300,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 uint8_t *tones = new uint8_t[FT8_NN]; // Array of 79 tones (symbols)
                 if (tones == NULL)
                 {
-                    ESP_LOGI(TAG, "ERROR: Can't allocate memory for FT8 tones");
+                    ESP_LOGE(TAG8, "can't allocate memory for FT8 tones");
                     httpd_resp_send_500(req); // Bad request for one of several reasons
                     CommandInProgress = false;
                     delete[] buf;
@@ -308,7 +317,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 //     snprintf(toneString, sizeof(toneString), "%d,", tones[i]);
                 //     strcat(tonesString, toneString);
                 // }
-                // ESP_LOGI(TAG, "FT8 Tones: %s", tonesString);
+                // ESP_LOGI(TAG8, "FT8 Tones: %s", tonesString);
                 // free(tonesString);
 
                 // First capture the current state of the radio before changing it:
@@ -345,18 +354,18 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
                 delete[] buf;
-                ESP_LOGI(TAG, "handler_prepareft8_post(): success.");
+                ESP_LOGI(TAG8, "successful preparation");
                 return ESP_OK;
             }
             else
             {
-                ESP_LOGI(TAG, "ERROR: handler_prepareft8_post(): parsing parameters error.");
+                ESP_LOGE(TAG8, "parameter parsing error");
                 httpd_resp_send_500(req); // Bad request for one of several reasons
             }
         }
         else
         {
-            ESP_LOGI(TAG, "ERROR: handler_prepareft8_post(): Querry parsing error.");
+            ESP_LOGE(TAG8, "query parsing error");
             httpd_resp_send_404(req); // Query parsing error
         }
 
@@ -369,7 +378,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
     }
 
     CommandInProgress = false;
-    ESP_LOGI(TAG, "ERROR: handler_prepareft8_post(): failed.");
+    ESP_LOGE(TAG8, "failed preparation");
     return ESP_FAIL;
 }
 
@@ -378,9 +387,11 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
 {
     showActivity();
 
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     if (ft8TaskInProgress)
     {
-        ESP_LOGI(TAG, "ERROR: handler_ft8_post() called while another FT8 task is in progress.");
+        ESP_LOGE(TAG8, "%s called while another FT8 task is in progress", __func__);
         httpd_resp_send_500(req); // Bad request because another is in progress!
         return ESP_FAIL;
     }
@@ -407,7 +418,7 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
         char *buf = new char[buf_len + 1];
         if (!buf)
         {
-            ESP_LOGI(TAG, "ERROR: handler_ft8_post() : heap allocation failed.");
+            ESP_LOGE(TAG8, "heap allocation failed");
             httpd_resp_send_500(req);
             CommandInProgress = false;
             return ESP_FAIL;
@@ -421,7 +432,7 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
             char audioFreq_str[16];
             int audioFreq = 0;
 
-            ESP_LOGI(TAG, "handler_ft8_post() called with buffer len %d: %s", buf_len, buf);
+            ESP_LOGV(TAG8, "request buffer[%d] = \"%s\"", buf_len, buf);
 
             // Parse the 'messageText' parameter from the query
             if (httpd_query_key_value(buf, "rfFrequency", rfFreq_str, sizeof(rfFreq_str)) == ESP_OK &&
@@ -446,18 +457,18 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
                 delete[] buf;
-                ESP_LOGI(TAG, "handler_ft8_post(): success.");
+                ESP_LOGI(TAG8, "success");
                 return ESP_OK;
             }
             else
             {
-                ESP_LOGI(TAG, "ERROR: handler_ft8_post(): parsing parameters error.");
+                ESP_LOGE(TAG8, "parameter parsing error");
                 httpd_resp_send_500(req); // Bad request for one of several reasons
             }
         }
         else
         {
-            ESP_LOGI(TAG, "ERROR: handler_ft8_post(): parsing error.");
+            ESP_LOGE(TAG8, "query parsing error");
             httpd_resp_send_404(req); // Query parsing error
         }
 
@@ -465,21 +476,23 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
     }
     else
     {
-        ESP_LOGI(TAG, "ERROR: handler_ft8_post(): No Query String error.");
+        ESP_LOGE(TAG8, "no query string error");
         httpd_resp_send_404(req); // No query string, so no new to delete
     }
 
     CommandInProgress = false;
-    ESP_LOGI(TAG, "ERROR: handler_ft8_post(): failed.");
+    ESP_LOGE(TAG8, "failed");
     return ESP_FAIL;
 }
 
 // ====================================================================================================
 esp_err_t handler_cancelft8_post(httpd_req_t *req)
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     // Tell the watchdog timer to cancel the FT8 mode and restore the radio to its prior state
     CancelRadioFT8ModeTime = 1;
     httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
-    ESP_LOGI(TAG, "handler_cancelft8_post(): success.");
+    ESP_LOGI(TAG8, "success");
     return ESP_OK;
 }

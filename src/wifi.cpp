@@ -1,4 +1,3 @@
-#include <esp_log.h>
 #include <esp_wifi.h>
 #include <lwip/ip4_addr.h>
 #include <mdns.h>
@@ -6,12 +5,17 @@
 #include "settings.h"
 #include "wifi.h"
 
+#include "esp_log.h"
+static const char * TAG8 = "sc:wifi....";
+
 static int s_retry_num = 0;
 static bool s_connected = false;
 
 static void wifi_init_ap()
 {
-    ESP_LOGI(TAG, "Initializing WiFi in AP mode");
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
+    ESP_LOGI(TAG8, "initializing WiFi in AP (access-point) mode.");
 
     esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
 
@@ -36,7 +40,7 @@ static void wifi_init_ap()
     ESP_ERROR_CHECK(esp_wifi_start());
 
     // Configure DHCP server
-    ESP_LOGI(TAG, "Configuring DHCP server");
+    ESP_LOGI(TAG8, "configuring dhcp server.");
     esp_netif_ip_info_t info;
     memset(&info, 0, sizeof(info));
     IP4_ADDR(&info.ip, 192, 168, 4, 1);
@@ -47,16 +51,18 @@ static void wifi_init_ap()
     esp_netif_dhcps_start(ap_netif); // Restart DHCP server with new settings
 
     s_connected = true;
-    ESP_LOGI(TAG, "Wi-Fi AP set up complete");
+    ESP_LOGI(TAG8, "wifi ap setup complete.");
 }
 
 // ====================================================================================================
 static void wifi_init_sta()
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
+    ESP_LOGI(TAG8, "initializing wifi in sta (client) mode.");
+
     s_retry_num = 0;
     s_connected = false;
-
-    ESP_LOGI(TAG, "Initializing WiFi in STA mode");
 
     esp_netif_create_default_wifi_sta();
 
@@ -70,11 +76,10 @@ static void wifi_init_sta()
             .password = WIFI_STA_PASS},
     };
 
-//esp_err_t esp_wifi_set_config(wifi_interface_t interface, wifi_config_t *conf);
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "============ Connecting to WiFi...");
+    ESP_LOGI(TAG8, "connecting to wifi...");
     ESP_ERROR_CHECK(esp_wifi_connect());
 }
 
@@ -82,7 +87,9 @@ static void wifi_init_sta()
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
-    ESP_LOGI(TAG, "WiFi event handler called with event_base: %s, event_id: %ld", event_base, event_id);
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
+    ESP_LOGI(TAG8, "wifi event handler called with event_base: '%s', event_id: %ld", event_base, event_id);
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
@@ -90,20 +97,20 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         {
             if (s_retry_num < MAX_RETRY_WIFI_STATION_CONNECT)
             {
-                ESP_LOGI(TAG, "Retrying to connect to the WiFi network...");
+                ESP_LOGI(TAG8, "retrying to connect to the wifi network...");
                 s_retry_num++;
                 esp_wifi_connect();
             }
             else
             {
-                ESP_LOGI(TAG, "============ Failed to connect to home WiFi, setting up stand-alone AP mode...");
+                ESP_LOGI(TAG8, "failed to connect as client to network, setting up access-point mode...");
                 wifi_init_ap(); // Switch to AP mode
             }
         }
         else
         {
             // formerly connected, but now getting a disconnected event => must be entering sleep
-            ESP_LOGI(TAG, "Disconnected from WiFi network");
+            ESP_LOGI(TAG8, "disconnected from WiFi network");
             s_connected = false;
             s_retry_num = 0;
         }
@@ -113,7 +120,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     {
         s_connected = true;
         s_retry_num = 0;
-        ESP_LOGI(TAG, "============ Success connecting to existing WiFi network...");
+        ESP_LOGI(TAG8, "connected as client to existing wifi network.");
     }
 }
 
@@ -121,6 +128,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 // Set wifi TX power level down a bit to reduce battery load and avoid radio interference.
 static void wifi_attenuate_power()
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     /*
      * Wifi TX power levels are quantized.
      * See https://demo-dijiudu.readthedocs.io/en/latest/api-reference/wifi/esp_wifi.html
@@ -142,19 +151,21 @@ static void wifi_attenuate_power()
     // Not required, but we read the starting power just for informative purposes
     int8_t curr_wifi_power = 0;
     ESP_ERROR_CHECK(esp_wifi_get_max_tx_power(&curr_wifi_power));
-    ESP_LOGI(TAG, "Default max tx power: %d", curr_wifi_power);
+    ESP_LOGI(TAG8, "default max tx power: %d", curr_wifi_power);
 
     const int8_t MAX_TX_PWR = 44; // level 5 - 2dBm = 11dBm, per chart above
-    ESP_LOGI(TAG, "Setting wifi max power to %d", MAX_TX_PWR);
+    ESP_LOGI(TAG8, "setting wifi max power to %d", MAX_TX_PWR);
     ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(MAX_TX_PWR));
 
     ESP_ERROR_CHECK(esp_wifi_get_max_tx_power(&curr_wifi_power));
-    ESP_LOGI(TAG, "Confirming new max tx power: %d", curr_wifi_power);
+    ESP_LOGI(TAG8, "confirmed new max tx power: %d", curr_wifi_power);
 }
 
 // ====================================================================================================
 void wifi_init()
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     s_connected = false;
 
     // Initialize the TCP/IP stack
@@ -175,12 +186,14 @@ void wifi_init()
     {
         vTaskDelay(pdMS_TO_TICKS(500));
     }
-    ESP_LOGI(TAG, "WiFi initialization complete, returning.");
+    ESP_LOGI(TAG8, "wifi initialization complete.");
 }
 
 // ====================================================================================================
 void start_mdns_service()
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     // Initialize mDNS service
     ESP_ERROR_CHECK(mdns_init());
 
