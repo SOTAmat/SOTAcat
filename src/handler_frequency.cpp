@@ -13,9 +13,11 @@ esp_err_t handler_frequency_get(httpd_req_t *req)
 
     ESP_LOGV(TAG8, "trace: %s()", __func__);
 
-    RadioPortLock.lock();
-    long frequency = get_from_kx("FA", 2, 11);
-    RadioPortLock.unlock();
+    long frequency;
+    {
+        const std::lock_guard<Lock> lock(RadioPortLock);
+        frequency = get_from_kx("FA", 2, 11);
+    }
 
     // Validate that frequency is a positive integer
     if (frequency > 0)
@@ -65,13 +67,14 @@ esp_err_t handler_frequency_put(httpd_req_t *req)
             if (httpd_query_key_value(buf, "frequency", param_value, sizeof(param_value)) == ESP_OK)
             {
                 int freq = atoi(param_value); // Convert the parameter to an integer
+                {
+                    const std::lock_guard<Lock> lock(RadioPortLock);
 
-                RadioPortLock.lock();
-                if (freq > 0 && put_to_kx("FA", 11, freq, 2))
-                    httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
-                else
-                    httpd_resp_send_500(req); // Bad request if frequency is not positive
-                RadioPortLock.unlock();
+                    if (freq > 0 && put_to_kx("FA", 11, freq, 2))
+                        httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
+                    else
+                        httpd_resp_send_500(req); // Bad request if frequency is not positive
+                }
             }
             else
                 httpd_resp_send_500(req); // Parameter not found

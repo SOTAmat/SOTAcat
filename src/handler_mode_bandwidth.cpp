@@ -24,10 +24,11 @@ radio_mode_t get_radio_mode()
 {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
 
-    RadioPortLock.lock();
-    long mode = get_from_kx("MD", 2, 1);
-    RadioPortLock.unlock();
-
+    long mode;
+    {
+        const std::lock_guard<Lock> lock(RadioPortLock);
+        mode = get_from_kx("MD", 2, 1);
+    }
     return static_cast<radio_mode_t>(mode);
 }
 
@@ -140,7 +141,8 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
             // Parse the 'bw' parameter from the query
             if (httpd_query_key_value(buf, "bw", bw, sizeof(bw)) == ESP_OK)
             {
-                RadioPortLock.lock();
+                const std::lock_guard<Lock> lock(RadioPortLock);
+
                 // Send the mode to the radio based on the "bw" parameter
                 if (strcmp(bw, "SSB") == 0)
                 {
@@ -172,7 +174,6 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
                     put_to_kx("MD", 1, MODE_DATA_R, 2);
                 else
                     httpd_resp_send_500(req); // Bad request if mode is not valid
-                RadioPortLock.unlock();
 
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);

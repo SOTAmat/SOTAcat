@@ -1,6 +1,7 @@
 #pragma once
 
 #include "globals.h"
+#include <stdint.h>
 typedef struct
 {
     uint8_t mode;
@@ -20,6 +21,7 @@ void restore_kx_state(const kx_state_t *in_state, int tries);
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include <mutex> // for convenience when using std::lock_guard
 
 class Lock {
     bool m_locked;
@@ -32,3 +34,17 @@ public:
     bool locked() const { return m_locked; }
 };
 extern Lock RadioPortLock;
+
+/*
+ * The recommended way of exclusively accessing the radio's ACC port
+ * is to use a scoped lock guard, as in
+ *     long result;
+ *     {
+ *         const std::lock_guard<Lock> lock(RadioPortLock);
+ *         result = get_from_kx("TQ", 2, 1);
+ *     }
+ * Where it's not possible to tightly scope access, then it is reasonable
+ * to use
+ *     RadioPortLock.lock() and RadioPort.unlock()
+ * directly, taking care that they are precisely balanced.
+ */

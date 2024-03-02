@@ -109,7 +109,11 @@ void setup()
     // Once found, if the baud rate is not 38400, force it to 38400 for FSK use (FT8, etc.)
     uart_connect();
     ESP_LOGI(TAG8, "radio connection established");
-    empty_kx_input_buffer(600);
+
+    {
+        const std::lock_guard<Lock> lock(RadioPortLock);
+        empty_kx_input_buffer(600);
+    }
 
     //  We exit with the LED off.
     gpio_set_level(LED_BLUE, LED_OFF);

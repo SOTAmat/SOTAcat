@@ -3,7 +3,6 @@
 #include "kx_commands.h"
 #include "globals.h"
 #include "settings.h"
-#include <mutex>
 
 #include "esp_log.h"
 static const char * TAG8 = "sc:hdl_stat";
