@@ -7,9 +7,9 @@
 #ifdef SEEED_XIAO
 #define UART2_TX_PIN 21
 #define UART2_RX_PIN 20
-#define LED_BLUE 10
-#define LED_RED_SUPL 9
-#define LED_RED 8
+#define LED_BLUE ((gpio_num_t)10)
+#define LED_RED_SUPL ((gpio_num_t)9)
+#define LED_RED ((gpio_num_t)8)
 #define LED_OFF 1
 #define LED_ON 0
 #define ADC_BATTERY 0

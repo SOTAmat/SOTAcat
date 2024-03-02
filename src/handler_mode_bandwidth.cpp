@@ -18,7 +18,7 @@ typedef enum
     MODE_DATA_R = 9
 } radio_mode_t;
 
-int get_radio_mode()
+radio_mode_t get_radio_mode()
 {
     ESP_LOGI(TAG, "get_radio_mode()");
 
@@ -26,7 +26,7 @@ int get_radio_mode()
     long mode = get_from_kx("MD", 2, 1);
     xSemaphoreGive(KXCommunicationMutex);
 
-    return mode;
+    return static_cast<radio_mode_t>(mode);
 }
 
 esp_err_t handler_mode_get(httpd_req_t *req)
@@ -126,7 +126,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1)
     {
-        buf = malloc(buf_len);
+        buf = (char *)malloc(buf_len);
         if (!buf)
         {
             httpd_resp_send_500(req);

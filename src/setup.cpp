@@ -33,7 +33,7 @@ static void initialize_nvs()
 }
 
 // ====================================================================================================
-void startup_watchdog_timer()
+void startup_watchdog_timer(void * _)
 {
     // Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds.
     vTaskDelay(pdMS_TO_TICKS(60000));

@@ -15,7 +15,7 @@ esp_err_t handler_connectionStatus_get(httpd_req_t *req)
     long transmitting = get_from_kx("TQ", 2, 1);
     xSemaphoreGive(KXCommunicationMutex);
 
-    char * symbol;
+    const char * symbol;
     switch (transmitting) {
         case 0:
             symbol = "🟢";

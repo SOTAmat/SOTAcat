@@ -4,8 +4,7 @@
 
 const char *TAG = "SOTAmat";
 
-void app_main()
-{
+extern "C" void app_main(void) {
     ESP_LOGI(TAG, "app_main() started");
 
     setup();

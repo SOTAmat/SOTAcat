@@ -105,7 +105,7 @@ long parse_response(const char *out_buff, int num_digits)
 }
 
 // --------------------------------------------------------------------------------------------
-long get_from_kx(char *command, int tries, int num_digits)
+long get_from_kx(const char *command, int tries, int num_digits)
 {
     char cmd_buff[8];
     memset(cmd_buff, 0, sizeof(cmd_buff));
@@ -156,7 +156,7 @@ long get_from_kx_menu_item(uint8_t menu_item, int tries)
 }
 
 // ====================================================================================================
-bool put_to_kx(char *command, int num_digits, long value, int tries)
+bool put_to_kx(const char *command, int num_digits, long value, int tries)
 {
     char out_buff[16];
     ESP_LOGI(TAG, "put_to_kx(%s) attempting value %ld", command, value);
@@ -200,7 +200,7 @@ bool put_to_kx(char *command, int num_digits, long value, int tries)
         adjusted_value = ((long) (value / 10)) * 10;
     }
 
-    for (int try = 0; try < tries; try++)
+    for (int attempt = 0; attempt < tries; attempt++)
     {
         uart_flush(UART_NUM);
         uart_write_bytes(UART_NUM, out_buff, num_digits + 3);
@@ -214,7 +214,7 @@ bool put_to_kx(char *command, int num_digits, long value, int tries)
             return true;
         }
  
-        ESP_LOGI(TAG, "ERROR: put_to_kx() failed to set %s to %ld on %d tries", command, value, try + 1);
+        ESP_LOGI(TAG, "ERROR: put_to_kx() failed to set %s to %ld on %d tries", command, value, attempt + 1);
     }
 
     return false;
@@ -253,7 +253,7 @@ void get_kx_state(kx_state_t *in_state)
 }
 
 // ====================================================================================================
-void restore_kx_state(kx_state_t *in_state, int tries)
+void restore_kx_state(const kx_state_t *in_state, int tries)
 {
     // Restore the radio to its prior state
     ESP_LOGI(TAG, "restore_kx_state() called");

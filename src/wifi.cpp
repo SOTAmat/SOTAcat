@@ -18,11 +18,12 @@ static void wifi_init_ap()
     wifi_config_t wifi_config = {
         .ap = {
             .ssid = "SOTAcat",
-            .ssid_len = strlen("SOTAcat"),
-            .channel = 1,
             .password = "12345678",
+            .ssid_len = (uint8_t)strlen("SOTAcat"),
+            .channel = 1,
+            .authmode = WIFI_AUTH_WPA_WPA2_PSK,
             .max_connection = 6,
-            .authmode = WIFI_AUTH_WPA_WPA2_PSK},
+    },
     };
 
     if (strlen("12345678") == 0)
@@ -69,7 +70,8 @@ static void wifi_init_sta()
             .password = WIFI_STA_PASS},
     };
 
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+//esp_err_t esp_wifi_set_config(wifi_interface_t interface, wifi_config_t *conf);
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
     ESP_LOGI(TAG, "============ Connecting to WiFi...");

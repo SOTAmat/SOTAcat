@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include "esp_adc/adc_cali_scheme.h"
@@ -15,4 +14,4 @@ extern adc_oneshot_unit_init_cfg_t Global_init_config1;
 extern adc_cali_handle_t Global_cali_handle;
 extern adc_oneshot_chan_cfg_t Global_chan_cfg;
 
-extern bool starts_with(const char *string, const char *prefix);
+extern "C" bool starts_with(const char *string, const char *prefix);

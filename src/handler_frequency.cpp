@@ -47,7 +47,7 @@ esp_err_t handler_frequency_put(httpd_req_t *req)
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1)
     {
-        buf = malloc(buf_len);
+        buf = (char *)malloc(buf_len);
         if (!buf)
         {
             httpd_resp_send_500(req);

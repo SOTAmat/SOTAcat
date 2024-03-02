@@ -96,7 +96,7 @@ esp_err_t dynamic_file_handler(httpd_req_t *req)
     httpd_resp_send(
         req,
         (const char *)asset_map[ii].asset_start,
-        asset_map[ii].asset_end - asset_map[ii].asset_start - 1); // -1 to exclude the NULL terminator
+        (const char *)asset_map[ii].asset_end - (const char *)asset_map[ii].asset_start - 1); // -1 to exclude the NULL terminator
 
     return ESP_OK;
 }

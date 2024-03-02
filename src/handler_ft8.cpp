@@ -246,7 +246,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1)
     {
-        buf = malloc(buf_len + 1);
+        buf = (char *)malloc(buf_len + 1);
         if (!buf)
         {
             ESP_LOGI(TAG, "ERROR: handler_prepareft8_post() malloc failed.");
@@ -299,7 +299,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 }
 
                 // Second, encode the binary message as a sequence of FSK tones
-                uint8_t *tones = malloc(FT8_NN * sizeof(uint8_t)); // Array of 79 tones (symbols)
+                uint8_t *tones = (uint8_t *)malloc(FT8_NN * sizeof(uint8_t)); // Array of 79 tones (symbols)
                 if (tones == NULL)
                 {
                     ESP_LOGI(TAG, "ERROR: Can't allocate memory for FT8 tones");
@@ -323,7 +323,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 // free(tonesString);
 
                 // First capture the current state of the radio before changing it:
-                kx_state_t *kx_state = malloc(sizeof(kx_state_t));
+                kx_state_t *kx_state = (kx_state_t *)malloc(sizeof(kx_state_t));
                 get_kx_state(kx_state);
 
                 // Prepare the radio to send the FT8 FSK tones using CW tones.
@@ -338,7 +338,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 put_to_kx("AP", 1, 1, 2);         // AP1; - Enable Audio Peaking filter
 
                 // Offload playing the FT8 audio
-                ft8ConfigInfo = malloc(sizeof(ft8_task_pack_t));
+                ft8ConfigInfo = (ft8_task_pack_t *)malloc(sizeof(ft8_task_pack_t));
                 ft8ConfigInfo->baseFreq = baseFreq;
                 ft8ConfigInfo->tones = tones;
                 ft8ConfigInfo->kx_state = kx_state;
@@ -418,7 +418,7 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1)
     {
-        buf = malloc(buf_len + 1);
+        buf = (char *)malloc(buf_len + 1);
         if (!buf)
         {
             ESP_LOGI(TAG, "ERROR: handler_ft8_post() malloc failed.");

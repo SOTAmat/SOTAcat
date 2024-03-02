@@ -1,5 +1,6 @@
 #pragma once
 
+#include "esp_err.h"
 #include "esp_http_server.h"
 
 extern long last_known_frequency;
@@ -34,18 +35,18 @@ extern const uint8_t about_html_end[]   asm("_binary_about_html_end");
 
 void start_webserver();
 
-esp_err_t handler_frequency_get();
-esp_err_t handler_frequency_put();
-esp_err_t handler_mode_get();
-esp_err_t handler_mode_put();
-esp_err_t handler_rxBandwidth_get();
-esp_err_t handler_rxBandwidth_put();
-esp_err_t handler_prepareft8_post();
-esp_err_t handler_ft8_post();
-esp_err_t handler_cancelft8_post();
-esp_err_t handler_batteryPercent_get();
-esp_err_t handler_batteryVoltage_get();
-esp_err_t handler_connectionStatus_get();
+esp_err_t handler_frequency_get(httpd_req_t *);
+esp_err_t handler_frequency_put(httpd_req_t *);
+esp_err_t handler_mode_get(httpd_req_t *);
+esp_err_t handler_mode_put(httpd_req_t *);
+esp_err_t handler_rxBandwidth_get(httpd_req_t *);
+esp_err_t handler_rxBandwidth_put(httpd_req_t *);
+esp_err_t handler_prepareft8_post(httpd_req_t *);
+esp_err_t handler_ft8_post(httpd_req_t *);
+esp_err_t handler_cancelft8_post(httpd_req_t *);
+esp_err_t handler_batteryPercent_get(httpd_req_t *);
+esp_err_t handler_batteryVoltage_get(httpd_req_t *);
+esp_err_t handler_connectionStatus_get(httpd_req_t *);
 
 // Structure to map URI to symbol
 typedef struct
@@ -64,5 +65,5 @@ extern asset_entry_t asset_map[];
 typedef struct
 {
     const char *api_name;
-    int (*handler_func)(httpd_req_t *);
+    esp_err_t (*handler_func)(httpd_req_t *);
 } api_handler_t;
