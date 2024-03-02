@@ -27,7 +27,7 @@ int uart_connect()
 
     int baud_rates[] = {4800, 9600, 19200, 38400};
     size_t num_rates = sizeof(baud_rates) / sizeof(baud_rates[0]);
-    uint8_t *buffer = (uint8_t *)malloc(256);
+    uint8_t buffer[256];
 
     while (true)
     {
@@ -48,7 +48,6 @@ int uart_connect()
                 if (strstr((char *)buffer, "RVR99.99;") != NULL)
                 {
                     ESP_LOGI(TAG, "-------------------Correct baud rate found: %d", baud_rates[i]);
-                    free(buffer);
                     uart_write_bytes(UART_NUM, ";AI0;", strlen(";AI0;"));
 
                     if (baud_rates[i] != 38400)

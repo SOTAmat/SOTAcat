@@ -74,9 +74,7 @@ static long msUntilFT8Window()
     // Calculate delay until the next 15-second boundary
     long delay_ms = 15000 - (now_ms % 15000LL);
     if (delay_ms == 15000)
-    {
         delay_ms = 0; // Adjust if already at boundary
-    }
 
     return delay_ms;
 }
@@ -89,9 +87,7 @@ static void waitForFT8Window()
     // Use vTaskDelay to wait for the calculated delay in ticks
     // Note: pdMS_TO_TICKS converts milliseconds to ticks
     if (delay_ms > 0)
-    {
         vTaskDelay(pdMS_TO_TICKS(delay_ms));
-    }
 }
 
 // ====================================================================================================
@@ -149,9 +145,7 @@ static void xmit_ft8_task(void *pvParameter)
     // Update the timer for when to cancel the radio FT8 mode
     int64_t watchdogTime = esp_timer_get_time() + (15LL * 1000LL * 1000LL); // 15 seconds from now, converted to microseconds
     if (watchdogTime > CancelRadioFT8ModeTime)
-    {
         CancelRadioFT8ModeTime = watchdogTime;
-    }
 
     gettimeofday(&startTime, NULL); // Capture the current time to calculate the total time
 
@@ -196,9 +190,7 @@ static void cleanup_ft8_task(void *pvParameter)
     // a few seconds after the last transmission, the watchdog will trigger and clean up.
 
     while (esp_timer_get_time() < CancelRadioFT8ModeTime || ft8TaskInProgress)
-    {
         vTaskDelay(pdMS_TO_TICKS(250));
-    }
 
     CancelRadioFT8ModeTime = 0; // Race condition here, but minimize the probability by clearing immediately
 
@@ -216,9 +208,9 @@ static void cleanup_ft8_task(void *pvParameter)
     restore_kx_state(ft8ConfigInfo->kx_state, 4);
     xSemaphoreGive(KXCommunicationMutex);
 
-    free(ft8ConfigInfo->kx_state);
-    free(ft8ConfigInfo->tones);
-    free(ft8ConfigInfo);
+    delete ft8ConfigInfo->kx_state;
+    delete[] ft8ConfigInfo->tones;
+    delete ft8ConfigInfo;
     ft8ConfigInfo = NULL;
     CommandInProgress = false;
     ESP_LOGI(TAG, "cleanup_ft8_task() completed.");
@@ -239,17 +231,14 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
     CommandInProgress = true;
     gpio_set_level(LED_BLUE, LED_ON); // LED on
 
-    char *buf;
-    size_t buf_len;
-
     // Get the length of the URL query
-    buf_len = httpd_req_get_url_query_len(req) + 1;
+    size_t buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1)
     {
-        buf = (char *)malloc(buf_len + 1);
+        char *buf = new char[buf_len + 1];
         if (!buf)
         {
-            ESP_LOGI(TAG, "ERROR: handler_prepareft8_post() malloc failed.");
+            ESP_LOGI(TAG, "ERROR: handler_prepareft8_post() : heap allocation failed.");
             httpd_resp_send_500(req);
             CommandInProgress = false;
             return ESP_FAIL;
@@ -294,18 +283,18 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                     ESP_LOGI(TAG, "ERROR: Can't parse FT8 message");
                     httpd_resp_send_500(req); // Bad request for one of several reasons
                     CommandInProgress = false;
-                    free(buf);
+                    delete[] buf;
                     return ESP_FAIL;
                 }
 
                 // Second, encode the binary message as a sequence of FSK tones
-                uint8_t *tones = (uint8_t *)malloc(FT8_NN * sizeof(uint8_t)); // Array of 79 tones (symbols)
+                uint8_t *tones = new uint8_t[FT8_NN]; // Array of 79 tones (symbols)
                 if (tones == NULL)
                 {
                     ESP_LOGI(TAG, "ERROR: Can't allocate memory for FT8 tones");
                     httpd_resp_send_500(req); // Bad request for one of several reasons
                     CommandInProgress = false;
-                    free(buf);
+                    delete[] buf;
                     return ESP_FAIL;
                 }
 
@@ -323,7 +312,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 // free(tonesString);
 
                 // First capture the current state of the radio before changing it:
-                kx_state_t *kx_state = (kx_state_t *)malloc(sizeof(kx_state_t));
+                kx_state_t *kx_state = new kx_state_t;
                 get_kx_state(kx_state);
 
                 // Prepare the radio to send the FT8 FSK tones using CW tones.
@@ -338,10 +327,10 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 put_to_kx("AP", 1, 1, 2);         // AP1; - Enable Audio Peaking filter
 
                 // Offload playing the FT8 audio
-                ft8ConfigInfo = (ft8_task_pack_t *)malloc(sizeof(ft8_task_pack_t));
+                ft8ConfigInfo = new ft8_task_pack_t;
                 ft8ConfigInfo->baseFreq = baseFreq;
                 ft8ConfigInfo->tones = tones;
-                ft8ConfigInfo->kx_state = kx_state;
+                ft8ConfigInfo->kx_state = kx_state;  // will be deleted later in cleanup
 
                 // We have prepared the radio to send FT8, but we don't know if the user will
                 // cancel or send FT8.  We set the cleanup watchdog timer to be 1 second after
@@ -355,7 +344,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
 
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
-                free(buf);
+                delete[] buf;
                 ESP_LOGI(TAG, "handler_prepareft8_post(): success.");
                 return ESP_OK;
             }
@@ -371,11 +360,11 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
             httpd_resp_send_404(req); // Query parsing error
         }
 
-        free(buf);
+        delete[] buf;
     }
     else
     {
-        // HTTP buffer length is less than 1, so no query string, no malloc to free
+        // HTTP buffer length is less than 1, so no query string, no new to delete
         httpd_resp_send_404(req); // No query string
     }
 
@@ -411,17 +400,14 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
     }
 
     // We need to reparse the frequency and audio frequency from the query string
-    char *buf;
-    size_t buf_len;
-
     // Get the length of the URL query
-    buf_len = httpd_req_get_url_query_len(req) + 1;
+    size_t buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1)
     {
-        buf = (char *)malloc(buf_len + 1);
+        char *buf = new char[buf_len + 1];
         if (!buf)
         {
-            ESP_LOGI(TAG, "ERROR: handler_ft8_post() malloc failed.");
+            ESP_LOGI(TAG, "ERROR: handler_ft8_post() : heap allocation failed.");
             httpd_resp_send_500(req);
             CommandInProgress = false;
             return ESP_FAIL;
@@ -459,7 +445,7 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
 
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
-                free(buf);
+                delete[] buf;
                 ESP_LOGI(TAG, "handler_ft8_post(): success.");
                 return ESP_OK;
             }
@@ -475,12 +461,12 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
             httpd_resp_send_404(req); // Query parsing error
         }
 
-        free(buf);
+        delete[] buf;
     }
     else
     {
         ESP_LOGI(TAG, "ERROR: handler_ft8_post(): No Query String error.");
-        httpd_resp_send_404(req); // No query string, so no malloc(buf) to free
+        httpd_resp_send_404(req); // No query string, so no new to delete
     }
 
     CommandInProgress = false;

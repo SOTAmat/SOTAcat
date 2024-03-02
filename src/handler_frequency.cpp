@@ -39,15 +39,11 @@ esp_err_t handler_frequency_put(httpd_req_t *req)
 {
     showActivity();
 
-    char *buf;
-    size_t buf_len;
-    int freq = 0;
-
     // Get the length of the URL query
-    buf_len = httpd_req_get_url_query_len(req) + 1;
+    size_t buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1)
     {
-        buf = (char *)malloc(buf_len);
+        char *buf = new char[buf_len];
         if (!buf)
         {
             httpd_resp_send_500(req);
@@ -64,7 +60,7 @@ esp_err_t handler_frequency_put(httpd_req_t *req)
             // Parse the 'frequency' parameter from the query
             if (httpd_query_key_value(buf, "frequency", param_value, sizeof(param_value)) == ESP_OK)
             {
-                freq = atoi(param_value); // Convert the parameter to an integer
+                int freq = atoi(param_value); // Convert the parameter to an integer
 
                 xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
                 if (freq > 0 && put_to_kx("FA", 11, freq, 2))
@@ -74,21 +70,15 @@ esp_err_t handler_frequency_put(httpd_req_t *req)
                 xSemaphoreGive(KXCommunicationMutex);
             }
             else
-            {
                 httpd_resp_send_500(req); // Parameter not found
-            }
         }
         else
-        {
             httpd_resp_send_404(req); // Query parsing error
-        }
 
-        free(buf);
+        delete[] buf;
     }
     else
-    {
         httpd_resp_send_404(req); // No query string
-    }
 
     return ESP_OK;
 }

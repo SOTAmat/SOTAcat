@@ -118,15 +118,11 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
 
     ESP_LOGI(TAG, "handler_rxBandwidth_put()");
 
-    char *buf;
-    size_t buf_len;
-    char bw[32] = {0}; // Buffer to store the bandwidth string
-
     // Get the length of the URL query
-    buf_len = httpd_req_get_url_query_len(req) + 1;
+    size_t buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1)
     {
-        buf = (char *)malloc(buf_len);
+        char *buf = new char[buf_len];
         if (!buf)
         {
             httpd_resp_send_500(req);
@@ -138,6 +134,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
         {
             ESP_LOGI(TAG, "handler_rxBandwidth_put() called with query: %s", buf);
 
+            char bw[32] = {0};
             // Parse the 'bw' parameter from the query
             if (httpd_query_key_value(buf, "bw", bw, sizeof(bw)) == ESP_OK)
             {
@@ -150,72 +147,44 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
                     if (frequency > 0)
                     {
                         if (frequency < 10000000)
-                        {
                             put_to_kx("MD", 1, MODE_LSB, 2);
-                        }
                         else
-                        {
                             put_to_kx("MD", 1, MODE_USB, 2);
-                        }
                     }
                 }
                 else if (strcmp(bw, "USB") == 0)
-                {
                     put_to_kx("MD", 1, MODE_USB, 2);
-                }
                 else if (strcmp(bw, "LSB") == 0)
-                {
                     put_to_kx("MD", 1, MODE_LSB, 2);
-                }
                 else if (strcmp(bw, "CW") == 0)
-                {
                     put_to_kx("MD", 1, MODE_CW, 2);
-                }
                 else if (strcmp(bw, "FM") == 0)
-                {
                     put_to_kx("MD", 1, MODE_FM, 2);
-                }
                 else if (strcmp(bw, "AM") == 0)
-                {
                     put_to_kx("MD", 1, MODE_AM, 2);
-                }
                 else if (strcmp(bw, "DATA") == 0 || strcmp(bw, "FT8") == 0 || strcmp(bw, "JS8") == 0 || strcmp(bw, "PSK31") == 0 || strcmp(bw, "FT4") == 0 || strcmp(bw, "RTTY") == 0) // FT8, JS8, PSK31, FT4, RTTY
-                {
                     put_to_kx("MD", 1, MODE_DATA, 2);
-                }
                 else if (strcmp(bw, "CW-R") == 0)
-                {
                     put_to_kx("MD", 1, MODE_CW_R, 2);
-                }
                 else if (strcmp(bw, "DATA-R") == 0)
-                {
                     put_to_kx("MD", 1, MODE_DATA_R, 2);
-                }
                 else
-                {
                     httpd_resp_send_500(req); // Bad request if mode is not valid
-                }
                 xSemaphoreGive(KXCommunicationMutex);
 
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
             }
             else
-            {
                 httpd_resp_send_404(req); // Parameter not found
-            }
         }
         else
-        {
             httpd_resp_send_404(req); // Query parsing error
-        }
 
-        free(buf);
+        delete[] buf;
     }
     else
-    {
         httpd_resp_send_404(req); // No query string
-    }
 
     return ESP_OK;
 }
