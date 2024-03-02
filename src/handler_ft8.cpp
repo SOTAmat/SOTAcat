@@ -128,7 +128,7 @@ static void xmit_ft8_task(void *pvParameter)
         return;
     }
 
-    xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
+    RadioPortLock.lock();
     ft8TaskInProgress = true;
 
     ESP_LOGI(TAG, "xmit_ft8_task() started.");
@@ -174,7 +174,7 @@ static void xmit_ft8_task(void *pvParameter)
     ESP_LOGI(TAG, "FT8 transmission time: %ld ms", totalTime);
 
     // Note that the cleanup will happen in the watchdog 'cleanup_ft8_task' function
-    xSemaphoreGive(KXCommunicationMutex);
+    RadioPortLock.unlock();
     ft8TaskInProgress = false;
     ESP_LOGI(TAG, "xmit_ft8_task() completed.");
     vTaskDelete(NULL);
@@ -204,9 +204,9 @@ static void cleanup_ft8_task(void *pvParameter)
     }
 
     // Restore the radio to its prior state
-    xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
+    RadioPortLock.lock();
     restore_kx_state(ft8ConfigInfo->kx_state, 4);
-    xSemaphoreGive(KXCommunicationMutex);
+    RadioPortLock.unlock();
 
     delete ft8ConfigInfo->kx_state;
     delete[] ft8ConfigInfo->tones;

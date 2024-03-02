@@ -17,7 +17,7 @@
 
 time_t LastUserActivityUnixTime;
 bool CommandInProgress = false;
-
+Lock RadioCommunicationLock;
 
 // ====================================================================================================
 static void initialize_nvs()
@@ -51,7 +51,6 @@ void setup()
     // }
 
     ESP_LOGI(TAG, "Setup starting...");
-    KXCommunicationMutex = xSemaphoreCreateMutex();
 
     //  Turn on the board LED to indicate that we are starting up
     gpio_set_direction(LED_BLUE, GPIO_MODE_OUTPUT);

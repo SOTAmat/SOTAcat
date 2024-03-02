@@ -7,10 +7,43 @@
 #include "settings.h"
 #include "settings_radio_specific.h"
 
-SemaphoreHandle_t KXCommunicationMutex = NULL;
+
+/**
+ * The mutex lock on the serial port / uart for ACC comm to/fron the radio
+ */
+
+Lock::Lock() :
+    m_locked(false) {
+    m_mutex = xSemaphoreCreateMutex();
+}
+
+void Lock::lock() {
+    ESP_LOGI(TAG, "locking radio");
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
+    m_locked = true;
+    ESP_LOGI(TAG, "radio LOCKED --");
+}
+
+void Lock::unlock() {
+    xSemaphoreGive(m_mutex);
+    m_locked = false;
+    ESP_LOGI(TAG, "-- radio UNLOCKED");
+}
+
+Lock RadioPortLock;
+
+
+/**
+ * Functions that directly communicate with the radio
+ * These should all assert that the RadioPortLock is locked()
+ * It's an error somewhere up in the call stack if not.
+ */
 
 void empty_kx_input_buffer(int wait_ms)
 {
+    if (!RadioPortLock.locked())
+        ESP_LOGI(TAG, "RADIO PORT NOT LOCKED! (coding error in caller)");
+
     char in_buff[64];
     long returned_chars = uart_read_bytes(UART_NUM, in_buff, sizeof(in_buff) - 1, pdMS_TO_TICKS(wait_ms));
     in_buff[returned_chars] = '\0';
@@ -26,6 +59,9 @@ void empty_kx_input_buffer(int wait_ms)
 // --------------------------------------------------------------------------------------------
 bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expected_chars, int tries, int wait_ms)
 {
+    if (!RadioPortLock.locked())
+        ESP_LOGI(TAG, "RADIO PORT NOT LOCKED! (coding error in caller)");
+
     uart_flush(UART_NUM);
     uart_write_bytes(UART_NUM, cmd, strlen(cmd));
 
@@ -48,9 +84,7 @@ bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expec
     bool bad_response = false;
 
     if (returned_chars != expected_chars || out_buff[0] != cmd[0] || out_buff[1] != cmd[1] || (cmd_length == 3 && out_buff[2] != cmd[2]) || out_buff[expected_chars - 1] != ';')
-    {
         bad_response = true;
-    }
     else
     {
         // Check that all the value characters are digits
@@ -82,8 +116,12 @@ bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expec
     return true;
 }
 
+/*
+ * Utilities
+ */
+
 // --------------------------------------------------------------------------------------------
-long parse_response(const char *out_buff, int num_digits)
+static long parse_response(const char *out_buff, int num_digits)
 {
     switch (num_digits)
     {
@@ -104,13 +142,15 @@ long parse_response(const char *out_buff, int num_digits)
     return -1; // Invalid response size
 }
 
+/**
+ * Functions that form our radio API
+ */
+
 // --------------------------------------------------------------------------------------------
 long get_from_kx(const char *command, int tries, int num_digits)
 {
-    char cmd_buff[8];
-    memset(cmd_buff, 0, sizeof(cmd_buff));
-    char out_buff[16];
-    memset(out_buff, 0, sizeof(out_buff));
+    char cmd_buff[8] = {0};
+    char out_buff[16] = {0};
 
     int command_size = strlen(command);
     if ((command_size != 2 && command_size != 3) || num_digits < 1 || num_digits > 11)
@@ -121,22 +161,17 @@ long get_from_kx(const char *command, int tries, int num_digits)
 
     int wait_time = KX_TIMEOUT_MS_SHORT_COMMANDS;
 
-    if ( strncmp(command, "AP", 2) == 0 ||
-         strncmp(command, "FA", 2) == 0 || 
-         strncmp(command, "FR", 2) == 0 || 
-         strncmp(command, "FT", 2) == 0 || 
-         strncmp(command, "MD", 2) == 0)
-    {
+    if (strncmp(command, "AP", 2) == 0 ||
+        strncmp(command, "FA", 2) == 0 ||
+        strncmp(command, "FR", 2) == 0 ||
+        strncmp(command, "FT", 2) == 0 ||
+        strncmp(command, "MD", 2) == 0)
         wait_time = KX_TIMEOUT_MS_LONG_COMMANDS;
-    }
-
 
     snprintf(cmd_buff, sizeof(cmd_buff), "%s;", command);
     int response_size = num_digits + command_size + 1;
     if (!uart_get_command(cmd_buff, command_size, out_buff, response_size, tries, wait_time))
-    {
         return -1; // Error was already logged
-    }
 
     long result = parse_response(out_buff, num_digits);
     ESP_LOGI(TAG, "get_from_kx(%s) = %ld", command, result);

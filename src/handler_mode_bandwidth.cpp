@@ -22,9 +22,9 @@ radio_mode_t get_radio_mode()
 {
     ESP_LOGI(TAG, "get_radio_mode()");
 
-    xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
+    RadioPortLock.lock();
     long mode = get_from_kx("MD", 2, 1);
-    xSemaphoreGive(KXCommunicationMutex);
+    RadioPortLock.unlock();
 
     return static_cast<radio_mode_t>(mode);
 }
@@ -138,7 +138,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
             // Parse the 'bw' parameter from the query
             if (httpd_query_key_value(buf, "bw", bw, sizeof(bw)) == ESP_OK)
             {
-                xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
+                RadioPortLock.lock();
                 // Send the mode to the radio based on the "bw" parameter
                 if (strcmp(bw, "SSB") == 0)
                 {
@@ -170,7 +170,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
                     put_to_kx("MD", 1, MODE_DATA_R, 2);
                 else
                     httpd_resp_send_500(req); // Bad request if mode is not valid
-                xSemaphoreGive(KXCommunicationMutex);
+                RadioPortLock.unlock();
 
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);

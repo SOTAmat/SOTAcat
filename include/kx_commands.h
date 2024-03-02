@@ -21,4 +21,14 @@ void restore_kx_state(const kx_state_t *in_state, int tries);
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-extern SemaphoreHandle_t KXCommunicationMutex;
+class Lock {
+    bool m_locked;
+    SemaphoreHandle_t m_mutex;
+public:
+    Lock();
+    void lock();
+    void unlock();
+
+    bool locked() const { return m_locked; }
+};
+extern Lock RadioPortLock;

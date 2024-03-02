@@ -4,6 +4,7 @@
 #include "kx_commands.h"
 #include "globals.h"
 #include "settings.h"
+#include <mutex>
 
 esp_err_t handler_connectionStatus_get(httpd_req_t *req)
 {
@@ -11,9 +12,11 @@ esp_err_t handler_connectionStatus_get(httpd_req_t *req)
 
     ESP_LOGI(TAG, "%s()", __func__);
 
-    xSemaphoreTake(KXCommunicationMutex, portMAX_DELAY);
-    long transmitting = get_from_kx("TQ", 2, 1);
-    xSemaphoreGive(KXCommunicationMutex);
+    long transmitting;
+    {
+        const std::lock_guard<Lock> lock(RadioPortLock);
+        transmitting = get_from_kx("TQ", 2, 1);
+    }
 
     const char * symbol;
     switch (transmitting) {
