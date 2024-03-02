@@ -136,11 +136,12 @@ void start_webserver()
     ESP_LOGV(TAG8, "trace: %s", __func__);
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    httpd_handle_t server = NULL;
-
     config.max_uri_handlers = 6;
-    config.uri_match_fn = custom_uri_matcher; // Configure to use your matcher
+    config.uri_match_fn = custom_uri_matcher;
+    config.keep_alive_enable = false;
+    config.lru_purge_enable = true;
 
+    httpd_handle_t server = NULL;
     if (httpd_start(&server, &config) != ESP_OK)
         ESP_LOGE(TAG8, "failed to start webserver.");
     else
@@ -148,7 +149,8 @@ void start_webserver()
         httpd_uri_t uri_api = {
             .uri = "/", // Not used: we match all URIs based on the custom_uri_matcher
             .method = HTTP_GET,
-            .handler = my_http_request_handler // The universal routing handler
+            .handler = my_http_request_handler, // The universal routing handler
+            .user_ctx = NULL
         };
         httpd_register_uri_handler(server, &uri_api);
         uri_api.method = HTTP_PUT;
