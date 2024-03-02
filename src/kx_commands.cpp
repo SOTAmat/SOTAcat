@@ -292,9 +292,7 @@ void get_kx_state(kx_state_t *in_state)
     in_state->mode = (uint8_t)get_from_kx("MD", 2, 1); // MDn; - Get current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
     put_to_kx("MD", 1, 3, 2);                          // To get the peaking filter mode we have to be in CW mode
     in_state->audio_peaking = get_from_kx("AP", 2, 1); // APn; - Get Audio Peaking CW filter: 0 for APF OFF and 1 for APF ON
-
-    // FIXME:
-    // Now return to the prior mode
+    put_to_kx("MD", 1, in_state->mode, 2);             // Now return to the prior mode
 }
 
 // ====================================================================================================

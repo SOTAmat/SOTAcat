@@ -23,15 +23,19 @@ function tuneRadioHz(frequency, mode)
 
     fetch('/api/v1/frequency?frequency=' + frequency, { method: 'PUT' })
     .then(response => {
-        if (response.ok)    {   console.log('Frequency updated successfully');  }
-        else                {   console.error('Error updating frequency');      }
-    })
-    .catch(error => console.error('Fetch error:', error));
-
-    fetch('/api/v1/rxBandwidth?bw=' + useMode, { method: 'PUT' })
-    .then(response => {
-        if (response.ok)    {   console.log('Mode updated successfully');   }
-        else                {   console.error('Error updating mode');       }
+        console.log('Frequency updated successfully');
+        if (response.ok) {
+                fetch('/api/v1/rxBandwidth?bw=' + useMode, { method: 'PUT' })
+                .then(response => {
+                    if (response.ok)    {   console.log('Mode updated successfully');   }
+                    else                {   console.error('Error updating mode');       }
+                })
+                .catch(error => console.error('Fetch error:', error));
+        }
+        else
+        {
+            console.error('Error updating frequency');
+        }
     })
     .catch(error => console.error('Fetch error:', error));
 }
