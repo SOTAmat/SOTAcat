@@ -3,8 +3,6 @@
 #include "esp_err.h"
 #include "esp_http_server.h"
 
-extern long last_known_frequency;
-
 extern const uint8_t index_html_srt[] asm("_binary_index_html_start");
 extern const uint8_t index_html_end[] asm("_binary_index_html_end");
 extern const uint8_t main_js_srt[] asm("_binary_main_js_start");
@@ -31,7 +29,6 @@ extern const uint8_t settings_html_end[] asm("_binary_settings_html_end");
 
 extern const uint8_t about_html_srt[]   asm("_binary_about_html_start");
 extern const uint8_t about_html_end[]   asm("_binary_about_html_end");
-
 
 void start_webserver();
 

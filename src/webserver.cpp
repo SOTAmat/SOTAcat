@@ -42,8 +42,6 @@ const api_handler_t post_handlers[] = {
     {NULL, NULL} // Sentinel
 };
 
-long last_known_frequency = 0;
-
 int find_and_execute_handler(const char *api_name, const api_handler_t *handlers, httpd_req_t *req)
 {
     // Ignore any query string if there is one:
