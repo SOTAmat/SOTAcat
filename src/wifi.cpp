@@ -4,12 +4,17 @@
 #include "globals.h"
 #include "settings.h"
 #include "wifi.h"
+#include <string.h>
 
 #include "esp_log.h"
 static const char * TAG8 = "sc:wifi....";
 
 static int s_retry_num = 0;
 static bool s_connected = false;
+
+// someday we'll make both of these configurable in NVRAM
+static const char s_ap_ssid[] = "SOTAcat";
+static const char s_ap_password[] = "12345678";
 
 static void wifi_init_ap()
 {
@@ -19,21 +24,16 @@ static void wifi_init_ap()
 
     esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
 
-    wifi_config_t wifi_config = {
-        .ap = {
-            .ssid = "SOTAcat",
-            .password = "12345678",
-            .ssid_len = (uint8_t)strlen("SOTAcat"),
-            .channel = 1,
-            .authmode = WIFI_AUTH_WPA_WPA2_PSK,
-            .max_connection = 6,
-    },
-    };
-
-    if (strlen("12345678") == 0)
-    {
+    wifi_config_t wifi_config = { };
+    memset(&wifi_config, 0, sizeof(wifi_config_t));
+    strcpy((char *)wifi_config.ap.ssid, s_ap_ssid);
+    wifi_config.ap.ssid_len = (uint8_t)strlen(s_ap_ssid);
+    strcpy((char *)wifi_config.ap.password, s_ap_password);
+    if (strlen(s_ap_password) == 0)
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;
-    }
+    wifi_config.ap.channel = 1;
+    wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    wifi_config.ap.max_connection = 6;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
@@ -41,8 +41,8 @@ static void wifi_init_ap()
 
     // Configure DHCP server
     ESP_LOGI(TAG8, "configuring dhcp server.");
-    esp_netif_ip_info_t info;
-    memset(&info, 0, sizeof(info));
+    esp_netif_ip_info_t info = { };
+    memset(&info, 0, sizeof(esp_netif_ip_info_t));
     IP4_ADDR(&info.ip, 192, 168, 4, 1);
     IP4_ADDR(&info.gw, 0, 0, 0, 0); // Zero gateway address
     IP4_ADDR(&info.netmask, 255, 255, 255, 0);
@@ -68,14 +68,13 @@ static void wifi_init_sta()
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    wifi_config_t wifi_config = { };
+    memset(&wifi_config, 0, sizeof(wifi_config));
+    strcpy((char *)wifi_config.sta.ssid, WIFI_STA_SSID);
+    strcpy((char *)wifi_config.sta.password, WIFI_STA_PASS);
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = WIFI_STA_SSID,
-            .password = WIFI_STA_PASS},
-    };
-
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 

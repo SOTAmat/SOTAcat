@@ -7,6 +7,7 @@ static const char * TAG8 = "sc:setupadc";
 adc_oneshot_unit_handle_t Global_adc1_handle;
 adc_oneshot_unit_init_cfg_t Global_init_config1 = {
     .unit_id = ADC_UNIT_1,
+    .clk_src = ADC_DIGI_CLK_SRC_DEFAULT,
     .ulp_mode = ADC_ULP_MODE_DISABLE,
 };
 adc_oneshot_chan_cfg_t Global_chan_cfg = {
@@ -28,6 +29,7 @@ static bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_ha
         ESP_LOGI(TAG8, "adc calibration scheme is: curve fitting");
         adc_cali_curve_fitting_config_t cali_config = {
             .unit_id = unit,
+            .chan = ADC_CHANNEL_0,
             .atten = atten,
             .bitwidth = ADC_BITWIDTH_DEFAULT,
         };
@@ -43,6 +45,7 @@ static bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_ha
         ESP_LOGI(TAG8, "adc calibration scheme is: line fitting");
         adc_cali_line_fitting_config_t cali_config = {
             .unit_id = unit,
+            .chan = ADC_CHANNEL_0,
             .atten = atten,
             .bitwidth = ADC_BITWIDTH_DEFAULT,
         };
