@@ -320,6 +320,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 // ESP_LOGI(TAG8, "FT8 Tones: %s", tonesString);
                 // free(tonesString);
 
+                RadioPortLock.lock();
                 // First capture the current state of the radio before changing it:
                 kx_state_t *kx_state = new kx_state_t;
                 get_kx_state(kx_state);
@@ -335,6 +336,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 put_to_kx("MD", 1, 3, 2);         // MD3; - To set the Peaking Filter mode we have to be in CW mode: MD3;
                 put_to_kx("AP", 1, 1, 2);         // AP1; - Enable Audio Peaking filter
 
+                RadioPortLock.unlock();
                 // Offload playing the FT8 audio
                 ft8ConfigInfo = new ft8_task_pack_t;
                 ft8ConfigInfo->baseFreq = baseFreq;
@@ -346,13 +348,14 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 // the next FT8 window starts.  If the user does send FT8 that will set a new
                 // timout for the watchdog.  If the user cancels, the watchdog will trigger.
                 CancelRadioFT8ModeTime = esp_timer_get_time() + ((msUntilFT8Window() + 1000) * 1000LL); // 1 second after the next FT8 window starts, converted to microseconds
-
+                
                 // Start the watchdog timer to cleanup whenever we are done with ft8.
                 // This will set CommandInProgress=false; and restore the radio to its prior state.
                 xTaskCreate(&cleanup_ft8_task, "cleanup_ft8_task", 5120, NULL, 5, NULL);
 
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
+                CommandInProgress = false;
                 delete[] buf;
                 ESP_LOGI(TAG8, "successful preparation");
                 return ESP_OK;

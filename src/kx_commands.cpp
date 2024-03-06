@@ -155,6 +155,9 @@ long get_from_kx(const char *command, int tries, int num_digits)
 {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
 
+    if (!RadioPortLock.locked())
+        ESP_LOGE(TAG8, "RADIO PORT NOT LOCKED! (coding error in caller)");
+        
     char cmd_buff[8] = {0};
     char out_buff[16] = {0};
 
@@ -202,6 +205,9 @@ long get_from_kx_menu_item(uint8_t menu_item, int tries)
 bool put_to_kx(const char *command, int num_digits, long value, int tries)
 {
     ESP_LOGV(TAG8, "put_to_kx(%s) attempting value %ld", command, value);
+
+    if (!RadioPortLock.locked())
+        ESP_LOGE(TAG8, "RADIO PORT NOT LOCKED! (coding error in caller)");
 
     if (strlen(command) != 2 || value < 0)
     {
