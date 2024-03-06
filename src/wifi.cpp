@@ -7,13 +7,15 @@
 #include <string.h>
 
 #include "esp_log.h"
+#include "esp_mac.h"
+
 static const char * TAG8 = "sc:wifi....";
 
 static int s_retry_num = 0;
 static bool s_connected = false;
 
 // someday we'll make both of these configurable in NVRAM
-static const char s_ap_ssid[] = "SOTAcat";
+static char s_ap_ssid[] = "SOTAcat-1234";
 static const char s_ap_password[] = "12345678";
 
 static void wifi_init_ap()
@@ -26,6 +28,15 @@ static void wifi_init_ap()
 
     wifi_config_t wifi_config = { };
     memset(&wifi_config, 0, sizeof(wifi_config_t));
+
+    uint8_t base_mac_addr[6] = {0};
+
+    ESP_ERROR_CHECK(esp_read_mac(base_mac_addr, ESP_MAC_EFUSE_FACTORY));
+    ESP_LOGI(TAG8, "Base MAC Addr: %02X:%02X:%02X:%02X:%02X:%02X",
+             base_mac_addr[0], base_mac_addr[1], base_mac_addr[2], base_mac_addr[3], base_mac_addr[4], base_mac_addr[5]);
+    snprintf(&s_ap_ssid[8],5,"%02X%02X",base_mac_addr[4], base_mac_addr[5]);
+    ESP_LOGI(TAG8, "WiFi AP SSID: %s",s_ap_ssid);
+
     strcpy((char *)wifi_config.ap.ssid, s_ap_ssid);
     wifi_config.ap.ssid_len = (uint8_t)strlen(s_ap_ssid);
     strcpy((char *)wifi_config.ap.password, s_ap_password);
