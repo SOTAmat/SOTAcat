@@ -19,6 +19,7 @@ idf_component_register(
         "web/pota.html"
         "web/pota.js"
         "web/settings.html"
+        "web/settings.js"
         "web/about.html"
         )
 

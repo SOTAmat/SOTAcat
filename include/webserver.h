@@ -27,6 +27,9 @@ extern const uint8_t pota_js_end[]   asm("_binary_pota_js_end");
 extern const uint8_t settings_html_srt[] asm("_binary_settings_html_start");
 extern const uint8_t settings_html_end[] asm("_binary_settings_html_end");
 
+extern const uint8_t settings_js_srt[] asm("_binary_settings_js_start");
+extern const uint8_t settings_js_end[] asm("_binary_settings_js_end");
+
 extern const uint8_t about_html_srt[]   asm("_binary_about_html_start");
 extern const uint8_t about_html_end[]   asm("_binary_about_html_end");
 
@@ -44,6 +47,7 @@ esp_err_t handler_cancelft8_post(httpd_req_t *);
 esp_err_t handler_batteryPercent_get(httpd_req_t *);
 esp_err_t handler_batteryVoltage_get(httpd_req_t *);
 esp_err_t handler_connectionStatus_get(httpd_req_t *);
+esp_err_t handler_time_put(httpd_req_t *);
 
 // Structure to map URI to symbol
 typedef struct

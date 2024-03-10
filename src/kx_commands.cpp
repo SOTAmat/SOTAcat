@@ -9,6 +9,8 @@
 #include "esp_log.h"
 static const char * TAG8 = "sc:kx_cmds.";
 
+// See https://ftp.elecraft.com/KX2/Manuals%20Downloads/K3S&K3&KX3&KX2%20Pgmrs%20Ref,%20G4.pdf
+
 /**
  * The mutex lock on the serial port / uart for ACC comm to/fron the radio
  */
@@ -61,7 +63,7 @@ void empty_kx_input_buffer(int wait_ms)
 // --------------------------------------------------------------------------------------------
 static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expected_chars, int tries, int wait_ms)
 {
-    ESP_LOGV(TAG8, "trace: %s()", __func__);
+    ESP_LOGV(TAG8, "trace: %s(cmd='%s', cmd_length=%d, expect=%d)", __func__, cmd, cmd_length, expected_chars);
 
     if (!RadioPortLock.locked())
         ESP_LOGE(TAG8, "RADIO PORT NOT LOCKED! (coding error in caller)");
@@ -70,8 +72,12 @@ static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, in
     uart_write_bytes(UART_NUM, cmd, strlen(cmd));
 
     int64_t start_time = esp_timer_get_time();
-
     int returned_chars = uart_read_bytes(UART_NUM, out_buff, expected_chars, pdMS_TO_TICKS(wait_ms));
+    int64_t end_time = esp_timer_get_time();
+    float elapsed_ms = (end_time - start_time) / 1000.0;
+
+    out_buff[returned_chars] = '\0';
+    ESP_LOGI(TAG8, "command '%s' returned %d chars, '%s', after %.3f ms", cmd, returned_chars, out_buff, elapsed_ms);
 
     if (returned_chars == 2 && out_buff[0] == '?' && out_buff[1] == ';')
     {
@@ -82,28 +88,8 @@ static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, in
         return uart_get_command(cmd, cmd_length, out_buff, expected_chars, tries, wait_ms);
     }
 
-    int64_t end_time = esp_timer_get_time();
-    float elapsed_ms = (end_time - start_time) / 1000.0;
-
-    bool bad_response = false;
-
-    if (returned_chars != expected_chars || out_buff[0] != cmd[0] || out_buff[1] != cmd[1] || (cmd_length == 3 && out_buff[2] != cmd[2]) || out_buff[expected_chars - 1] != ';')
-        bad_response = true;
-    else
-    {
-        // Check that all the value characters are digits
-        for (int i = cmd_length; i < expected_chars - 1; i++)
-        {
-            if (out_buff[i] < '0' || out_buff[i] > '9')
-            {
-                bad_response = true;
-                break;
-            }
-        }
-    }
-
-    if (bad_response)
-    {
+    if (returned_chars != expected_chars || out_buff[0] != cmd[0] || out_buff[1] != cmd[1] ||
+        (cmd_length == 3 && out_buff[2] != cmd[2]) || out_buff[expected_chars - 1] != ';') {
         ESP_LOGE(TAG8, "bad result from command '%s' after %.3f ms, returned bytes=%d, out_buff=%c%c%c%c%c%c...", cmd, elapsed_ms, returned_chars, out_buff[0], out_buff[1], out_buff[2], out_buff[3], out_buff[4], out_buff[5]);
         if (--tries > 0)
         {
@@ -111,12 +97,9 @@ static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, in
             empty_kx_input_buffer(wait_ms);
             return uart_get_command(cmd, cmd_length, out_buff, expected_chars, tries - 1, wait_ms);
         }
-
         return false;
     }
 
-    out_buff[expected_chars - 1] = '\0'; // Null terminate the string after the semicolon
-    ESP_LOGI(TAG8, "command '%s' returned '%s' after %.3f ms", cmd, out_buff, elapsed_ms);
     return true;
 }
 
@@ -153,7 +136,7 @@ static long parse_response(const char *out_buff, int num_digits)
 // --------------------------------------------------------------------------------------------
 long get_from_kx(const char *command, int tries, int num_digits)
 {
-    ESP_LOGV(TAG8, "trace: %s()", __func__);
+    ESP_LOGV(TAG8, "trace: %s(command = '%s')", __func__, command);
 
     char cmd_buff[8] = {0};
     char out_buff[16] = {0};
@@ -184,6 +167,20 @@ long get_from_kx(const char *command, int tries, int num_digits)
     return result;
 }
 
+// --------------------------------------------------------------------------------------------
+bool get_from_kx_string(const char *command, int tries, char * response, int response_size)
+{
+    ESP_LOGV(TAG8, "trace: %s(command = '%s')", __func__, command);
+
+    char cmd_buff[8] = {0};
+    snprintf(cmd_buff, sizeof(cmd_buff), "%s;", command);
+
+    int command_size = strlen(command);
+    int wait_time = KX_TIMEOUT_MS_SHORT_COMMANDS;
+
+    return uart_get_command(cmd_buff, command_size, response, response_size, tries, wait_time);
+}
+
 // ====================================================================================================
 long get_from_kx_menu_item(uint8_t menu_item, int tries)
 {
@@ -201,7 +198,7 @@ long get_from_kx_menu_item(uint8_t menu_item, int tries)
 // ====================================================================================================
 bool put_to_kx(const char *command, int num_digits, long value, int tries)
 {
-    ESP_LOGV(TAG8, "put_to_kx(%s) attempting value %ld", command, value);
+    ESP_LOGV(TAG8, "put_to_kx('%s') attempting value %ld", command, value);
 
     if (strlen(command) != 2 || value < 0)
     {
@@ -277,6 +274,19 @@ bool put_to_kx_menu_item(uint8_t menu_item, long value, int tries)
     put_to_kx("MN", 3, 255, 2); // Switch out of Menu mode
 
     return value;
+}
+
+// ====================================================================================================
+bool put_to_kx_command_string(const char * cmd, int tries) {
+    ESP_LOGV(TAG8, "trace: %s(cmd = '%s')", __func__, cmd);
+
+    if (!RadioPortLock.locked())
+        ESP_LOGE(TAG8, "RADIO PORT NOT LOCKED! (coding error in caller)");
+
+    uart_flush(UART_NUM);
+    uart_write_bytes(UART_NUM, cmd, strlen(cmd));
+
+    return true;
 }
 
 // ====================================================================================================

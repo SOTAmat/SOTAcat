@@ -18,6 +18,8 @@ long get_from_kx_menu_item(uint8_t menu_item, int tries);
 bool put_to_kx_menu_item(uint8_t menu_item, long value, int tries);
 void get_kx_state(kx_state_t *in_state);
 void restore_kx_state(const kx_state_t *in_state, int tries);
+bool get_from_kx_string(const char *command, int tries, char *result, int result_size);
+bool put_to_kx_command_string(const char * cmd, int tries);
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"

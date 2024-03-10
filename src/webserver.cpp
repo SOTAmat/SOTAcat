@@ -16,6 +16,7 @@ asset_entry_t asset_map[] = {
     {"/pota.html",     pota_html_srt,     pota_html_end,     "text/html",       60},
     {"/pota.js",       pota_js_srt,       pota_js_end,       "text/javascript", 60},
     {"/settings.html", settings_html_srt, settings_html_end, "text/html",       60},
+    {"/settings.js",   settings_js_srt,   settings_js_end,   "text/html",       60},
     {"/about.html",    about_html_srt,    about_html_end,    "text/html",       60},
     {NULL,             NULL,              NULL,              NULL,              0}
 };
@@ -35,6 +36,7 @@ const api_handler_t put_handlers[] = {
     {"frequency",        handler_frequency_put},
     {"mode",             handler_mode_put},
     {"rxBandwidth",      handler_rxBandwidth_put},
+    {"time",             handler_time_put},
     {NULL,               NULL} // Sentinel
 };
 
