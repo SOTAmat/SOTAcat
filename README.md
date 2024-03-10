@@ -20,7 +20,9 @@ SOTACAT can form a bidirectional connection with the SOTAMAT app on your phone a
 - [YouTube build instructions video](https://www.youtube.com/watch?v=iD3S-9icRn0) showing how to manually build your own SOTACAT
 - Firmware: found here on Github
 - Other hams (K5EM and KE6MT) have created custom circuit boards that implement a SOTACAT in a more compact and professionally designed package.
-- The SOTAMAT app compatible with SOTACAT has not yet been released and is in development.  There is a pre-Beta version of SOTAMAT available in [APK/AAB packaging for Android devices](https://1drv.ms/f/s!AhZ33h8betkWjOpAp6J0kgMQex3OWQ?e=xlfzSQ) available, and look for the highest build number. 
+- The SOTAMAT app compatible with SOTACAT has not yet been released and is in development.  There are SOTACAT-aware Beta versions of SOTAMAT available at:
+    - [iOS build on Apple's TestFlight App Store for Beta apps](https://testflight.apple.com/join/UQuW6g1E)
+    - [APK/AAB packaging for Android devices](https://1drv.ms/f/s!AhZ33h8betkWjOpAp6J0kgMQex3OWQ?e=xlfzSQ), and look for the highest build number. 
 
 ## Instructions to Build the Firmware:
 
