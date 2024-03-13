@@ -1,13 +1,10 @@
-function updateSotaTable()
+async function updateSotaTable()
 {
-    data = gLatestSotaJson;
-    if (data == null)
-    {
+    data = await gLatestSotaJson;
+    if (data == null) {
         console.info('SOTA Json is null');
         return;
     }
-
-    console.info('SOTA Json is NOT null');
 
     var showDupsCheckbox = document.getElementById('showDupsSelector');
 
@@ -23,21 +20,24 @@ function updateSotaTable()
             return; // Skip this iteration, effectively continuing to the next one
         }
 
-        const date = new Date(spot.timeStamp);
-        const formattedTime = date.getHours() + ':' + date.getMinutes().toString().padStart(2, '0');
         const row = newTbody.insertRow();
 
         // Check if the activatorCallsign is already seen
-        if (seenCallsigns.has(spot.activatorCallsign.split("/")[0]))
+        if (spot.activatorCallsign)
         {
-            let replacedColor = getComputedStyle(document.documentElement).getPropertyValue('--backgroundSpotDuplicateColor').trim();
-            row.style.backgroundColor = replacedColor;
-        } else
-        {
-            seenCallsigns.add(spot.activatorCallsign.split("/")[0]);
+            if (seenCallsigns.has(spot.activatorCallsign.split("/")[0]))
+            {
+                let replacedColor = getComputedStyle(document.documentElement).getPropertyValue('--backgroundSpotDuplicateColor').trim();
+                row.style.backgroundColor = replacedColor;
+            }
+            else
+            {
+                seenCallsigns.add(spot.activatorCallsign.split("/")[0]);
+            }
         }
 
-
+        const date = new Date(spot.timeStamp);
+        const formattedTime = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
         row.insertCell().textContent = formattedTime;
 
         const summitCell = row.insertCell();
@@ -46,6 +46,7 @@ function updateSotaTable()
         summitLink.textContent = `${spot.associationCode}/${spot.summitCode}`;
         summitCell.appendChild(summitLink);
 
+        row.insertCell().textContent = spot.distance;
         row.insertCell().textContent = spot.mode;
 
         const frequencyCell = row.insertCell();
@@ -89,11 +90,9 @@ function loadShowSotaSpotDupsCheckboxState()
     }
 }
 
-
 function sotaOnAppearing()
 {
     console.info('SOTA tab appearing');
     loadShowSotaSpotDupsCheckboxState();
-    updateSotaTable();
+    refreshSotaPotaJson();
 }
-

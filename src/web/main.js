@@ -1,7 +1,9 @@
-var sotamat_base_url = 'sotamat://api/v1?app=sotacat&appversion=2.1';
-
+// ----------------------------------------------------------------------------
+// Launch SOTAmat application
+// ----------------------------------------------------------------------------
 function launchSOTAmat()
 {
+    var sotamat_base_url = 'sotamat://api/v1?app=sotacat&appversion=2.1';
     var currentUrl = window.location.href;
     var encodedReturnPath = encodeURIComponent(currentUrl);
     var newHref = sotamat_base_url + '&returnpath=' + encodedReturnPath;
@@ -10,6 +12,9 @@ function launchSOTAmat()
 }
 
 
+// ----------------------------------------------------------------------------
+// Handle clickable frequencies
+// ----------------------------------------------------------------------------
 function tuneRadioMHz(freqMHz, mode) {  tuneRadioHz(parseFloat(freqMHz) * 1000000, mode);   }
 function tuneRadioKHz(freqKHz, mode) {  tuneRadioHz(parseFloat(freqKHz) * 1000, mode);      }
 function tuneRadioHz(frequency, mode)
@@ -41,6 +46,9 @@ function tuneRadioHz(frequency, mode)
 }
 
 
+// ----------------------------------------------------------------------------
+// Update status indicators
+// ----------------------------------------------------------------------------
 function fetchAndUpdateElement(url, elementId) {
     fetch(url)
         .then(response => {
@@ -62,6 +70,22 @@ function fetchAndUpdateElement(url, elementId) {
         });
 }
 
+// ----------------------------------------------------------------------------
+// Status:Clock
+// ----------------------------------------------------------------------------
+function refreshUTCClock()
+{
+    // Update the UTC clock, but only show the hours and the minutes and nothging else
+    const utcTime = new Date().toUTCString();
+    document.getElementById('currentUTCTime').textContent = utcTime.slice(17, 22);
+}
+
+refreshUTCClock(); // Initial refresh
+setInterval(refreshUTCClock, 10000); // Refresh every 10 seconds
+
+// ----------------------------------------------------------------------------
+// Status:Battery
+// ----------------------------------------------------------------------------
 function updateBatteryInfo() {
     fetchAndUpdateElement('/api/v1/batteryPercent', 'batteryPercent');
     fetchAndUpdateElement('/api/v1/batteryVoltage', 'batteryVoltage');
@@ -70,7 +94,9 @@ function updateBatteryInfo() {
 updateBatteryInfo(); // Call the function immediately
 setInterval(updateBatteryInfo, 60000); // Then refresh it every 1 minute
 
-
+// ----------------------------------------------------------------------------
+// Status:Connection
+// ----------------------------------------------------------------------------
 function updateConnectionStatus() {
     fetchAndUpdateElement('/api/v1/connectionStatus', 'connectionStatus');
 }
@@ -78,6 +104,10 @@ function updateConnectionStatus() {
 updateConnectionStatus(); // Call the function immediately
 setInterval(updateConnectionStatus, 5000); // Then refresh it every 5 seconds
 
+
+// ----------------------------------------------------------------------------
+// Tab handling
+// ----------------------------------------------------------------------------
 
 let currentTabName = null;
 
@@ -141,7 +171,6 @@ function loadTabScriptIfNeeded(tabName)
     });
 }
 
-
 function openTab(tabName)
 {
     cleanupCurrentTab();
@@ -171,24 +200,95 @@ function openTab(tabName)
         .catch(error => console.error('Error loading tab content:', error));
 }
 
+// ----------------------------------------------------------------------------
+// Get SOTA/POTA data
+// ----------------------------------------------------------------------------
 
-document.addEventListener('DOMContentLoaded',
-    function()
-    {
-        openTab('sota'); // Load the default tab content on initial load
+// Function to calculate distance between two points using the Haversine formula
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+const distanceCache = {}; // Cache to store distance by summitCode
+// Function to fetch summit details and calculate distance
+// Function to fetch summit details and calculate distance
+async function enrichSOTASpotsWithDistance(spots, baseurl, getCodeFunc, currentLat, currentLon) {
+  const spotsWithDistance = await Promise.all(spots.map(async (spot) => {
+    const summitCode = getCodeFunc(spot);
+
+    // Check if the summit's distance calculation is already in progress or done
+    if (!distanceCache[summitCode]) {
+      // If not, start the fetch and calculation, and store the promise in the cache
+      distanceCache[summitCode] = (async () => {
+        const response = await fetch(`${baseurl}/${summitCode}`);
+        const { latitude, longitude } = await response.json();
+        const distance = Math.round(calculateDistance(currentLat, currentLon, latitude, longitude));
+        return distance;
+      })();
     }
-);
 
+    // Wait for the distance calculation to complete (either it was already in progress or just started above)
+    const distance = await distanceCache[summitCode];
+
+    // Return new spot object with distance included
+    return {...spot, distance};
+  }));
+
+  return spotsWithDistance;
+}
 
 gLatestSotaJson = null;
 gLatestPotaJson = null;
 
+async function getLocation() {
+    // Unfortunately, the geolocation API is only available in HTTPS
+    //
+    //  return new Promise((resolve, reject) => {
+    //      navigator.geolocation.getCurrentPosition(position => {
+    //          const { latitude, longitude } = position.coords;
+    //          resolve({ latitude, longitude });
+    //      }, error => {
+    //          console.error("Error getting location", error);
+    //          reject(error);
+    //      });
+    //  });
+    // So, we'll use a less accurate, but more available alternative
+    try {
+        // Use fetch API to get location from IP. Note: Ensure CORS policies are handled if calling from the browser.
+        const response = await fetch('http://ip-api.com/json/?fields=status,message,lat,lon', {
+            mode: 'cors' // This might be required for CORS requests if the server supports it.
+        });
+        const position = await response.json();
+        if (response.ok && position.status === 'success') {
+            // Extract latitude and longitude from the successful response
+            const { lat: latitude, lon: longitude } = position;
+            return { latitude, longitude };
+        } else {
+            // Handle error status or unsuccessful fetch operation
+            throw new Error(position.message || "Failed to fetch location from IP-API");
+        }
+    } catch (error) {
+        console.error("Error retrieving location: ", error);
+        throw error; // Propagate the error to be handled by the caller
+    }
+}
+
 async function refreshSotaPotaJson()
 {
+    // See SOTA API docs at https://api2.sota.org.uk/docs/index.html
     const sotaPromise = fetch('https://api2.sota.org.uk/api/spots/-1/all').then(res => res.json()).catch(error => ({ error }));
     const potaPromise = fetch('https://api.pota.app/spot/activator').then(res => res.json()).catch(error => ({ error }));
-
     const results = await Promise.allSettled([sotaPromise, potaPromise]); // Fetch both SOTA and POTA JSON in parallel, regardless of success
+
+    const { latitude, longitude } = await getLocation();
 
     results.forEach((result, index) =>
     {
@@ -196,42 +296,32 @@ async function refreshSotaPotaJson()
         {
             if (index === 0)
             { // SOTA
-                gLatestSotaJson = result.value;
+                gLatestSotaJson = enrichSOTASpotsWithDistance(result.value, 'https://api2.sota.org.uk/api/summits',
+                                                              function(spot){return spot.associationCode + "/" + spot.summitCode;},
+                                                              latitude, longitude);
                 console.info('SOTA Json updated');
+                if (currentTabName === 'sota')
+                    gLatestSotaJson.then(() => { updateSotaTable(); } )
             }
             else if (index === 1)
             { // POTA
-                gLatestPotaJson = result.value;
+                gLatestPotaJson = enrichSOTASpotsWithDistance(result.value, 'https://api.pota.app/park',
+                                                              function(spot){return spot.reference;},
+                                                              latitude, longitude);
                 console.info('POTA Json updated');
-            }
-
-            // If the SOTA page is currently open, update the SOTA table
-            if (currentTabName === 'sota')
-            {
-                updateSotaTable();
-            }
-            // If the POTA page is currently open, update the POTA table
-            else if (currentTabName === 'pota')
-            {
-                updatePotaTable();
+                if (currentTabName === 'pota')
+                    gLatestPotaJson.then(() => { updatePotaTable(); } )
             }
         }
         else
-        {
             console.error('Error fetching JSON:', result.reason);
-        }
     });
 }
 
-refreshSotaPotaJson(); // Initial refresh
-setInterval(refreshSotaPotaJson, 60000); // Refresh every minute
 
-function refreshUTCClock()
-{
-    // Update the UTC clock, but only show the hours and the minutes and nothging else
-    const utcTime = new Date().toUTCString();
-    document.getElementById('currentUTCTime').textContent = utcTime.slice(17, 22);
-}
-
-refreshUTCClock(); // Initial refresh
-setInterval(refreshUTCClock, 10000); // Refresh every 10 seconds
+document.addEventListener('DOMContentLoaded',
+    function() {
+        setInterval(refreshSotaPotaJson, 60000); // Refresh every minute
+        openTab('sota'); // Load the default tab content on initial load
+    }
+);

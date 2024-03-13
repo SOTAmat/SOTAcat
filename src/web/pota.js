@@ -12,7 +12,7 @@ function sortDataByUTC(data)
 
 async function updatePotaTable()
 {
-    const dataIn = gLatestPotaJson;
+    const dataIn = await gLatestPotaJson;
     if (dataIn == null)
     {
         console.info('POTA Json is null');
@@ -28,8 +28,6 @@ async function updatePotaTable()
 
     data.forEach(spot =>
     {
-        const date = new Date(spot.spotTime);
-        const formattedTime = date.getHours() + ':' + date.getMinutes().toString().padStart(2, '0');
         const row = newTbody.insertRow();
 
         // Check if the activatorCallsign is already seen
@@ -40,7 +38,8 @@ async function updatePotaTable()
             seenCallsigns.add(spot.activator.split("/")[0]);
         }
 
-
+        const date = new Date(spot.spotTime);
+        const formattedTime = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
         row.insertCell().textContent = formattedTime;
 
         const parkCell = row.insertCell();
@@ -49,6 +48,7 @@ async function updatePotaTable()
         parkLink.textContent = `${spot.reference}`;
         parkCell.appendChild(parkLink);
 
+        row.insertCell().textContent = spot.distance;
         row.insertCell().textContent = spot.mode;
 
         const frequencyCell = row.insertCell();
@@ -78,6 +78,5 @@ async function updatePotaTable()
 function potaOnAppearing()
 {
     console.info('POTA tab appearing');
-    updatePotaTable();
+    refreshSotaPotaJson();
 }
-
