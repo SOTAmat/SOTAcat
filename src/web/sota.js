@@ -1,6 +1,6 @@
 async function updateSotaTable()
 {
-    data = await gLatestSotaJson;
+    const data = await gLatestSotaJson;
     if (data == null) {
         console.info('SOTA Json is null');
         return;
@@ -11,34 +11,27 @@ async function updateSotaTable()
     const tbody = document.querySelector('#sotaTable tbody');
     let newTbody = document.createElement('tbody');
 
-    const seenCallsigns = new Set(); // Set to track seen activatorCallsigns
-
     data.forEach(spot =>
     {
-        // Check if we should skip duplicates and if the activatorCallsign has been seen
-        if (!showDupsCheckbox.checked && seenCallsigns.has(spot.activatorCallsign.split("/")[0])) {
-            return; // Skip this iteration, effectively continuing to the next one
-        }
-
         const row = newTbody.insertRow();
 
-        // Check if the activatorCallsign is already seen
-        if (spot.activatorCallsign)
-        {
-            if (seenCallsigns.has(spot.activatorCallsign.split("/")[0]))
-            {
+        if (spot.duplicate) {
+            if (!showDupsCheckbox.checked)
+                return; // Skip this iteration, effectively continuing to the next one
+            else {
                 let replacedColor = getComputedStyle(document.documentElement).getPropertyValue('--backgroundSpotDuplicateColor').trim();
-                row.style.backgroundColor = replacedColor;
-            }
-            else
-            {
-                seenCallsigns.add(spot.activatorCallsign.split("/")[0]);
+                row.style.backgroundColor = replacedColor; // Set background color using CSS variable
             }
         }
 
-        const date = new Date(spot.timeStamp);
+        let timeCell = row.insertCell();
+        let hiddenSpan = document.createElement('span');
+        hiddenSpan.style.display = 'none';
+        hiddenSpan.textContent = spot.timestamp;
+        timeCell.appendChild(hiddenSpan);
+        const date = new Date(spot.timestamp);
         const formattedTime = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
-        row.insertCell().textContent = formattedTime;
+        timeCell.appendChild(document.createTextNode(formattedTime));
 
         const summitCell = row.insertCell();
         const summitLink = document.createElement('a');
@@ -61,7 +54,7 @@ async function updateSotaTable()
 
         const callsignCell = row.insertCell();
         const callsignLink = document.createElement('a');
-        callsignLink.href = `https://qrz.com/db/${spot.activatorCallsign.split("/")[0]}`; // QRZ.com doesn't support callsign suffixes
+        callsignLink.href = `https://qrz.com/db/${spot.baseCallsign}`; // QRZ.com doesn't support callsign suffixes
         callsignLink.textContent = spot.activatorCallsign;
         callsignCell.appendChild(callsignLink);
 
@@ -85,9 +78,7 @@ function loadShowSotaSpotDupsCheckboxState()
     const savedState = localStorage.getItem('showSotaSpotDups');
     // If there's a saved state, convert it to Boolean and set the checkbox
     if (savedState !== null)
-    {
         document.getElementById('showDupsSelector').checked = (savedState === 'true');
-    }
 }
 
 function sotaOnAppearing()

@@ -1,19 +1,7 @@
-function sortDataByUTC(data)
-{
-    data.forEach(spot =>
-    {
-        // Convert and store timestamps once for each item
-        spot.timestamp = new Date(spot.spotTime).getTime();
-    });
-
-    return data.sort((a, b) => b.timestamp - a.timestamp); // Sort timestamps
-}
-
-
 async function updatePotaTable()
 {
-    const dataIn = await gLatestPotaJson;
-    if (dataIn == null)
+    const data = await gLatestPotaJson;
+    if (data == null)
     {
         console.info('POTA Json is null');
         return;
@@ -22,25 +10,27 @@ async function updatePotaTable()
     const tbody = document.querySelector('#potaTable tbody');
     let newTbody = document.createElement('tbody');
 
-    const data = sortDataByUTC(dataIn);
-
-    const seenCallsigns = new Set(); // Set to track seen activatorCallsigns
-
     data.forEach(spot =>
     {
         const row = newTbody.insertRow();
 
-        // Check if the activatorCallsign is already seen
-        if (seenCallsigns.has(spot.activator.split("/")[0])) {
-            let replacedColor = getComputedStyle(document.documentElement).getPropertyValue('--backgroundSpotDuplicate').trim();
-            row.style.backgroundColor = replacedColor; // Set background color using CSS variable
-        } else {
-            seenCallsigns.add(spot.activator.split("/")[0]);
+        if (spot.duplicate) {
+            if (!showDupsCheckbox.checked)
+                return; // Skip this iteration, effectively continuing to the next one
+            else {
+                let replacedColor = getComputedStyle(document.documentElement).getPropertyValue('--backgroundSpotDuplicateColor').trim();
+                row.style.backgroundColor = replacedColor; // Set background color using CSS variable
+            }
         }
 
-        const date = new Date(spot.spotTime);
+        let timeCell = row.insertCell();
+        let hiddenSpan = document.createElement('span');
+        hiddenSpan.style.display = 'none';
+        hiddenSpan.textContent = spot.timestamp;
+        timeCell.appendChild(hiddenSpan);
+        const date = new Date(spot.timestamp);
         const formattedTime = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
-        row.insertCell().textContent = formattedTime;
+        timeCell.appendChild(document.createTextNode(formattedTime));
 
         const parkCell = row.insertCell();
         const parkLink = document.createElement('a');
@@ -63,7 +53,7 @@ async function updatePotaTable()
 
         const callsignCell = row.insertCell();
         const callsignLink = document.createElement('a');
-        callsignLink.href = `https://qrz.com/db/${spot.activator.split("/")[0]}`; // QRZ.com doesn't support callsign suffixes
+        callsignLink.href = `https://qrz.com/db/${spot.baseCallsign}`; // QRZ.com doesn't support callsign suffixes
         callsignLink.textContent = spot.activator;
         callsignCell.appendChild(callsignLink);
 

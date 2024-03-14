@@ -217,37 +217,6 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-const distanceCache = {}; // Cache to store distance by summitCode
-// Function to fetch summit details and calculate distance
-// Function to fetch summit details and calculate distance
-async function enrichSOTASpotsWithDistance(spots, baseurl, getCodeFunc, currentLat, currentLon) {
-  const spotsWithDistance = await Promise.all(spots.map(async (spot) => {
-    const summitCode = getCodeFunc(spot);
-
-    // Check if the summit's distance calculation is already in progress or done
-    if (!distanceCache[summitCode]) {
-      // If not, start the fetch and calculation, and store the promise in the cache
-      distanceCache[summitCode] = (async () => {
-        const response = await fetch(`${baseurl}/${summitCode}`);
-        const { latitude, longitude } = await response.json();
-        const distance = Math.round(calculateDistance(currentLat, currentLon, latitude, longitude));
-        return distance;
-      })();
-    }
-
-    // Wait for the distance calculation to complete (either it was already in progress or just started above)
-    const distance = await distanceCache[summitCode];
-
-    // Return new spot object with distance included
-    return {...spot, distance};
-  }));
-
-  return spotsWithDistance;
-}
-
-gLatestSotaJson = null;
-gLatestPotaJson = null;
-
 async function getLocation() {
     // Unfortunately, the geolocation API is only available in HTTPS
     //
@@ -281,6 +250,79 @@ async function getLocation() {
     }
 }
 
+// Cache to store distance by summitCode.
+// We declare it outside the following function so that it can persist
+// across function calls, but it's not really meant to be used outside
+// of the conjunction of the function.
+const distanceCache = {};
+
+// Further enrich base spot details with:
+// - distance from our location
+// - canonical timestamp
+// - base call sign (omitting suffixes)
+// - whether the spot is a duplicate of a prior spot
+// Return an array sorted by descending timestamp
+async function enrichSpots(spots,
+                           baseurl, getCodeFunc, currentLat, currentLon,
+                           getTimeFunc,
+                           getActivatorFunc) {
+    const spotsWithDistance = await Promise.all(spots.map(async (spot) => {
+        const summitCode = getCodeFunc(spot);
+
+        // Check if the summit's distance calculation is already in progress or done
+        if (!distanceCache[summitCode]) {
+            // If not, start the fetch and calculation, and store the promise in the cache
+            distanceCache[summitCode] = (async () => {
+                try {
+                    const response = await fetch(`${baseurl}/${summitCode}`);
+                    if (!response.ok) {
+                        // If the response status is not OK, throw an error to be caught by the catch block
+                        throw new Error('Network response was not ok.');
+                    }
+                    const { latitude, longitude } = await response.json();
+                    const distance = Math.round(calculateDistance(currentLat, currentLon, latitude, longitude));
+                    return distance;
+                } catch (error) {
+                    console.error("Error calculating distance for summit", summitCode, error);
+                    return 99999; // Set distance to a noticable number - on fetch or processing failure
+                }
+            })();
+        }
+
+        // Wait for the distance calculation to complete (either it was already in progress or just started above)
+        const distance = await distanceCache[summitCode];
+
+        // Return new spot object with distance included
+        return {...spot, distance};
+    }));
+
+  // find duplicates
+  // first we must sport by time
+  // then we keep track of which baseCallsigns we've already seen
+  // and mark the spot as a duplicate if we see it again
+  spotsWithDistance.forEach(spot => {
+      spot.timestamp = getTimeFunc(spot);
+      spot.baseCallsign = getActivatorFunc(spot).split("/")[0];
+  });
+  spotsWithDistance.sort((a, b) => b.timestamp - a.timestamp);
+
+  const seenCallsigns = new Set(); // Set to track seen activatorCallsigns
+  spotsWithDistance.forEach(spot => {
+      if (spot.baseCallsign && seenCallsigns[spot.baseCallsign]) {
+          spot.duplicate = true;
+      }
+      else {
+          spot.duplicate = false;
+          seenCallsigns[spot.baseCallsign] = true;
+      }
+  });
+
+  return spotsWithDistance;
+}
+
+gLatestSotaJson = null;
+gLatestPotaJson = null;
+
 async function refreshSotaPotaJson()
 {
     // See SOTA API docs at https://api2.sota.org.uk/docs/index.html
@@ -296,18 +338,24 @@ async function refreshSotaPotaJson()
         {
             if (index === 0)
             { // SOTA
-                gLatestSotaJson = enrichSOTASpotsWithDistance(result.value, 'https://api2.sota.org.uk/api/summits',
-                                                              function(spot){return spot.associationCode + "/" + spot.summitCode;},
-                                                              latitude, longitude);
+                gLatestSotaJson = enrichSpots(result.value,
+                                              'https://api2.sota.org.uk/api/summits',
+                                              function(spot){return spot.associationCode + "/" + spot.summitCode;}, // getCodeFunc
+                                              latitude, longitude,
+                                              function(spot){return spot.timeStamp;},
+                                              function(spot){return spot.activatorCallsign;});
                 console.info('SOTA Json updated');
                 if (currentTabName === 'sota')
                     gLatestSotaJson.then(() => { updateSotaTable(); } )
             }
             else if (index === 1)
             { // POTA
-                gLatestPotaJson = enrichSOTASpotsWithDistance(result.value, 'https://api.pota.app/park',
-                                                              function(spot){return spot.reference;},
-                                                              latitude, longitude);
+                gLatestPotaJson = enrichSpots(result.value,
+                                              'https://api.pota.app/park',
+                                              function(spot){return spot.reference;}, // getCodeFunc
+                                              latitude, longitude,
+                                              function(spot){return new Date(spot.spotTime).getTime();},
+                                              function(spot){return spot.activator;});
                 console.info('POTA Json updated');
                 if (currentTabName === 'pota')
                     gLatestPotaJson.then(() => { updatePotaTable(); } )
@@ -317,7 +365,6 @@ async function refreshSotaPotaJson()
             console.error('Error fetching JSON:', result.reason);
     });
 }
-
 
 document.addEventListener('DOMContentLoaded',
     function() {
