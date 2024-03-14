@@ -38,8 +38,8 @@ async function updatePotaTable()
         parkLink.textContent = `${spot.reference}`;
         parkCell.appendChild(parkLink);
 
-        row.insertCell().textContent = spot.distance;
-        row.insertCell().textContent = spot.mode;
+        row.insertCell().textContent = spot.distance.toLocaleString();
+        row.insertCell().textContent = spot.mode.toUpperCase();
 
         const frequencyCell = row.insertCell();
         const frequencyLink = document.createElement('a');
