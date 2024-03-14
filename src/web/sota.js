@@ -1,11 +1,9 @@
 // We'll keep these global sorting variables here for now,
 // although they apply equally to sota and pota.
 // Soon, we may collapse sota and pota display.
-
 gSortField = "timestamp";
-gLastSortField = null;
+gLastSortField = gSortField;
 gDescending = true;
-
 
 async function updateSotaTable()
 {
@@ -96,24 +94,37 @@ function loadShowSotaSpotDupsCheckboxState()
         document.getElementById('showDupsSelector').checked = (savedState === 'true');
 }
 
-function sotaOnAppearing()
-{
+function updateSortIndicators(headers, sortField, descending) {
+    headers.forEach(header => {
+        if (header.getAttribute('data-sort-field') === sortField) {
+            header.setAttribute('data-sort-dir', descending ? 'desc' : 'asc');
+        } else {
+            header.removeAttribute('data-sort-dir');
+        }
+    });
+}
+
+function sotaOnAppearing() {
     console.info('SOTA tab appearing');
     loadShowSotaSpotDupsCheckboxState();
-
     refreshSotaPotaJson();
 
     const headers = document.querySelectorAll('#sotaTable th[data-sort-field]');
     headers.forEach(header => {
-        header.addEventListener('click', () => {
-            gSortField = header.getAttribute('data-sort-field');
-            if (gSortField === gLastSortField)
+        header.addEventListener('click', function() {
+            gSortField = this.getAttribute('data-sort-field');
+            if (gSortField === gLastSortField) {
                 gDescending = !gDescending; // Toggle the sorting direction on each click
-            else {
+            } else {
                 gLastSortField = gSortField;
-                gDescending = true;
+                gDescending = true; // Default to descending on first click
             }
+            updateSortIndicators(headers, gSortField, gDescending);
             updateSotaTable();
         });
     });
+
+    // Initially set the sort indicator and sort the table
+    updateSortIndicators(headers, gSortField, gDescending);
+    updateSotaTable(); // Assuming this function uses gSortField and gDescending to sort and display data
 }

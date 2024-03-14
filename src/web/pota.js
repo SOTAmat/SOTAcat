@@ -71,23 +71,27 @@ async function updatePotaTable()
     tbody.parentNode.replaceChild(newTbody, tbody);
 }
 
-function potaOnAppearing()
-{
+function potaOnAppearing() {
     console.info('POTA tab appearing');
-
+//    loadShowPotaSpotDupsCheckboxState();
     refreshSotaPotaJson();
 
     const headers = document.querySelectorAll('#potaTable th[data-sort-field]');
     headers.forEach(header => {
-        header.addEventListener('click', () => {
-            gSortField = header.getAttribute('data-sort-field');
-            if (gSortField === gLastSortField)
+        header.addEventListener('click', function() {
+            gSortField = this.getAttribute('data-sort-field');
+            if (gSortField === gLastSortField) {
                 gDescending = !gDescending; // Toggle the sorting direction on each click
-            else {
+            } else {
                 gLastSortField = gSortField;
-                gDescending = true;
+                gDescending = true; // Default to descending on first click
             }
+            updateSortIndicators(headers, gSortField, gDescending);
             updatePotaTable();
         });
     });
+
+    // Initially set the sort indicator and sort the table
+    updateSortIndicators(headers, gSortField, gDescending);
+    updatePotaTable(); // Assuming this function uses gSortField and gDescending to sort and display data
 }

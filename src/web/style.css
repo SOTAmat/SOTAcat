@@ -156,6 +156,22 @@ table, th, td {
     margin-right: auto; /* Ensures it stays left-aligned */
 }
 
+
+/* Hide arrows by default */
+table.table-sortable th::after {
+    content: "";
+}
+
+/* Arrow for ascending sort */
+table.table-sortable th[data-sort-dir="asc"]::after {
+    content: "\25b2"; /* Up-pointing triangle */
+}
+
+/* Arrow for descending sort */
+table.table-sortable th[data-sort-dir="desc"]::after {
+    content: "\25bc"; /* Down-pointing triangle */
+}
+
 /* ---------------------------- SOTA content page */
 
 .showDupsContainer {
