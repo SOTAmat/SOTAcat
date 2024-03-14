@@ -13,6 +13,8 @@ async function updatePotaTable()
         return 0;
     });
 
+    var showDupsCheckbox = document.getElementById('showDupsSelector');
+
     const tbody = document.querySelector('#potaTable tbody');
     let newTbody = document.createElement('tbody');
 
@@ -73,8 +75,20 @@ async function updatePotaTable()
 
 function potaOnAppearing() {
     console.info('POTA tab appearing');
-//    loadShowPotaSpotDupsCheckboxState();
+
+    loadShowSpotDupsCheckboxState();
+    loadRefreshRateState();
     refreshSotaPotaJson();
+
+    const refreshIntervalSelector = document.getElementById('refreshIntervalSelector');
+    if (gRefreshInterval != null)
+        clearInterval(gRefreshInterval);
+    gRefreshInterval = setRefreshInterval(refreshIntervalSelector.value);
+
+    refreshIntervalSelector.addEventListener('change', function() {
+        clearInterval(gRefreshInterval);
+        gRefreshInterval = setRefreshInterval(refreshIntervalSelector.value);
+    });
 
     const headers = document.querySelectorAll('#potaTable th[data-sort-field]');
     headers.forEach(header => {

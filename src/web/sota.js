@@ -80,18 +80,39 @@ async function updateSotaTable()
     console.info('SOTA table updated');
 }
 
-function saveShowSotaSpotDupsCheckboxState()
+function saveShowSpotDupsCheckboxState()
 {
     const isChecked = document.getElementById('showDupsSelector').checked;
-    localStorage.setItem('showSotaSpotDups', isChecked);
+    localStorage.setItem('showSpotDups', isChecked);
 }
 
-function loadShowSotaSpotDupsCheckboxState()
+function loadShowSpotDupsCheckboxState()
 {
-    const savedState = localStorage.getItem('showSotaSpotDups');
+    const savedState = localStorage.getItem('showSpotDups');
     // If there's a saved state, convert it to Boolean and set the checkbox
     if (savedState !== null)
         document.getElementById('showDupsSelector').checked = (savedState === 'true');
+}
+
+gRefreshInterval = null;
+
+function setRefreshInterval(intervalDuration) {
+    console.log('Setting interval to:', intervalDuration);
+    saveRefreshRateState();
+    return setInterval(refreshSotaPotaJson, parseInt(intervalDuration, 10));
+}
+
+function saveRefreshRateState()
+{
+    const refreshIntervalSelector = document.getElementById('refreshIntervalSelector');
+    localStorage.setItem("refreshRate", refreshIntervalSelector.value);
+}
+
+function loadRefreshRateState()
+{
+    const savedState = localStorage.getItem('refreshRate');
+    if (savedState != null)
+        document.getElementById('refreshIntervalSelector').value = savedState;
 }
 
 function updateSortIndicators(headers, sortField, descending) {
@@ -106,8 +127,20 @@ function updateSortIndicators(headers, sortField, descending) {
 
 function sotaOnAppearing() {
     console.info('SOTA tab appearing');
-    loadShowSotaSpotDupsCheckboxState();
+
+    loadShowSpotDupsCheckboxState();
+    loadRefreshRateState();
     refreshSotaPotaJson();
+
+    const refreshIntervalSelector = document.getElementById('refreshIntervalSelector');
+    if (gRefreshInterval != null)
+        clearInterval(gRefreshInterval);
+    gRefreshInterval = setRefreshInterval(refreshIntervalSelector.value);
+
+    refreshIntervalSelector.addEventListener('change', function() {
+        clearInterval(gRefreshInterval);
+        gRefreshInterval = setRefreshInterval(refreshIntervalSelector.value);
+    });
 
     const headers = document.querySelectorAll('#sotaTable th[data-sort-field]');
     headers.forEach(header => {

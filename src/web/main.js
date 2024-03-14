@@ -366,9 +366,6 @@ async function refreshSotaPotaJson()
     });
 }
 
-document.addEventListener('DOMContentLoaded',
-    function() {
-        setInterval(refreshSotaPotaJson, 60000); // Refresh every minute
-        openTab('sota'); // Load the default tab content on initial load
-    }
-);
+document.addEventListener('DOMContentLoaded', function() {
+    openTab('sota');
+});
