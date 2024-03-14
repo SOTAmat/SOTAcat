@@ -1,3 +1,12 @@
+// We'll keep these global sorting variables here for now,
+// although they apply equally to sota and pota.
+// Soon, we may collapse sota and pota display.
+
+gSortField = "timestamp";
+gLastSortField = null;
+gDescending = true;
+
+
 async function updateSotaTable()
 {
     const data = await gLatestSotaJson;
@@ -5,6 +14,12 @@ async function updateSotaTable()
         console.info('SOTA Json is null');
         return;
     }
+
+    data.sort((a, b) => {
+        if (a[gSortField] < b[gSortField]) return gDescending ? 1 : -1;
+        if (a[gSortField] > b[gSortField]) return gDescending ? -1 : 1;
+        return 0;
+    });
 
     var showDupsCheckbox = document.getElementById('showDupsSelector');
 
@@ -85,5 +100,20 @@ function sotaOnAppearing()
 {
     console.info('SOTA tab appearing');
     loadShowSotaSpotDupsCheckboxState();
+
     refreshSotaPotaJson();
+
+    const headers = document.querySelectorAll('#sotaTable th[data-sort-field]');
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            gSortField = header.getAttribute('data-sort-field');
+            if (gSortField === gLastSortField)
+                gDescending = !gDescending; // Toggle the sorting direction on each click
+            else {
+                gLastSortField = gSortField;
+                gDescending = true;
+            }
+            updateSotaTable();
+        });
+    });
 }
