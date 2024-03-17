@@ -1,28 +1,53 @@
 {
     "name": "SOTACAT for Elecraft KX2 and KX3",
-    "version": "1.0",
+    "version": "2024.03.16.1",
     "builds": [
+        {
+            "chipFamily": "ESP32-C3",
+            "parts": [
+                {
+                    "path": "esp32c3/bootloader.bin",
+                    "offset": 4096
+                },
+                {
+                    "path": "esp32c3/partition-table.bin",
+                    "offset": 32768
+                },
+                {
+                    "path": "esp32c3/ota_data_initial.bin",
+                    "offset": 53248
+                },
+                {
+                    "path": "esp32c3/recovery.bin",
+                    "offset": 65536
+                },
+                {
+                    "path": "esp32c3/i2s.bin",
+                    "offset": 1376256
+                }
+            ]
+        },
         {
             "chipFamily": "ESP32",
             "parts": [
                 {
-                    "path": "firmware/bootloader.bin",
+                    "path": "esp32/bootloader.bin",
                     "offset": 4096
                 },
                 {
-                    "path": "firmware/partition-table.bin",
+                    "path": "esp32/partition-table.bin",
                     "offset": 32768
                 },
                 {
-                    "path": "firmware/ota_data_initial.bin",
+                    "path": "esp32/ota_data_initial.bin",
                     "offset": 53248
                 },
                 {
-                    "path": "firmware/recovery.bin",
+                    "path": "esp32/recovery.bin",
                     "offset": 65536
                 },
                 {
-                    "path": "firmware/i2s.bin",
+                    "path": "esp32/i2s.bin",
                     "offset": 1376256
                 }
             ]
