@@ -6,10 +6,11 @@
 #include "freertos/task.h"
 #include "get_battery_voltage.h"
 #include "globals.h"
+#include "idle_status_task.h"
 #include "settings.h"
 
 #include "esp_log.h"
-static const char * TAG8 = "sc:idletask";
+static const char *TAG8 = "sc:idletask";
 
 // ====================================================================================================
 void idle_status_task(void *pvParameter)
@@ -21,10 +22,10 @@ void idle_status_task(void *pvParameter)
         size_t _free = 0;
         size_t _alloc = 0;
         multi_heap_info_t hinfo;
-        heap_caps_get_info(&hinfo,  MALLOC_CAP_DEFAULT);
+        heap_caps_get_info(&hinfo, MALLOC_CAP_DEFAULT);
         _free = hinfo.total_free_bytes;
         _alloc = hinfo.total_allocated_bytes;
-        ESP_LOGV(TAG8,"heap: %u (used %u, free %u) [bytes]", _alloc + _free, _alloc, _free);
+        ESP_LOGV(TAG8, "heap: %u (used %u, free %u) [bytes]", _alloc + _free, _alloc, _free);
 
         // Get the current time
         time_t now;
@@ -63,12 +64,12 @@ void idle_status_task(void *pvParameter)
 static TaskHandle_t showUserActivityBlinkTaskHandle = NULL;
 
 // LED Control Task
-void activityLedBlinkTask(void *param) 
+void activityLedBlinkTask(void *param)
 {
-    while(true)
+    while (true)
     {
         // Wait for the signal to turn off the LED with after a timeout
-        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(LED_FLASH_MSEC)) == pdTRUE) 
+        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(LED_FLASH_MSEC)) == pdTRUE)
         {
             // If we received a notification, it means the timer was reset
             // Continue to wait again for 50ms or for another reset
@@ -86,11 +87,12 @@ void activityLedBlinkTask(void *param)
 void showActivity()
 {
     // The first time we setup the task that will turn off the LED
-    if (showUserActivityBlinkTaskHandle == NULL) {
-        xTaskCreate(activityLedBlinkTask, "ActivityLEDblinkControlTask", 2048, NULL, tskIDLE_PRIORITY, &showUserActivityBlinkTaskHandle);
+    if (showUserActivityBlinkTaskHandle == NULL)
+    {
+        xTaskCreate(activityLedBlinkTask, "ActivityLEDblinkControlTask", 2048, NULL, SC_TASK_PRIORITY_LOW, &showUserActivityBlinkTaskHandle);
     }
 
-    // Reset the inactivity timer and remember how long it has been since the last user activity
+    // Reset the inactivity timer to the current time, so we can remember when the user was last active.
     time(&LastUserActivityUnixTime);
     gpio_set_level(LED_RED, LED_ON);
 

@@ -6,6 +6,7 @@
 #include "esp_http_server.h"
 #include "esp_timer.h"
 #include "handler_ft8.h"
+#include "idle_status_task.h"
 #include "globals.h"
 #include "settings.h"
 #include "../lib/ft8_encoder/ft8/constants.h"
@@ -15,7 +16,7 @@
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
 
 #include "esp_log.h"
-static const char * TAG8 = "sc:hdl_ft8.";
+static const char *TAG8 = "sc:hdl_ft8.";
 
 int64_t CancelRadioFT8ModeTime = 0;
 bool ft8TaskInProgress = false;
@@ -98,7 +99,9 @@ static void waitForFT8Window()
 
 static void sendFT8Tone(long prior_frequency, long frequency, TickType_t *lastWakeTime, const TickType_t toneInterval)
 {
-    ESP_LOGV(TAG8, "trace: %s(%ld, %ld)", __func__, prior_frequency, frequency);
+    // Jeff: I commented out the following line because this is the most time critical function: sending the FT8 tones.
+    // We don't want to log this function because it will affect the timing and add jitter.
+    // ESP_LOGV(TAG8, "trace: %s(%ld, %ld)", __func__, prior_frequency, frequency);
 
     char command[16];
     // Ease into the new frequency based on the prior frequency in x steps lasting 10% of the interval
@@ -285,7 +288,18 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                 struct timeval nowTimeUTC;
                 nowTimeUTC.tv_sec = nowTimeUTCms / 1000;
                 nowTimeUTC.tv_usec = (nowTimeUTCms % 1000) * 1000;
+
+                // Reseting the system clock to the time received from the phone can cause the
+                // inactivity idle watchdog to trigger (which would put the device to sleep),
+                // so we need to stop the watchdog, then set the system clock, then restart the watchdog.
+
+                // Shut down the inactivity watchdog timer task
+                vTaskDelete(xInactivityWatchdogHandle);
+                // Set the system's clock to the time received from the cell phone
                 settimeofday(&nowTimeUTC, NULL);
+                // Restart the inactivity watchdog timer task noting the current activity time first.
+                time(&LastUserActivityUnixTime);
+                xTaskCreate(&idle_status_task, "sleep_status_task", 2048, NULL, SC_TASK_PRIORITY_IDLE, &xInactivityWatchdogHandle);
 
                 // First, pack the text data into an FT8 binary message
                 uint8_t packed[FTX_LDPC_K_BYTES];
@@ -328,25 +342,25 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
                     const std::lock_guard<Lock> lock(RadioPortLock);
 
                     // First capture the current state of the radio before changing it:
-                    kx_state_t * kx_state = new kx_state_t;
-                    get_kx_state (kx_state);
+                    kx_state_t *kx_state = new kx_state_t;
+                    get_kx_state(kx_state);
 
                     // Prepare the radio to send the FT8 FSK tones using CW tones.
                     // MN058; - select the TUN PWR menu item
                     // MP010; - set the TUN PWR to 10 watts
                     long baseFreq = rfFreq + audioFreq;
 
-                    put_to_kx ("FR", 1, 0, 2);  // FR0; - Cancels split mode
-                    put_to_kx ("FT", 1, 0, 2);  // FT0; - Select VFO A
-                    put_to_kx ("FA", 11, baseFreq, 2);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
-                    put_to_kx ("MD", 1, 3, 2);  // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
-                    put_to_kx ("AP", 1, 1, 2);  // AP1; - Enable Audio Peaking filter
+                    put_to_kx("FR", 1, 0, 2);         // FR0; - Cancels split mode
+                    put_to_kx("FT", 1, 0, 2);         // FT0; - Select VFO A
+                    put_to_kx("FA", 11, baseFreq, 2); // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
+                    put_to_kx("MD", 1, 3, 2);         // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
+                    put_to_kx("AP", 1, 1, 2);         // AP1; - Enable Audio Peaking filter
 
                     // Offload playing the FT8 audio
-                    ft8ConfigInfo           = new ft8_task_pack_t;
+                    ft8ConfigInfo = new ft8_task_pack_t;
                     ft8ConfigInfo->baseFreq = baseFreq;
-                    ft8ConfigInfo->tones    = tones;
-                    ft8ConfigInfo->kx_state = kx_state;  // will be deleted later in cleanup
+                    ft8ConfigInfo->tones = tones;
+                    ft8ConfigInfo->kx_state = kx_state; // will be deleted later in cleanup
                 }
 
                 // We have prepared the radio to send FT8, but we don't know if the user will
@@ -357,7 +371,7 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
 
                 // Start the watchdog timer to cleanup whenever we are done with ft8.
                 // This will set CommandInProgress=false; and restore the radio to its prior state.
-                xTaskCreate(&cleanup_ft8_task, "cleanup_ft8_task", 5120, NULL, 5, NULL);
+                xTaskCreate(&cleanup_ft8_task, "cleanup_ft8_task", 5120, NULL, SC_TASK_PRIORITY_NORMAL, NULL);
 
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
@@ -461,7 +475,7 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
                 }
 
                 // The watchdog timer will clean up after the FT8 transmission is done.
-                xTaskCreate(&xmit_ft8_task, "xmit_ft8_task", 8192, ft8ConfigInfo, 8, NULL);
+                xTaskCreate(&xmit_ft8_task, "xmit_ft8_task", 8192, ft8ConfigInfo, SC_TASK_PRIORITY_HIGHEST, NULL);
 
                 // Send a response back
                 httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);

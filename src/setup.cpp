@@ -15,11 +15,12 @@
 #include "wifi.h"
 
 #include "esp_log.h"
-static const char * TAG8 = "sc:setup...";
+static const char *TAG8 = "sc:setup...";
 
 time_t LastUserActivityUnixTime;
 bool CommandInProgress = false;
 Lock RadioCommunicationLock;
+TaskHandle_t xInactivityWatchdogHandle = NULL;
 
 // ====================================================================================================
 static void initialize_nvs()
@@ -35,7 +36,7 @@ static void initialize_nvs()
 }
 
 // ====================================================================================================
-void startup_watchdog_timer(void * _)
+void startup_watchdog_timer(void *_)
 {
     // Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds.
     vTaskDelay(pdMS_TO_TICKS(60000));
@@ -71,7 +72,7 @@ void setup()
     time(&LastUserActivityUnixTime);
     // Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds.
     TaskHandle_t xSetupWatchdogHandle = NULL;
-    xTaskCreate(&startup_watchdog_timer, "startup_watchdog_task", 2048, NULL, 5, &xSetupWatchdogHandle);
+    xTaskCreate(&startup_watchdog_timer, "startup_watchdog_task", 2048, NULL, SC_TASK_PRIORITY_NORMAL, &xSetupWatchdogHandle);
     ESP_LOGI(TAG8, "shutdown watchdog started.");
 
     // Initialize NVS
@@ -123,6 +124,6 @@ void setup()
     ESP_LOGI(TAG8, "setup watchdog canceled.");
 
     // Setup quiescent LED flashing timer
-    xTaskCreate(&idle_status_task, "sleep_status_task", 2048, NULL, 1, NULL);
+    xTaskCreate(&idle_status_task, "sleep_status_task", 2048, NULL, SC_TASK_PRIORITY_IDLE, &xInactivityWatchdogHandle);
     ESP_LOGI(TAG8, "idle task started.");
 }
