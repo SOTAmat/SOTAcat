@@ -70,6 +70,7 @@ dependencies.lock
 # We want to keep the default configuration file, but ignore the generated ones:
 sdkconfig.*
 !sdkconfig.default
+!sdkconfig.seed_xiao_esp32c3
 
 
 # ESP-IDF managed_compoments
