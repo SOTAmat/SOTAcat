@@ -5,3 +5,6 @@
 [submodule "improv-wifi"]
 	path = lib/improv-wifi
 	url = https://github.com/improv-wifi/sdk-cpp.git
+[submodule "lib/improv-wifi"]
+	path = lib/improv-wifi
+	url = https://github.com/improv-wifi/sdk-cpp.git
