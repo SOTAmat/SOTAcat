@@ -1,3 +1,7 @@
 [submodule "ft8_encoder"]
 	path = lib/ft8_encoder
 	url = https://github.com/SOTAmat/ft8_encoder.git
+
+[submodule "improv-wifi"]
+	path = lib/improv-wifi
+	url = https://github.com/improv-wifi/sdk-cpp.git
