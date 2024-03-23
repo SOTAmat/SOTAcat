@@ -9,7 +9,7 @@
                 {
                     "path": "https://sotamat.com/wp-content/uploads/2024/03/merged-firmware.bin",
                     "offset": 0
-                },
+                }
             ]
         },
         {
@@ -18,7 +18,7 @@
                 {
                     "path": "merged-firmware.bin",
                     "offset": 0
-                },
+                }
             ]
         }
     ]
