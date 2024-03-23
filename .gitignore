@@ -79,3 +79,6 @@ managed_components/
 __pycache__/
 
 merged-firmware.bin
+esp32c3.bin
+esp32.bin
+

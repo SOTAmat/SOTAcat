@@ -6,16 +6,7 @@
             "chipFamily": "ESP32-C3",
             "parts": [
                 {
-                    "path": "https://sotamat.com/wp-content/uploads/2024/03/merged-firmware.bin",
-                    "offset": 0
-                }
-            ]
-        },
-        {
-            "chipFamily": "ESP32",
-            "parts": [
-                {
-                    "path": "https://sotamat.com/wp-content/uploads/2024/03/merged-firmware.bin",
+                    "path": "https://sotamat.com/wp-content/uploads/2024/03/esp32c3.bin",
                     "offset": 0
                 }
             ]
