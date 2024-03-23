@@ -75,3 +75,7 @@ sdkconfig.*
 
 # ESP-IDF managed_compoments
 managed_components/
+
+__pycache__/
+
+merged-firmware.bin

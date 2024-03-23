@@ -48,7 +48,7 @@ void startup_watchdog_timer(void *_)
 void setup()
 {
     esp_log_level_set("*", ESP_LOG_VERBOSE);
-#if 1
+#if 0
     for (int i = 0; i < 5; i++)
     {
         ESP_LOGI(TAG8, "setup starting soon: waiting for debug console connection");
