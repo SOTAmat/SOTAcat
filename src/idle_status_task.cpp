@@ -17,7 +17,7 @@ void idle_status_task(void *pvParameter)
 {
     while (1)
     {
-        get_battery_voltage();
+        float batv = get_battery_voltage();
 
         size_t _free = 0;
         size_t _alloc = 0;
@@ -35,16 +35,27 @@ void idle_status_task(void *pvParameter)
         ESP_LOGV(TAG8, "blinks %d", blinks);
         if (blinks > 4)
         {
-            gpio_set_level(LED_BLUE, LED_ON);
-            gpio_set_level(LED_RED, LED_ON);
-            vTaskDelay(LED_FLASH_MSEC * 15 / portTICK_PERIOD_MS);
-            gpio_set_level(LED_BLUE, LED_OFF);
-            gpio_set_level(LED_RED, LED_OFF);
+            if (get_battery_percentage(batv) < 80.0f)
+            {
+                gpio_set_level(LED_BLUE, LED_ON);
+                gpio_set_level(LED_RED, LED_ON);
+                vTaskDelay(LED_FLASH_MSEC * 15 / portTICK_PERIOD_MS);
+                gpio_set_level(LED_BLUE, LED_OFF);
+                gpio_set_level(LED_RED, LED_OFF);
 
-            // Power off, the user has been idle for the limit.
-            ESP_LOGI(TAG8, "powering off due to inactivity");
+                // Power off, the user has been idle for the limit.
+                ESP_LOGI(TAG8, "powering off due to inactivity");
 
-            enter_deep_sleep();
+                enter_deep_sleep();
+            }
+            else
+            {
+                // The user has been idle for the limit, but we have enough battery to keep running.
+                // If we are plugged in via USB, we will never power off because the battery will
+                // remain charged above 80%.
+                // Reset the timers as if the user has been active.
+                showActivity();
+            }
         }
 
         for (int i = 1; i <= blinks; i++)

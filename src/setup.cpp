@@ -3,6 +3,7 @@
 #include "enter_deep_sleep.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
+#include "get_battery_voltage.h"
 #include "globals.h"
 #include "idle_status_task.h"
 #include "kx_commands.h"
@@ -39,8 +40,16 @@ static void initialize_nvs()
 void startup_watchdog_timer(void *_)
 {
     // Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds.
-    vTaskDelay(pdMS_TO_TICKS(60000));
-    ESP_LOGI(TAG8, "startup watchdog timer expired; shutting down.");
+
+    do
+    {
+        vTaskDelay(pdMS_TO_TICKS(60000));
+    } 
+    // We will never turn off if the unit is plugged in and is charging,
+    // as the battery voltage will never dip below 80%.
+    while (get_battery_percentage(get_battery_voltage()) >= 80.0f);
+
+    ESP_LOGI(TAG8, "Startup watchdog timer expired, and battery not charged; shutting down.");
     enter_deep_sleep();
 }
 

@@ -4,7 +4,7 @@
 #include "settings.h"
 
 #include "esp_log.h"
-static const char * TAG8 = "sc:hdl_batt";
+static const char *TAG8 = "sc:hdl_batt";
 
 float get_battery_voltage(void)
 {
@@ -35,7 +35,7 @@ float get_battery_voltage(void)
 
 static const float BatteryVoltageTable[] = {4.2, 4.15, 4.11, 4.08, 4.02, 3.98, 3.95, 3.91, 3.87, 3.85, 3.84, 3.82, 3.8, 3.79, 3.77, 3.75, 3.73, 3.71, 3.69, 3.61, 3.27};
 
-static float get_battery_percentage(float voltage)
+float get_battery_percentage(float voltage)
 {
     if (voltage >= 4.2f)
         return 100.0f;
