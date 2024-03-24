@@ -1,9 +1,46 @@
 #include "globals.h"
 #include "webserver.h"
+#include <stdio.h>
 
 #include "esp_log.h"
 static const char * TAG8 = "sc:webserve";
 
+extern const uint8_t about_html_end[]    asm("_binary_about_html_end");
+extern const uint8_t about_html_srt[]    asm("_binary_about_html_start");
+extern const uint8_t favicon_ico_end[]   asm("_binary_favicon_ico_end");
+extern const uint8_t favicon_ico_srt[]   asm("_binary_favicon_ico_start");
+extern const uint8_t index_html_end[]    asm("_binary_index_html_end");
+extern const uint8_t index_html_srt[]    asm("_binary_index_html_start");
+extern const uint8_t main_js_end[]       asm("_binary_main_js_end");
+extern const uint8_t main_js_srt[]       asm("_binary_main_js_start");
+extern const uint8_t pota_html_end[]     asm("_binary_pota_html_end");
+extern const uint8_t pota_html_srt[]     asm("_binary_pota_html_start");
+extern const uint8_t pota_js_end[]       asm("_binary_pota_js_end");
+extern const uint8_t pota_js_srt[]       asm("_binary_pota_js_start");
+extern const uint8_t sclogo_png_end[]    asm("_binary_sclogo_png_end");
+extern const uint8_t sclogo_png_srt[]    asm("_binary_sclogo_png_start");
+extern const uint8_t settings_html_end[] asm("_binary_settings_html_end");
+extern const uint8_t settings_html_srt[] asm("_binary_settings_html_start");
+extern const uint8_t settings_js_end[]   asm("_binary_settings_js_end");
+extern const uint8_t settings_js_srt[]   asm("_binary_settings_js_start");
+extern const uint8_t sota_html_end[]     asm("_binary_sota_html_end");
+extern const uint8_t sota_html_srt[]     asm("_binary_sota_html_start");
+extern const uint8_t sota_js_end[]       asm("_binary_sota_js_end");
+extern const uint8_t sota_js_srt[]       asm("_binary_sota_js_start");
+extern const uint8_t style_css_end[]     asm("_binary_style_css_end");
+extern const uint8_t style_css_srt[]     asm("_binary_style_css_start");
+
+// Structure to map URI to symbol (with attributes start, end, and type)
+typedef struct
+{
+    const char *uri;
+    const void *asset_start;
+    const void *asset_end;
+    const char *asset_type;
+    long cache_time; // Cache time in seconds
+} asset_entry_t;
+
+// Lookup table array
 asset_entry_t asset_map[] = {
     {"/",              index_html_srt,    index_html_end,    "text/html",       60}, // 1 minute cache
     {"/index.html",    index_html_srt,    index_html_end,    "text/html",       60},
@@ -18,8 +55,15 @@ asset_entry_t asset_map[] = {
     {"/settings.html", settings_html_srt, settings_html_end, "text/html",       60},
     {"/settings.js",   settings_js_srt,   settings_js_end,   "text/html",       60},
     {"/about.html",    about_html_srt,    about_html_end,    "text/html",       60},
-    {NULL,             NULL,              NULL,              NULL,              0}
+    {NULL,             NULL,              NULL,              NULL,              0}  // Sentinel to mark end of array
 };
+
+// Structure to map API name to function pointer
+typedef struct
+{
+    const char *api_name;
+    esp_err_t (*handler_func)(httpd_req_t *);
+} api_handler_t;
 
 // Arrays for GET, PUT, POST handlers
 const api_handler_t get_handlers[] = {
@@ -55,53 +99,48 @@ static int find_and_execute_handler(const char *api_name, const api_handler_t *h
     // Ignore any query string if there is one:
     size_t compare_length = strcspn(api_name, "?");
 
-    for (int i = 0; handlers[i].api_name != NULL; i++)
-    {
-        if (strncmp(api_name, handlers[i].api_name, compare_length) == 0)
-            return handlers[i].handler_func(req);
-    }
+    for (const api_handler_t * handler = handlers; handler->api_name != NULL; ++handler)
+        if (strncmp(api_name, handler->api_name, compare_length) == 0)
+            return handler->handler_func(req);
     ESP_LOGE(TAG8, "handler not found for api: %s", api_name);
     httpd_resp_send_404(req);
     return ESP_FAIL; // Handler not found
 }
 
-esp_err_t dynamic_file_handler(httpd_req_t *req)
+static esp_err_t dynamic_file_handler(httpd_req_t *req)
 {
     const char *requested_path = req->uri;
 
     bool found_file = false;
-    int ii = 0;
+    const asset_entry_t * asset_ptr = asset_map;
 
-    for (ii = 0; asset_map[ii].uri != NULL; ii++)
-    {
-        if (strcmp(requested_path, asset_map[ii].uri) == 0)
-        {
+    while (asset_ptr->uri != NULL && !found_file)
+        if (strcmp(requested_path, asset_ptr->uri) == 0)
             found_file = true;
-            break;
-        }
-    }
+        else
+            ++asset_ptr;
 
     if (!found_file)
         return ESP_FAIL;
 
-    httpd_resp_set_type(req, asset_map[ii].asset_type);
+    httpd_resp_set_type(req, asset_ptr->asset_type);
 
     char cache_header[64];
-    if (asset_map[ii].cache_time > 0)
-        snprintf(cache_header, sizeof(cache_header), "max-age=%ld", asset_map[ii].cache_time);
+    if (asset_ptr->cache_time > 0)
+        snprintf(cache_header, sizeof(cache_header), "max-age=%ld", asset_ptr->cache_time);
     else // cache forever
         snprintf(cache_header, sizeof(cache_header), "max-age=31536000"); // 1 year
     httpd_resp_set_hdr(req, "Cache-Control", cache_header);
 
     httpd_resp_send(
         req,
-        (const char *)asset_map[ii].asset_start,
-        (const char *)asset_map[ii].asset_end - (const char *)asset_map[ii].asset_start - 1); // -1 to exclude the NULL terminator
+        (const char *)asset_ptr->asset_start,
+        (const char *)asset_ptr->asset_end - (const char *)asset_ptr->asset_start - 1); // -1 to exclude the NULL terminator
 
     return ESP_OK;
 }
 
-esp_err_t my_http_request_handler(httpd_req_t *req)
+static esp_err_t my_http_request_handler(httpd_req_t *req)
 {
     ESP_LOGV(TAG8, "trace: %s() with URI: %s", __func__, req->uri);
     const char *requested_uri = req->uri;
@@ -109,15 +148,16 @@ esp_err_t my_http_request_handler(httpd_req_t *req)
     // 1. Check for REST API calls
     if (starts_with(requested_uri, "/api/v1/"))
     {
-        const char *api_name = requested_uri + sizeof("/api/v1/") - 1; // Correct the offset
+        const char * api_name = requested_uri + sizeof("/api/v1/") - 1; // Correct the offset
 
-        if (req->method == HTTP_GET)
-            return find_and_execute_handler(api_name, get_handlers, req);
-        if (req->method == HTTP_PUT)
-            return find_and_execute_handler(api_name, put_handlers, req);
-        if (req->method == HTTP_POST)
-            return find_and_execute_handler(api_name, post_handlers, req);
-
+        switch (req->method) {
+            case HTTP_GET:
+                return find_and_execute_handler(api_name, get_handlers, req);
+            case HTTP_PUT:
+                return find_and_execute_handler(api_name, put_handlers, req);
+            case HTTP_POST:
+                return find_and_execute_handler(api_name, post_handlers, req);
+        }
         return ESP_FAIL; // Method not supported
     }
 
@@ -131,7 +171,7 @@ esp_err_t my_http_request_handler(httpd_req_t *req)
 
 // httpd_uri_match_func_t custom_uri_matcher(httpd_req_t *r)
 // bool custom_uri_matcher(httpd_req_t *r)
-bool custom_uri_matcher(const char *uri1, const char *uri2, unsigned int uri_len)
+static bool custom_uri_matcher(const char *uri1, const char *uri2, unsigned int uri_len)
 {
     return true;  // since we want a catch-all, we always match
 }
