@@ -41,7 +41,7 @@ Since this is pre-release, I am almost certain I've forgotten several steps. Let
 
 ## Initial Setup of SOTACAT Network connection
 
-Once the SOTACAT firmware is installed an running, you should see a new WiFi access point "SOTAcat-1234" (where 
+Once the SOTACAT firmware is installed and running, you should see a new WiFi access point "SOTAcat-1234" (where 
 "1234" will vary according the actual MAC address of the device).  Please connect to that with default password of "12345678".  Once connected, navigate your browser to 192.168.4.1 to connect the SOTACAT on that network.
 On the displayed page, please select the Settings icon at the bottom.  There you can set your preferred network credentials.  For example, in preference to having SOTACAT create its own network, you might want it to join your home network, or a phone hotspot network (most useful on Android phones lacking split networking).
 
