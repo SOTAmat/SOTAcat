@@ -25,10 +25,12 @@ asset_entry_t asset_map[] = {
 const api_handler_t get_handlers[] = {
     {"batteryPercent",   handler_batteryPercent_get},
     {"batteryVoltage",   handler_batteryVoltage_get},
+    {"connectionStatus", handler_connectionStatus_get},
+    {"factoryReset",     handler_factory_reset_get},
     {"frequency",        handler_frequency_get},
     {"mode",             handler_mode_get},
     {"rxBandwidth",      handler_rxBandwidth_get},
-    {"connectionStatus", handler_connectionStatus_get},
+    {"settings",         handler_settings_get},
     {NULL,               NULL} // Sentinel to mark end of array
 };
 
@@ -44,6 +46,7 @@ const api_handler_t post_handlers[] = {
     {"prepareft8",       handler_prepareft8_post},
     {"ft8",              handler_ft8_post},
     {"cancelft8",        handler_cancelft8_post},
+    {"settings",         handler_settings_post},
     {NULL,               NULL} // Sentinel
 };
 

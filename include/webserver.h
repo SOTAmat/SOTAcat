@@ -35,6 +35,7 @@ extern const uint8_t about_html_end[]   asm("_binary_about_html_end");
 
 void start_webserver();
 
+esp_err_t handler_factory_reset_get(httpd_req_t *);
 esp_err_t handler_frequency_get(httpd_req_t *);
 esp_err_t handler_frequency_put(httpd_req_t *);
 esp_err_t handler_mode_get(httpd_req_t *);
@@ -48,6 +49,8 @@ esp_err_t handler_batteryPercent_get(httpd_req_t *);
 esp_err_t handler_batteryVoltage_get(httpd_req_t *);
 esp_err_t handler_connectionStatus_get(httpd_req_t *);
 esp_err_t handler_time_put(httpd_req_t *);
+esp_err_t handler_settings_get(httpd_req_t *);
+esp_err_t handler_settings_post(httpd_req_t *);
 
 // Structure to map URI to symbol
 typedef struct

@@ -1,5 +1,39 @@
 <script src="settings.js"></script>
 <div style="display: flex; justify-content: center">
   Set the KX clock using your cell phone time:
-  <button onclick="syncTime()">Sync Time</button>
+    <button onclick="syncTime()">Sync Time</button>
 </div>
+<hr>
+<h2>WiFi Settings</h2>
+<form id="wifi-settings">
+        <div>
+            <h3>Client 1</h3>
+            <label for="sta1-ssid">SSID:</label>
+            <input type="text" id="sta1-ssid" name="sta1-ssid">
+            <label for="sta1-pass">Password:</label>
+            <input type="password" id="sta1-pass" name="sta1-pass" pattern=".{0}|.{8,31}" required title="0 or 8 to 31 characters">
+            <input type="checkbox" onclick="togglePasswordVisibility('sta1-pass')"> show</span>
+        </div>
+        <div>
+            <h3>Client 2</h3>
+            <label for="sta2-ssid">SSID:</label>
+            <input type="text" id="sta2-ssid" name="sta2-ssid">
+            <label for="sta2-pass">Password:</label>
+            <input type="password" id="sta2-pass" name="sta2-pass" pattern=".{0}|.{8,31}" required title="0 or 8 to 31 characters">
+            <input type="checkbox" onclick="togglePasswordVisibility('sta2-pass')"> show</span>
+        </div>
+        <div>
+            <h3>Server</h3>
+            <label for="ap-ssid">SSID:</label>
+            <input type="text" id="ap-ssid" name="ap-ssid">
+            <label for="ap-password">Password:</label>
+            <input type="password" id="ap-pass" name="ap-pass" pattern=".{0}|.{8,31}" required title="0 or 8 to 31 characters">
+            <input type="checkbox" onclick="togglePasswordVisibility('ap-pass')"> show</span>
+        </div>
+        <button type="button" onclick="saveSettings()">Save Settings</button>
+</form>
+<hr>
+<form action="/api/v1/factoryReset" method="get" target="hiddenFrame">
+    <input type="submit" value="Factory Reset">
+</form>
+<iframe name="hiddenFrame" style="display:none;"></iframe>

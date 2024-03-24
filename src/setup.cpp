@@ -24,19 +24,6 @@ Lock RadioCommunicationLock;
 TaskHandle_t xInactivityWatchdogHandle = NULL;
 
 // ====================================================================================================
-static void initialize_nvs()
-{
-    // Initialize NVS
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
-    {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
-}
-
-// ====================================================================================================
 void startup_watchdog_timer(void *_)
 {
     // Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds.
@@ -84,9 +71,8 @@ void setup()
     xTaskCreate(&startup_watchdog_timer, "startup_watchdog_task", 2048, NULL, SC_TASK_PRIORITY_NORMAL, &xSetupWatchdogHandle);
     ESP_LOGI(TAG8, "shutdown watchdog started.");
 
-    // Initialize NVS
-    initialize_nvs();
-    ESP_LOGI(TAG8, "nvs initialized.");
+    // Initialize and restore settings
+    init_settings();
 
     // Start battery monitoring by enabling the ADC
     setup_adc();

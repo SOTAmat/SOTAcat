@@ -16,3 +16,15 @@
 
 // WiFi Settings
 #define MAX_RETRY_WIFI_STATION_CONNECT 3
+
+#define MAX_WIFI_SSID_SIZE 32  // see sizeof wifi_ap/sta_config_t.ssid;
+#define MAX_WIFI_PASS_SIZE 64  // see sizeof wifi_ap/sta_config_t.password;
+
+extern char g_sta1_ssid[MAX_WIFI_SSID_SIZE];
+extern char g_sta1_pass[MAX_WIFI_PASS_SIZE];
+extern char g_sta2_ssid[MAX_WIFI_SSID_SIZE];
+extern char g_sta2_pass[MAX_WIFI_SSID_SIZE];
+extern char g_ap_ssid[MAX_WIFI_SSID_SIZE];
+extern char g_ap_pass[MAX_WIFI_PASS_SIZE];
+
+void init_settings();

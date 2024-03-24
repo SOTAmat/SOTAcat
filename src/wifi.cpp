@@ -5,43 +5,30 @@
 #include "settings.h"
 #include "wifi.h"
 #include <string.h>
-
-#include "esp_log.h"
-#include "esp_mac.h"
+#include <esp_log.h>
 
 static const char * TAG8 = "sc:wifi....";
 
-static int s_retry_num = 0;
-static bool s_connected = false;
-
-// someday we'll make both of these configurable in NVRAM
-static char s_ap_ssid[] = "SOTAcat-1234";
-static const char s_ap_password[] = "12345678";
+static int  s_client_trial = 0;     // client currently undergoing connection; 1 or 2 representing g_sta's
+static int  s_retry_num    = 0;     // connection retry of current client
+static bool s_connected    = false;
 
 static void wifi_init_ap()
 {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
-
-    ESP_LOGI(TAG8, "initializing WiFi in AP (access-point) mode.");
 
     esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
 
     wifi_config_t wifi_config = { };
     memset(&wifi_config, 0, sizeof(wifi_config_t));
 
-    uint8_t base_mac_addr[6] = {0};
-
-    ESP_ERROR_CHECK(esp_read_mac(base_mac_addr, ESP_MAC_EFUSE_FACTORY));
-    ESP_LOGI(TAG8, "Base MAC Addr: %02X:%02X:%02X:%02X:%02X:%02X",
-             base_mac_addr[0], base_mac_addr[1], base_mac_addr[2], base_mac_addr[3], base_mac_addr[4], base_mac_addr[5]);
-    snprintf(&s_ap_ssid[8],5,"%02X%02X",base_mac_addr[4], base_mac_addr[5]);
-    ESP_LOGI(TAG8, "WiFi AP SSID: %s",s_ap_ssid);
-
-    strcpy((char *)wifi_config.ap.ssid, s_ap_ssid);
-    wifi_config.ap.ssid_len = (uint8_t)strlen(s_ap_ssid);
-    strcpy((char *)wifi_config.ap.password, s_ap_password);
-    if (strlen(s_ap_password) == 0)
+    ESP_LOGI(TAG8, "wifi ap ssid: %s", g_ap_ssid);
+    strcpy((char *)wifi_config.ap.ssid, g_ap_ssid);
+    wifi_config.ap.ssid_len = (uint8_t)strlen(g_ap_ssid);
+    if (strlen(g_ap_pass) == 0)
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    else
+        strcpy((char *)wifi_config.ap.password, g_ap_pass);
     wifi_config.ap.channel = 1;
     wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
     wifi_config.ap.max_connection = 6;
@@ -55,51 +42,47 @@ static void wifi_init_ap()
     esp_netif_ip_info_t info = { };
     memset(&info, 0, sizeof(esp_netif_ip_info_t));
     IP4_ADDR(&info.ip, 192, 168, 4, 1);
-    IP4_ADDR(&info.gw, 0, 0, 0, 0); // Zero gateway address
+    IP4_ADDR(&info.gw, 0, 0, 0, 0);  // zero gateway address
     IP4_ADDR(&info.netmask, 255, 255, 255, 0);
-    esp_netif_dhcps_stop(ap_netif); // Stop DHCP server before setting new IP info
+    esp_netif_dhcps_stop(ap_netif);  // stop DHCP server before setting new IP info
     esp_netif_set_ip_info(ap_netif, &info);
-    esp_netif_dhcps_start(ap_netif); // Restart DHCP server with new settings
+    esp_netif_dhcps_start(ap_netif); // restart DHCP server with new settings
 
     s_connected = true;
     ESP_LOGI(TAG8, "wifi ap setup complete.");
 }
 
 // ====================================================================================================
-static void wifi_init_sta()
+static void wifi_init_sta(const char * ssid, const char * password)
 {
-    ESP_LOGV(TAG8, "trace: %s()", __func__);
-
-    ESP_LOGI(TAG8, "initializing wifi in sta (client) mode.");
+    ESP_LOGV(TAG8, "trace: %s(ssid = '%s')", __func__, ssid);
 
     s_retry_num = 0;
     s_connected = false;
 
-    esp_netif_create_default_wifi_sta();
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    if (s_client_trial < 2) // we haven't tried an earlier client; need first-time initialization in STA mode
+        esp_netif_create_default_wifi_sta();
 
     wifi_config_t wifi_config = { };
     memset(&wifi_config, 0, sizeof(wifi_config));
-    strcpy((char *)wifi_config.sta.ssid, WIFI_STA_SSID);
-    strcpy((char *)wifi_config.sta.password, WIFI_STA_PASS);
+    strcpy((char *)wifi_config.sta.ssid, ssid);
+    strcpy((char *)wifi_config.sta.password, password);
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG8, "connecting to wifi...");
+    ESP_LOGI(TAG8, "connecting to wifi");
     ESP_ERROR_CHECK(esp_wifi_connect());
 }
 
 // ====================================================================================================
-static void wifi_event_handler(void *arg, esp_event_base_t event_base,
-                               int32_t event_id, void *event_data)
+static void wifi_event_handler(void *arg,
+                               esp_event_base_t event_base,
+                               int32_t event_id,
+                               void *event_data)
 {
-    ESP_LOGV(TAG8, "trace: %s()", __func__);
-
-    ESP_LOGI(TAG8, "wifi event handler called with event_base: '%s', event_id: %ld", event_base, event_id);
+    ESP_LOGV(TAG8, "trace: %s(event_base = '%s', event_id = %ld)", __func__, event_base, event_id);
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
@@ -107,20 +90,25 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         {
             if (s_retry_num < MAX_RETRY_WIFI_STATION_CONNECT)
             {
-                ESP_LOGI(TAG8, "retrying to connect to the wifi network...");
+                ESP_LOGI(TAG8, "retrying to connect to the wifi network");
                 s_retry_num++;
                 esp_wifi_connect();
             }
+            else if (s_client_trial < 2 && strlen(g_sta2_ssid) > 0) {
+                ESP_LOGI(TAG8, "switching to connect to the second wifi network");
+                s_client_trial = 2;
+                wifi_init_sta(g_sta2_ssid, g_sta2_pass); // start by trying to connect to the Wi-Fi network
+            }
             else
             {
-                ESP_LOGI(TAG8, "failed to connect as client to network, setting up access-point mode...");
+                ESP_LOGI(TAG8, "failed to connect as client to network, setting up access-point mode");
                 wifi_init_ap(); // Switch to AP mode
             }
         }
         else
         {
             // formerly connected, but now getting a disconnected event => must be entering sleep
-            ESP_LOGI(TAG8, "disconnected from WiFi network");
+            ESP_LOGI(TAG8, "disconnected from wifi network");
             s_connected = false;
             s_retry_num = 0;
         }
@@ -186,16 +174,32 @@ void wifi_init()
     // Register event handler for Wi-Fi events
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
 
-    wifi_init_sta(); // Start by trying to connect to the Wi-Fi network
-    // If the timer expires, we will switch to AP mode using the event handler to detect the failure
+    // Basic initialization common to all STA and AP modes
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    // Pick the "best" initial network and try to connect
+    // If the event handler detects too many connection retries, it will progress
+    // to the next best network
+    if (strlen(g_sta1_ssid) > 0)
+    {
+        s_client_trial = 1; // use first of two possible STA clients
+        wifi_init_sta(g_sta1_ssid, g_sta1_pass); // start by trying to connect to the Wi-Fi network
+    }
+    else if (strlen(g_sta2_ssid) > 0)
+    {
+        s_client_trial = 1; // use second of two possible STA clients
+        wifi_init_sta(g_sta2_ssid, g_sta2_pass); // start by trying to connect to the Wi-Fi network
+    }
+    else
+        wifi_init_ap();
 
     wifi_attenuate_power();
 
     // Wait here for a successful connection to the Wi-Fi network: either as a station or as an AP.
     while (!s_connected)
-    {
         vTaskDelay(pdMS_TO_TICKS(500));
-    }
+
     ESP_LOGI(TAG8, "wifi initialization complete.");
 }
 
