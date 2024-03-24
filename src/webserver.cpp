@@ -70,7 +70,6 @@ const api_handler_t get_handlers[] = {
     {"batteryPercent",   handler_batteryPercent_get},
     {"batteryVoltage",   handler_batteryVoltage_get},
     {"connectionStatus", handler_connectionStatus_get},
-    {"factoryReset",     handler_factory_reset_get},
     {"frequency",        handler_frequency_get},
     {"mode",             handler_mode_get},
     {"rxBandwidth",      handler_rxBandwidth_get},

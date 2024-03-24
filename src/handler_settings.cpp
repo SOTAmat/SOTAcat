@@ -306,17 +306,3 @@ esp_err_t handler_settings_post(httpd_req_t *req)
 
     return retrieve_and_send_settings(req);
 }
-
-/**
- * Perform a "factory reset"
- * Presently, this means erasing NVS, as if afresh, and relying on defaults set elsewhere.
- */
-esp_err_t handler_factory_reset_get(httpd_req_t *req)
-{
-    showActivity();
-
-    ESP_LOGV(TAG8, "trace: %s()", __func__);
-
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    esp_restart();
-}
