@@ -5,7 +5,6 @@
 
 extern void start_webserver();
 
-extern esp_err_t handler_factory_reset_get(httpd_req_t *);
 extern esp_err_t handler_frequency_get(httpd_req_t *);
 extern esp_err_t handler_frequency_put(httpd_req_t *);
 extern esp_err_t handler_mode_get(httpd_req_t *);
