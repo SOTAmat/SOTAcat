@@ -34,7 +34,7 @@ void startup_watchdog_timer(void *_)
     } 
     // We will never turn off if the unit is plugged in and is charging,
     // as the battery voltage will never dip below 80%.
-    while (get_battery_percentage(get_battery_voltage()) >= 80.0f);
+    while (get_battery_percentage(get_battery_voltage()) >= BATTERY_SHUTOFF_PERCENTAGE);
 
     ESP_LOGI(TAG8, "Startup watchdog timer expired, and battery not charged; shutting down.");
     enter_deep_sleep();

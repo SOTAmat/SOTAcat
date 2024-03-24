@@ -200,6 +200,125 @@ table.table-sortable th[data-sort-dir="desc"]::after {
     text-align: right;  /* Right-align the Distance column */
 }
 
+/* ---------------------------- Settings Page */
+
+.settings-container {
+    padding: 10px;
+}
+
+.time-sync-section, .wifi-settings-form, .factory-reset-form {
+    margin-bottom: 20px;
+}
+
+.sync-button, .save-button, .reset-button {
+    background-color: var(--button-color) !important; /* Ensure the background color stays */
+    color: white !important; /* Ensure text color stays white */
+    border: none;
+    padding: 10px 20px;
+    margin-top: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.sync-button:hover, .save-button:hover, .reset-button:hover {
+    background-color: #0056b3 !important; /* Slightly darker shade of the original button color for hover state */
+}
+
+.sync-button:active, .save-button:active, .reset-button:active {
+    background-color: #004094 !important; /* Even darker for active state, ensuring contrast against white text */
+}
+
+.sync-button:focus, .save-button:focus, .reset-button:focus {
+    outline: 2px solid #004094 !important;
+    outline-offset: 2px;
+}
+
+.wifi-instructions {
+    font-size: 12px;
+}
+
+.wifi-client h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.wifi-client {
+    background-color: #f0f0f0;
+    padding: 10px;
+    padding-bottom: 5px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.wifi-row {
+    display: flex;
+    justify-content: flex-start; /* Align items to the start of the container */
+    align-items: center; /* Align items vertically in the middle */
+    margin-bottom: 3.5px; /* Reduced from 7px to further tighten vertical spacing */
+}
+
+.wifi-label, .wifi-client input[type="text"], .wifi-client input[type="password"] {
+    margin-right: 10px; /* Ensure consistent spacing */
+    width: calc(50% - 10px); /* Adjust width accounting for margin */
+    font-size: 16px; /* Matching the increased text size */
+    padding: 8px; /* Adjust padding to accommodate the text, can be adjusted if needed */
+}
+
+/* Specifically target the password labels for adjustment */
+.wifi-label:nth-child(2), .wifi-client input[type="password"] {
+    margin-left: 0; /* Remove any additional left margin for password elements */
+}
+
+.show-password-row {
+    display: flex;
+    justify-content: flex-start; /* Aligns to the left */
+    padding-left: calc(50% + 5px); /* Adjust if necessary to align under the Password input */
+    margin-top: 2.5px; /* Reduced for less space above this row */
+    margin-bottom: 0; /* Adjust if necessary to reduce extra space below this row */
+}
+
+.show-password {
+    margin-left: 0; /* Ensures alignment with the left edge of the password input */
+    font-size: 16px; /* Match the text size of inputs */
+}
+
+/* Ensure the "SSID" label and input are aligned to start, making space for the "Show" under "Password" */
+.wifi-label:first-child, .wifi-client input[type="text"]:first-child {
+    flex-grow: 2;
+}
+
+/* .wifi-client input[type="password"] {
+    flex-grow: 2;
+} */
+.wifi-client input[type="text"], .wifi-client input[type="password"] {
+    width: calc(50% - 10px); /* Adjust width if necessary, accounting for margins */
+    margin-right: 10px; /* Ensure consistent spacing */
+    font-size: 16px; /* Increase font size for better readability */
+    padding: 8px; /* Adjust padding to ensure the larger text fits well within the input box */
+}
+
+/* Apply this style to the containers of the buttons if they're not already flex containers */
+.wifi-settings-form, .factory-reset-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers children horizontally in a column layout */
+}
+
+/* If the buttons need specific targeting for centering */
+.save-button, .reset-button {
+    margin: 10px auto; /* Adds top/bottom margin for spacing, auto margins on left/right for centering */
+    display: block; /* Ensures the element is block-level for margin auto to work */
+}
+
+hr {
+    border-color: var(--secondary-bg-color);
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
 /* ----------------------------- About Page */
 
 .aboutParagraph {

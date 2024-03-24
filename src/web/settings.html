@@ -1,39 +1,127 @@
 <script src="settings.js"></script>
-<div style="display: flex; justify-content: center">
-  Set the KX clock using your cell phone time:
-    <button onclick="syncTime()">Sync Time</button>
+<div class="settings-container">
+  <div class="time-sync-section">
+    Set the KX clock using your cell phone time:
+    <button class="sync-button" onclick="syncTime()">Sync Time</button>
+  </div>
+  <hr />
+  <h2>WiFi Settings</h2>
+  <form id="wifi-settings" class="wifi-settings-form">
+    <div class="wifi-instructions">
+      <br />
+      When SOTACAT boots, it will try to connect to one of two existing WiFi
+      networks (Client-1 and Client-2) in order. If it fails to connect to
+      either client network, it will create its own WiFi hotspot (Server) so
+      that you can connect to the SOTACAT WiFi from your device.
+      <br /><br />
+      iPhone users can leave the "Client-2" settings blank: in the field you
+      should connect to the SOTACAT hotspot (Server) since the iPhone supports
+      'split networking' where it is connected to both SOTACAT via WiFi while
+      also connected to the cellular data network (when available) for
+      retrieving current spots.
+      <br /><br />
+      Many Android phones do not support 'split networking'. You should fill in
+      the "Client-2" settings with your Android phone's hotspot information. In
+      the field, SOTACAT will connect to your phone's Client-2 network and the
+      phone will be connected to the cellular data network.
+      <br /><br />
+      Once connected to a network, you open your phone's browser and navigate to
+      either
+      <a href="http://sotacat.local" target="_blank">http://sotacat.local</a>
+      (iPhone, MacOS, Windows) or to
+      <a href="http://192.168.4.1" target="_blank">http://192.168.4.1</a>
+      <br /><br />
+    </div>
+    <div class="wifi-client">
+      <h3><b>Client 1:</b> ex. SOTACAT connects to home WiFi</h3>
+      <div class="wifi-row">
+        <div class="wifi-label"><label for="sta1-ssid">SSID:</label></div>
+        <div class="wifi-label"><label for="sta1-pass">Password:</label></div>
+      </div>
+      <div class="wifi-row">
+        <input type="text" id="sta1-ssid" name="sta1-ssid" />
+        <input
+          type="password"
+          id="sta1-pass"
+          name="sta1-pass"
+          pattern=".{0}|.{8,31}"
+          required
+          title="0 or 8 to 31 characters"
+        />
+      </div>
+      <div class="wifi-row show-password-row">
+        <label class="show-password">
+          <input
+            type="checkbox"
+            onclick="togglePasswordVisibility('sta1-pass')"
+          />Show
+        </label>
+      </div>
+    </div>
+    <div class="wifi-client">
+      <h3><b>Client 2:</b> ex. SOTACAT connects to Phone hotspot</h3>
+      <div class="wifi-row">
+        <div class="wifi-label"><label for="sta2-ssid">SSID:</label></div>
+        <div class="wifi-label"><label for="sta2-pass">Password:</label></div>
+      </div>
+      <div class="wifi-row">
+        <input type="text" id="sta2-ssid" name="sta2-ssid" />
+        <input
+          type="password"
+          id="sta2-pass"
+          name="sta2-pass"
+          pattern=".{0}|.{8,31}"
+          required
+          title="0 or 8 to 31 characters"
+        />
+      </div>
+      <div class="wifi-row show-password-row">
+        <label class="show-password">
+          <input
+            type="checkbox"
+            onclick="togglePasswordVisibility('sta2-pass')"
+          />Show
+        </label>
+      </div>
+    </div>
+    <div class="wifi-client">
+      <h3><b>Server:</b> phone connects to SOTACAT hotspot</h3>
+      <div class="wifi-row">
+        <div class="wifi-label"><label for="ap-ssid">SSID:</label></div>
+        <div class="wifi-label"><label for="ap-pass">Password:</label></div>
+      </div>
+      <div class="wifi-row">
+        <input type="text" id="ap-ssid" name="ap-ssid" />
+        <input
+          type="password"
+          id="ap-pass"
+          name="ap-pass"
+          pattern=".{0}|.{8,31}"
+          required
+          title="0 or 8 to 31 characters"
+        />
+      </div>
+      <div class="wifi-row show-password-row">
+        <label class="show-password">
+          <input
+            type="checkbox"
+            onclick="togglePasswordVisibility('ap-pass')"
+          />Show
+        </label>
+      </div>
+    </div>
+    <button type="button" class="save-button" onclick="saveSettings()">
+      Save Settings
+    </button>
+  </form>
+  <hr />
+  <!-- <form
+    action="/api/v1/factoryReset"
+    method="get"
+    target="hiddenFrame"
+    class="factory-reset-form"
+  >
+    <input type="submit" value="Factory Reset" class="reset-button" />
+  </form> -->
+  <iframe name="hiddenFrame" style="display: none"></iframe>
 </div>
-<hr>
-<h2>WiFi Settings</h2>
-<form id="wifi-settings">
-        <div>
-            <h3>Client 1</h3>
-            <label for="sta1-ssid">SSID:</label>
-            <input type="text" id="sta1-ssid" name="sta1-ssid">
-            <label for="sta1-pass">Password:</label>
-            <input type="password" id="sta1-pass" name="sta1-pass" pattern=".{0}|.{8,31}" required title="0 or 8 to 31 characters">
-            <input type="checkbox" onclick="togglePasswordVisibility('sta1-pass')"> show</span>
-        </div>
-        <div>
-            <h3>Client 2</h3>
-            <label for="sta2-ssid">SSID:</label>
-            <input type="text" id="sta2-ssid" name="sta2-ssid">
-            <label for="sta2-pass">Password:</label>
-            <input type="password" id="sta2-pass" name="sta2-pass" pattern=".{0}|.{8,31}" required title="0 or 8 to 31 characters">
-            <input type="checkbox" onclick="togglePasswordVisibility('sta2-pass')"> show</span>
-        </div>
-        <div>
-            <h3>Server</h3>
-            <label for="ap-ssid">SSID:</label>
-            <input type="text" id="ap-ssid" name="ap-ssid">
-            <label for="ap-password">Password:</label>
-            <input type="password" id="ap-pass" name="ap-pass" pattern=".{0}|.{8,31}" required title="0 or 8 to 31 characters">
-            <input type="checkbox" onclick="togglePasswordVisibility('ap-pass')"> show</span>
-        </div>
-        <button type="button" onclick="saveSettings()">Save Settings</button>
-</form>
-<hr>
-<form action="/api/v1/factoryReset" method="get" target="hiddenFrame">
-    <input type="submit" value="Factory Reset">
-</form>
-<iframe name="hiddenFrame" style="display:none;"></iframe>

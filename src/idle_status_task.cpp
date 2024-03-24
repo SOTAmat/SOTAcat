@@ -35,7 +35,7 @@ void idle_status_task(void *pvParameter)
         ESP_LOGV(TAG8, "blinks %d", blinks);
         if (blinks > 4)
         {
-            if (get_battery_percentage(batv) < 80.0f)
+            if (get_battery_percentage(batv) < BATTERY_SHUTOFF_PERCENTAGE)
             {
                 gpio_set_level(LED_BLUE, LED_ON);
                 gpio_set_level(LED_RED, LED_ON);
