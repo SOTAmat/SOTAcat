@@ -1,8 +1,9 @@
 #include "globals.h"
 #include "webserver.h"
+#include "kx_radio.h"
 #include <stdio.h>
 
-#include "esp_log.h"
+#include <esp_log.h>
 static const char * TAG8 = "sc:webserve";
 
 extern const uint8_t about_html_end[]    asm("_binary_about_html_end");
@@ -63,34 +64,35 @@ typedef struct
 {
     const char *api_name;
     esp_err_t (*handler_func)(httpd_req_t *);
+    bool       requires_radio;
 } api_handler_t;
 
 // Arrays for GET, PUT, POST handlers
 const api_handler_t get_handlers[] = {
-    {"batteryPercent",   handler_batteryPercent_get},
-    {"batteryVoltage",   handler_batteryVoltage_get},
-    {"connectionStatus", handler_connectionStatus_get},
-    {"frequency",        handler_frequency_get},
-    {"mode",             handler_mode_get},
-    {"rxBandwidth",      handler_rxBandwidth_get},
-    {"settings",         handler_settings_get},
-    {NULL,               NULL} // Sentinel to mark end of array
+    {"batteryPercent",   handler_batteryPercent_get,   false},
+    {"batteryVoltage",   handler_batteryVoltage_get,   false},
+    {"connectionStatus", handler_connectionStatus_get, true},
+    {"frequency",        handler_frequency_get,        true},
+    {"mode",             handler_mode_get,             true},
+    {"rxBandwidth",      handler_rxBandwidth_get,      true},
+    {"settings",         handler_settings_get,         false},
+    {NULL,               NULL,                         false} // Sentinel to mark end of array
 };
 
 const api_handler_t put_handlers[] = {
-    {"frequency",        handler_frequency_put},
-    {"mode",             handler_mode_put},
-    {"rxBandwidth",      handler_rxBandwidth_put},
-    {"time",             handler_time_put},
-    {NULL,               NULL} // Sentinel
+    {"frequency",        handler_frequency_put,        true},
+    {"mode",             handler_mode_put,             true},
+    {"rxBandwidth",      handler_rxBandwidth_put,      true},
+    {"time",             handler_time_put,             true},
+    {NULL,               NULL,                         false} // Sentinel
 };
 
 const api_handler_t post_handlers[] = {
-    {"prepareft8",       handler_prepareft8_post},
-    {"ft8",              handler_ft8_post},
-    {"cancelft8",        handler_cancelft8_post},
-    {"settings",         handler_settings_post},
-    {NULL,               NULL} // Sentinel
+    {"prepareft8",       handler_prepareft8_post,      true},
+    {"ft8",              handler_ft8_post,             true},
+    {"cancelft8",        handler_cancelft8_post,       true},
+    {"settings",         handler_settings_post,        false},
+    {NULL,               NULL,                         false} // Sentinel
 };
 
 static int find_and_execute_handler(const char *api_name, const api_handler_t *handlers, httpd_req_t *req)
@@ -100,7 +102,16 @@ static int find_and_execute_handler(const char *api_name, const api_handler_t *h
 
     for (const api_handler_t * handler = handlers; handler->api_name != NULL; ++handler)
         if (strncmp(api_name, handler->api_name, compare_length) == 0)
-            return handler->handler_func(req);
+        {
+            if (kxRadio.is_connected() || !handler->requires_radio)
+                return handler->handler_func(req);
+            else
+            {
+                ESP_LOGE(TAG8, "radio not connected");
+                httpd_resp_send_500(req);
+                return ESP_FAIL;
+            }
+        }
     ESP_LOGE(TAG8, "handler not found for api: %s", api_name);
     httpd_resp_send_404(req);
     return ESP_FAIL; // Handler not found

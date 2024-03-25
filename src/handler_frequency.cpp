@@ -1,10 +1,10 @@
 #include "driver/gpio.h"
 #include "esp_http_server.h"
-#include "kx_commands.h"
+#include "kx_radio.h"
 #include "globals.h"
 #include "settings.h"
 
-#include "esp_log.h"
+#include <esp_log.h>
 static const char * TAG8 = "sc:hdl_freq";
 
 esp_err_t handler_frequency_get(httpd_req_t *req)
@@ -15,8 +15,8 @@ esp_err_t handler_frequency_get(httpd_req_t *req)
 
     long frequency;
     {
-        const std::lock_guard<Lock> lock(RadioPortLock);
-        frequency = get_from_kx("FA", 2, 11);
+        const std::lock_guard<Lockable> lock(kxRadio);
+        frequency = kxRadio.get_from_kx("FA", 2, 11);
     }
 
     // Validate that frequency is a positive integer
@@ -68,9 +68,9 @@ esp_err_t handler_frequency_put(httpd_req_t *req)
             {
                 int freq = atoi(param_value); // Convert the parameter to an integer
                 {
-                    const std::lock_guard<Lock> lock(RadioPortLock);
+                    const std::lock_guard<Lockable> lock(kxRadio);
 
-                    if (freq > 0 && put_to_kx("FA", 11, freq, 2))
+                    if (freq > 0 && kxRadio.put_to_kx("FA", 11, freq, 2))
                         httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
                     else
                         httpd_resp_send_500(req); // Bad request if frequency is not positive

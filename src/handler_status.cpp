@@ -1,10 +1,10 @@
 #include "driver/gpio.h"
 #include "esp_http_server.h"
-#include "kx_commands.h"
+#include "kx_radio.h"
 #include "globals.h"
 #include "settings.h"
 
-#include "esp_log.h"
+#include <esp_log.h>
 static const char * TAG8 = "sc:hdl_stat";
 
 esp_err_t handler_connectionStatus_get(httpd_req_t *req)
@@ -15,8 +15,8 @@ esp_err_t handler_connectionStatus_get(httpd_req_t *req)
 
     long transmitting;
     {
-        const std::lock_guard<Lock> lock(RadioPortLock);
-        transmitting = get_from_kx("TQ", 2, 1);
+        const std::lock_guard<Lockable> lock(kxRadio);
+        transmitting = kxRadio.get_from_kx("TQ", 2, 1);
     }
 
     const char * symbol;

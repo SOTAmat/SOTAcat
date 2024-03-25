@@ -1,7 +1,7 @@
 #include "esp_adc/adc_cali_scheme.h"
 #include "globals.h"
 
-#include "esp_log.h"
+#include <esp_log.h>
 static const char * TAG8 = "sc:setupadc";
 
 adc_oneshot_unit_handle_t Global_adc1_handle;

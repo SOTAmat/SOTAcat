@@ -1,33 +1,29 @@
-#include <time.h>
-#include "driver/gpio.h"
+#include <driver/gpio.h>
+#include <esp_wifi.h>
 #include "enter_deep_sleep.h"
-#include "esp_netif.h"
-#include "esp_wifi.h"
 #include "get_battery_voltage.h"
 #include "globals.h"
 #include "idle_status_task.h"
-#include "kx_commands.h"
-#include "nvs_flash.h"
+#include "kx_radio.h"
 #include "settings.h"
 #include "setup.h"
 #include "setup_adc.h"
-#include "uart_connect.h"
 #include "webserver.h"
 #include "wifi.h"
 
-#include "esp_log.h"
+#include <esp_log.h>
 static const char *TAG8 = "sc:setup...";
 
 time_t LastUserActivityUnixTime;
 bool CommandInProgress = false;
-Lock RadioCommunicationLock;
 TaskHandle_t xInactivityWatchdogHandle = NULL;
 
-// ====================================================================================================
+/**
+ * Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds,
+ * and our battery is below the BATTERY_SHUTOFF_PERCENTAGE
+ */
 void startup_watchdog_timer(void *_)
 {
-    // Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds.
-
     do
     {
         vTaskDelay(pdMS_TO_TICKS(60000));
@@ -90,7 +86,7 @@ void setup()
     start_webserver();
     ESP_LOGI(TAG8, "webserver initialized.");
 
-    //  Flash the LED to indicate we are done with Wifi
+    // Flash the LED to indicate we are done with Wifi
     for (int i = 0; i < 3; i++)
     {
         gpio_set_level(LED_BLUE, LED_OFF);
@@ -101,15 +97,13 @@ void setup()
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    // Find out what Baud rate the radio is running at by trying the possibilities until we get a valid response back.
-    // Once found, if the baud rate is not 38400, force it to 38400 for FSK use (FT8, etc.)
-    uart_connect();
-    ESP_LOGI(TAG8, "radio connection established");
-
+    // kxRadio is statically initialized as a singleton, but we
+    // do need to connect SOTACAT to its ACC port
     {
-        const std::lock_guard<Lock> lock(RadioPortLock);
-        empty_kx_input_buffer(600);
+        const std::lock_guard<Lockable> lock(kxRadio);
+        kxRadio.connect();  // this will block until radio connected
     }
+    ESP_LOGI(TAG8, "radio connection established");
 
     //  We exit with the LED off.
     gpio_set_level(LED_BLUE, LED_OFF);

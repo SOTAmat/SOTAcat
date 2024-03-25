@@ -1,10 +1,10 @@
 #include "driver/gpio.h"
 #include "esp_http_server.h"
-#include "kx_commands.h"
+#include "kx_radio.h"
 #include "globals.h"
 #include "settings.h"
 
-#include "esp_log.h"
+#include <esp_log.h>
 static const char * TAG8 = "sc:hdl_mode";
 
 typedef enum
@@ -26,8 +26,8 @@ radio_mode_t get_radio_mode()
 
     long mode;
     {
-        const std::lock_guard<Lock> lock(RadioPortLock);
-        mode = get_from_kx("MD", 2, 1);
+        const std::lock_guard<Lockable> lock(kxRadio);
+        mode = kxRadio.get_from_kx("MD", 2, 1);
     }
     return static_cast<radio_mode_t>(mode);
 }
@@ -71,6 +71,16 @@ esp_err_t handler_mode_get(httpd_req_t *req)
         return ESP_FAIL;
     }
     return ESP_OK;
+}
+
+esp_err_t handler_mode_put(httpd_req_t *req)
+{
+    showActivity();
+
+    ESP_LOGI(TAG8, "handler_mode_put()");
+
+    httpd_resp_send_404(req); // No query string
+    return ESP_FAIL;
 }
 
 esp_err_t handler_rxBandwidth_get(httpd_req_t *req)
@@ -141,37 +151,37 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
             // Parse the 'bw' parameter from the query
             if (httpd_query_key_value(buf, "bw", bw, sizeof(bw)) == ESP_OK)
             {
-                const std::lock_guard<Lock> lock(RadioPortLock);
+                const std::lock_guard<Lockable> lock(kxRadio);
 
                 // Send the mode to the radio based on the "bw" parameter
                 if (strcmp(bw, "SSB") == 0)
                 {
                     // Get the radio's current frequency, and if it is less than 10 MHz, set the mode to LSB, otherwise set it to USB
-                    long frequency = get_from_kx("FA", 2, 11);
+                    long frequency = kxRadio.get_from_kx("FA", 2, 11);
                     if (frequency > 0)
                     {
                         if (frequency < 10000000)
-                            put_to_kx("MD", 1, MODE_LSB, 2);
+                            kxRadio.put_to_kx("MD", 1, MODE_LSB, 2);
                         else
-                            put_to_kx("MD", 1, MODE_USB, 2);
+                            kxRadio.put_to_kx("MD", 1, MODE_USB, 2);
                     }
                 }
                 else if (strcmp(bw, "USB") == 0)
-                    put_to_kx("MD", 1, MODE_USB, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_USB, 2);
                 else if (strcmp(bw, "LSB") == 0)
-                    put_to_kx("MD", 1, MODE_LSB, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_LSB, 2);
                 else if (strcmp(bw, "CW") == 0)
-                    put_to_kx("MD", 1, MODE_CW, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_CW, 2);
                 else if (strcmp(bw, "FM") == 0)
-                    put_to_kx("MD", 1, MODE_FM, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_FM, 2);
                 else if (strcmp(bw, "AM") == 0)
-                    put_to_kx("MD", 1, MODE_AM, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_AM, 2);
                 else if (strcmp(bw, "DATA") == 0 || strcmp(bw, "FT8") == 0 || strcmp(bw, "JS8") == 0 || strcmp(bw, "PSK31") == 0 || strcmp(bw, "FT4") == 0 || strcmp(bw, "RTTY") == 0) // FT8, JS8, PSK31, FT4, RTTY
-                    put_to_kx("MD", 1, MODE_DATA, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_DATA, 2);
                 else if (strcmp(bw, "CW-R") == 0)
-                    put_to_kx("MD", 1, MODE_CW_R, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_CW_R, 2);
                 else if (strcmp(bw, "DATA-R") == 0)
-                    put_to_kx("MD", 1, MODE_DATA_R, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_DATA_R, 2);
                 else
                     httpd_resp_send_500(req); // Bad request if mode is not valid
 
@@ -190,14 +200,4 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
         httpd_resp_send_404(req); // No query string
 
     return ESP_OK;
-}
-
-esp_err_t handler_mode_put(httpd_req_t *req)
-{
-    showActivity();
-
-    ESP_LOGI(TAG8, "handler_mode_put()");
-
-    httpd_resp_send_404(req); // No query string
-    return ESP_FAIL;
 }

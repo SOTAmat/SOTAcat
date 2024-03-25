@@ -6,7 +6,7 @@
 #include "settings.h"
 #include "setup_adc.h"
 
-#include "esp_log.h"
+#include <esp_log.h>
 static const char * TAG8 = "sc:sleep...";
 
 void enter_deep_sleep()

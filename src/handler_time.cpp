@@ -1,13 +1,13 @@
 #include "driver/gpio.h"
 #include "esp_http_server.h"
-#include "kx_commands.h"
+#include "kx_radio.h"
 #include "globals.h"
 #include "settings.h"
 #include <cstdint>
 #include <ctime>
 #include <memory>
 
-#include "esp_log.h"
+#include <esp_log.h>
 static const char * TAG8 = "sc:hdl_time";
 
 struct time_hms {
@@ -23,7 +23,7 @@ inline int decode_couplet(char ten, char one) {
 static bool get_radio_time(time_hms * radio_time) {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
     char buf[sizeof("DS@@123456af;")];  // sizeof arg looks like expected response
-    if (!get_from_kx_string("DS", 2, buf, sizeof(buf)-1))  // read time from VFO A)
+    if (!kxRadio.get_from_kx_string("DS", 2, buf, sizeof(buf)-1))  // read time from VFO A)
         return false;
     buf[sizeof(buf)-1] = '\0';
     ESP_LOGV(TAG8, "time as read on display is %s", buf);
@@ -69,7 +69,7 @@ static void adjust_component(char const * selector, int diff) {
     for (int ii = diff; ii < 0; ++ii)
         strcat(dir, "DN;");
     ESP_LOGI(TAG8, "adjustment should be %s", dir);
-    put_to_kx_command_string(dir, 1);
+    kxRadio.put_to_kx_command_string(dir, 1);
 }
 
 static bool set_time (char const * param_value) {
@@ -80,9 +80,9 @@ static bool set_time (char const * param_value) {
     if (!convert_client_time (time_value, &client_time))
         return false;
 
-    const std::lock_guard<Lock> lock(RadioPortLock);
+    const std::lock_guard<Lockable> lock(kxRadio);
     time_hms radio_time;
-    put_to_kx("MN", 3, 73, 2); // enter time menu
+    kxRadio.put_to_kx("MN", 3, 73, 2); // enter time menu
     if (!get_radio_time (&radio_time)) // read the screen; VFO A shows the time
         return false;
 
@@ -93,7 +93,7 @@ static bool set_time (char const * param_value) {
         adjust_component ("SWT27;", client_time.min - radio_time.min);
     if (radio_time.hrs != client_time.hrs)
         adjust_component ("SWT19;", client_time.hrs - radio_time.hrs);
-    put_to_kx ("MN", 3, 255, 2);  // exit time menu
+    kxRadio.put_to_kx ("MN", 3, 255, 2);  // exit time menu
     return true;
 }
 

@@ -15,7 +15,7 @@
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
 
-#include "esp_log.h"
+#include <esp_log.h>
 static const char *TAG8 = "sc:hdl_ft8.";
 
 int64_t CancelRadioFT8ModeTime = 0;
@@ -140,7 +140,7 @@ static void xmit_ft8_task(void *pvParameter)
 
     // this block encapsulates our exclusive access to the radio port
     {
-        const std::lock_guard<Lock> lock(RadioPortLock);
+        const std::lock_guard<Lockable> lock(kxRadio);
 
         ft8TaskInProgress = true;
 
@@ -217,8 +217,8 @@ static void cleanup_ft8_task(void *pvParameter)
 
     // Restore the radio to its prior state
     {
-        const std::lock_guard<Lock> lock(RadioPortLock);
-        restore_kx_state(ft8ConfigInfo->kx_state, 4);
+        const std::lock_guard<Lockable> lock(kxRadio);
+        kxRadio.restore_kx_state(ft8ConfigInfo->kx_state, 4);
     }
 
     delete ft8ConfigInfo->kx_state;
@@ -339,22 +339,22 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
 
                 // this block encapsulates our exclusive access to the radio port
                 {
-                    const std::lock_guard<Lock> lock(RadioPortLock);
+                    const std::lock_guard<Lockable> lock(kxRadio);
 
                     // First capture the current state of the radio before changing it:
                     kx_state_t *kx_state = new kx_state_t;
-                    get_kx_state(kx_state);
+                    kxRadio.get_kx_state(kx_state);
 
                     // Prepare the radio to send the FT8 FSK tones using CW tones.
                     // MN058; - select the TUN PWR menu item
                     // MP010; - set the TUN PWR to 10 watts
                     long baseFreq = rfFreq + audioFreq;
 
-                    put_to_kx("FR", 1, 0, 2);         // FR0; - Cancels split mode
-                    put_to_kx("FT", 1, 0, 2);         // FT0; - Select VFO A
-                    put_to_kx("FA", 11, baseFreq, 2); // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
-                    put_to_kx("MD", 1, 3, 2);         // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
-                    put_to_kx("AP", 1, 1, 2);         // AP1; - Enable Audio Peaking filter
+                    kxRadio.put_to_kx("FR", 1, 0, 2);         // FR0; - Cancels split mode
+                    kxRadio.put_to_kx("FT", 1, 0, 2);         // FT0; - Select VFO A
+                    kxRadio.put_to_kx("FA", 11, baseFreq, 2); // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
+                    kxRadio.put_to_kx("MD", 1, 3, 2);         // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
+                    kxRadio.put_to_kx("AP", 1, 1, 2);         // AP1; - Enable Audio Peaking filter
 
                     // Offload playing the FT8 audio
                     ft8ConfigInfo = new ft8_task_pack_t;

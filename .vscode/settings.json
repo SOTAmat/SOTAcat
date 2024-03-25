@@ -1,7 +1,6 @@
 {
     "files.associations": {
         "common.h": "c",
-        "uart_connect.h": "c",
         "constants.h": "c",
         "wifi.h": "c",
         "common_includes.h": "c",
@@ -22,6 +21,6 @@
         "nvs_flash.h": "c",
         "esp_log.h": "c",
         "settings.h": "c",
-        "kx_commands.h": "c"
+        "kx_radio.h": "c"
     }
 }
