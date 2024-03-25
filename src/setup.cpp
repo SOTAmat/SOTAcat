@@ -6,6 +6,7 @@
 #include "idle_status_task.h"
 #include "kx_radio.h"
 #include "settings.h"
+#include "settings_hardware_specific.h"
 #include "setup.h"
 #include "setup_adc.h"
 #include "webserver.h"

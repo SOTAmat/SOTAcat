@@ -3,6 +3,7 @@
 #include <esp_timer.h>
 #include "kx_radio.h"
 #include "settings.h"
+#include "settings_hardware_specific.h"
 #include "settings_radio_specific.h"
 
 /*

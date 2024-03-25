@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kx_radio.h"
+
 typedef struct
 {
     long baseFreq;

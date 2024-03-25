@@ -1,13 +1,12 @@
+#include <driver/gpio.h>
 #include <math.h>
 #include <time.h>
-#include "driver/gpio.h"
 #include "enter_deep_sleep.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "get_battery_voltage.h"
 #include "globals.h"
 #include "idle_status_task.h"
 #include "settings.h"
+#include "settings_hardware_specific.h"
 
 #include <esp_log.h>
 static const char *TAG8 = "sc:idletask";

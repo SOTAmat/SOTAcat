@@ -1,17 +1,10 @@
-#include "driver/gpio.h"
-#include "esp_err.h"
-#include "esp_http_server.h"
-#include "esp_system.h"
-#include "globals.h"
-#include "lwip/mem.h"
-#include "settings.h"
-#include "nvs_flash.h"
-#include "nvs.h"
-#include <cstddef>
-#include <memory>
-#include <stdio.h>
-#include <string.h>
+#include <esp_err.h>
+#include <esp_http_server.h>
 #include <esp_mac.h>
+#include <memory>
+#include <nvs_flash.h>
+#include "globals.h"
+#include "settings.h"
 
 #include <esp_log.h>
 static const char *TAG8 = "sc:hdl_setg";

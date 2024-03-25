@@ -1,7 +1,7 @@
 #pragma once
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <mutex> // for convenience when using std::lock_guard
 
 class Lockable {

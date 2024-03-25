@@ -1,7 +1,6 @@
 #include "globals.h"
 #include "webserver.h"
 #include "kx_radio.h"
-#include <stdio.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:webserve";

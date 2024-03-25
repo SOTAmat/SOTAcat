@@ -1,17 +1,16 @@
-#include <ctype.h>
+#include <driver/gpio.h>
+#include <driver/uart.h>
+#include <esp_http_server.h>
+#include <esp_timer.h>
 #include <math.h>
-#include <sys/time.h>
-#include "driver/gpio.h"
-#include "driver/uart.h"
-#include "esp_http_server.h"
-#include "esp_timer.h"
-#include "handler_ft8.h"
-#include "idle_status_task.h"
-#include "globals.h"
-#include "settings.h"
 #include "../lib/ft8_encoder/ft8/constants.h"
 #include "../lib/ft8_encoder/ft8/encode.h"
 #include "../lib/ft8_encoder/ft8/pack.h"
+#include "globals.h"
+#include "handler_ft8.h"
+#include "idle_status_task.h"
+#include "settings.h"
+#include "settings_hardware_specific.h"
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
 

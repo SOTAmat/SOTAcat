@@ -1,8 +1,6 @@
-#include "driver/gpio.h"
-#include "esp_http_server.h"
-#include "kx_radio.h"
+#include <esp_http_server.h>
 #include "globals.h"
-#include "settings.h"
+#include "kx_radio.h"
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:hdl_freq";

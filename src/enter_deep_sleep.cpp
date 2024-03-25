@@ -1,9 +1,9 @@
-#include "driver/rtc_io.h"
-#include "enter_deep_sleep.h"
+#include <driver/rtc_io.h>
+#include <esp_sleep.h>
 #include <esp_wifi.h>
-#include "esp_sleep.h"
-#include "globals.h"
+#include "enter_deep_sleep.h"
 #include "settings.h"
+#include "settings_hardware_specific.h"
 #include "setup_adc.h"
 
 #include <esp_log.h>

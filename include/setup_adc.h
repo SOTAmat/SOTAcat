@@ -1,4 +1,4 @@
 #pragma once
 
-void setup_adc();
-void shutdown_adc();
+extern void setup_adc();
+extern void shutdown_adc();

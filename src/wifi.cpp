@@ -1,12 +1,10 @@
 #include <esp_wifi.h>
 #include <lwip/ip4_addr.h>
 #include <mdns.h>
-#include "globals.h"
 #include "settings.h"
 #include "wifi.h"
-#include <string.h>
-#include <esp_log.h>
 
+#include <esp_log.h>
 static const char * TAG8 = "sc:wifi....";
 
 static int  s_client_trial = 0;     // client currently undergoing connection; 1 or 2 representing g_sta's

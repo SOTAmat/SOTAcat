@@ -1,9 +1,6 @@
 #pragma once
 
-#include "esp_adc/adc_cali_scheme.h"
-#include "esp_adc/adc_oneshot.h"
-
-extern const char *TAG;
+#include <esp_adc/adc_oneshot.h>
 
 extern bool CommandInProgress;
 extern void showActivity();

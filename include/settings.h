@@ -1,7 +1,5 @@
 #pragma once
 
-#include "settings_hardware_specific.h"
-
 // ADC Battery measurement
 #define BATTERY_SAMPLES_TO_AVERAGE 16
 #define BATTERY_CALIBRATION_VALUE 1.006879
@@ -27,4 +25,4 @@ extern char g_sta2_pass[MAX_WIFI_SSID_SIZE];
 extern char g_ap_ssid[MAX_WIFI_SSID_SIZE];
 extern char g_ap_pass[MAX_WIFI_PASS_SIZE];
 
-void init_settings();
+extern void init_settings();

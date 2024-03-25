@@ -1,3 +1,5 @@
+#pragma once
+
 #ifdef SEEED_XIAO
 #define UART_NUM UART_NUM_1
 #else

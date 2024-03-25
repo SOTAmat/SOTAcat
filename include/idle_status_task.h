@@ -1,5 +1,8 @@
 #pragma once
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 extern TaskHandle_t xInactivityWatchdogHandle;
 extern time_t LastUserActivityUnixTime;
-void idle_status_task(void *pvParameter);
+extern void idle_status_task(void *pvParameter);
