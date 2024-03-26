@@ -313,13 +313,8 @@ async function enrichSpots(spots,
 
   const seenCallsigns = new Set(); // Set to track seen activatorCallsigns
   spotsWithDistance.forEach(spot => {
-      if (spot.baseCallsign && seenCallsigns[spot.baseCallsign]) {
-          spot.duplicate = true;
-      }
-      else {
-          spot.duplicate = false;
-          seenCallsigns[spot.baseCallsign] = true;
-      }
+      spot.duplicate = seenCallsigns.hasOwnProperty(spot.baseCallsign); // Check if the callsign has already been seen
+      seenCallsigns[spot.baseCallsign] = true; // Mark this callsign as seen
   });
 
   return spotsWithDistance;
