@@ -13,8 +13,6 @@ async function updatePotaTable()
         return 0;
     });
 
-    var showDupsCheckbox = document.getElementById('showDupsSelector');
-
     const tbody = document.querySelector('#potaTable tbody');
     let newTbody = document.createElement('tbody');
 
@@ -22,14 +20,8 @@ async function updatePotaTable()
     {
         const row = newTbody.insertRow();
 
-        if (spot.duplicate) {
-            if (!showDupsCheckbox.checked)
-                return; // Skip this iteration, effectively continuing to the next one
-            else {
-                let replacedColor = getComputedStyle(document.documentElement).getPropertyValue('--backgroundSpotDuplicateColor').trim();
-                row.style.backgroundColor = replacedColor; // Set background color using CSS variable
-            }
-        }
+        if (spot.duplicate)
+            row.classList.add('duplicate-row');
 
         let timeCell = row.insertCell();
         let hiddenSpan = document.createElement('span');

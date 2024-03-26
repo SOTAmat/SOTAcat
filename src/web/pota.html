@@ -1,7 +1,7 @@
 <h2 class="contentPageHeaderContainer">
   <span class="spotsTableTitle">Recent Spots</span>
   <div class="showDupsContainer">
-    <input type="checkbox" id="showDupsSelector" class="showDups" checked onchange="updatePotaTable(); saveShowSpotDupsCheckboxState();" />
+    <input type="checkbox" id="showDupsSelector" class="showDups" checked onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();" />
     <label for="showDupsSelector" class="showDupsLabel">Dups</label>
   </div>
 </h2>

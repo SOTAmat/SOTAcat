@@ -8,7 +8,7 @@
     </select>
   </span>
   <div class="showDupsContainer">
-    <input type="checkbox" id="showDupsSelector" class="showDups" checked onchange="updateSotaTable(); saveShowSpotDupsCheckboxState();" />
+    <input type="checkbox" id="showDupsSelector" class="showDups" checked onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();" />
     <label for="showDupsSelector" class="showDupsLabel">Dups</label>
   </div>
 </h2>

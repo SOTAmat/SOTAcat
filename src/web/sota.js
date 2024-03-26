@@ -19,8 +19,6 @@ async function updateSotaTable()
         return 0;
     });
 
-    var showDupsCheckbox = document.getElementById('showDupsSelector');
-
     const tbody = document.querySelector('#sotaTable tbody');
     let newTbody = document.createElement('tbody');
 
@@ -28,14 +26,8 @@ async function updateSotaTable()
     {
         const row = newTbody.insertRow();
 
-        if (spot.duplicate) {
-            if (!showDupsCheckbox.checked)
-                return; // Skip this iteration, effectively continuing to the next one
-            else {
-                let replacedColor = getComputedStyle(document.documentElement).getPropertyValue('--backgroundSpotDuplicateColor').trim();
-                row.style.backgroundColor = replacedColor; // Set background color using CSS variable
-            }
-        }
+        if (spot.duplicate)
+            row.classList.add('duplicate-row');
 
         let timeCell = row.insertCell();
         let hiddenSpan = document.createElement('span');
@@ -98,12 +90,24 @@ function saveShowSpotDupsCheckboxState()
     localStorage.setItem('showSpotDups', isChecked);
 }
 
+function changeShowSpotDupsCheckboxState(showDups) {
+    let styleSheet = document.styleSheets[0]; // Assuming it's in the first stylesheet
+    let duplicateRowsStyle = Array.from(styleSheet.cssRules).find(rule => rule.selectorText === '.duplicate-row');
+
+    if (showDups)
+        duplicateRowsStyle.style.display = '';     // Make sure rows are visible
+    else
+        duplicateRowsStyle.style.display = 'none'; // Hide rows
+}
+
 function loadShowSpotDupsCheckboxState()
 {
     const savedState = localStorage.getItem('showSpotDups');
     // If there's a saved state, convert it to Boolean and set the checkbox
-    if (savedState !== null)
+    if (savedState !== null) {
         document.getElementById('showDupsSelector').checked = (savedState === 'true');
+        changeShowSpotDupsCheckboxState(document.getElementById('showDupsSelector').checked);
+    }
 }
 
 gRefreshInterval = null;

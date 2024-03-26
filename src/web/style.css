@@ -189,6 +189,10 @@ table.table-sortable th[data-sort-dir="desc"]::after {
     color: #222222;
 }
 
+.duplicate-row {
+    background-color: var(--backgroundSpotDuplicateColor); /* Background color for duplicates */
+}
+
 #sotaTable th:nth-child(3), #sotaTable td:nth-child(3) {
     text-align: right;  /* Right-align the Distance column */
 }
