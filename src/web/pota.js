@@ -36,8 +36,7 @@ async function updatePotaTable()
         hiddenSpan.style.display = 'none';
         hiddenSpan.textContent = spot.timestamp;
         timeCell.appendChild(hiddenSpan);
-        const date = new Date(spot.timestamp);
-        const formattedTime = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+        const formattedTime = spot.timestamp.getUTCHours().toString().padStart(2, '0') + ':' + spot.timestamp.getUTCMinutes().toString().padStart(2, '0');
         timeCell.appendChild(document.createTextNode(formattedTime));
 
         const parkCell = row.insertCell();
@@ -77,18 +76,9 @@ function potaOnAppearing() {
     console.info('POTA tab appearing');
 
     loadShowSpotDupsCheckboxState();
-    loadRefreshRateState();
     refreshSotaPotaJson();
-
-    const refreshIntervalSelector = document.getElementById('refreshIntervalSelector');
-    if (gRefreshInterval != null)
-        clearInterval(gRefreshInterval);
-    gRefreshInterval = setRefreshInterval(refreshIntervalSelector.value);
-
-    refreshIntervalSelector.addEventListener('change', function() {
-        clearInterval(gRefreshInterval);
-        gRefreshInterval = setRefreshInterval(refreshIntervalSelector.value);
-    });
+    if (gRefreshInterval == null)
+        gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
 
     const headers = document.querySelectorAll('#potaTable th[data-sort-field]');
     headers.forEach(header => {

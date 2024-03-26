@@ -260,12 +260,17 @@ const distanceCache = {};
 // - distance from our location
 // - canonical timestamp
 // - base call sign (omitting suffixes)
+// - timestamp in milliseconds since epoch
 // - whether the spot is a duplicate of a prior spot
 // Return an array sorted by descending timestamp
 async function enrichSpots(spots,
-                           baseurl, getCodeFunc, currentLat, currentLon,
+                           baseurl,
+                           getCodeFunc,
                            getTimeFunc,
                            getActivatorFunc) {
+
+    const { latitude: currentLat, longitude: currentLon } = await getLocation();
+
     const spotsWithDistance = await Promise.all(spots.map(async (spot) => {
         const summitCode = getCodeFunc(spot);
 
@@ -325,45 +330,40 @@ gLatestPotaJson = null;
 
 async function refreshSotaPotaJson()
 {
-    // See SOTA API docs at https://api2.sota.org.uk/docs/index.html
-    const sotaPromise = fetch('https://api2.sota.org.uk/api/spots/-1/all').then(res => res.json()).catch(error => ({ error }));
-    const potaPromise = fetch('https://api.pota.app/spot/activator').then(res => res.json()).catch(error => ({ error }));
-    const results = await Promise.allSettled([sotaPromise, potaPromise]); // Fetch both SOTA and POTA JSON in parallel, regardless of success
-
-    const { latitude, longitude } = await getLocation();
-
-    results.forEach((result, index) =>
-    {
-        if (result.status === 'fulfilled')
-        {
-            if (index === 0)
-            { // SOTA
-                gLatestSotaJson = enrichSpots(result.value,
+    if (currentTabName === 'sota') {
+        const limit = document.getElementById("historyDurationSelector").value;
+        // See SOTA API docs at https://api2.sota.org.uk/docs/index.html
+        fetch(`https://api2.sota.org.uk/api/spots/${limit}/all`)
+            .then(result => result.json()) // Resolve the promise to get the JSON data
+            .then(data => {
+                gLatestSotaJson = enrichSpots(data,
                                               'https://api2.sota.org.uk/api/summits',
                                               function(spot){return spot.associationCode + "/" + spot.summitCode;}, // getCodeFunc
-                                              latitude, longitude,
-                                              function(spot){return spot.timeStamp;},
+                                              function(spot){return new Date(`${spot.timeStamp}Z`);},
                                               function(spot){return spot.activatorCallsign;});
-                console.info('SOTA Json updated');
-                if (currentTabName === 'sota')
-                    gLatestSotaJson.then(() => { updateSotaTable(); } )
-            }
-            else if (index === 1)
-            { // POTA
-                gLatestPotaJson = enrichSpots(result.value,
+                gLatestSotaJson.then(() => {
+                    console.info('SOTA Json updated');
+                    updateSotaTable();
+                });
+            })
+            .catch(error => ({ error }));
+    }
+    else if (currentTabName === 'pota') {
+        fetch('https://api.pota.app/spot/activator')
+            .then(result => result.json()) // Resolve the promise to get the JSON data
+            .then(data => {
+                gLatestPotaJson = enrichSpots(data,
                                               'https://api.pota.app/park',
                                               function(spot){return spot.reference;}, // getCodeFunc
-                                              latitude, longitude,
-                                              function(spot){return new Date(spot.spotTime).getTime();},
+                                              function(spot){return new Date(`${spot.spotTime}Z`);},
                                               function(spot){return spot.activator;});
-                console.info('POTA Json updated');
-                if (currentTabName === 'pota')
-                    gLatestPotaJson.then(() => { updatePotaTable(); } )
-            }
-        }
-        else
-            console.error('Error fetching JSON:', result.reason);
-    });
+                gLatestPotaJson.then(() => {
+                    console.info('POTA Json updated');
+                    updatePotaTable();
+                });
+            })
+            .catch(error => ({ error }));
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {

@@ -42,8 +42,7 @@ async function updateSotaTable()
         hiddenSpan.style.display = 'none';
         hiddenSpan.textContent = spot.timestamp;
         timeCell.appendChild(hiddenSpan);
-        const date = new Date(spot.timestamp);
-        const formattedTime = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+        const formattedTime = spot.timestamp.getUTCHours().toString().padStart(2, '0') + ':' + spot.timestamp.getUTCMinutes().toString().padStart(2, '0');
         timeCell.appendChild(document.createTextNode(formattedTime));
 
         const summitCell = row.insertCell();
@@ -80,6 +79,19 @@ async function updateSotaTable()
     console.info('SOTA table updated');
 }
 
+function saveHistoryDurationState()
+{
+    const value = document.getElementById('historyDurationSelector').value;
+    localStorage.setItem('historyDuration', value);
+}
+
+function loadHistoryDurationState() {
+    const savedState = localStorage.getItem('historyDuration');
+    // If there's a saved state, convert it to Boolean and set the checkbox
+    if (savedState !== null)
+        document.getElementById('historyDurationSelector').value = savedState;
+}
+
 function saveShowSpotDupsCheckboxState()
 {
     const isChecked = document.getElementById('showDupsSelector').checked;
@@ -96,25 +108,6 @@ function loadShowSpotDupsCheckboxState()
 
 gRefreshInterval = null;
 
-function setRefreshInterval(intervalDuration) {
-    console.log('Setting interval to:', intervalDuration);
-    saveRefreshRateState();
-    return setInterval(refreshSotaPotaJson, parseInt(intervalDuration, 10));
-}
-
-function saveRefreshRateState()
-{
-    const refreshIntervalSelector = document.getElementById('refreshIntervalSelector');
-    localStorage.setItem("refreshRate", refreshIntervalSelector.value);
-}
-
-function loadRefreshRateState()
-{
-    const savedState = localStorage.getItem('refreshRate');
-    if (savedState != null)
-        document.getElementById('refreshIntervalSelector').value = savedState;
-}
-
 function updateSortIndicators(headers, sortField, descending) {
     headers.forEach(header => {
         if (header.getAttribute('data-sort-field') === sortField) {
@@ -129,18 +122,10 @@ function sotaOnAppearing() {
     console.info('SOTA tab appearing');
 
     loadShowSpotDupsCheckboxState();
-    loadRefreshRateState();
+    loadHistoryDurationState();
     refreshSotaPotaJson();
-
-    const refreshIntervalSelector = document.getElementById('refreshIntervalSelector');
-    if (gRefreshInterval != null)
-        clearInterval(gRefreshInterval);
-    gRefreshInterval = setRefreshInterval(refreshIntervalSelector.value);
-
-    refreshIntervalSelector.addEventListener('change', function() {
-        clearInterval(gRefreshInterval);
-        gRefreshInterval = setRefreshInterval(refreshIntervalSelector.value);
-    });
+    if (gRefreshInterval == null)
+        gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
 
     const headers = document.querySelectorAll('#sotaTable th[data-sort-field]');
     headers.forEach(header => {

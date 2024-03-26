@@ -1,15 +1,5 @@
 <h2 class="contentPageHeaderContainer">
   <span class="spotsTableTitle">Recent Spots</span>
-  <!-- Dropdown for refresh intervals -->
-  <select id="refreshIntervalSelector" class="refreshIntervalDropdown">
-    <option value="10000">10 seconds</option>
-    <option value="60000">1 minute</option>
-    <option value="300000">5 minutes</option>
-    <option value="900000">15 minutes</option>
-    <option value="1800000">30 minutes</option>
-    <option value="3600000">1 hour</option>
-    <option value="10800000">3 hour</option>
-  </select>
   <div class="showDupsContainer">
     <input type="checkbox" id="showDupsSelector" class="showDups" checked onchange="updatePotaTable(); saveShowSpotDupsCheckboxState();" />
     <label for="showDupsSelector" class="showDupsLabel">Dups</label>
