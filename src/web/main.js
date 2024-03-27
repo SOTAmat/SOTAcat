@@ -71,6 +71,16 @@ function fetchAndUpdateElement(url, elementId) {
 }
 
 // ----------------------------------------------------------------------------
+// Info: Build Version and Type
+// ----------------------------------------------------------------------------
+function refreshVersion()
+{
+    fetchAndUpdateElement('/api/v1/version', 'buildVersion');
+}
+
+refreshVersion(); // Initial and only refresh - the UI only needs to know this once
+
+// ----------------------------------------------------------------------------
 // Status:Clock
 // ----------------------------------------------------------------------------
 function refreshUTCClock()

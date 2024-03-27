@@ -47,6 +47,12 @@ h3 {
     padding: 0.2em;
 }
 
+.descriptionHeading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 li {
     margin: 15px 0 15px -20px;
 }

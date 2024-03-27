@@ -1,0 +1,125 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Debug - Seeed Xiao ESP32C3",
+            "type": "shell",
+            "command": "platformio",
+            "args": [
+                "run",
+                "-e",
+                "seeed_xiao_esp32c3_debug"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Build Release - Seeed Xiao ESP32C3",
+            "type": "shell",
+            "command": "platformio",
+            "args": [
+                "run",
+                "-e",
+                "seeed_xiao_esp32c3_release"
+            ],
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Build Debug - WEMOS LOLIN32 Lite",
+            "type": "shell",
+            "command": "platformio",
+            "args": [
+                "run",
+                "-e",
+                "lolin32_lite_debug"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Build Release - WEMOS LOLIN32 Lite",
+            "type": "shell",
+            "command": "platformio",
+            "args": [
+                "run",
+                "-e",
+                "lolin32_lite_release"
+            ],
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Build Debug - Ultimate Maker TinyPICO",
+            "type": "shell",
+            "command": "platformio",
+            "args": [
+                "run",
+                "-e",
+                "um_tinys3_debug"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Build Release - Ultimate Maker TinyPICO",
+            "type": "shell",
+            "command": "platformio",
+            "args": [
+                "run",
+                "-e",
+                "um_tinys3_release"
+            ],
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Build Debug - HELTEC WiFi Kit 32 V3",
+            "type": "shell",
+            "command": "platformio",
+            "args": [
+                "run",
+                "-e",
+                "heltec_wifi_kit_32_V3_debug"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "Build Release - HELTEC WiFi Kit 32 V3",
+            "type": "shell",
+            "command": "platformio",
+            "args": [
+                "run",
+                "-e",
+                "heltec_wifi_kit_32_V3_release"
+            ],
+            "problemMatcher": [
+                "$platformio"
+            ]
+        }
+    ]
+}

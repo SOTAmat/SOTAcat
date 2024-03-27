@@ -28,7 +28,7 @@ void startup_watchdog_timer(void *_)
     do
     {
         vTaskDelay(pdMS_TO_TICKS(60000));
-    } 
+    }
     // We will never turn off if the unit is plugged in and is charging,
     // as the battery voltage will never dip below 80%.
     while (get_battery_percentage(get_battery_voltage()) >= BATTERY_SHUTOFF_PERCENTAGE);
@@ -40,7 +40,12 @@ void startup_watchdog_timer(void *_)
 // ====================================================================================================
 void setup()
 {
-    esp_log_level_set("*", ESP_LOG_VERBOSE);
+// We no longer need to set the log level here, as it is set in the platformio.ini file
+// differently for each build target.  I only leave it here if in the future you want
+// to have the platformio.ini use "Debug" or "Informational" for debug builds, and
+// "Informational" or "Warning" for release builds.  In that case for deep debug you can set
+// "ESP_LOG_VERBOSE" here.
+//    esp_log_level_set("*", ESP_LOG_VERBOSE);
 #if 0
     for (int i = 0; i < 5; i++)
     {
@@ -102,7 +107,7 @@ void setup()
     // do need to connect SOTACAT to its ACC port
     {
         const std::lock_guard<Lockable> lock(kxRadio);
-        kxRadio.connect();  // this will block until radio connected
+        kxRadio.connect(); // this will block until radio connected
     }
     ESP_LOGI(TAG8, "radio connection established");
 
