@@ -173,6 +173,17 @@ table.table-sortable th[data-sort-dir="desc"]::after {
 
 /* ---------------------------- SOTA content page */
 
+.spotsTableTitle {
+    /* Vertically center the select element */
+    display: flex;
+    align-items: center;
+}
+
+.historyDurationDropdown {
+/* Add some padding to the left of the <select> element */
+    margin-left: 7px;
+}
+
 .showDupsContainer {
     display: flex;
     align-items: center; /* This will ensure vertical alignment */

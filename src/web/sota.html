@@ -1,14 +1,25 @@
 <h2 class="contentPageHeaderContainer">
-  <span class="spotsTableTitle">Recent Spots in the past
+  <span class="spotsTableTitle"
+    >Spots in the past:
     <!-- Dropdown for refresh intervals -->
-    <select id="historyDurationSelector" class="historyDurationDropdown" onchange="refreshSotaPotaJson(); saveHistoryDurationState();">
-      <option value= "-1" selected>1 hour</option>
-      <option value= "-3">3 hours</option>
+    <select
+      id="historyDurationSelector"
+      class="historyDurationDropdown"
+      onchange="refreshSotaPotaJson(); saveHistoryDurationState();"
+    >
+      <option value="-1" selected>1 hour</option>
+      <option value="-3">3 hours</option>
       <option value="-24">24 hours</option>
     </select>
   </span>
   <div class="showDupsContainer">
-    <input type="checkbox" id="showDupsSelector" class="showDups" checked onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();" />
+    <input
+      type="checkbox"
+      id="showDupsSelector"
+      class="showDups"
+      checked
+      onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();"
+    />
     <label for="showDupsSelector" class="showDupsLabel">Dups</label>
   </div>
 </h2>
