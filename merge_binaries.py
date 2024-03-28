@@ -1,10 +1,16 @@
 import os, time
 
 
+def log_message(message):
+    print(
+        "SOTACAT merging step: " + message
+    )  # Or use logging module for more advanced logging
+
+
 def merge_binaries(source, target, env):
     import subprocess
 
-    print("Entered post-build script to merge firmware binaries...")
+    log_message("Preparing to merge firmware binaries...")
 
     project_dir = env.subst("$PROJECT_DIR")
     build_dir = env.subst("$BUILD_DIR")
@@ -19,7 +25,7 @@ def merge_binaries(source, target, env):
     # Check for the existence of required binaries
     for bin_file in [bootloader_bin, partitions_bin, app_bin]:
         if not os.path.exists(bin_file):
-            print(f"Error: Required binary file missing: {bin_file}")
+            log_message(f"Error: Required binary file missing: {bin_file}")
             return  # Exit if any required binary is missing
 
     home_path = os.environ.get("HOME") or os.environ.get("USERPROFILE")
@@ -48,7 +54,8 @@ def merge_binaries(source, target, env):
         "0x10000",
         app_bin,
     ]
-    print("Merging firmware binaries with the following command:")
-    print(" ".join(command))
+    log_message(
+        "Merging firmware binaries with the following command: " + " ".join(command)
+    )
     subprocess.run(command, check=True)
-    print(f"Merged firmware created at: {merged_firmware_path}")
+    log_message(f"Merged firmware created at: {merged_firmware_path}")

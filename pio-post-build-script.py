@@ -7,4 +7,12 @@ from merge_binaries import merge_binaries
 #     "$BUILD_DIR/${PROGNAME}.elf", lambda *args, **kwargs: merge_binaries(env)
 # )
 
+
+def log_message(message):
+    print(
+        "SOTACAT Post-build step: " + message
+    )  # Or use logging module for more advanced logging
+
+
+log_message("Defining post-build step to merge binaries...")
 env.AddPostAction("upload", merge_binaries)
