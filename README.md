@@ -9,18 +9,22 @@ SOTACAT is a small hardware module that plugs into an Elecraft KX2 or KX3 radio�
 1. **Your radio controlled from a web page:**
 
    Acts as a WiFi hotspot in the field and a web server. Your radio becomes a web page allowing control of your radio. Just connect to the WiFi hotspot “SOTACAT_xxxx” SSID in the field, and once connected launch your web browser and navigate to the page [http://sotacat.local](http://sotacat.local) (some Android devcies don't understand `.local` addresses, in that case just use the URL [192.168.4.1](192.168.4.1) instead).
+   ![Hand-built SOTACAT module](https://sotamat.com/wp-content/uploads/2024/02/image-2.png)
 
 2. **SOTA/POTA Click-to-Pounce:**
 
    When cell service is available, it allows SOTA and POTA operators to “click-to-pounce”. On the SOTACAT web page you see a list of recent SOTA and POTA spots. Clicking on one allows automatic tuning of the radio to the correct band, frequency, and mode to start a contact with that spotted operator.
+   ![Click-to-Pounce screenshot](https://sotamat.com/wp-content/uploads/2024/03/SOTACAT-SOTA-POTA-screenshot.png)
 
 3. **Direct FT8 Synthesis without audio:**
 
    While CAT control isn’t new, one unique feature of SOTACAT is that it can manipulate the Elecraft radio’s pure CW signal and VFO frequency fast enough to generate the same FSK (frequency shift keying) signals as used by FT8 or other FSK based modes, but without using any audio signal (direct FSK synthesis). SOTACAT can accept an FT8 message and from it compute and transmit a 15 second set of FT8 FSK signals. There is a REST API to which you can give it an FT8 message to send and it will compute all the requied FSK signals and produce them in the Elecraft.
+   ![K5EM SOTACAT driving KX3 FT8 direct synthesis](https://sotamat.com/wp-content/uploads/2024/03/K5EM-case-300x226.jpg)
 
 4. **SOTAMAT integration: off-grid self-spotting, self-alerting:**
 
    SOTACAT can form a bidirectional connection with the SOTAMAT app on your phone allowing SOTAMAT to read what operating frequency and mode you have selected, or allowing SOTAMAT’s frequency / band selector to adjust the radio’s operating frequency/band/mode. Once you enter your peak or park ID (or use the automatic peak/park selector via GPS), SOTAMAT will use the SOTACAT to send the proper FT8 message to self-spot, self-alert, or send one of your pre-defined SMS/eMail messaging commands. Use of SOTAMAT requires a one-time configuration. Please see [https://sotamat.com/getting-started] for instructions.
+   ![SOTAMAT spotting via SOTACAT direct synthesis](https://sotamat.com/wp-content/uploads/2024/03/SOTACAT-SOTAMAT-integration.png)
 
 ## Current status:
 
@@ -35,10 +39,11 @@ SOTACAT is a small hardware module that plugs into an Elecraft KX2 or KX3 radio�
 
 - **Firmware:**
 
-  - For software developers: code is found right here (on Github)
-  - For end-users (non developers): pre-built firmware and installation instructions with [one-button deploy](https://sotamat.com/sotacat).
+  - **For end-users** (non developers): pre-built firmware and installation instructions with [one-button deploy](https://sotamat.com/sotacat).
+  - **For software developers**: code is found right here (on Github)
 
 - **Pre-made PCB hardware:** Hams K5EM and KE6MT have created custom circuit boards that implement a SOTACAT in a more compact and professionally designed package. Reach out to them for purchase instructions (QRZ or Slack-NA)
+  ![K5EM SOTACAT PCB](https://sotamat.com/wp-content/uploads/2024/03/K5EM-board-300x163.jpg)
 
 - **Beta SOTAMAT app**: A SOTAMAT compatible with SOTACAT has not yet been released and is in development. There are SOTACAT-aware **Beta** versions of SOTAMAT available at:
   - [iOS build on Apple's TestFlight App Store for Beta apps](https://testflight.apple.com/join/UQuW6g1E)
