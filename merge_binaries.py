@@ -20,7 +20,7 @@ def merge_binaries(source, target, env):
     bootloader_bin = os.path.join(build_dir, "bootloader.bin")
     partitions_bin = os.path.join(build_dir, "partitions.bin")
     app_bin = os.path.join(build_dir, "firmware.bin")
-    merged_firmware_path = os.path.join(firmware_dir, "esp32c3.bin")
+    merged_firmware_path = os.path.join(firmware_dir, "webtools", "esp32c3.bin")
 
     # Check for the existence of required binaries
     for bin_file in [bootloader_bin, partitions_bin, app_bin]:
