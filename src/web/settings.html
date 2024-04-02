@@ -39,14 +39,19 @@
         <div class="wifi-label"><label for="sta1-pass">Password:</label></div>
       </div>
       <div class="wifi-row">
-        <input type="text" id="sta1-ssid" name="sta1-ssid" />
+        <input
+          type="text"
+          id="sta1-ssid"
+          name="Client 1 SSID"
+          pattern=".{0}|.{2,31}"
+          title="empty, or 2 to 31 characters"
+        />
         <input
           type="password"
           id="sta1-pass"
-          name="sta1-pass"
-          pattern=".{0}|.{8,31}"
-          required
-          title="0 or 8 to 31 characters"
+          name="Client 1 Password"
+          pattern=".{0}|.{8,63}"
+          title="empty, or 8 to 63 characters"
         />
       </div>
       <div class="wifi-row show-password-row">
@@ -65,14 +70,19 @@
         <div class="wifi-label"><label for="sta2-pass">Password:</label></div>
       </div>
       <div class="wifi-row">
-        <input type="text" id="sta2-ssid" name="sta2-ssid" />
+        <input
+          type="text"
+          id="sta2-ssid"
+          name="Client 2 SSID"
+          pattern=".{0}|.{2,31}"
+          title="empty, or 2 to 31 characters"
+        />
         <input
           type="password"
           id="sta2-pass"
-          name="sta2-pass"
-          pattern=".{0}|.{8,31}"
-          required
-          title="0 or 8 to 31 characters"
+          name="Client 2 Password"
+          pattern=".{0}|.{8,63}"
+          title="empty, or 8 to 63 characters"
         />
       </div>
       <div class="wifi-row show-password-row">
@@ -91,14 +101,19 @@
         <div class="wifi-label"><label for="ap-pass">Password:</label></div>
       </div>
       <div class="wifi-row">
-        <input type="text" id="ap-ssid" name="ap-ssid" />
+        <input
+          type="text"
+          id="ap-ssid"
+          name="Server SSID"
+          pattern=".{0}|.{2,31}"
+          title="empty, or 2 to 31 characters"
+        />
         <input
           type="password"
           id="ap-pass"
-          name="ap-pass"
-          pattern=".{0}|.{8,31}"
-          required
-          title="0 or 8 to 31 characters"
+          name="Server Password"
+          pattern=".{0}|.{8,63}"
+          title="empty, or 8 to 63 characters"
         />
       </div>
       <div class="wifi-row show-password-row">
@@ -110,18 +125,17 @@
         </label>
       </div>
     </div>
-    <button type="button" class="save-button" onclick="saveSettings()">
-      Save Settings
-    </button>
+    <input type="submit" class="save-button" value="Save Settings">
   </form>
   <hr />
-  <!-- <form
-    action="/api/v1/factoryReset"
-    method="get"
-    target="hiddenFrame"
-    class="factory-reset-form"
-  >
-    <input type="submit" value="Factory Reset" class="reset-button" />
-  </form> -->
+  <!--
+    <form
+      action="/api/v1/factoryReset"
+      method="get"
+      target="hiddenFrame"
+      class="factory-reset-form">
+      <input type="submit" value="Factory Reset" class="reset-button" />
+    </form>
+  -->
   <iframe name="hiddenFrame" style="display: none"></iframe>
 </div>

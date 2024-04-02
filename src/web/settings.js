@@ -16,6 +16,11 @@ function syncTime() {
     .catch(error => console.error('Fetch error:', error));
 }
 
+function togglePasswordVisibility(inputId) {
+    var passwordInput = document.getElementById(inputId);
+    passwordInput.type = (passwordInput.type === "password") ? "text" : "password";
+}
+
 async function fetchSettings() {
     try {
         const response = await fetch('/api/v1/settings', { method: 'GET' });
@@ -33,6 +38,8 @@ async function fetchSettings() {
 }
 
 function saveSettings() {
+    console.log("Saving settings...");
+
     const settings = {
         sta1_ssid: document.getElementById('sta1-ssid').value,
         sta1_pass: document.getElementById('sta1-pass').value,
@@ -60,11 +67,59 @@ function saveSettings() {
     });
 }
 
-function settingsOnAppearing() {
-    fetchSettings();
+function customCheckSettingsValidity() {
+    // Define pairs of SSID and password inputs
+    const wifiPairs = [
+        { ssid: document.getElementById('sta1-ssid'), pass: document.getElementById('sta1-pass') },
+        { ssid: document.getElementById('sta2-ssid'), pass: document.getElementById('sta2-pass') },
+        { ssid: document.getElementById('ap-ssid'),   pass: document.getElementById('ap-pass')   }
+    ];
+
+    // Check each pair
+    for (let pair of wifiPairs) {
+        const ssidValue = pair.ssid.value;
+        const passValue = pair.pass.value;
+
+        // If one is empty and the other is not, return false
+        if ((ssidValue === '' && passValue !== '') || (ssidValue !== '' && passValue === '')) {
+            // Optionally, you can alert the user which input group is incorrectly filled
+            alert(`Both "${pair.ssid.name}" and "${pair.pass.name}" must be either filled in or left blank.`);
+            return false;
+        }
+    }
+
+    return true;
 }
 
-function togglePasswordVisibility(inputId) {
-    var passwordInput = document.getElementById(inputId);
-    passwordInput.type = (passwordInput.type === "password") ? "text" : "password";
+function onSubmitSettings(event) {
+    var wifiForm = document.getElementById("wifi-settings");
+
+    // Prevent the form from submitting until we've done our custom validation
+    event.preventDefault();
+
+    // Perform built-in HTML5 validation first. This will show popup for invalid inputs.
+    if (!wifiForm.checkValidity()) {
+        return;
+    }
+
+    // If HTML5 validation passes, we perform our custom validation
+    if (!customCheckSettingsValidity()) {
+        return;
+    }
+
+    saveSettings();
+}
+
+gSubmitSettingsAttached = false;
+
+function attachSubmitSettings() {
+    var wifiForm = document.getElementById("wifi-settings");
+    wifiForm.addEventListener("submit", onSubmitSettings);
+    gSubmitSettingsAttached = true;
+}
+
+function settingsOnAppearing() {
+    fetchSettings();
+    if (!gSubmitSettingsAttached)
+        attachSubmitSettings();
 }

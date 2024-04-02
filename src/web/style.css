@@ -311,14 +311,26 @@ table.table-sortable th[data-sort-dir="desc"]::after {
     flex-grow: 2;
 }
 
-/* .wifi-client input[type="password"] {
-    flex-grow: 2;
-} */
-.wifi-client input[type="text"], .wifi-client input[type="password"] {
+.wifi-client input[type="text"],
+.wifi-client input[type="password"] {
     width: calc(50% - 10px); /* Adjust width if necessary, accounting for margins */
     margin-right: 10px; /* Ensure consistent spacing */
     font-size: 16px; /* Increase font size for better readability */
     padding: 8px; /* Adjust padding to ensure the larger text fits well within the input box */
+}
+
+/* Style for valid input fields */
+.wifi-client input[type="text"]:valid,
+.wifi-client input[type="password"]:valid {
+    color: green; /* Color for text when input is valid */
+    border: 2px solid green; /* Optional: add a green border to highlight valid inputs */
+}
+
+/* Style for invalid input fields */
+.wifi-client input[type="text"]:invalid,
+.wifi-client input[type="password"]:invalid {
+    color: red; /* Color for text when input is invalid */
+    border: 2px solid red; /* Optional: add a red border to highlight invalid inputs */
 }
 
 /* Apply this style to the containers of the buttons if they're not already flex containers */
