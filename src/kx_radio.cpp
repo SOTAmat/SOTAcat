@@ -2,7 +2,6 @@
 #include <driver/uart.h>
 #include <esp_timer.h>
 #include "kx_radio.h"
-#include "settings.h"
 #include "settings_hardware_specific.h"
 #include "settings_radio_specific.h"
 
@@ -19,7 +18,7 @@
  */
 
 #include <esp_log.h>
-static const char * TAG8 = "sc:kx_cmds.";
+static const char * TAG8 = "sc:kx_radio";
 
 // Global static instance
 KXRadio& kxRadio = KXRadio::getInstance();
@@ -28,6 +27,18 @@ KXRadio& kxRadio = KXRadio::getInstance();
  * Utilities
  */
 
+/**
+ * Sends a command via UART, reads the response, checks for validity, and retries if necessary.
+ * Handles errors like the device being busy and logs detailed communication status.
+ *
+ * @param cmd Command to be sent to UART.
+ * @param cmd_length Length of the command.
+ * @param out_buff Buffer to store the response.
+ * @param expected_chars Expected number of characters in the response.
+ * @param tries Number of retries for the command.
+ * @param wait_ms Milliseconds to wait for a response.
+ * @return bool True if successful, false otherwise.
+ */
 static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, int expected_chars, int tries, int wait_ms)
 {
     ESP_LOGV(TAG8, "trace: %s(cmd='%s', cmd_length=%d, expect=%d)", __func__, cmd, cmd_length, expected_chars);
@@ -67,6 +78,14 @@ static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, in
     return true;
 }
 
+
+/**
+ * Parses a numeric response based on the expected format and number of digits.
+ *
+ * @param out_buff Buffer containing the response.
+ * @param num_digits Number of digits expected in the response.
+ * @return long Parsed numeric value from the response.
+ */
 static long parse_response(const char *out_buff, int num_digits)
 {
     switch (num_digits)
@@ -103,10 +122,19 @@ KXRadio& KXRadio::getInstance() {
  * It's an error somewhere up in the call stack if not.
  */
 
-// Find out what Baud rate the radio is running at by trying the possibilities until we get a valid response back.
-// Once found, if the baud rate is not 38400, force it to 38400 for FSK use (FT8, etc.)
+/**
+ * Tries to establish a UART connection with the radio at various baud rates, configures UART settings,
+ * and attempts to lock in the baud rate at 38400 for subsequent communication.
+ *
+ * @return int Baud rate that was successfully set.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
 int KXRadio::connect()
 {
+    ESP_LOGV(TAG8, "trace: %s()", __func__);
+
     if (!locked())
         ESP_LOGE(TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
@@ -175,6 +203,14 @@ int KXRadio::connect()
     }
 }
 
+/**
+ * Clears the UART input buffer, logging the discarded data.
+ *
+ * @param wait_ms Milliseconds to wait while reading from the buffer.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
 void KXRadio::empty_kx_input_buffer(int wait_ms)
 {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
@@ -188,7 +224,17 @@ void KXRadio::empty_kx_input_buffer(int wait_ms)
     ESP_LOGV(TAG8, "empty_kx_input_buffer() called, ate %ld bytes in %d ms with chars: %s", returned_chars, wait_ms, in_buff);
 }
 
-// --------------------------------------------------------------------------------------------
+/**
+ * Sends a command to the radio and retrieves a numeric response, handling retries and timeouts.
+ *
+ * @param command Command to be sent.
+ * @param tries Number of attempts to successfully execute the command.
+ * @param num_digits Number of digits in the expected response.
+ * @return long Value retrieved from the response.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
 long KXRadio::get_from_kx(const char *command, int tries, int num_digits)
 {
     ESP_LOGV(TAG8, "trace: %s(command = '%s')", __func__, command);
@@ -225,7 +271,19 @@ long KXRadio::get_from_kx(const char *command, int tries, int num_digits)
     return result;
 }
 
-// --------------------------------------------------------------------------------------------
+/**
+ * Sends a string command to the radio and retrieves a string response. It handles retries
+ * and uses specific timeout settings for communication.
+ *
+ * @param command The command string to be sent to the radio.
+ * @param tries The number of attempts to execute the command successfully.
+ * @param response Buffer to store the received response.
+ * @param response_size The size of the response buffer.
+ * @return bool True if the command was executed and a response was received successfully, false otherwise.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
 bool KXRadio::get_from_kx_string(const char *command, int tries, char * response, int response_size)
 {
     ESP_LOGV(TAG8, "trace: %s(command = '%s')", __func__, command);
@@ -242,7 +300,17 @@ bool KXRadio::get_from_kx_string(const char *command, int tries, char * response
     return uart_get_command(cmd_buff, command_size, response, response_size, tries, wait_time);
 }
 
-// ====================================================================================================
+/**
+ * Retrieves a specific menu item's value from the radio. It involves switching to the
+ * menu mode, retrieving the value, and then exiting the menu mode.
+ *
+ * @param menu_item The menu item number to query.
+ * @param tries The number of attempts to execute the command and retrieve the value.
+ * @return long The retrieved value of the menu item.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
 long KXRadio::get_from_kx_menu_item(uint8_t menu_item, int tries)
 {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
@@ -259,7 +327,19 @@ long KXRadio::get_from_kx_menu_item(uint8_t menu_item, int tries)
     return value;
 }
 
-// ====================================================================================================
+
+/**
+ * Sends a command to set a value on the radio, verifies the set operation, and retries if necessary.
+ *
+ * @param command Command to send.
+ * @param num_digits Expected number of digits in the command.
+ * @param value Value to be set by the command.
+ * @param tries Number of attempts to successfully execute the command.
+ * @return bool True if successful, false otherwise.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
 bool KXRadio::put_to_kx(const char *command, int num_digits, long value, int tries)
 {
     ESP_LOGV(TAG8, "put_to_kx('%s') attempting value %ld", command, value);
@@ -327,7 +407,18 @@ bool KXRadio::put_to_kx(const char *command, int num_digits, long value, int tri
     return false;
 }
 
-// ====================================================================================================
+/**
+ * Sets a specific menu item's value on the radio. This function includes steps to switch
+ * into menu mode, set the menu item value, and then exit menu mode.
+ *
+ * @param menu_item The menu item number to be set.
+ * @param value The value to set for the menu item.
+ * @param tries The number of attempts to successfully execute the command.
+ * @return bool True if the menu item value is successfully set, false otherwise.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
 bool KXRadio::put_to_kx_menu_item(uint8_t menu_item, long value, int tries)
 {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
@@ -346,7 +437,17 @@ bool KXRadio::put_to_kx_menu_item(uint8_t menu_item, long value, int tries)
     return value;
 }
 
-// ====================================================================================================
+/**
+ * Sends a custom command string to the radio via UART. This function is typically used for
+ * commands that do not require a response to be checked.
+ *
+ * @param cmd The command string to be sent to the radio.
+ * @param tries The number of attempts to send the command.
+ * @return bool Always returns true, indicating the command was sent.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
 bool KXRadio::put_to_kx_command_string(const char * cmd, int tries) {
     ESP_LOGV(TAG8, "trace: %s(cmd = '%s')", __func__, cmd);
 
@@ -360,7 +461,15 @@ bool KXRadio::put_to_kx_command_string(const char * cmd, int tries) {
 }
 
 /**
- * Get the current radio state
+ * Retrieves and updates the current state of the radio into the provided structure. It gathers
+ * settings such as the current mode, frequency of VFO A, active VFO, tuning power, and the status
+ * of the audio peaking filter. This function also temporarily switches the radio mode to ensure
+ * accurate retrieval of the audio peaking filter status.
+ *
+ * @param in_state Structure to store the current state of the radio.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
  */
 void KXRadio::get_kx_state(kx_state_t *in_state)
 {
@@ -369,17 +478,24 @@ void KXRadio::get_kx_state(kx_state_t *in_state)
     if (!locked())
         ESP_LOGE(TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    in_state->active_vfo = (uint8_t)get_from_kx("FT", 2, 1);   // FTn; - Get current VFO:  0 for VFO A, 1 for VFO B
-    in_state->vfo_a_freq = get_from_kx("FA", 2, 11);           // FAnnnnnnnnnnn; - Get the current frequency A
-    in_state->tun_pwr = (uint8_t)get_from_kx_menu_item(58, 2); // MN058;MPnnn; - Get the current TUN PWR setting
     in_state->mode = (uint8_t)get_from_kx("MD", 2, 1);         // MDn; - Get current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
-    put_to_kx("MD", 1, 3, 2);                          // To get the peaking filter mode we have to be in CW mode: MD3;
-    in_state->audio_peaking = get_from_kx("AP", 2, 1);         // APn; - Get Audio Peaking CW filter: 0 for APF OFF and 1 for APF ON
-    put_to_kx("MD", 1, in_state->mode, 2);             // Now return to the prior mode
+    put_to_kx("MD", 1, 3, 2);                                  // To get the peaking filter mode we have to be in CW mode: MD3;
+    in_state->audio_peaking = get_from_kx("AP", 2, 1);         //   APn; - Get Audio Peaking CW filter: 0 for APF OFF and 1 for APF ON
+    put_to_kx("MD", 1, in_state->mode, 2);                     // Now return to the prior mode
+    in_state->vfo_a_freq = get_from_kx("FA", 2, 11);           // FAnnnnnnnnnnn; - Get the current frequency A
+    in_state->active_vfo = (uint8_t)get_from_kx("FT", 2, 1);   // FTn; - Get current VFO:  0 for VFO A, 1 for VFO B
+    in_state->tun_pwr = (uint8_t)get_from_kx_menu_item(58, 2); // MN058;MPnnn; - Get the current TUN PWR setting
 }
 
 /**
- * Restore the radio to its prior state
+ * Restores the radio's settings from the provided state structure, including mode, frequency,
+ * and other operational parameters.
+ *
+ * @param in_state Structure containing the state to restore.
+ * @param tries Number of attempts to successfully restore the state.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
  */
 void KXRadio::restore_kx_state(const kx_state_t *in_state, int tries)
 {
