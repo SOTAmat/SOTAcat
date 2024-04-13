@@ -42,7 +42,7 @@ SOTACAT is a small hardware module that plugs into an Elecraft KX2 or KX3 radioâ
   - **For end-users** (non developers): pre-built firmware and installation instructions with [one-button deploy](https://sotamat.com/sotacat).
   - **For software developers**: code is found right here (on Github)
 
-- **Pre-made PCB hardware:** Hams K5EM and KE6MT have created custom circuit boards that implement a SOTACAT in a more compact and professionally designed package. Reach out to them for purchase instructions (QRZ or Slack-NA)
+- **Pre-made PCB hardware:** Hams K5EM and KE6MT have created custom circuit boards that implement a SOTACAT in a more compact and professionally designed package. Reach out to them for purchase instructions (QRZ or Slack-NA).  Justin K5EM has [posted his designs on Github](https://github.com/invertedlabs/sotacat-pcb/).
   ![K5EM SOTACAT PCB](https://sotamat.com/wp-content/uploads/2024/03/K5EM-board-300x163.jpg)
 
 - **Beta SOTAMAT app**: A SOTAMAT compatible with SOTACAT has not yet been released and is in development. There are SOTACAT-aware **Beta** versions of SOTAMAT available at:
@@ -85,6 +85,7 @@ Once the SOTACAT firmware is installed and running, you should:
 - YL3JG, Karlis Goba: developed the original 'ft8_lib' FT8 CODEC. A derivative version was later created for encoding use in SOTACAT, and ported to C# for encoding in SOTAMAT by AB6D.
 - Elecraft: N6KR, Wayne Burdick, and N1AL, Alan, provided guidance on control of Elecraft radios and Mathcad analysis of FT8 FSK harmonics.
 - Justin K5EM and Rex KE6MT: Created derivative hardware versions, custom SMT PCBs, and helped with packaging analysis, circuit analysis, and testing.
+    - See [Justin's SOTACAT-PCB Github page](https://github.com/invertedlabs/sotacat-pcb/) for an open source custom PCB (printed circuit board) that implements SOTACAT in a compact and professional way, as well as 3D printing files for an enclosure.
 
 ## Support
 
