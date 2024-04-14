@@ -1,8 +1,8 @@
 #include <driver/gpio.h>
 #include <driver/uart.h>
-#include <esp_http_server.h>
 #include <esp_timer.h>
 #include <math.h>
+#include <memory>
 #include "../lib/ft8_encoder/ft8/constants.h"
 #include "../lib/ft8_encoder/ft8/encode.h"
 #include "../lib/ft8_encoder/ft8/pack.h"
@@ -11,6 +11,7 @@
 #include "idle_status_task.h"
 #include "settings.h"
 #include "settings_hardware_specific.h"
+#include "webserver.h"
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
 
@@ -288,7 +289,7 @@ static void cleanup_ft8_task(void *pvParameter)
  *              frequency is used to calculate the actual transmission frequency by adding the audio frequency.
  *            - 'audioFrequency': The frequency offset (in Hz) added to the 'rfFrequency' to derive the actual
  *              transmission frequency. This offset represents the audio tone frequency in the FT8 signal.
-
+ *
  * @return ESP_OK on success or ESP_FAIL on failure.
  */
 esp_err_t handler_prepareft8_post(httpd_req_t *req)
@@ -298,42 +299,33 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
     ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     if (CommandInProgress || ft8ConfigInfo != NULL)
-    {
-        ESP_LOGE(TAG8, "%s called while another command is in progress", __func__);
-        httpd_resp_send_500(req); // Bad request because another is in progress!
-        return ESP_FAIL;
-    }
+        REPLY_WITH_FAILURE(req, 500, "prepare called while another command already in progress");
+
     CommandInProgress = true;
     gpio_set_level(LED_BLUE, LED_ON); // LED on
 
     // Get the length of the URL query
     size_t buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len <= 1) {
-        ESP_LOGE(TAG8, "missing query string");
-        httpd_resp_send_404(req); // No query string
         CommandInProgress = false;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 404, "missing query string");
     }
 
-    char *buf = new char[buf_len + 1];
+    std::unique_ptr<char[]> buf(new char[buf_len]);
     if (!buf)
     {
-        ESP_LOGE(TAG8, "heap allocation failed");
-        httpd_resp_send_500(req);
         CommandInProgress = false;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
     }
+    char * unsafe_buf = buf.get(); // reference to an ephemeral buffer
 
     // Get the URL query
-    if (httpd_req_get_url_query_str(req, buf, buf_len) != ESP_OK)
+    if (httpd_req_get_url_query_str(req, unsafe_buf, buf_len) != ESP_OK)
     {
-        ESP_LOGE(TAG8, "query parsing error");
-        httpd_resp_send_404(req); // Query parsing error
         CommandInProgress = false;
-        delete[] buf;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 404, "query parsing error");
     }
-    ESP_LOGV(TAG8, "request buffer[%d] = \"%s\"", buf_len, buf);
+    ESP_LOGV(TAG8, "request buffer[%d] = \"%s\"", buf_len, unsafe_buf);
 
     char    ft8_msg[64];
     char    nowTimeUTCms_str[64];
@@ -345,21 +337,18 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
     char *  timeStringEndChar = NULL;
 
     // Parse the 'messageText' parameter from the query
-    if (!(httpd_query_key_value(buf, "messageText", ft8_msg, sizeof(ft8_msg)) == ESP_OK &&
+    if (!(httpd_query_key_value(unsafe_buf, "messageText", ft8_msg, sizeof(ft8_msg)) == ESP_OK &&
           url_decode_in_place(ft8_msg) &&
           strnlen(ft8_msg, sizeof(ft8_msg)) <= 13 &&
-          httpd_query_key_value(buf, "timeNow", nowTimeUTCms_str, sizeof(nowTimeUTCms_str)) == ESP_OK &&
+          httpd_query_key_value(unsafe_buf, "timeNow", nowTimeUTCms_str, sizeof(nowTimeUTCms_str)) == ESP_OK &&
           (nowTimeUTCms = strtoll(nowTimeUTCms_str, &timeStringEndChar, 10)) > 0 &&
-          httpd_query_key_value(buf, "rfFrequency", rfFreq_str, sizeof(rfFreq_str)) == ESP_OK &&
+          httpd_query_key_value(unsafe_buf, "rfFrequency", rfFreq_str, sizeof(rfFreq_str)) == ESP_OK &&
           (rfFreq = atol(rfFreq_str)) > 0 &&
-          httpd_query_key_value(buf, "audioFrequency", audioFreq_str, sizeof(audioFreq_str)) == ESP_OK &&
+          httpd_query_key_value(unsafe_buf, "audioFrequency", audioFreq_str, sizeof(audioFreq_str)) == ESP_OK &&
           (audioFreq = atoi(audioFreq_str)) > 0))
     {
-        ESP_LOGE(TAG8, "parameter parsing error");
-        httpd_resp_send_500(req); // Bad request for one of several reasons
         CommandInProgress = false;
-        delete[] buf;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 404, "parameter parsing error");
     }
 
     // Set the system clock based on the time received from the phone
@@ -384,22 +373,16 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
     int rc = pack77(ft8_msg, packed);
     if (rc < 0)
     {
-        ESP_LOGE(TAG8, "can't parse FT8 message");
-        httpd_resp_send_500(req); // Bad request for one of several reasons
         CommandInProgress = false;
-        delete[] buf;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 500, "can't parse FT8 message");
     }
 
     // Second, encode the binary message as a sequence of FSK tones
     uint8_t *tones = new uint8_t[FT8_NN]; // Array of 79 tones (symbols)
     if (tones == NULL)
     {
-        ESP_LOGE(TAG8, "can't allocate memory for FT8 tones");
-        httpd_resp_send_500(req); // Bad request for one of several reasons
         CommandInProgress = false;
-        delete[] buf;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 500, "can't allocate memory for FT8 tones");
     }
 
     ft8_encode(packed, tones);
@@ -452,13 +435,9 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
     xTaskCreate(&cleanup_ft8_task, "cleanup_ft8_task", 5120, NULL, SC_TASK_PRIORITY_NORMAL, NULL);
 
     // Send a response back
-    ESP_LOGI(TAG8, "successful preparation");
-    httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
     CommandInProgress = false;
-    delete[] buf;
-    return ESP_OK;
+    REPLY_WITH_SUCCESS();
 }
-
 
 /**
  * HTTP request handler to initiate the FT8 transmission.
@@ -475,11 +454,7 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
     ESP_LOGV(TAG8, "trace: %s()", __func__);
 
     if (ft8TaskInProgress)
-    {
-        ESP_LOGE(TAG8, "%s called while another FT8 task is in progress", __func__);
-        httpd_resp_send_500(req); // Bad request because another is in progress!
-        return ESP_FAIL;
-    }
+        REPLY_WITH_FAILURE(req, 500,  "post called while another FT8 task already in progress");
 
     CommandInProgress = true;
 
@@ -500,29 +475,23 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
     size_t buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len <= 1)
     {
-        ESP_LOGE(TAG8, "no query string error");
-        httpd_resp_send_404(req); // No query string, so no new to delete
         CommandInProgress = false;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 404, "missing query string");
     }
 
-    char *buf = new char[buf_len + 1];
+    std::unique_ptr<char[]> buf(new char[buf_len]);
     if (!buf)
     {
-        ESP_LOGE(TAG8, "heap allocation failed");
-        httpd_resp_send_500(req);
         CommandInProgress = false;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
     }
+    char * unsafe_buf = buf.get(); // reference to an ephemeral buffer
 
     // Get the URL query
-    if (httpd_req_get_url_query_str(req, buf, buf_len) != ESP_OK)
+    if (httpd_req_get_url_query_str(req, unsafe_buf, buf_len) != ESP_OK)
     {
-        ESP_LOGE(TAG8, "query parsing error");
-        httpd_resp_send_404(req); // Query parsing error
         CommandInProgress = false;
-        delete[] buf;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 404, "query parsing error");
     }
 
     char rfFreq_str[32];
@@ -530,19 +499,16 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
     char audioFreq_str[16];
     int audioFreq = 0;
 
-    ESP_LOGV(TAG8, "request buffer[%d] = \"%s\"", buf_len, buf);
+    ESP_LOGV(TAG8, "request buffer[%d] = \"%s\"", buf_len, unsafe_buf);
 
     // Parse the 'messageText' parameter from the query
-    if (!(httpd_query_key_value(buf, "rfFrequency", rfFreq_str, sizeof(rfFreq_str)) == ESP_OK &&
+    if (!(httpd_query_key_value(unsafe_buf, "rfFrequency", rfFreq_str, sizeof(rfFreq_str)) == ESP_OK &&
         (rfFreq = atol(rfFreq_str)) > 0 &&
-        httpd_query_key_value(buf, "audioFrequency", audioFreq_str, sizeof(audioFreq_str)) == ESP_OK &&
+        httpd_query_key_value(unsafe_buf, "audioFrequency", audioFreq_str, sizeof(audioFreq_str)) == ESP_OK &&
         (audioFreq = atoi(audioFreq_str)) > 0))
     {
-        ESP_LOGE(TAG8, "parameter parsing error");
-        httpd_resp_send_500(req); // Bad request for one of several reasons
         CommandInProgress = false;
-        delete[] buf;
-        return ESP_FAIL;
+        REPLY_WITH_FAILURE(req, 404, "parameter parsing error");
     }
 
     // Offload playing the FT8 audio
@@ -557,11 +523,7 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
     // The watchdog timer will clean up after the FT8 transmission is done.
     xTaskCreate(&xmit_ft8_task, "xmit_ft8_task", 8192, ft8ConfigInfo, SC_TASK_PRIORITY_HIGHEST, NULL);
 
-    // Send a response back
-    ESP_LOGI(TAG8, "success");
-    httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
-    delete[] buf;
-    return ESP_OK;
+    REPLY_WITH_SUCCESS();
 }
 
 /**
@@ -576,7 +538,6 @@ esp_err_t handler_cancelft8_post(httpd_req_t *req)
 
     // Tell the watchdog timer to cancel the FT8 mode and restore the radio to its prior state
     CancelRadioFT8ModeTime = 1;
-    httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);
-    ESP_LOGI(TAG8, "success");
-    return ESP_OK;
+
+    REPLY_WITH_SUCCESS();
 }

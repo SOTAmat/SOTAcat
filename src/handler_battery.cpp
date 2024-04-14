@@ -1,10 +1,17 @@
-#include <esp_http_server.h>
 #include "globals.h"
 #include "settings.h"
+#include "webserver.h"
 
 #include <esp_log.h>
 static const char *TAG8 = "sc:hdl_batt";
 
+/**
+ * Measures and calculates the battery voltage by averaging several ADC samples.
+ * If ADC read or calibration fails, it logs an error and returns -1.0.
+ * The voltage is adjusted based on a calibration constant.
+ *
+ * @return Calculated battery voltage in volts, or -1.0f if there's an error.
+ */
 float get_battery_voltage(void)
 {
     uint32_t VbattMillivolts = 0;
@@ -32,8 +39,19 @@ float get_battery_voltage(void)
     return Vbattf;
 }
 
+/**
+ * Voltage thresholds for linearly interpolating battery percentage,
+ * from a full charge (4.2V) down to a fully discharged state (3.27V).
+ */
 static const float BatteryVoltageTable[] = {4.2, 4.15, 4.11, 4.08, 4.02, 3.98, 3.95, 3.91, 3.87, 3.85, 3.84, 3.82, 3.8, 3.79, 3.77, 3.75, 3.73, 3.71, 3.69, 3.61, 3.27};
 
+/**
+ * Converts the measured battery voltage into a percentage based on a predefined voltage table.
+ * It uses linear interpolation between known voltage values to calculate the percentage.
+ *
+ * @param voltage Measured battery voltage in volts.
+ * @return Battery charge percentage, or -1.0f if the voltage is out of range.
+ */
 float get_battery_percentage(float voltage)
 {
     if (voltage >= 4.2f)
@@ -55,6 +73,12 @@ float get_battery_percentage(float voltage)
     return -1.0f;
 }
 
+/**
+ * HTTP GET handler to retrieve the battery percentage.
+ *
+ * @param req Pointer to the HTTP request structure.
+ * @return ESP_OK on success, or an error code on failure.
+ */
 esp_err_t handler_batteryPercent_get(httpd_req_t *req)
 {
     showActivity();
@@ -69,6 +93,12 @@ esp_err_t handler_batteryPercent_get(httpd_req_t *req)
     return ESP_OK;
 }
 
+/**
+ * HTTP GET handler to retrieve the battery voltage.
+ *
+ * @param req Pointer to the HTTP request structure.
+ * @return ESP_OK on success, or an error code on failure.
+ */
 esp_err_t handler_batteryVoltage_get(httpd_req_t *req)
 {
     showActivity();

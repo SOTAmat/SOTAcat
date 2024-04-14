@@ -20,3 +20,15 @@ extern esp_err_t handler_time_put(httpd_req_t *);
 extern esp_err_t handler_settings_get(httpd_req_t *);
 extern esp_err_t handler_settings_post(httpd_req_t *);
 extern esp_err_t handler_version_get(httpd_req_t *);
+
+#define REPLY_WITH_FAILURE(req, code, message) do {\
+        ESP_LOGE(TAG8, message);\
+        httpd_resp_send_##code(req);\
+        return ESP_FAIL;\
+    } while (0)
+
+#define REPLY_WITH_SUCCESS() do {\
+        ESP_LOGI(TAG8, "success");\
+        httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);\
+        return ESP_OK;\
+    } while (0)

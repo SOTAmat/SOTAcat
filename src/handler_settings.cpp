@@ -1,10 +1,10 @@
 #include <esp_err.h>
-#include <esp_http_server.h>
 #include <esp_mac.h>
 #include <memory>
 #include <nvs_flash.h>
 #include "globals.h"
 #include "settings.h"
+#include "webserver.h"
 
 #include <esp_log.h>
 static const char *TAG8 = "sc:hdl_setg";
@@ -31,7 +31,7 @@ static const char s_ap_pass_key[] = "ap_pass";
 char g_ap_pass[MAX_WIFI_PASS_SIZE];
 
 /**
- * Handle to our Non-Volatile Storage while we're in communcation with it.
+ * Handle to our Non-Volatile Storage while we're in communication with it.
  */
 static nvs_handle_t s_nvs_settings_handle;
 
@@ -235,14 +235,11 @@ static esp_err_t retrieve_and_send_settings(httpd_req_t *req)
 {
     std::shared_ptr<char[]> buf = get_settings_json();
     if (!buf)
-    {
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
-    }
+        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
 
+    ESP_LOGI(TAG8, "returning settings");
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, buf.get(), HTTPD_RESP_USE_STRLEN);
-    ESP_LOGI(TAG8, "returning settings");
     return ESP_OK;
 }
 
@@ -273,27 +270,18 @@ esp_err_t handler_settings_post(httpd_req_t *req)
 
     std::unique_ptr<char[]> buf(new char[req->content_len]);
     if (!buf)
-    {
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
-    }
+        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
+    char * unsafe_buf = buf.get(); // reference to an ephemeral buffer
 
     // Get the content
-    int ret = httpd_req_recv(req, buf.get(), req->content_len);
+    int ret = httpd_req_recv(req, unsafe_buf, req->content_len);
     if (ret <= 0)
-    {
-        ESP_LOGE(TAG8, "got unexpected '%d'", ret);
-        httpd_resp_send_404(req); // No query string
-        return ESP_FAIL;
-    }
+        REPLY_WITH_FAILURE(req, 404, "post content not received");
 
-    parse_and_process_json(buf.get());
+    parse_and_process_json(unsafe_buf);
 
     if (nvs_commit(s_nvs_settings_handle) != ESP_OK)
-    {
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
-    }
+        REPLY_WITH_FAILURE(req, 500, "failed commit settings to nvs");
 
     populate_settings();
 
