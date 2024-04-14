@@ -11,8 +11,15 @@
 #include <esp_log.h>
 static const char *TAG8 = "sc:idletask";
 
-// ====================================================================================================
-void idle_status_task(void *pvParameter)
+/**
+ * Task that continuously monitors and manages the system status based on battery level, heap usage,
+ * and user activity. The task handles power management by initiating a shutdown if the system has
+ * been idle beyond a set threshold and the battery level is too low. It also manages signaling
+ * user activity and system status via LEDs.
+ *
+ * @param _pvParameter Unused parameter
+ */
+void idle_status_task(void *_pvParameter)
 {
     while (1)
     {
@@ -70,11 +77,19 @@ void idle_status_task(void *pvParameter)
     }
 }
 
-// ====================================================================================================
+/**
+ * Task handle for controlling the activity LED blink pattern.
+ */
 static TaskHandle_t showUserActivityBlinkTaskHandle = NULL;
 
-// LED Control Task
-void activityLedBlinkTask(void *param)
+/**
+ * Task to control the blinking of an activity LED. The task waits for a notification to reset its
+ * timer and turns off the LED after a specified timeout. This task manages the visual indication
+ * of the system activity and command responses.
+ *
+ * @param _param Unused parameter
+ */
+void activityLedBlinkTask(void *_param)
 {
     while (true)
     {
@@ -90,17 +105,19 @@ void activityLedBlinkTask(void *param)
     }
 }
 
-// Function called by handlers to show the user that a command was received
-// by blinking the LED.  Needs to handle the reentrancy case where a new
-// command is received before the LED is done blinking.
-// This runs as a low priority task so it can be interrupted by real work.
+/**
+ * Triggers the LED to indicate that a command has been received and resets the user inactivity timer.
+ * This function initializes the blink task on the first call and subsequently notifies the task to reset
+ * the LED timeout whenever a new activity is detected. It ensures that the user is visually informed
+ * of the system's responsiveness to commands.
+ * Needs to handle the reentrancy case where a new command is received before the LED is done blinking.
+ * This runs as a low priority task so it can be interrupted by real work.
+ */
 void showActivity()
 {
     // The first time we setup the task that will turn off the LED
     if (showUserActivityBlinkTaskHandle == NULL)
-    {
         xTaskCreate(activityLedBlinkTask, "ActivityLEDblinkControlTask", 2048, NULL, SC_TASK_PRIORITY_LOW, &showUserActivityBlinkTaskHandle);
-    }
 
     // Reset the inactivity timer to the current time, so we can remember when the user was last active.
     time(&LastUserActivityUnixTime);
