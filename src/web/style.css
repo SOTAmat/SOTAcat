@@ -212,6 +212,7 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
 
 .mode-CW {}
 .mode-SSB {}
+.mode-FM {}
 .mode-FT8 {}
 .mode-DATA {}
 .mode-OTHER {}  /* catch-all for unrecognized modes */
