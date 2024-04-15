@@ -267,11 +267,13 @@ async function getLocation() {
 const distanceCache = {};
 
 // Further enrich base spot details with:
-// - distance from our location
-// - canonical timestamp
-// - base call sign (omitting suffixes)
-// - timestamp in milliseconds since epoch
-// - whether the spot is a duplicate of a prior spot
+// - point = spot location (like Wc/NC-417)
+// - hertz = frequency of transmission
+// - timestamp = time of spot, in seconds since epoch UTC
+// - baseCallsign = call sign omitting suffixes
+// - mode = upcased mode as reported
+// - modeType = one of CW, SSB, FT8, DATA, or OTHER (which is a catch-all)
+// - duplicate = whether the spot is a duplicate of a prior spot (boolean)
 // Return an array sorted by descending timestamp
 async function enrichSpots(spots,
                            baseurl,
@@ -279,10 +281,31 @@ async function enrichSpots(spots,
                            getTimeFunc,
                            getActivatorFunc) {
 
-    const { latitude: currentLat, longitude: currentLon } = await getLocation();
+    spots.forEach(spot => {
+        spot.point = getCodeFunc(spot);
+        spot.hertz = spot.frequency * 1000 * 1000;
+        spot.timestamp = getTimeFunc(spot);
+        spot.baseCallsign = getActivatorFunc(spot).split("/")[0];
+        spot.mode = spot.mode.toUpperCase();
+        spot.modeType = spot.mode;
+        if (!["CW", "SSB", "FT8", "DATA"].includes(spot.modeType))
+            spot.modeType = "OTHER";
+    });
 
+    // find duplicates
+    // first we must sport by time
+    // then we keep track of which baseCallsigns we've already seen
+    // and mark the spot as a duplicate if we see it again
+    spots.sort((a, b) => b.timestamp - a.timestamp);
+    const seenCallsigns = new Set(); // Set to track seen activatorCallsigns
+    spots.forEach(spot => {
+        spot.duplicate = seenCallsigns.hasOwnProperty(spot.baseCallsign); // Check if the callsign has already been seen
+        seenCallsigns[spot.baseCallsign] = true; // Mark this callsign as seen
+    });
+
+    const { latitude: currentLat, longitude: currentLon } = await getLocation();
     const spotsWithDistance = await Promise.all(spots.map(async (spot) => {
-        const summitCode = getCodeFunc(spot);
+        const summitCode = spot.point;
 
         // Check if the summit's distance calculation is already in progress or done
         if (!distanceCache[summitCode]) {
@@ -311,23 +334,7 @@ async function enrichSpots(spots,
         return {...spot, distance};
     }));
 
-  // find duplicates
-  // first we must sport by time
-  // then we keep track of which baseCallsigns we've already seen
-  // and mark the spot as a duplicate if we see it again
-  spotsWithDistance.forEach(spot => {
-      spot.timestamp = getTimeFunc(spot);
-      spot.baseCallsign = getActivatorFunc(spot).split("/")[0];
-  });
-  spotsWithDistance.sort((a, b) => b.timestamp - a.timestamp);
-
-  const seenCallsigns = new Set(); // Set to track seen activatorCallsigns
-  spotsWithDistance.forEach(spot => {
-      spot.duplicate = seenCallsigns.hasOwnProperty(spot.baseCallsign); // Check if the callsign has already been seen
-      seenCallsigns[spot.baseCallsign] = true; // Mark this callsign as seen
-  });
-
-  return spotsWithDistance;
+    return spotsWithDistance;
 }
 
 gLatestSotaJson = null;

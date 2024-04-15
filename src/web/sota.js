@@ -4,6 +4,7 @@
 gSortField = "timestamp";
 gLastSortField = gSortField;
 gDescending = true;
+gRefreshInterval = null;
 
 async function updateSotaTable()
 {
@@ -29,22 +30,19 @@ async function updateSotaTable()
         if (spot.duplicate)
             row.classList.add('duplicate-row');
 
-        let timeCell = row.insertCell();
-        let hiddenSpan = document.createElement('span');
-        hiddenSpan.style.display = 'none';
-        hiddenSpan.textContent = spot.timestamp;
-        timeCell.appendChild(hiddenSpan);
         const formattedTime = spot.timestamp.getUTCHours().toString().padStart(2, '0') + ':' + spot.timestamp.getUTCMinutes().toString().padStart(2, '0');
-        timeCell.appendChild(document.createTextNode(formattedTime));
+        row.insertCell().textContent = formattedTime;
 
         const summitCell = row.insertCell();
         const summitLink = document.createElement('a');
-        summitLink.href = `https://sotl.as/summits/${spot.associationCode}/${spot.summitCode}`;
-        summitLink.textContent = `${spot.associationCode}/${spot.summitCode}`;
+        summitLink.href = `https://sotl.as/summits/${spot.point}`;
+        summitLink.textContent = spot.point;
         summitCell.appendChild(summitLink);
 
         row.insertCell().textContent = spot.distance.toLocaleString();
-        row.insertCell().textContent = spot.mode.toUpperCase();
+        const mode = spot.mode.toUpperCase().trim();
+        row.insertCell().textContent = mode;
+        row.classList.add('mode-' + spot.modeType);
 
         const frequencyCell = row.insertCell();
         const frequencyLink = document.createElement('a');
@@ -71,6 +69,8 @@ async function updateSotaTable()
     console.info('SOTA table updated');
 }
 
+// History Duration
+
 function saveHistoryDurationState()
 {
     const value = document.getElementById('historyDurationSelector').value;
@@ -83,6 +83,8 @@ function loadHistoryDurationState() {
     if (savedState !== null)
         document.getElementById('historyDurationSelector').value = savedState;
 }
+
+// Hide/Show Spot Dups
 
 function saveShowSpotDupsCheckboxState()
 {
@@ -110,7 +112,7 @@ function loadShowSpotDupsCheckboxState()
     }
 }
 
-gRefreshInterval = null;
+// Column sorting
 
 function updateSortIndicators(headers, sortField, descending) {
     headers.forEach(header => {
@@ -122,16 +124,54 @@ function updateSortIndicators(headers, sortField, descending) {
     });
 }
 
+// Mode filtering
+
+function saveModeFilterState()
+{
+    const value = document.getElementById('modeFilter').value;
+    localStorage.setItem('modeFilter', value);
+}
+
+function loadModeFilterState()
+{
+    const savedState = localStorage.getItem('modeFilter');
+    if (savedState !== null) {
+        document.getElementById('modeFilter').value = savedState;
+        changeModeFilter(document.getElementById('modeFilter').value);
+    }
+}
+
+function changeModeFilter(selectedMode) {
+    let styleSheet = document.styleSheets[0]; // Assuming it's in the first stylesheet
+    let allModeStyles = Array.from(styleSheet.cssRules).filter(rule =>
+        rule.selectorText && /^\.mode-/.test(rule.selectorText));
+
+    if (selectedMode === "All") {
+        allModeStyles.forEach(mode => mode.style.display = ''); // Reset display to default for all modes
+    }
+    else {
+        allModeStyles.forEach(mode => mode.style.display = 'none'); // Hide all mode styles
+        let selectedModeStyle = allModeStyles.find(rule => rule.selectorText === `.mode-${selectedMode}`);
+        if (selectedModeStyle) {
+            selectedModeStyle.style.display = ''; // Show only the selected mode
+        }
+    }
+}
+
+// Page settings
+
 function sotaOnAppearing() {
     console.info('SOTA tab appearing');
 
     loadShowSpotDupsCheckboxState();
+    loadModeFilterState();
     loadHistoryDurationState();
+
     refreshSotaPotaJson();
     if (gRefreshInterval == null)
         gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
 
-    const headers = document.querySelectorAll('#sotaTable th[data-sort-field]');
+    const headers = document.querySelectorAll('#sotaTable span[data-sort-field]');
     headers.forEach(header => {
         header.addEventListener('click', function() {
             gSortField = this.getAttribute('data-sort-field');
@@ -145,7 +185,6 @@ function sotaOnAppearing() {
             updateSotaTable();
         });
     });
-
     // Initially set the sort indicator and sort the table
     updateSortIndicators(headers, gSortField, gDescending);
     updateSotaTable(); // Assuming this function uses gSortField and gDescending to sort and display data

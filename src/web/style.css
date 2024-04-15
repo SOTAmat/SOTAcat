@@ -163,17 +163,17 @@ table, th, td {
 
 
 /* Hide arrows by default */
-table.table-sortable th::after {
+table.table-sortable th span::after {
     content: "";
 }
 
 /* Arrow for ascending sort */
-table.table-sortable th[data-sort-dir="asc"]::after {
+table.table-sortable th span[data-sort-dir="asc"]::after {
     content: "\25b2"; /* Up-pointing triangle */
 }
 
 /* Arrow for descending sort */
-table.table-sortable th[data-sort-dir="desc"]::after {
+table.table-sortable th span[data-sort-dir="desc"]::after {
     content: "\25bc"; /* Down-pointing triangle */
 }
 
@@ -210,16 +210,30 @@ table.table-sortable th[data-sort-dir="desc"]::after {
     background-color: var(--backgroundSpotDuplicateColor); /* Background color for duplicates */
 }
 
+.mode-CW {}
+.mode-SSB {}
+.mode-FT8 {}
+.mode-DATA {}
+.mode-OTHER {}  /* catch-all for unrecognized modes */
+
 #sotaTable th:nth-child(3), #sotaTable td:nth-child(3) {
     text-align: right;  /* Right-align the Distance column */
 }
 
+#sotaTable th:nth-child(5), #sotaTable td:nth-child(5) {
+    text-align: right;  /* Right-align the MHz column */
+}
 
 /* ---------------------------- POTA content page */
 
 #potaTable th:nth-child(3), #potaTable td:nth-child(3) {
     text-align: right;  /* Right-align the Distance column */
 }
+
+#potaTable th:nth-child(5), #potaTable td:nth-child(5) {
+    text-align: right;  /* Right-align the KHz column */
+}
+
 
 /* ---------------------------- Settings Page */
 

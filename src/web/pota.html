@@ -10,15 +10,25 @@
   <table id="potaTable" class="table-sortable">
     <thead>
       <tr>
-        <th data-sort-field="timestamp">UTC</th>
-        <th data-sort-field="reference">Park</th>
-        <th data-sort-field="distance">Dist</th>
-        <th data-sort-field="mode">Mode</th>
-        <th data-sort-field="frequency">MHz</th>
-        <th data-sort-field="activator">Call</th>
-        <th data-sort-field="locationDesc">Locator</th>
-        <th data-sort-field="name">Details</th>
-        <th data-sort-field="comments">Notes</th>
+        <th><span data-sort-field="timestamp">UTC</span></th>
+        <th><span data-sort-field="point">Park</span></th>
+        <th><span data-sort-field="distance">Dist</span></th>
+        <th><span data-sort-field="mode">Mode</span>
+          <select
+            id="modeFilter"
+            onchange="changeModeFilter(this.value); saveModeFilterState();">
+            <option value="All" selected="true">All</option>
+            <option value="CW">CW</option>
+            <option value="SSB">SSB</option>
+            <option value="FT8">FT8</option>
+            <option value="DATA">DATA</option>
+          </select>
+        </th>
+        <th><span data-sort-field="hertz">KHz</span></th>
+        <th><span data-sort-field="activator">Call</span></th>
+        <th><span data-sort-field="locationDesc">Locator</span></th>
+        <th><span data-sort-field="name">Details</span></th>
+        <th><span data-sort-field="comments">Notes</span></th>
       </tr>
     </thead>
     <tbody></tbody>

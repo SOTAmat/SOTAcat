@@ -23,22 +23,18 @@ async function updatePotaTable()
         if (spot.duplicate)
             row.classList.add('duplicate-row');
 
-        let timeCell = row.insertCell();
-        let hiddenSpan = document.createElement('span');
-        hiddenSpan.style.display = 'none';
-        hiddenSpan.textContent = spot.timestamp;
-        timeCell.appendChild(hiddenSpan);
         const formattedTime = spot.timestamp.getUTCHours().toString().padStart(2, '0') + ':' + spot.timestamp.getUTCMinutes().toString().padStart(2, '0');
-        timeCell.appendChild(document.createTextNode(formattedTime));
+        row.insertCell().textContent = formattedTime;
 
         const parkCell = row.insertCell();
         const parkLink = document.createElement('a');
-        parkLink.href = `https://pota.app/#/park/${spot.reference}`;
-        parkLink.textContent = `${spot.reference}`;
+        parkLink.href = `https://pota.app/#/park/${spot.point}`;
+        parkLink.textContent = `${spot.point}`;
         parkCell.appendChild(parkLink);
 
         row.insertCell().textContent = spot.distance.toLocaleString();
-        row.insertCell().textContent = spot.mode.toUpperCase();
+        row.insertCell().textContent = spot.mode;
+        row.classList.add('mode-' + spot.modeType);
 
         const frequencyCell = row.insertCell();
         const frequencyLink = document.createElement('a');
@@ -68,11 +64,13 @@ function potaOnAppearing() {
     console.info('POTA tab appearing');
 
     loadShowSpotDupsCheckboxState();
+    loadModeFilterState();
+
     refreshSotaPotaJson();
     if (gRefreshInterval == null)
         gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
 
-    const headers = document.querySelectorAll('#potaTable th[data-sort-field]');
+    const headers = document.querySelectorAll('#potaTable th span[data-sort-field]');
     headers.forEach(header => {
         header.addEventListener('click', function() {
             gSortField = this.getAttribute('data-sort-field');
