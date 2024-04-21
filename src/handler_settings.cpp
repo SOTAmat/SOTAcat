@@ -88,8 +88,8 @@ static void populate_settings()
 #define GET_NV_STRING(base, def) get_nv_string(s_##base##_key, g_##base, def, sizeof(g_##base) - 1)
     GET_NV_STRING(sta1_ssid, "");
     GET_NV_STRING(sta1_pass, "");
-    GET_NV_STRING(sta2_ssid, "");
-    GET_NV_STRING(sta2_pass, "");
+    GET_NV_STRING(sta2_ssid, "ham-hotspot");
+    GET_NV_STRING(sta2_pass, "sotapota");
     GET_NV_STRING(ap_ssid, default_ap_ssid);
     GET_NV_STRING(ap_pass, "12345678");
 }
@@ -235,7 +235,7 @@ static esp_err_t retrieve_and_send_settings(httpd_req_t *req)
 {
     std::shared_ptr<char[]> buf = get_settings_json();
     if (!buf)
-        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
+        REPLY_WITH_FAILURE(req, 500, "heap allocation failed");
 
     ESP_LOGI(TAG8, "returning settings");
     httpd_resp_set_type(req, "application/json");
@@ -270,8 +270,8 @@ esp_err_t handler_settings_post(httpd_req_t *req)
 
     std::unique_ptr<char[]> buf(new char[req->content_len]);
     if (!buf)
-        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
-    char * unsafe_buf = buf.get(); // reference to an ephemeral buffer
+        REPLY_WITH_FAILURE(req, 500, "heap allocation failed");
+    char *unsafe_buf = buf.get(); // reference to an ephemeral buffer
 
     // Get the content
     int ret = httpd_req_recv(req, unsafe_buf, req->content_len);
