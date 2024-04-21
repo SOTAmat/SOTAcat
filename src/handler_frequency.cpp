@@ -21,7 +21,7 @@ esp_err_t handler_frequency_get(httpd_req_t *req)
     long frequency;
     {
         const std::lock_guard<Lockable> lock(kxRadio);
-        frequency = kxRadio.get_from_kx("FA", 2, 11);
+        frequency = kxRadio.get_from_kx("FA", SC_KX_COMMUNICATION_RETRIES, 11);
     }
 
     if (frequency <= 0)
@@ -74,7 +74,7 @@ esp_err_t handler_frequency_put(httpd_req_t *req)
 
     {
         const std::lock_guard<Lockable> lock(kxRadio);
-        if (!kxRadio.put_to_kx("FA", 11, freq, 2))
+        if (!kxRadio.put_to_kx("FA", 11, freq, SC_KX_COMMUNICATION_RETRIES))
             REPLY_WITH_FAILURE(req, 500, "failed to set frequency");
     }
 

@@ -28,7 +28,7 @@ extern esp_err_t handler_version_get(httpd_req_t *);
     } while (0)
 
 #define REPLY_WITH_SUCCESS() do {\
-        ESP_LOGI(TAG8, "success");\
+        ESP_LOGD(TAG8, "success");\
         httpd_resp_send(req, "OK", HTTPD_RESP_USE_STRLEN);\
         return ESP_OK;\
     } while (0)

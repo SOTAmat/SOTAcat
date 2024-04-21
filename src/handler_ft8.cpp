@@ -411,11 +411,11 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
         // MP010; - set the TUN PWR to 10 watts
         long baseFreq = rfFreq + audioFreq;
 
-        kxRadio.put_to_kx("FR", 1, 0, 2);         // FR0; - Cancels split mode
-        kxRadio.put_to_kx("FT", 1, 0, 2);         // FT0; - Select VFO A
-        kxRadio.put_to_kx("FA", 11, baseFreq, 2); // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
-        kxRadio.put_to_kx("MD", 1, 3, 2);         // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
-        kxRadio.put_to_kx("AP", 1, 1, 2);         // AP1; - Enable Audio Peaking filter
+        kxRadio.put_to_kx("FR", 1, 0, SC_KX_COMMUNICATION_RETRIES);         // FR0; - Cancels split mode
+        kxRadio.put_to_kx("FT", 1, 0, SC_KX_COMMUNICATION_RETRIES);         // FT0; - Select VFO A
+        kxRadio.put_to_kx("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES); // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
+        kxRadio.put_to_kx("MD", 1, 3, SC_KX_COMMUNICATION_RETRIES);         // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
+        kxRadio.put_to_kx("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);         // AP1; - Enable Audio Peaking filter
 
         // Offload playing the FT8 audio
         ft8ConfigInfo = new ft8_task_pack_t;

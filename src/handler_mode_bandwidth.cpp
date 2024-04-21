@@ -33,7 +33,7 @@ typedef enum
     long mode;
     {
         const std::lock_guard<Lockable> lock(kxRadio);
-        mode = kxRadio.get_from_kx("MD", 2, 1);
+        mode = kxRadio.get_from_kx("MD", SC_KX_COMMUNICATION_RETRIES, 1);
     }
     return static_cast<radio_mode_t>(mode);
 }
@@ -149,31 +149,31 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
         if (strcmp(bw, "SSB") == 0)
         {
             // Get the radio's current frequency, and if it is less than 10 MHz, set the mode to LSB, otherwise set it to USB
-            long frequency = kxRadio.get_from_kx("FA", 2, 11);
+            long frequency = kxRadio.get_from_kx("FA", SC_KX_COMMUNICATION_RETRIES, 11);
             if (frequency > 0)
             {
                 if (frequency < 10000000)
-                    kxRadio.put_to_kx("MD", 1, MODE_LSB, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_LSB, SC_KX_COMMUNICATION_RETRIES);
                 else
-                    kxRadio.put_to_kx("MD", 1, MODE_USB, 2);
+                    kxRadio.put_to_kx("MD", 1, MODE_USB, SC_KX_COMMUNICATION_RETRIES);
             }
         }
         else if (strcmp(bw, "USB") == 0)
-            kxRadio.put_to_kx("MD", 1, MODE_USB, 2);
+            kxRadio.put_to_kx("MD", 1, MODE_USB, SC_KX_COMMUNICATION_RETRIES);
         else if (strcmp(bw, "LSB") == 0)
-            kxRadio.put_to_kx("MD", 1, MODE_LSB, 2);
+            kxRadio.put_to_kx("MD", 1, MODE_LSB, SC_KX_COMMUNICATION_RETRIES);
         else if (strcmp(bw, "CW") == 0)
-            kxRadio.put_to_kx("MD", 1, MODE_CW, 2);
+            kxRadio.put_to_kx("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);
         else if (strcmp(bw, "FM") == 0)
-            kxRadio.put_to_kx("MD", 1, MODE_FM, 2);
+            kxRadio.put_to_kx("MD", 1, MODE_FM, SC_KX_COMMUNICATION_RETRIES);
         else if (strcmp(bw, "AM") == 0)
-            kxRadio.put_to_kx("MD", 1, MODE_AM, 2);
+            kxRadio.put_to_kx("MD", 1, MODE_AM, SC_KX_COMMUNICATION_RETRIES);
         else if (strcmp(bw, "DATA") == 0 || strcmp(bw, "FT8") == 0 || strcmp(bw, "JS8") == 0 || strcmp(bw, "PSK31") == 0 || strcmp(bw, "FT4") == 0 || strcmp(bw, "RTTY") == 0) // FT8, JS8, PSK31, FT4, RTTY
-            kxRadio.put_to_kx("MD", 1, MODE_DATA, 2);
+            kxRadio.put_to_kx("MD", 1, MODE_DATA, SC_KX_COMMUNICATION_RETRIES);
         else if (strcmp(bw, "CW-R") == 0)
-            kxRadio.put_to_kx("MD", 1, MODE_CW_R, 2);
+            kxRadio.put_to_kx("MD", 1, MODE_CW_R, SC_KX_COMMUNICATION_RETRIES);
         else if (strcmp(bw, "DATA-R") == 0)
-            kxRadio.put_to_kx("MD", 1, MODE_DATA_R, 2);
+            kxRadio.put_to_kx("MD", 1, MODE_DATA_R, SC_KX_COMMUNICATION_RETRIES);
         else
             REPLY_WITH_FAILURE(req, 404, "invalid bw");
     }

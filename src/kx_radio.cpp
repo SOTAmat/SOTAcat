@@ -18,10 +18,10 @@
  */
 
 #include <esp_log.h>
-static const char * TAG8 = "sc:kx_radio";
+static const char *TAG8 = "sc:kx_radio";
 
 // Global static instance
-KXRadio& kxRadio = KXRadio::getInstance();
+KXRadio &kxRadio = KXRadio::getInstance();
 
 /*
  * Utilities
@@ -52,7 +52,7 @@ static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, in
     float elapsed_ms = (end_time - start_time) / 1000.0;
 
     out_buff[returned_chars] = '\0';
-    ESP_LOGI(TAG8, "command '%s' returned %d chars, '%s', after %.3f ms", cmd, returned_chars, out_buff, elapsed_ms);
+    ESP_LOGD(TAG8, "command '%s' returned %d chars, '%s', after %.3f ms", cmd, returned_chars, out_buff, elapsed_ms);
 
     if (returned_chars == 2 && out_buff[0] == '?' && out_buff[1] == ';')
     {
@@ -64,7 +64,8 @@ static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, in
     }
 
     if (returned_chars != expected_chars || out_buff[0] != cmd[0] || out_buff[1] != cmd[1] ||
-        (cmd_length == 3 && out_buff[2] != cmd[2]) || out_buff[expected_chars - 1] != ';') {
+        (cmd_length == 3 && out_buff[2] != cmd[2]) || out_buff[expected_chars - 1] != ';')
+    {
         ESP_LOGE(TAG8, "bad result from command '%s' after %.3f ms, returned bytes=%d, out_buff=%c%c%c%c%c%c...", cmd, elapsed_ms, returned_chars, out_buff[0], out_buff[1], out_buff[2], out_buff[3], out_buff[4], out_buff[5]);
         if (--tries > 0)
         {
@@ -77,7 +78,6 @@ static bool uart_get_command(const char *cmd, int cmd_length, char *out_buff, in
 
     return true;
 }
-
 
 /**
  * Parses a numeric response based on the expected format and number of digits.
@@ -107,11 +107,11 @@ static long parse_response(const char *out_buff, int num_digits)
     return -1; // Invalid response size
 }
 
-KXRadio::KXRadio() :
-    Lockable("radio"),
-    m_is_connected(false) {}
+KXRadio::KXRadio() : Lockable("radio"),
+                     m_is_connected(false) {}
 
-KXRadio& KXRadio::getInstance() {
+KXRadio &KXRadio::getInstance()
+{
     static KXRadio instance; // Static instance
     return instance;
 }
@@ -267,7 +267,7 @@ long KXRadio::get_from_kx(const char *command, int tries, int num_digits)
         return -1; // Error was already logged
 
     long result = parse_response(out_buff, num_digits);
-    ESP_LOGI(TAG8, "kx command '%s' returns %ld", command, result);
+    ESP_LOGD(TAG8, "kx command '%s' returns %ld", command, result);
     return result;
 }
 
@@ -284,7 +284,7 @@ long KXRadio::get_from_kx(const char *command, int tries, int num_digits)
  * Preconditions:
  *   The radio must be locked before calling this function. If not, an error is logged.
  */
-bool KXRadio::get_from_kx_string(const char *command, int tries, char * response, int response_size)
+bool KXRadio::get_from_kx_string(const char *command, int tries, char *response, int response_size)
 {
     ESP_LOGV(TAG8, "trace: %s(command = '%s')", __func__, command);
 
@@ -318,15 +318,14 @@ long KXRadio::get_from_kx_menu_item(uint8_t menu_item, int tries)
     if (!locked())
         ESP_LOGE(TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    put_to_kx("MN", 3, menu_item, 2); // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
+    put_to_kx("MN", 3, menu_item, SC_KX_COMMUNICATION_RETRIES); // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
 
     long value = get_from_kx("MP", tries, 3); // Get the menu item value
 
-    put_to_kx("MN", 3, 255, 2); // Switch out of Menu mode
+    put_to_kx("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES); // Switch out of Menu mode
 
     return value;
 }
-
 
 /**
  * Sends a command to set a value on the radio, verifies the set operation, and retries if necessary.
@@ -359,18 +358,18 @@ bool KXRadio::put_to_kx(const char *command, int num_digits, long value, int tri
     case 1: // Handling n-type response
         if (value > 9)
         {
-            ESP_LOGE(TAG8, "invalid value %u for command '%s'", (unsigned int) value, command);
+            ESP_LOGE(TAG8, "invalid value %u for command '%s'", (unsigned int)value, command);
             return false;
         }
-        snprintf(out_buff, sizeof(out_buff), "%s%u;", command, (unsigned int) value);
+        snprintf(out_buff, sizeof(out_buff), "%s%u;", command, (unsigned int)value);
         break;
     case 3: // Handling nnn-type response
         if (value > 999)
         {
-            ESP_LOGE(TAG8, "invalid value %u for command '%s'", (unsigned int) value, command);
+            ESP_LOGE(TAG8, "invalid value %u for command '%s'", (unsigned int)value, command);
             return false;
         }
-        snprintf(out_buff, sizeof(out_buff), "%s%03u;", command, (unsigned int) value);
+        snprintf(out_buff, sizeof(out_buff), "%s%03u;", command, (unsigned int)value);
         break;
     case 11: // Handling long-type response
         snprintf(out_buff, sizeof(out_buff), "%s%011ld;", command, value);
@@ -384,7 +383,7 @@ bool KXRadio::put_to_kx(const char *command, int num_digits, long value, int tri
     if (num_digits == 11)
     {
         // The radio only reports frequencies in 10's of Hz, so we have to make sure the last digit is a 0.
-        adjusted_value = ((long) (value / 10)) * 10;
+        adjusted_value = ((long)(value / 10)) * 10;
     }
 
     for (int attempt = 0; attempt < tries; attempt++)
@@ -393,14 +392,14 @@ bool KXRadio::put_to_kx(const char *command, int num_digits, long value, int tri
         uart_write_bytes(UART_NUM, out_buff, num_digits + 3);
 
         // Now read-back the value to verify it was set correctly
-        long out_value = get_from_kx(command, 1, num_digits);
+        long out_value = get_from_kx(command, 2, num_digits);
 
         if (out_value == adjusted_value)
         {
             ESP_LOGI(TAG8, "command '%s' successful; value = %ld", command, adjusted_value);
             return true;
         }
- 
+
         ESP_LOGE(TAG8, "failed to set '%s' to %ld on %d tries", command, value, attempt + 1);
     }
 
@@ -426,13 +425,13 @@ bool KXRadio::put_to_kx_menu_item(uint8_t menu_item, long value, int tries)
     if (!locked())
         ESP_LOGE(TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    put_to_kx("MN", 3, menu_item, 2); // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
+    put_to_kx("MN", 3, menu_item, SC_KX_COMMUNICATION_RETRIES); // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
 
     // Get the menu item value
     put_to_kx("MP", 3, value, tries); // Ex. MP010; - Set the TUN PWR to 1.0 watts
 
     // Switch out of Menu mode
-    put_to_kx("MN", 3, 255, 2); // Switch out of Menu mode
+    put_to_kx("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES); // Switch out of Menu mode
 
     return value;
 }
@@ -448,7 +447,8 @@ bool KXRadio::put_to_kx_menu_item(uint8_t menu_item, long value, int tries)
  * Preconditions:
  *   The radio must be locked before calling this function. If not, an error is logged.
  */
-bool KXRadio::put_to_kx_command_string(const char * cmd, int tries) {
+bool KXRadio::put_to_kx_command_string(const char *cmd, int tries)
+{
     ESP_LOGV(TAG8, "trace: %s(cmd = '%s')", __func__, cmd);
 
     if (!locked())
@@ -478,13 +478,13 @@ void KXRadio::get_kx_state(kx_state_t *in_state)
     if (!locked())
         ESP_LOGE(TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    in_state->mode = (uint8_t)get_from_kx("MD", 2, 1);         // MDn; - Get current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
-    put_to_kx("MD", 1, 3, 2);                                  // To get the peaking filter mode we have to be in CW mode: MD3;
-    in_state->audio_peaking = get_from_kx("AP", 2, 1);         //   APn; - Get Audio Peaking CW filter: 0 for APF OFF and 1 for APF ON
-    put_to_kx("MD", 1, in_state->mode, 2);                     // Now return to the prior mode
-    in_state->vfo_a_freq = get_from_kx("FA", 2, 11);           // FAnnnnnnnnnnn; - Get the current frequency A
-    in_state->active_vfo = (uint8_t)get_from_kx("FT", 2, 1);   // FTn; - Get current VFO:  0 for VFO A, 1 for VFO B
-    in_state->tun_pwr = (uint8_t)get_from_kx_menu_item(58, 2); // MN058;MPnnn; - Get the current TUN PWR setting
+    in_state->mode = (uint8_t)get_from_kx("MD", SC_KX_COMMUNICATION_RETRIES, 1);         // MDn; - Get current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
+    put_to_kx("MD", 1, 3, SC_KX_COMMUNICATION_RETRIES);                                  // To get the peaking filter mode we have to be in CW mode: MD3;
+    in_state->audio_peaking = get_from_kx("AP", SC_KX_COMMUNICATION_RETRIES, 1);         //   APn; - Get Audio Peaking CW filter: 0 for APF OFF and 1 for APF ON
+    put_to_kx("MD", 1, in_state->mode, SC_KX_COMMUNICATION_RETRIES);                     // Now return to the prior mode
+    in_state->vfo_a_freq = get_from_kx("FA", SC_KX_COMMUNICATION_RETRIES, 11);           // FAnnnnnnnnnnn; - Get the current frequency A
+    in_state->active_vfo = (uint8_t)get_from_kx("FT", SC_KX_COMMUNICATION_RETRIES, 1);   // FTn; - Get current VFO:  0 for VFO A, 1 for VFO B
+    in_state->tun_pwr = (uint8_t)get_from_kx_menu_item(58, SC_KX_COMMUNICATION_RETRIES); // MN058;MPnnn; - Get the current TUN PWR setting
 }
 
 /**
@@ -504,12 +504,12 @@ void KXRadio::restore_kx_state(const kx_state_t *in_state, int tries)
     if (!locked())
         ESP_LOGE(TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    put_to_kx("MD", 1, 3, 2);                       // To reset the Peaking Filter mode we have to be in CW mode: MD3;
-    put_to_kx("AP", 1, in_state->audio_peaking, 2); // APn;
-    put_to_kx("MD", 1, in_state->mode, 2);
-    put_to_kx("FA", 11, in_state->vfo_a_freq, 2);
-    put_to_kx("FT", 1, in_state->active_vfo, 2);
-    put_to_kx_menu_item(58, in_state->tun_pwr, 2);
+    put_to_kx("MD", 1, 3, SC_KX_COMMUNICATION_RETRIES);                       // To reset the Peaking Filter mode we have to be in CW mode: MD3;
+    put_to_kx("AP", 1, in_state->audio_peaking, SC_KX_COMMUNICATION_RETRIES); // APn;
+    put_to_kx("MD", 1, in_state->mode, SC_KX_COMMUNICATION_RETRIES);
+    put_to_kx("FA", 11, in_state->vfo_a_freq, SC_KX_COMMUNICATION_RETRIES);
+    put_to_kx("FT", 1, in_state->active_vfo, SC_KX_COMMUNICATION_RETRIES);
+    put_to_kx_menu_item(58, in_state->tun_pwr, SC_KX_COMMUNICATION_RETRIES);
 
     ESP_LOGI(TAG8, "restore done");
 }

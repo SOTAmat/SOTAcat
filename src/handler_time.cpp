@@ -35,7 +35,7 @@ inline int decode_couplet(char ten, char one) {
 static bool get_radio_time(time_hms * radio_time) {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
     char buf[sizeof("DS@@123456af;")];  // sizeof arg looks like expected response
-    if (!kxRadio.get_from_kx_string("DS", 2, buf, sizeof(buf)-1))  // read time from VFO A)
+    if (!kxRadio.get_from_kx_string("DS", SC_KX_COMMUNICATION_RETRIES, buf, sizeof(buf)-1))  // read time from VFO A)
         return false;
     buf[sizeof(buf)-1] = '\0';
     ESP_LOGV(TAG8, "time as read on display is %s", buf);
@@ -114,7 +114,7 @@ static bool set_time(char const * param_value) {
 
     const std::lock_guard<Lockable> lock(kxRadio);
     time_hms radio_time;
-    kxRadio.put_to_kx("MN", 3, 73, 2); // enter time menu
+    kxRadio.put_to_kx("MN", 3, 73, SC_KX_COMMUNICATION_RETRIES); // enter time menu
     if (!get_radio_time (&radio_time)) // read the screen; VFO A shows the time
         return false;
 
@@ -125,7 +125,7 @@ static bool set_time(char const * param_value) {
         adjust_component ("SWT27;", client_time.min - radio_time.min);
     if (radio_time.hrs != client_time.hrs)
         adjust_component ("SWT19;", client_time.hrs - radio_time.hrs);
-    kxRadio.put_to_kx ("MN", 3, 255, 2);  // exit time menu
+    kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu
     return true;
 }
 

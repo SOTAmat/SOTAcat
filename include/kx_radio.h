@@ -3,13 +3,15 @@
 #include <stdint.h>
 #include "lockable.h"
 
+#define SC_KX_COMMUNICATION_RETRIES 3
+
 typedef struct
 {
-    uint8_t  mode;
-    uint8_t  active_vfo;
+    uint8_t mode;
+    uint8_t active_vfo;
     long int vfo_a_freq;
-    uint8_t  tun_pwr;
-    uint8_t  audio_peaking;
+    uint8_t tun_pwr;
+    uint8_t audio_peaking;
 } kx_state_t;
 
 /*
@@ -28,22 +30,23 @@ typedef struct
 
 class KXRadio : public Lockable
 {
-    private:
-        bool m_is_connected;
-        KXRadio();
-    public:
-        static KXRadio& getInstance();
-        int  connect();
-        bool is_connected() { return m_is_connected; }
-        void empty_kx_input_buffer(int wait_ms);
-        long get_from_kx(const char *command, int tries, int num_digits);
-        bool put_to_kx(const char *command, int num_digits, long value, int tries);
-        long get_from_kx_menu_item(uint8_t menu_item, int tries);
-        bool put_to_kx_menu_item(uint8_t menu_item, long value, int tries);
-        void get_kx_state(kx_state_t *in_state);
-        void restore_kx_state(const kx_state_t *in_state, int tries);
-        bool get_from_kx_string(const char *command, int tries, char *result, int result_size);
-        bool put_to_kx_command_string(const char * cmd, int tries);
+private:
+    bool m_is_connected;
+    KXRadio();
+
+public:
+    static KXRadio &getInstance();
+    int connect();
+    bool is_connected() { return m_is_connected; }
+    void empty_kx_input_buffer(int wait_ms);
+    long get_from_kx(const char *command, int tries, int num_digits);
+    bool put_to_kx(const char *command, int num_digits, long value, int tries);
+    long get_from_kx_menu_item(uint8_t menu_item, int tries);
+    bool put_to_kx_menu_item(uint8_t menu_item, long value, int tries);
+    void get_kx_state(kx_state_t *in_state);
+    void restore_kx_state(const kx_state_t *in_state, int tries);
+    bool get_from_kx_string(const char *command, int tries, char *result, int result_size);
+    bool put_to_kx_command_string(const char *cmd, int tries);
 };
 
-extern KXRadio& kxRadio;  // global singleton
+extern KXRadio &kxRadio; // global singleton
