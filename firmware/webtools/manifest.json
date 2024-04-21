@@ -6,7 +6,7 @@
             "chipFamily": "ESP32-C3",
             "parts": [
                 {
-                    "path": "https://sotamat.com/wp-content/uploads/2024/03/esp32c3.bin",
+                    "path": "https://sotamat.com/wp-content/uploads/esp32c3.bin",
                     "offset": 0
                 }
             ]
