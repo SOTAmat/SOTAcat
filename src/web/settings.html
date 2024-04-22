@@ -9,31 +9,48 @@
   <form id="wifi-settings" class="wifi-settings-form">
     <div class="wifi-instructions">
       <br />
-      When SOTACAT boots, it will try to connect to one of two existing WiFi
-      networks (Client-1 and Client-2) in order. If it fails to connect to both
-      client networks, it will create its own WiFi hotspot (Server) so that you
-      can connect to the SOTACAT WiFi from your device.
+      When SOTACAT boots, it will try to connect to one of two WiFi networks
+      (Client-1 and Client-2) in order. If those connections fail, it will
+      create its own WiFi hotspot (Server) so that you can connect to the
+      SOTACAT WiFi from your mobile device.
       <br /><br />
-      iPhone users can leave the "Client-2" settings blank: in the field you
-      should connect to the SOTACAT hotspot (Server) since the iPhone supports
-      'split networking' where it is connected to both SOTACAT via WiFi while
-      also connected to the cellular data network (when available) for
-      retrieving current spots.
-      <br /><br />
-      Many Android phones do not support 'split networking'. You should fill in
-      the "Client-2" settings with your Android phone's hotspot information. In
-      the field, SOTACAT will connect to your phone's Client-2 network and the
-      phone will be connected to the cellular data network.
-      <br /><br />
+      <b>Apple iPhone users</b> in the field should connect to the SOTACAT
+      hotspot (Server) since the iPhone supports 'split networking' where the
+      phone is connected to both the SOTACAT via WiFi and the cellular data
+      network (when available) for retrieving current spots. Thus iPhone users,
+      when in the field, don't want a valid Client-1 or Client-2. There are many
+      ways to prevent a connection to Client-1 or Client-2 (be out of range of
+      home WiFi, configure the settings to a blank SSID/password, turn off the
+      iPhone mobile hotspot, etc.). <br /><br />
+      <b>Android phones</b> do not support 'split networking'. You should fill
+      in the "Client-1" or "Client-2" settings with your Android phone's hotspot
+      information and enable the hotspot when operating in the field. SOTACAT
+      will connect to your phone's mobile hotspot using Client-1 or Client-2
+      settings via WiFi while the phone will also be connected to the cellular
+      data network. <br /><br />
+      <b>When you are at home</b>, your phone will likley be connected to your
+      home WiFi network, and thus unavailable for a direct WiFi connection
+      to/from the SOTACAT. The remaining unused Client-1 or Client-2 settings
+      are available for you to add your home WiFi network information into the
+      SOTACAT. This will allow your SOTACAT to be connected to the same network
+      as your phone when at home, so both devices can communicate. It is up to
+      you to decide the priority order of the Client-1 and Client-2 settings as
+      to which is for your phone's hotspot and which is for your home WiFi
+      network. The only difference is how long it will take to connect when
+      booting the SOTACAT, as the SOTACAT will try to connect to Client-1 first,
+      then Client-2. And again, Apple iPhone users won't even use the mobile
+      hostspot settings. <br /><br />
       Once connected to a network, you open your phone's browser and navigate to
       either
       <a href="http://sotacat.local" target="_blank">http://sotacat.local</a>
       (iPhone, MacOS, Windows) or to
-      <a href="http://192.168.4.1" target="_blank">http://192.168.4.1</a>
-      <br /><br />
+      <a href="http://192.168.4.1" target="_blank">http://192.168.4.1</a> or
+      when using an Android hotspot, install the "Bonjour Browser" app from the
+      Google Play store and use that app to navigate to the "sotacat.local"
+      address. <br /><br />
     </div>
     <div class="wifi-client">
-      <h3><b>Client 1:</b> ex. SOTACAT connects to home WiFi</h3>
+      <h3><b>Client 1:</b> ex. SOTACAT connects to Android hotspot</h3>
       <div class="wifi-row">
         <div class="wifi-label"><label for="sta1-ssid">SSID:</label></div>
         <div class="wifi-label"><label for="sta1-pass">Password:</label></div>
@@ -64,7 +81,7 @@
       </div>
     </div>
     <div class="wifi-client">
-      <h3><b>Client 2:</b> ex. SOTACAT connects to Phone hotspot</h3>
+      <h3><b>Client 2:</b> ex. SOTACAT connects to home network</h3>
       <div class="wifi-row">
         <div class="wifi-label"><label for="sta2-ssid">SSID:</label></div>
         <div class="wifi-label"><label for="sta2-pass">Password:</label></div>
@@ -95,7 +112,7 @@
       </div>
     </div>
     <div class="wifi-client">
-      <h3><b>Server:</b> phone connects to SOTACAT hotspot</h3>
+      <h3><b>Server:</b> iPhone connects to SOTACAT hotspot</h3>
       <div class="wifi-row">
         <div class="wifi-label"><label for="ap-ssid">SSID:</label></div>
         <div class="wifi-label"><label for="ap-pass">Password:</label></div>
@@ -125,7 +142,7 @@
         </label>
       </div>
     </div>
-    <input type="submit" class="save-button" value="Save Settings">
+    <input type="submit" class="save-button" value="Save and Reboot" />
   </form>
   <hr />
   <!--

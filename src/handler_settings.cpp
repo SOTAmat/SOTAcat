@@ -86,10 +86,10 @@ static void populate_settings()
     snprintf(&default_ap_ssid[8], 5, "%02X%02X", base_mac_addr[4], base_mac_addr[5]);
 
 #define GET_NV_STRING(base, def) get_nv_string(s_##base##_key, g_##base, def, sizeof(g_##base) - 1)
-    GET_NV_STRING(sta1_ssid, "");
-    GET_NV_STRING(sta1_pass, "");
-    GET_NV_STRING(sta2_ssid, "ham-hotspot");
-    GET_NV_STRING(sta2_pass, "sotapota");
+    GET_NV_STRING(sta1_ssid, "ham-hotspot");
+    GET_NV_STRING(sta1_pass, "sotapota");
+    GET_NV_STRING(sta2_ssid, "");
+    GET_NV_STRING(sta2_pass, "");
     GET_NV_STRING(ap_ssid, default_ap_ssid);
     GET_NV_STRING(ap_pass, "12345678");
 }
@@ -285,5 +285,13 @@ esp_err_t handler_settings_post(httpd_req_t *req)
 
     populate_settings();
 
-    return retrieve_and_send_settings(req);
+    esp_err_t result = retrieve_and_send_settings(req);
+
+    if (result == ESP_OK)
+    {
+        // Reboot with the new settings
+        ESP_LOGI(TAG8, "rebooting to apply new settings");
+        esp_restart();
+    }
+    return result;
 }
