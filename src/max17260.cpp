@@ -222,8 +222,6 @@ esp_err_t Max17620::write_learned_params(max17260_saved_params_t* params){
 
 
 esp_err_t Max17620::poll(max17260_info_t* info){
-
-    esp_log_level_set(TAG8, ESP_LOG_VERBOSE);
         
     //Periodically the host should check if the fuel gauge has been reset and initialize it if needed.
     // This is necessary because the max17620 is always connected to the battery, so normally it stays
@@ -275,6 +273,7 @@ esp_err_t Max17620::poll(max17260_info_t* info){
     info->power = (float)Power*uW_per_bit*1e-3;
     info->power_average = (float)PowerAvg*uW_per_bit*1e-3;
 
+    info->charging = info->current_average > (0.125 * m_setup.i_chg_term);
 
     ESP_LOGV(TAG8, "RemCap: %3.1fmAh SOC: %2.1f%% TTE: %3.2fhr TTF: %3.2fhr", info->reported_capacity, 
                                                                               info->reported_state_of_charge, 

@@ -1,7 +1,7 @@
 #include <driver/gpio.h>
 #include <esp_wifi.h>
 #include "enter_deep_sleep.h"
-#include "get_battery_voltage.h"
+#include "battery_monitor.h"
 #include "globals.h"
 #include "idle_status_task.h"
 #include "kx_radio.h"
@@ -31,7 +31,7 @@ void startup_watchdog_timer(void *_)
     }
     // We will never turn off if the unit is plugged in and is charging,
     // as the battery voltage will never dip below 80%.
-    while (get_battery_percentage(get_battery_voltage()) >= BATTERY_SHUTOFF_PERCENTAGE);
+    while (get_battery_percentage() >= BATTERY_SHUTOFF_PERCENTAGE);
 
     ESP_LOGI(TAG8, "Startup watchdog timer expired, and battery not charged; shutting down.");
     enter_deep_sleep();
@@ -82,6 +82,11 @@ void setup()
 
     // Start battery monitoring by enabling the ADC
     setup_adc();
+
+    // Setup battery monitoring task
+    TaskHandle_t xBatteryMonitorHandle = NULL;
+    xTaskCreate(&battery_monitor_task, "battery_monitor_task", 2048, NULL, SC_TASK_PRIORITY_IDLE+1, &xBatteryMonitorHandle);
+    ESP_LOGI(TAG8, "battery_monitor task started.");
 
     // Initialize Wi-Fi as AP
     wifi_init();

@@ -25,6 +25,7 @@ typedef struct {
     float temperature_average;// degC
     float power;              // mW
     float power_average;      // mW
+    bool charging;
 }max17260_info_t;
 
 typedef struct {
