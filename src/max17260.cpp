@@ -63,7 +63,7 @@ const float rSense_ohms = 10.0e-3;  // SotaCat Hardware; really should be initia
 const float mAh_per_bit = 0.5; // datasheet page 16 (uVh/mOhms ?)
 const float uV_per_bit = 78.125;
 const float uA_per_bit = 1.5625/rSense_ohms; // (1.5625uV/ohm)*10mOhms = 156.25uA per bit
-const float uW_per_bit = 8.0 / 10e-3;
+const float uW_per_bit = 8.0 / 10e-3;    
 const float pct_SOC_per_bit = 1.0/256.0; // See page 16 of datasheet
 const float degC_per_bit = 0.00391;
 const float sec_per_bit = 5.625;
@@ -77,10 +77,10 @@ const float vrecover_v_per_bit = 0.040; // default 3.88 -- voltage at which to c
 
 
 void Max17620::default_setup(max17620_setup_t* setup){
-    setup->design_cap = (500.0); // Write 1000
+    setup->design_cap = (500.0); // Battery cell design capacity, mAh
     setup->i_chg_term = (0.13*370.370); //mA per XC6802MR datasheet and XIAO charge current TODO
-    setup->v_empty = (3.50);
-    setup->v_recovery = (3.88);
+    setup->v_empty = (3.50);     // ESP32-C3 wifi falls over below 3.5V, so we call that empty
+    setup->v_recovery = (3.88);  // voltage at which empty detection is cleared. 40mV resolution 
 }
 
 esp_err_t Max17620::check_POR(void){

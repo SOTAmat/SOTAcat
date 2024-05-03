@@ -29,8 +29,6 @@ void idle_status_task(void *_pvParameter)
  
     while (1)
     {
-        float batv = get_battery_voltage();
-
         size_t _free = 0;
         size_t _alloc = 0;
         multi_heap_info_t hinfo;
@@ -38,22 +36,20 @@ void idle_status_task(void *_pvParameter)
         _free = hinfo.total_free_bytes;
         _alloc = hinfo.total_allocated_bytes;
         ESP_LOGV(TAG8, "heap: %u (used %u, free %u) [bytes]", _alloc + _free, _alloc, _free);
-
-
         
         // Get the current time
         time_t now;
         time(&now); // Time in seconds
 
+        int blinks = ceil((now - LastUserActivityUnixTime) / (AUTO_SHUTDOWN_TIME_SECONDS / 4.0));
+        ESP_LOGV(TAG8, "blinks %d", blinks);
+
         // Count USB detection as a user event
         if(gpio_get_level(USB_DET_PIN)){
             ESP_LOGV(TAG8, "USB power connected");
-            LastUserActivityUnixTime = now;
+            blinks = 1;
         }
 
-        int blinks = ceil((now - LastUserActivityUnixTime) / (AUTO_SHUTDOWN_TIME_SECONDS / 4.0));
-        ESP_LOGV(TAG8, "blinks %d", blinks);
-        
         if (blinks > 4)
         {
 
