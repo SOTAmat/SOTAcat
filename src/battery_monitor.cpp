@@ -12,8 +12,10 @@ const int REPORTING_TIME_SEC = 10;
 float get_analog_battery_voltage(void);
 float get_analog_battery_percentage(float voltage);
 
-#define I2C_MASTER_NUM I2C_NUM_0
-#define I2C_MASTER_FREQ_HZ       400000
+#define I2C_MASTER_NUM (I2C_NUM_0)
+#define I2C_MASTER_FREQ_HZ (400000)
+#define SMBUS_TIMEOUT_MS (1000)     // Timeout after this time if no ack received
+#define BATTERY_POLL_TIME_MS (1000) // Approximate rate at which to poll the battery info
 
 bool max17260_detected = false;
 float vbat_analog = 0;
@@ -63,17 +65,18 @@ void battery_monitor_task(void *_pvParameter){
     // Determine if we have a digital battery monitor
     i2c_setup();
 
-    // Set up the SMBus for max17260
+    // Set up the SMBus for the digital battery monitor
     smbus_info_t* smbus_info = smbus_malloc();
     smbus_init(smbus_info, I2C_MASTER_NUM, MAX_1726x_ADDR);
-    smbus_set_timeout(smbus_info, 1000 / portTICK_PERIOD_MS);
+    smbus_set_timeout(smbus_info, SMBUS_TIMEOUT_MS / portTICK_PERIOD_MS);
 
-    // Instantiate our battery monitor chip
+    // Instantiate the digital battery monitor driver
     Max17620 dig_bat_mon;
     max17620_setup_t battery_setup;
     dig_bat_mon.default_setup(&battery_setup);
     esp_err_t bat_mon_err = dig_bat_mon.init(smbus_info, &battery_setup);
 
+    // Check for the digital battery monitor
     if(bat_mon_err == ESP_OK){
         max17260_detected = true;
         dig_bat_mon.read_learned_params(&params);
@@ -81,6 +84,7 @@ void battery_monitor_task(void *_pvParameter){
         smbus_free(&smbus_info);
         i2c_teardown();
     }
+
     uint32_t cnt = 0;
     while(1){
         vbat_analog = get_analog_battery_voltage();
@@ -102,7 +106,7 @@ void battery_monitor_task(void *_pvParameter){
             }
         }
         
-        vTaskDelay(1000/portTICK_PERIOD_MS);
+        vTaskDelay(BATTERY_POLL_TIME_MS/portTICK_PERIOD_MS);
         cnt++;
     }
 }

@@ -7,13 +7,30 @@ static const char *TAG8 = "sc:max17260";
 
 typedef enum{
     STATUS = 0,
+    REPCAPREG=0x05,
+    REPSOC=0x06,
+    TEMPERATURE=0x08,
+    VCELL=0x09,
+    CURRENT=0x0A,
+    CURRENTAVG=0x0B,
+    FULLCAPREP=0x10,
+    TTEREG=0x11,
+    TEMPERATUREAVG=0x16,
+    CYCLES=0x17,
     DESIGNCAP=0x18,
+    VCELLAVG=0x19,
     ICGHTERM=0x1E,
+    TTFREG=0x20,
     DEVNAME = 0x21,
+    FULLCAPNOM =0x23,
+    RCOMP0 = 0x38,
+    TEMPCO = 0x39,
     VEMPTY=0x3A,
     FSTAT = 0x3D,
     SOFTWKUP=0x60,
     HIBCFG = 0xBA,
+    POWER=0xB1,
+    POWERAVG=0xB3,
     MODELCFG=0xDB,
 } max17620_register_e;
 
@@ -23,6 +40,17 @@ typedef enum{
     DEV_ID_MAX17262 = 0x4039,
     DEV_ID_MAX17263 = 0x4037,
 } max_device_type_e;
+
+const uint16_t SATUS_POR_BITS = 0x0002;
+const uint16_t FSTAT_DNR_BITS = 0x0001;
+const uint16_t SOFTWKUP_EXIT_HIBERNATE_1 = 0x0090;
+const uint16_t HIBCFG_EXIT_HIBERNATE_2 = 0x0000;
+const uint16_t SOFTWKUP_EXIT_HIBERNATE_3 = 0x0000;
+const uint8_t VEMPTY_BIT_SHIFT = 7;
+const uint8_t VRECOVERY_BIT_MASK = 0x7f;
+const uint16_t MODELCFG_REFRESH_BITS = (1<<15);
+const uint8_t MODEL_REFRESH_RETRIES = 10;
+const uint8_t FSTAT_DNR_RETRIES = 10;
 
 // These values are derived from the table in the datasheet, p16
 // https://www.analog.com/media/en/technical-documentation/data-sheets/MAX17260.pdf
@@ -58,7 +86,7 @@ void Max17620::default_setup(max17620_setup_t* setup){
 esp_err_t Max17620::check_POR(void){
     uint16_t data = 0;
     smbus_read_word(m_smb, STATUS, &data);
-    bool statusPOR = (data & 0x0002);
+    bool statusPOR = (data & SATUS_POR_BITS);
     if(statusPOR){
         ESP_LOGV(TAG8, "STATUS.POR 1, battery monitor needs configuration");
         return ESP_FAIL;
@@ -117,8 +145,8 @@ esp_err_t Max17620::init(smbus_info_t* smb, max17620_setup_t* setup){
 
     // Wait for FSTAT.DNR == 0
     smbus_read_word(m_smb, FSTAT, &data);
-    int retries = 10;
-    while((data & 0x0001) && --retries){
+    int retries = FSTAT_DNR_RETRIES;
+    while((data & FSTAT_DNR_BITS) && --retries){
         ESP_LOGV(TAG8, "FSTAT.DNR is 1; waiting 10ms to retry");
         smbus_read_word(m_smb, FSTAT, &data);
         vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -137,23 +165,23 @@ esp_err_t Max17620::init(smbus_info_t* smb, max17620_setup_t* setup){
     uint16_t vrecovery = (uint16_t)(setup->v_recovery / vrecover_v_per_bit);
 
     smbus_read_word(m_smb, HIBCFG, &HibCFG_val);
-    smbus_write_word(m_smb, SOFTWKUP, 0x0090);   // Exit Hibernate step 1
-    smbus_write_word(m_smb, HIBCFG, 0x0000);     // Exit Hibernate step 2
-    smbus_write_word(m_smb, SOFTWKUP, 0x0000);   // Exit Hibernate step 3
+    smbus_write_word(m_smb, SOFTWKUP, SOFTWKUP_EXIT_HIBERNATE_1); 
+    smbus_write_word(m_smb, HIBCFG, HIBCFG_EXIT_HIBERNATE_2);     
+    smbus_write_word(m_smb, SOFTWKUP, SOFTWKUP_EXIT_HIBERNATE_3);   
 
     smbus_write_word(m_smb, DESIGNCAP , DesignCap) ;  // Write DesignCap
     smbus_write_word(m_smb, ICGHTERM, IchgTerm) ;   // Write IchgTerm
     
-    smbus_write_word(m_smb, VEMPTY, (vempty << 7) | (vrecovery & 0x7f));     // Write VEmpty/VRecovery (3.3V / 3.88V) 0xA561
-    smbus_write_word(m_smb, MODELCFG , (1<<15)) ; // Set ModelCFG.Refresh to refresh the model
+    smbus_write_word(m_smb, VEMPTY, (vempty << VEMPTY_BIT_SHIFT) | (vrecovery & VRECOVERY_BIT_MASK)); // Write VEmpty/VRecovery 
+    smbus_write_word(m_smb, MODELCFG , MODELCFG_REFRESH_BITS) ; // Set ModelCFG.Refresh to refresh the model
 
     ESP_LOGV(TAG8, "Setting ModelCFG.Refresh to refresh the model");
 
     //Poll ModelCFG.Refresh(highest bit),
     ESP_LOGV(TAG8, "Checking ModelCFG.Refresh for 0. Can take up to 1000ms");
     smbus_read_word(m_smb, MODELCFG, &data);
-    retries = 10;
-    while((data & (1<<15)) && --retries){
+    retries = MODEL_REFRESH_RETRIES;
+    while((data & MODELCFG_REFRESH_BITS) && --retries){
         ESP_LOGV(TAG8, "ModelCFG.Refresh is 1; waiting 250ms to retry");
         smbus_read_word(m_smb, MODELCFG, &data);
         vTaskDelay(250 / portTICK_PERIOD_MS);
@@ -166,8 +194,8 @@ esp_err_t Max17620::init(smbus_info_t* smb, max17620_setup_t* setup){
     // Wait for FSTAT.DNR == 0
     ESP_LOGV(TAG8, "Checking FSTAT.DNR for 0");
     smbus_read_word(m_smb, FSTAT, &data);
-    retries = 10;
-    while((data & 0x0001) && --retries){
+    retries = MODEL_REFRESH_RETRIES;
+    while((data & FSTAT_DNR_BITS) && --retries){
         ESP_LOGV(TAG8, "FSTAT.DNR is 1; waiting 10ms to retry");
         smbus_read_word(m_smb, FSTAT, &data);
         vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -193,11 +221,11 @@ esp_err_t Max17620::init(smbus_info_t* smb, max17620_setup_t* setup){
 // (so that it is saved every 64% change in the battery) so that if power is lost, the values can easily be
 // restored.  TODO
 esp_err_t Max17620::read_learned_params(max17260_saved_params_t* params){
-    smbus_read_word(m_smb, 0x38, &(params->RCOMP0)) ; //Read RCOMP0
-    smbus_read_word(m_smb, 0x39, &(params->TempCo)) ; //Read TempCo
-    smbus_read_word(m_smb, 0x10, &(params->FullCapRep)) ; //Read FullCapRep
-    smbus_read_word(m_smb, 0x17, &(params->Cycles)) ; //Read Cycles
-    smbus_read_word(m_smb, 0x23, &(params->FullCapNom)) ; //Read FullCapNom
+    smbus_read_word(m_smb, RCOMP0, &(params->RCOMP0)) ; //Read RCOMP0
+    smbus_read_word(m_smb, TEMPCO, &(params->TempCo)) ; //Read TempCo
+    smbus_read_word(m_smb, FULLCAPREP, &(params->FullCapRep)) ; //Read FullCapRep
+    smbus_read_word(m_smb, CYCLES, &(params->Cycles)) ; //Read Cycles
+    smbus_read_word(m_smb, FULLCAPNOM, &(params->FullCapNom)) ; //Read FullCapNom
 
     ESP_LOGV(TAG8, "RCOMP0: %d TempCo: %d, FullCapRep: %3.1f, Cycles: %3.2f, FullCapNom: %3.1f",
                  params->RCOMP0, params->TempCo, params->FullCapRep*mAh_per_bit, (float)params->Cycles*0.01, params->FullCapNom*mAh_per_bit);
@@ -210,11 +238,11 @@ esp_err_t Max17620::read_learned_params(max17260_saved_params_t* params){
 // restored.  TODO
 esp_err_t Max17620::write_learned_params(max17260_saved_params_t* params){
     
-    smbus_write_word(m_smb, 0x38, params->RCOMP0) ;     //Write RCOMP0
-    smbus_write_word(m_smb, 0x39, params->TempCo) ;     //Write TempCo
-    smbus_write_word(m_smb, 0x10, params->FullCapRep) ; //Write FullCapRep
-    smbus_write_word(m_smb, 0x17, params->Cycles) ;     //Write Cycles
-    smbus_write_word(m_smb, 0x23, params->FullCapNom) ; //Write FullCapNom
+    smbus_write_word(m_smb, RCOMP0, params->RCOMP0) ;     //Write RCOMP0
+    smbus_write_word(m_smb, TEMPCO, params->TempCo) ;     //Write TempCo
+    smbus_write_word(m_smb, FULLCAPREP, params->FullCapRep) ; //Write FullCapRep
+    smbus_write_word(m_smb, CYCLES, params->Cycles) ;     //Write Cycles
+    smbus_write_word(m_smb, FULLCAPNOM, params->FullCapNom) ; //Write FullCapNom
     ESP_LOGV(TAG8, "Battery monitor Wrote saved params back to");
 
     return ESP_OK;
@@ -243,22 +271,22 @@ esp_err_t Max17620::poll(max17260_info_t* info){
     int16_t Power = 0;
     int16_t PowerAvg = 0;
 
-    smbus_read_word(m_smb, 0x05, &RepCap);
-    smbus_read_word(m_smb, 0x06, &RepSOC);
-    smbus_read_word(m_smb, 0x11, &TimeToEmpty);
-    smbus_read_word(m_smb, 0x20, &TimeToFull);
+    smbus_read_word(m_smb, REPCAPREG, &RepCap);
+    smbus_read_word(m_smb, REPSOC, &RepSOC);
+    smbus_read_word(m_smb, TTEREG, &TimeToEmpty);
+    smbus_read_word(m_smb, TTFREG, &TimeToFull);
 
-    smbus_read_word(m_smb, 0x09, &VCell);
-    smbus_read_word(m_smb, 0x19, &VCellAvg);
+    smbus_read_word(m_smb, VCELL, &VCell);
+    smbus_read_word(m_smb, VCELLAVG, &VCellAvg);
 
-    smbus_read_word(m_smb, 0x0A, (uint16_t*)&Current);    //8uV^2 / Rsense
-    smbus_read_word(m_smb, 0x0B, (uint16_t*)&CurrentAvg); //8uV^2 / Rsense
+    smbus_read_word(m_smb, CURRENT, (uint16_t*)&Current);    //8uV^2 / Rsense
+    smbus_read_word(m_smb, CURRENTAVG, (uint16_t*)&CurrentAvg); //8uV^2 / Rsense
 
-    smbus_read_word(m_smb, 0x08, (uint16_t*)&Temperature);
-    smbus_read_word(m_smb, 0x16, (uint16_t*)&TemperatureAvg);
+    smbus_read_word(m_smb, TEMPERATURE, (uint16_t*)&Temperature);
+    smbus_read_word(m_smb, TEMPERATUREAVG, (uint16_t*)&TemperatureAvg);
 
-    smbus_read_word(m_smb, 0xB1, (uint16_t*)&Power);
-    smbus_read_word(m_smb, 0xB3, (uint16_t*)&PowerAvg);
+    smbus_read_word(m_smb, POWER, (uint16_t*)&Power);
+    smbus_read_word(m_smb, POWERAVG, (uint16_t*)&PowerAvg);
 
     info->voltage = (float)VCell*uV_per_bit*1e-6;
     info->voltage_average = (float)VCellAvg*uV_per_bit*1e-6;
@@ -274,6 +302,7 @@ esp_err_t Max17620::poll(max17260_info_t* info){
     info->power_average = (float)PowerAvg*uW_per_bit*1e-3;
 
     info->charging = info->current_average > (0.125 * m_setup.i_chg_term);
+    // TODO: Consider using the FSTAT.FQ bit when charging to detect full.
 
     ESP_LOGV(TAG8, "RemCap: %3.1fmAh SOC: %2.1f%% TTE: %3.2fhr TTF: %3.2fhr", info->reported_capacity, 
                                                                               info->reported_state_of_charge, 
