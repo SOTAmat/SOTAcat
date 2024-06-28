@@ -38,6 +38,8 @@ DECLARE_ASSET(style_css)
  * Represents an array of asset entries to facilitate URI to asset mapping.
  */
 static const asset_entry_t asset_map[] = {
+    // uri             asset_start        asset_end          asset_type         cache_time
+    // =============== ================== ================== ================== ======================
     {"/",              index_html_srt,    index_html_end,    "text/html",       60}, // 1 minute cache
     {"/index.html",    index_html_srt,    index_html_end,    "text/html",       60},
     {"/style.css",     style_css_srt,     style_css_end,     "text/css",        60},
@@ -69,6 +71,8 @@ typedef struct
  *  GET, PUT, POST handlers
  */
 static const api_handler_t api_handlers[] = {
+    // method   api_name            handler_func                  requires_radio
+    // ======== =================== ============================= =============
     {HTTP_GET,  "batteryPercent",   handler_batteryPercent_get,   false},
     {HTTP_GET,  "batteryVoltage",   handler_batteryVoltage_get,   false},
     {HTTP_GET,  "connectionStatus", handler_connectionStatus_get, true},

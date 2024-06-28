@@ -85,7 +85,7 @@ refreshVersion(); // Initial and only refresh - the UI only needs to know this o
 // ----------------------------------------------------------------------------
 function refreshUTCClock()
 {
-    // Update the UTC clock, but only show the hours and the minutes and nothging else
+    // Update the UTC clock, but only show the hours and the minutes and nothing else
     const utcTime = new Date().toUTCString();
     document.getElementById('currentUTCTime').textContent = utcTime.slice(17, 22);
 }
