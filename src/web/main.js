@@ -315,7 +315,8 @@ async function enrichSpots(spots,
             // If not, start the fetch and calculation, and store the promise in the cache
             distanceCache[summitCode] = (async () => {
                 try {
-                    const response = await fetch(`${baseurl}/${summitCode}`);
+                    const response = await fetch(`${baseurl}/${summitCode}`,
+                                                 { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } });
                     if (!response.ok) {
                         // If the response status is not OK, throw an error to be caught by the catch block
                         throw new Error('Network response was not ok.');
@@ -348,7 +349,8 @@ async function refreshSotaPotaJson()
     if (currentTabName === 'sota') {
         const limit = document.getElementById("historyDurationSelector").value;
         // See SOTA API docs at https://api2.sota.org.uk/docs/index.html
-        fetch(`https://api2.sota.org.uk/api/spots/${limit}/all`)
+        fetch(`https://api2.sota.org.uk/api/spots/${limit}/all`,
+              { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } })
             .then(result => result.json()) // Resolve the promise to get the JSON data
             .then(data => {
                 gLatestSotaJson = enrichSpots(data,
@@ -364,7 +366,8 @@ async function refreshSotaPotaJson()
             .catch(error => ({ error }));
     }
     else if (currentTabName === 'pota') {
-        fetch('https://api.pota.app/spot/activator')
+        fetch('https://api.pota.app/spot/activator',
+              { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } })
             .then(result => result.json()) // Resolve the promise to get the JSON data
             .then(data => {
                 gLatestPotaJson = enrichSpots(data,
