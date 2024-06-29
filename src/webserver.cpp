@@ -228,3 +228,50 @@ void start_webserver()
         ESP_LOGI(TAG8, "defined webserver callbacks.");
     }
 }
+
+/**
+ * Decodes a URL-encoded string in place, replacing special characters.
+ *
+ * @param str A pointer to the character array holding the URL-encoded string.
+ * @return Always returns true after decoding, so that it can be used in a conditional expression chain.
+ */
+bool url_decode_in_place(char *str)
+{
+    char *dst = str;
+    int a, b;
+    while (*str)
+    {
+        if ((*str == '%') &&
+            ((a = str[1]) && (b = str[2])) &&
+            (isxdigit(a) && isxdigit(b)))
+        {
+            if (a >= 'a')
+                a -= 'a' - 'A';
+            if (a >= 'A')
+                a -= ('A' - 10);
+            else
+                a -= '0';
+            if (b >= 'a')
+                b -= 'a' - 'A';
+            if (b >= 'A')
+                b -= ('A' - 10);
+            else
+                b -= '0';
+
+            *dst++ = 16 * a + b;
+            str += 3;
+        }
+        else if (*str == '+')
+        {
+            *dst++ = ' ';
+            str++;
+        }
+        else
+        {
+            *dst++ = *str++;
+        }
+    }
+    *dst = '\0';
+
+    return true;
+}
