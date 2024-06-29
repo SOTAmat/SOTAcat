@@ -254,31 +254,17 @@ esp_err_t handler_prepareft8_post(httpd_req_t *req)
     if (CommandInProgress || ft8ConfigInfo != NULL)
         REPLY_WITH_FAILURE(req, 500, "prepare called while another command already in progress");
 
+    /**
+     * In this short window of time between the check of CommandInProgress above,
+     * and the setting of the same to "true" below, we could have a race condition.
+     * But we'll assume it's rare, while we quickly decode the request.
+     * Otherwise, setting CommandInProgress to "true" beforehand would mean we would
+     * need to unwind the decoding macro to insert code setting it to "false" on error.
+     */
+    STANDARD_DECODE_QUERY(req, unsafe_buf);
+
     CommandInProgress = true;
     gpio_set_level(LED_BLUE, LED_ON); // LED on
-
-    // Get the length of the URL query
-    size_t buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len <= 1) {
-        CommandInProgress = false;
-        REPLY_WITH_FAILURE(req, 404, "missing query string");
-    }
-
-    std::unique_ptr<char[]> buf(new char[buf_len]);
-    if (!buf)
-    {
-        CommandInProgress = false;
-        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
-    }
-    char * unsafe_buf = buf.get(); // reference to an ephemeral buffer
-
-    // Get the URL query
-    if (httpd_req_get_url_query_str(req, unsafe_buf, buf_len) != ESP_OK)
-    {
-        CommandInProgress = false;
-        REPLY_WITH_FAILURE(req, 404, "query parsing error");
-    }
-    ESP_LOGV(TAG8, "request buffer[%d] = \"%s\"", buf_len, unsafe_buf);
 
     char    ft8_msg[64];
     char    nowTimeUTCms_str[64];
@@ -409,6 +395,8 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
     if (ft8TaskInProgress)
         REPLY_WITH_FAILURE(req, 500,  "post called while another FT8 task already in progress");
 
+    STANDARD_DECODE_QUERY(req, unsafe_buf);
+
     CommandInProgress = true;
 
     if (CancelRadioFT8ModeTime <= 0 && ft8ConfigInfo == NULL)
@@ -423,36 +411,10 @@ esp_err_t handler_ft8_post(httpd_req_t *req)
         }
     }
 
-    // We need to reparse the frequency and audio frequency from the query string
-    // Get the length of the URL query
-    size_t buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len <= 1)
-    {
-        CommandInProgress = false;
-        REPLY_WITH_FAILURE(req, 404, "missing query string");
-    }
-
-    std::unique_ptr<char[]> buf(new char[buf_len]);
-    if (!buf)
-    {
-        CommandInProgress = false;
-        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
-    }
-    char * unsafe_buf = buf.get(); // reference to an ephemeral buffer
-
-    // Get the URL query
-    if (httpd_req_get_url_query_str(req, unsafe_buf, buf_len) != ESP_OK)
-    {
-        CommandInProgress = false;
-        REPLY_WITH_FAILURE(req, 404, "query parsing error");
-    }
-
     char rfFreq_str[32];
     long rfFreq = 0;
     char audioFreq_str[16];
     int audioFreq = 0;
-
-    ESP_LOGV(TAG8, "request buffer[%d] = \"%s\"", buf_len, unsafe_buf);
 
     // Parse the 'messageText' parameter from the query
     if (!(httpd_query_key_value(unsafe_buf, "rfFrequency", rfFreq_str, sizeof(rfFreq_str)) == ESP_OK &&

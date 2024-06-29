@@ -49,24 +49,7 @@ esp_err_t handler_frequency_put(httpd_req_t *req)
 
     ESP_LOGV(TAG8, "trace: %s()", __func__);
 
-    // Get the length of the URL query
-    size_t buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len <= 1)
-        REPLY_WITH_FAILURE(req, 404, "missing query string");
-
-    std::unique_ptr<char[]> buf(new char[buf_len]);
-    if (!buf)
-        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
-    char * unsafe_buf = buf.get(); // reference to an ephemeral buffer
-
-    // Get the URL query
-    if (httpd_req_get_url_query_str(req, unsafe_buf, buf_len) != ESP_OK)
-        REPLY_WITH_FAILURE(req, 404, "query parsing error");
-
-    char param_value[32];
-    if (httpd_query_key_value(unsafe_buf, "frequency", param_value, sizeof(param_value)) != ESP_OK)
-        REPLY_WITH_FAILURE(req, 404, "parameter parsing error");
-
+    STANDARD_DECODE_SOLE_PARAMETER(req, "frequency", param_value)
     int freq = atoi(param_value); // Convert the parameter to an integer
     ESP_LOGI(TAG8, "freqency %d", freq);
     if (freq <= 0)
