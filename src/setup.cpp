@@ -58,8 +58,12 @@ void setup()
     //  Turn on the board LED to indicate that we are starting up
     gpio_set_direction(LED_BLUE, GPIO_MODE_OUTPUT);
     gpio_set_direction(LED_RED, GPIO_MODE_OUTPUT);
+
+#if LED_RED_SUPL > 0
     gpio_set_direction(LED_RED_SUPL, GPIO_MODE_OUTPUT);
     gpio_set_level(LED_RED_SUPL, 1);
+#endif
+
     gpio_set_level(LED_BLUE, LED_ON);
     gpio_set_level(LED_RED, LED_ON);
 

@@ -7,14 +7,18 @@
 #endif
 
 #ifdef SEEED_XIAO
-#define UART2_TX_PIN 21
+#define UART2_TX_PIN 4
 #define UART2_RX_PIN 20
 #define LED_BLUE ((gpio_num_t)10)
-#define LED_RED_SUPL ((gpio_num_t)9)
-#define LED_RED ((gpio_num_t)8)
+#define LED_RED_SUPL (-1)
+#define LED_RED ((gpio_num_t)9)
 #define LED_OFF 1
 #define LED_ON 0
 #define ADC_BATTERY 0
+#define UART_INVERT_BITS (0) // (UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV)
+#define I2C_SCL_PIN ((gpio_num_t)7)
+#define I2C_SDA_PIN ((gpio_num_t)6)
+#define USB_DET_PIN ((gpio_num_t)3)
 #endif
 
 #ifdef LOLIN32_LITE

@@ -30,9 +30,11 @@ void enter_deep_sleep()
     gpio_pullup_dis(LED_RED);
     gpio_pulldown_dis(LED_RED);
 
+#if LED_RED_SUPL > 0
     gpio_set_direction(LED_RED_SUPL, GPIO_MODE_INPUT);
     gpio_pullup_dis(LED_RED_SUPL);
     gpio_pulldown_dis(LED_RED_SUPL);
+#endif
 
 #ifndef SEEED_XIAO
     rtc_gpio_isolate(LED_BLUE);
