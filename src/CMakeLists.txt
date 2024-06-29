@@ -18,6 +18,8 @@ idf_component_register(
         "web/sota.js"
         "web/pota.html"
         "web/pota.js"
+        "web/cat.html"
+        "web/cat.js"
         "web/settings.html"
         "web/settings.js"
         "web/about.html"

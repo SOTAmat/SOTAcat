@@ -235,6 +235,35 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
     text-align: right;  /* Right-align the KHz column */
 }
 
+/* ---------------------------- CAT Page */
+
+/* Increase button size and space between them */
+button.bigthumb {
+    font-size: 20px; /* Increase font size */
+    padding: 15px 30px; /* Increase padding */
+    margin: 10px; /* Add margin to increase space between buttons */
+    border-radius: 10px; /* Optional: add border-radius for better aesthetics */
+    min-width: 100px; /* Set a minimum width */
+    min-height: 50px; /* Set a minimum height */
+}
+
+/* Increase size of buttons and input boxes */
+.input-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.input-group input {
+    font-size: 20px; /* Increase font size */
+    padding: 10px; /* Increase padding */
+    margin-right: 10px; /* Space between input and button */
+    flex-grow: 1; /* Make the input take up available space */
+}
+.input-group button {
+    font-size: 20px; /* Increase font size */
+    padding: 10px 20px; /* Increase padding */
+    border-radius: 5px; /* Optional: add border-radius for better aesthetics */
+}
 
 /* ---------------------------- Settings Page */
 
