@@ -7,26 +7,10 @@
 static const char * TAG8 = "sc:hdl_mode";
 
 /**
- * Enumeration of radio operation modes.
- */
-typedef enum
-{
-    MODE_UNKNOWN = 0,
-    MODE_LSB = 1,
-    MODE_USB = 2,
-    MODE_CW = 3,
-    MODE_FM = 4,
-    MODE_AM = 5,
-    MODE_DATA = 6,
-    MODE_CW_R = 7,
-    MODE_DATA_R = 9
-} radio_mode_t;
-
-/**
  * Retrieves the current operating mode of the radio.
  * @return The current mode as a value from the radio_mode_t enumeration.
  */
- radio_mode_t get_radio_mode()
+radio_mode_t get_radio_mode()
 {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
 
