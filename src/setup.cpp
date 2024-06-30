@@ -7,6 +7,8 @@
 #include "kx_radio.h"
 #include "settings.h"
 #include "settings_hardware_specific.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include "setup.h"
 #include "setup_adc.h"
 #include "webserver.h"
@@ -35,6 +37,27 @@ void startup_watchdog_timer(void *_)
 
     ESP_LOGI(TAG8, "Startup watchdog timer expired, and battery not charged; shutting down.");
     enter_deep_sleep();
+}
+
+// ====================================================================================================
+void radio_connection_task(void *pvParameters)
+{
+    TaskNotifyConfig *config = (TaskNotifyConfig *)pvParameters;
+    ESP_LOGI(TAG8, "Attempting to connect to radio...");
+    // kxRadio is statically initialized as a singleton, but we
+    // do need to connect SOTACAT to its ACC port
+    {
+        const std::lock_guard<Lockable> lock(kxRadio);
+        kxRadio.connect();
+    }
+    ESP_LOGI(TAG8, "Radio connected, exiting search task.");
+    xTaskNotify(config->setup_task_handle, config->notification_bit, eSetBits);
+    vTaskDelete(NULL);
+}
+
+void start_radio_connection_task(TaskNotifyConfig *config)
+{
+    xTaskCreate(&radio_connection_task, "radio_task", 4096, (void *)config, SC_TASK_PRIORITY_NORMAL, NULL);
 }
 
 // ====================================================================================================
@@ -79,8 +102,20 @@ void setup()
     // Start battery monitoring by enabling the ADC
     setup_adc();
 
-    // Initialize Wi-Fi as AP
-    wifi_init();
+    // Start WiFi task
+    TaskHandle_t setup_task_handle = xTaskGetCurrentTaskHandle();
+    TaskNotifyConfig wifi_config = {setup_task_handle, (1 << 0)};
+    TaskNotifyConfig radio_config = {setup_task_handle, (1 << 1)};
+
+    ESP_LOGI(TAG8, "Starting WiFi task...");
+    start_wifi_task(&wifi_config); // Start WiFi task
+    ESP_LOGI(TAG8, "Starting radio connection task...");
+    start_radio_connection_task(&radio_config); // Start radio connection task in parallel
+
+    // Wait for WiFi connection
+    uint32_t notification_value;
+    xTaskNotifyWait(0, 0, &notification_value, portMAX_DELAY);
+
     gpio_set_level(LED_RED, LED_OFF);
     ESP_LOGI(TAG8, "wifi initialized.");
 
@@ -103,13 +138,17 @@ void setup()
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    // kxRadio is statically initialized as a singleton, but we
-    // do need to connect SOTACAT to its ACC port
-    {
-        const std::lock_guard<Lockable> lock(kxRadio);
-        kxRadio.connect(); // this will block until radio connected
-    }
-    ESP_LOGI(TAG8, "radio connection established");
+    // Wait for radio connection
+    xTaskNotifyWait(0, 0, &notification_value, portMAX_DELAY);
+    ESP_LOGI(TAG8, "Radio connection established");
+
+    // // kxRadio is statically initialized as a singleton, but we
+    // // do need to connect SOTACAT to its ACC port
+    // {
+    //     const std::lock_guard<Lockable> lock(kxRadio);
+    //     kxRadio.connect(); // this will block until radio connected
+    // }
+    // ESP_LOGI(TAG8, "radio connection established");
 
     //  We exit with the LED off.
     gpio_set_level(LED_BLUE, LED_OFF);
