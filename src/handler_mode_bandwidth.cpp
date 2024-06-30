@@ -7,26 +7,10 @@
 static const char * TAG8 = "sc:hdl_mode";
 
 /**
- * Enumeration of radio operation modes.
- */
-typedef enum
-{
-    MODE_UNKNOWN = 0,
-    MODE_LSB = 1,
-    MODE_USB = 2,
-    MODE_CW = 3,
-    MODE_FM = 4,
-    MODE_AM = 5,
-    MODE_DATA = 6,
-    MODE_CW_R = 7,
-    MODE_DATA_R = 9
-} radio_mode_t;
-
-/**
  * Retrieves the current operating mode of the radio.
  * @return The current mode as a value from the radio_mode_t enumeration.
  */
- radio_mode_t get_radio_mode()
+radio_mode_t get_radio_mode()
 {
     ESP_LOGV(TAG8, "trace: %s()", __func__);
 
@@ -121,25 +105,7 @@ esp_err_t handler_rxBandwidth_put(httpd_req_t *req)
 
     ESP_LOGV(TAG8, "trace: %s()", __func__);
 
-    // Get the length of the URL query
-    size_t buf_len = httpd_req_get_url_query_len(req) + 1;
-    if (buf_len <= 1)
-        REPLY_WITH_FAILURE(req, 404, "missing query string");
-
-    std::unique_ptr<char[]> buf(new char[buf_len]);
-    if (!buf)
-        REPLY_WITH_FAILURE(req, 500,  "heap allocation failed");
-    char * unsafe_buf = buf.get(); // reference to an ephemeral buffer
-
-    // Get the URL query
-    if (httpd_req_get_url_query_str(req, unsafe_buf, buf_len) != ESP_OK)
-        REPLY_WITH_FAILURE(req, 404, "query parsing error");
-
-    char bw[32] = {0};
-    // Parse the 'bw' parameter from the query
-    if (httpd_query_key_value(buf.get(), "bw", bw, sizeof(bw)) != ESP_OK)
-        REPLY_WITH_FAILURE(req, 404, "parameter parsing error");
-
+    STANDARD_DECODE_SOLE_PARAMETER(req, "bw", bw);
     ESP_LOGI(TAG8, "requesting bw = '%s'", bw);
 
     {

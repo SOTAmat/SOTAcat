@@ -10,6 +10,8 @@ static const char *TAG8 = "sc:webserve";
     extern const uint8_t asset##_srt[] asm("_binary_" #asset "_start");
 
 DECLARE_ASSET(about_html)
+DECLARE_ASSET(cat_html)
+DECLARE_ASSET(cat_js)
 DECLARE_ASSET(favicon_ico)
 DECLARE_ASSET(index_html)
 DECLARE_ASSET(main_js)
@@ -25,7 +27,8 @@ DECLARE_ASSET(style_css)
 /**
  * Structure to map web URI to embedded binary asset locations.
  *
- */typedef struct
+ */
+typedef struct
 {
     const char *uri;
     const void *asset_start;
@@ -51,7 +54,9 @@ static const asset_entry_t asset_map[] = {
     {"/pota.html",     pota_html_srt,     pota_html_end,     "text/html",       60},
     {"/pota.js",       pota_js_srt,       pota_js_end,       "text/javascript", 60},
     {"/settings.html", settings_html_srt, settings_html_end, "text/html",       60},
-    {"/settings.js",   settings_js_srt,   settings_js_end,   "text/html",       60},
+    {"/settings.js",   settings_js_srt,   settings_js_end,   "text/javascript", 60},
+    {"/cat.html",      cat_html_srt,      cat_html_end,      "text/html",       60},
+    {"/cat.js",        cat_js_srt,        cat_js_end,        "text/javascript", 60},
     {"/about.html",    about_html_srt,    about_html_end,    "text/html",       60},
     {NULL, NULL, NULL, NULL, 0} // Sentinel to mark end of array
 };
@@ -78,11 +83,15 @@ static const api_handler_t api_handlers[] = {
     {HTTP_GET,  "connectionStatus", handler_connectionStatus_get, true},
     {HTTP_GET,  "frequency",        handler_frequency_get,        true},
     {HTTP_GET,  "mode",             handler_mode_get,             true},
+    {HTTP_GET,  "power",            handler_power_get,            true},
     {HTTP_GET,  "rxBandwidth",      handler_rxBandwidth_get,      true},
     {HTTP_GET,  "settings",         handler_settings_get,         false},
     {HTTP_GET,  "version",          handler_version_get,          false},
     {HTTP_PUT,  "frequency",        handler_frequency_put,        true},
+    {HTTP_PUT,  "keyer",            handler_keyer_put,            true},
     {HTTP_PUT,  "mode",             handler_mode_put,             true},
+    {HTTP_PUT,  "msg",              handler_msg_put,              true},
+    {HTTP_PUT,  "power",            handler_power_put,            true},
     {HTTP_PUT,  "rxBandwidth",      handler_rxBandwidth_put,      true},
     {HTTP_PUT,  "time",             handler_time_put,             true},
     {HTTP_POST, "prepareft8",       handler_prepareft8_post,      true},
@@ -227,4 +236,51 @@ void start_webserver()
 
         ESP_LOGI(TAG8, "defined webserver callbacks.");
     }
+}
+
+/**
+ * Decodes a URL-encoded string in place, replacing special characters.
+ *
+ * @param str A pointer to the character array holding the URL-encoded string.
+ * @return Always returns true after decoding, so that it can be used in a conditional expression chain.
+ */
+bool url_decode_in_place(char *str)
+{
+    char *dst = str;
+    int a, b;
+    while (*str)
+    {
+        if ((*str == '%') &&
+            ((a = str[1]) && (b = str[2])) &&
+            (isxdigit(a) && isxdigit(b)))
+        {
+            if (a >= 'a')
+                a -= 'a' - 'A';
+            if (a >= 'A')
+                a -= ('A' - 10);
+            else
+                a -= '0';
+            if (b >= 'a')
+                b -= 'a' - 'A';
+            if (b >= 'A')
+                b -= ('A' - 10);
+            else
+                b -= '0';
+
+            *dst++ = 16 * a + b;
+            str += 3;
+        }
+        else if (*str == '+')
+        {
+            *dst++ = ' ';
+            str++;
+        }
+        else
+        {
+            *dst++ = *str++;
+        }
+    }
+    *dst = '\0';
+
+    return true;
 }

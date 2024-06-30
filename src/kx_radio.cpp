@@ -478,8 +478,8 @@ void KXRadio::get_kx_state(kx_state_t *in_state)
     if (!locked())
         ESP_LOGE(TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    in_state->mode = (uint8_t)get_from_kx("MD", SC_KX_COMMUNICATION_RETRIES, 1);         // MDn; - Get current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
-    put_to_kx("MD", 1, 3, SC_KX_COMMUNICATION_RETRIES);                                  // To get the peaking filter mode we have to be in CW mode: MD3;
+    in_state->mode = (radio_mode_t)get_from_kx("MD", SC_KX_COMMUNICATION_RETRIES, 1);    // MDn; - Get current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
+    put_to_kx("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);                            // To get the peaking filter mode we have to be in CW mode: MD3;
     in_state->audio_peaking = get_from_kx("AP", SC_KX_COMMUNICATION_RETRIES, 1);         //   APn; - Get Audio Peaking CW filter: 0 for APF OFF and 1 for APF ON
     put_to_kx("MD", 1, in_state->mode, SC_KX_COMMUNICATION_RETRIES);                     // Now return to the prior mode
     in_state->vfo_a_freq = get_from_kx("FA", SC_KX_COMMUNICATION_RETRIES, 11);           // FAnnnnnnnnnnn; - Get the current frequency A
