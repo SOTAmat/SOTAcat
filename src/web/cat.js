@@ -24,4 +24,38 @@ function sendKeys(message) {
   }
 }
 
-function settingsOnAppearing() {}
+function loadInputValues() {
+  document.getElementById("message1").value =
+    localStorage.getItem("message1") || "";
+  document.getElementById("message2").value =
+    localStorage.getItem("message2") || "";
+  document.getElementById("message3").value =
+    localStorage.getItem("message3") || "";
+}
+
+function saveInputValues() {
+  localStorage.setItem("message1", document.getElementById("message1").value);
+  localStorage.setItem("message2", document.getElementById("message2").value);
+  localStorage.setItem("message3", document.getElementById("message3").value);
+}
+
+gMessageInputListenersAttached = false;
+
+function catOnAppearing() {
+  console.info("CAT tab appearing");
+  loadInputValues();
+
+  if (!gMessageInputListenersAttached) {
+    gMessageInputListenersAttached = true;
+    // Add event listeners to save input values when they change
+    document
+      .getElementById("message1")
+      .addEventListener("input", saveInputValues);
+    document
+      .getElementById("message2")
+      .addEventListener("input", saveInputValues);
+    document
+      .getElementById("message3")
+      .addEventListener("input", saveInputValues);
+  }
+}
