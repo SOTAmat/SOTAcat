@@ -14,7 +14,7 @@
 static const char *TAG8 = "sc:wifi....";
 
 #define MAX_QUICK_CONNECT_ATTEMPTS 1
-#define QUICK_CONNECT_INTERVAL_MS 3000
+#define PAUSE_BETWEEN_CONNECTION_ATTEMPTS_MS 2000 // We pause between connection attempts to allow access point connections a chance to complete
 
 static bool wifi_connected = false;
 
@@ -42,7 +42,7 @@ static void wifi_init_ap()
         strcpy((char *)wifi_config.ap.password, g_ap_pass);
     wifi_config.ap.channel = 1;
     wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-    wifi_config.ap.max_connection = 1;
+    wifi_config.ap.max_connection = 2;
 
     esp_err_t ret = esp_wifi_set_config(WIFI_IF_AP, &wifi_config);
     if (ret != ESP_OK)
@@ -193,6 +193,7 @@ static void wifi_event_handler(void *arg,
                     quick_connect_attempts++;
                     ESP_LOGI(TAG8, "Quick reconnect attempt %d/%d to %s", quick_connect_attempts, MAX_QUICK_CONNECT_ATTEMPTS, s_current_ssid);
                     esp_wifi_connect();
+                    vTaskDelay(pdMS_TO_TICKS(PAUSE_BETWEEN_CONNECTION_ATTEMPTS_MS));
                 }
                 else
                 {
@@ -290,11 +291,9 @@ void wifi_init()
     // Initialize AP mode
     wifi_init_ap();
 
-    // Start WiFi
+    // Start WiFi and give the Access Point time to start
     ESP_ERROR_CHECK(esp_wifi_start());
-
-    // Wait for WiFi to start
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(2000));
 
     // Now initialize STA mode
     wifi_init_sta(g_sta1_ssid, g_sta1_pass);

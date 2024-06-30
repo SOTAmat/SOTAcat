@@ -10,7 +10,7 @@
 #include <esp_timer.h>
 static const char *TAG8 = "sc:hdl_setg";
 // Define a constant for the reboot delay
-const uint64_t REBOOT_DELAY_US = 1000000; // 1 second in microseconds
+const uint64_t REBOOT_DELAY_US = 1500000; // 1 second in microseconds
 
 /**
  * Definitions for Wi-Fi SSID and password keys and their corresponding global storage variables.
