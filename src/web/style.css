@@ -237,32 +237,88 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
 
 /* ---------------------------- CAT Page */
 
-/* Increase button size and space between them */
-button.bigthumb {
-    font-size: 20px; /* Increase font size */
-    padding: 15px 30px; /* Increase padding */
-    margin: 10px; /* Add margin to increase space between buttons */
-    border-radius: 10px; /* Optional: add border-radius for better aesthetics */
-    min-width: 100px; /* Set a minimum width */
-    min-height: 50px; /* Set a minimum height */
+/* CAT Page Styles - Aligned with Settings style */
+.cat-container {
+    padding: 10px;
 }
 
-/* Increase size of buttons and input boxes */
-.input-group {
-    display: flex;
-    align-items: center;
+.msg-section, .keyer-section, .power-section {
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 5px;
     margin-bottom: 15px;
 }
-.input-group input {
-    font-size: 20px; /* Increase font size */
-    padding: 10px; /* Increase padding */
-    margin-right: 10px; /* Space between input and button */
-    flex-grow: 1; /* Make the input take up available space */
+
+.cat-container h2 {
+    background-color: var(--secondary-bg-color);
+    color: var(--secondary-text-color);
+    font-size: 1.0em;
+    font-weight: 600;
+    padding: 0.2em;
+    margin-top: 0;
+    margin-bottom: 10px;
 }
+
+.button-row {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 10px;
+}
+
+button.bigthumb {
+    font-size: 16px;
+    padding: 10px 20px;
+    margin: 5px;
+    border-radius: 5px;
+    background-color: var(--button-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button.bigthumb:active {
+    background-color: #0056b3;
+}
+
+.input-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.input-group input[type="text"] {
+    flex-grow: 1;
+    font-size: 16px;
+    padding: 8px;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
 .input-group button {
-    font-size: 20px; /* Increase font size */
-    padding: 10px 20px; /* Increase padding */
-    border-radius: 5px; /* Optional: add border-radius for better aesthetics */
+    font-size: 16px;
+    padding: 8px 15px;
+    border-radius: 5px;
+    background-color: var(--button-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+hr {
+    border-color: var(--secondary-bg-color);
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+/* Media query for larger screens */
+@media (min-width: 600px) {
+    .cat-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
 }
 
 /* ---------------------------- Settings Page */

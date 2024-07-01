@@ -2,10 +2,12 @@
 <div class="cat-container">
   <div class="msg-section">
     <h2>Play Stored Msg</h2>
-    <button class="bigthumb" onclick="playMsg(1)">Bank 1</button>
-    <button class="bigthumb" onclick="playMsg(2)">Bank 2</button>
+    <div class="button-row">
+      <button class="bigthumb" onclick="playMsg(1)">Bank 1</button>
+      <button class="bigthumb" onclick="playMsg(2)">Bank 2</button>
+    </div>
   </div>
-  <hr />
+
   <div class="keyer-section">
     <h2>Send Text as CW</h2>
     <div class="input-group">
@@ -42,11 +44,12 @@
       </button>
     </div>
   </div>
-  <hr />
+
   <div class="power-section">
     <h2>Adjust Power</h2>
-    <button class="bigthumb" onclick="setPowerMinMax(false)">Min</button>
-    <button class="bigthumb" onclick="setPowerMinMax(true)">Max</button>
+    <div class="button-row">
+      <button class="bigthumb" onclick="setPowerMinMax(false)">Min</button>
+      <button class="bigthumb" onclick="setPowerMinMax(true)">Max</button>
+    </div>
   </div>
-  <hr />
 </div>
