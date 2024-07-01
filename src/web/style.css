@@ -1,14 +1,44 @@
 /* =========================== Global Variables */
 :root {
-    --primary-bg-color: #222222;
-    --secondary-bg-color: #A7A7A7;
-    --primary-text-color: #A7A7A7;
-    --secondary-text-color: #222222;
-    --button-color: #0A7AF3;
-    --active-tab-color: #007bff;
-    --backgroundSpotDuplicateColor: #ffdddd;
+    /* Color Palette */
+    --color-primary: #222222;
+    --color-secondary: #A7A7A7;
+    --color-accent: #0A7AF3;
+    --color-active: #007bff;
+    --color-danger: #ff0000;
+    --color-success: #008000;
+    --color-warning: #ffdddd;
+    --color-white: #ffffff;
+
+    /* Text Colors */
+    --text-primary: var(--color-secondary);
+    --text-secondary: var(--color-primary);
+    --text-button: var(--color-white);
+
+    /* Background Colors */
+    --bg-primary: var(--color-primary);
+    --bg-secondary: var(--color-secondary);
+    --bg-button: var(--color-accent);
+    --bg-button-hover: #0056b3;
+    --bg-button-active: #004094;
+    --bg-duplicate: var(--color-warning);
+
+    /* Sizes */
+    --font-size-base: 14px;
+    --font-size-large: 1.2em;
+    --font-size-xlarge: 2.0em;
+    --font-size-small: 0.6em;
     --responsive-image-height: 60px;
     --tab-icon-size: 28px;
+
+    /* Spacing */
+    --spacing-small: 5px;
+    --spacing-medium: 10px;
+    --spacing-large: 20px;
+
+    /* Other */
+    --border-radius: 5px;
+    --transition-speed: 0.3s;
 }
 
 /* =========================== Base Styles */
@@ -16,27 +46,26 @@ html, body {
     margin: 0;
     padding: 0;
     overflow-x: hidden; /* Prevent horizontal scrolling */
-    font-size: 14px;
+    font-size: var(--font-size-base);
     font-family: Arial, sans-serif;
 }
 
-
 h1, h2, h3 {
     font-family: Arial, sans-serif;
-    background-color: var(--secondary-bg-color);
-    color: var(--secondary-text-color);
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
     margin: 0;
     width: 100%;
 }
 
 h1 {
-    font-size: 2.0em;
+    font-size: var(--font-size-xlarge);
     font-weight: 800;
     padding: 0.5em;
 }
 
 h2 {
-    font-size: 1.2em;
+    font-size: var(--font-size-large);
     font-weight: 600;
     padding: 0.2em 0;
 }
@@ -69,7 +98,7 @@ li {
 }
 
 .headerLogoBarContainer {
-    background-color: var(--primary-bg-color);
+    background-color: var(--bg-primary);
     display: flex;
     justify-content: flex-start; /* Ensure items start from the left */
     align-items: center;
@@ -83,29 +112,26 @@ li {
     object-fit: contain;
 }
 
-.status-container {
-    color: var(--primary-text-color);
-    margin-left: auto; /* This pushes the status-container to the right */
-    display: flex;
+.status-container, .battery-info-container {
+    color: var(--text-primary);
+        display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: flex-end;
-    margin-right: 15px;
 }
 
-.status-container > div {
+.status-container {
+    margin-left: auto; /* This pushes the status-container to the right */
+    margin-right: var(--spacing-medium);
+}
+
+.status-container > div, .battery-info-container > div {
     text-align: right; /* Ensures text within each div is right-aligned */
     width: 100%; /* Ensures divs take full width of the status-container for proper text alignment */
 }
 
 .battery-info-container {
-    color: var(--primary-text-color);
-    padding-right: 5px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: center;
-
+    padding-right: var(--spacing-small);
 }
 
 .sotamatLaunchButtonContainer {
@@ -117,8 +143,8 @@ li {
 .sotamatLaunchButton {
     font-size: 1.1em;
     font-weight: bold;
-    color: var(--button-color);
-    padding: 1px 10px;
+    color: var(--bg-button);
+    padding: 1px var(--spacing-medium);
     display: flex;
     align-items: center;
     cursor: pointer;
@@ -130,15 +156,18 @@ li {
 }
 
 /* =========================== Content Area */
-.contentSpace {
+#sotaTable, #potaTable {
+    width: 100%;
     overflow-x: auto; /* Allows horizontal scrolling within the content area if needed */
+    display: block; /* This ensures the table takes up the full width and scrolls horizontally if needed */
     padding-bottom: 60px; /* Space for tabBar, adjust based on actual tabBar height */
+    border: none; /* Remove the outer border */
 }
 
 table, th, td {
-    border: 1px solid black;
+    border: 1px solid var(--color-primary);
     border-collapse: collapse;
-    padding: 5px;
+    padding: var(--spacing-small);
     text-align: left;
     white-space: nowrap;
 }
@@ -152,17 +181,16 @@ table, th, td {
 }
 
 .spotsTableTitle {
-    font-size: 1.2em;
+    font-size: var(--font-size-large);
     font-family: Arial, sans-serif;
     font-weight: 600;
-    background-color: var(--secondary-bg-color);
-    color: var(--secondary-text-color);
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
     margin-left: 0.5em;
-    margin-right: auto; /* Ensures it stays left-aligned */
+    margin-right: auto;
 }
 
-
-/* Hide arrows by default */
+/* Table Sorting Styles, Hide arrows by default */
 table.table-sortable th span::after {
     content: "";
 }
@@ -177,8 +205,8 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
     content: "\25bc"; /* Down-pointing triangle */
 }
 
-/* ---------------------------- SOTA content page */
 
+/* =========================== SOTA and POTA Specific Styles */
 .spotsTableTitle {
     /* Vertically center the select element */
     display: flex;
@@ -187,7 +215,7 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
 
 .historyDurationDropdown {
 /* Add some padding to the left of the <select> element */
-    margin-left: 7px;
+    margin-left: var(--spacing-small);
 }
 
 .showDupsContainer {
@@ -196,269 +224,158 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
 }
 
 .showDups {
-    margin-right: 5px; /* Adds a small gap between the checkbox and the label */
+    margin-right: var(--spacing-small); /* Adds a small gap between the checkbox and the label */
 }
 
 .showDupsLabel {
-    font-size: 0.6em;
-    margin-right: 5px; /* Adds a small gap between the checkbox and the label */
+    font-size: var(--font-size-small);
+    margin-right: var(--spacing-small); /* Adds a small gap between the checkbox and the label */
     font-family: Arial, sans-serif;
-    color: #222222;
+    color: var(--text-secondary);
 }
 
 .duplicate-row {
-    background-color: var(--backgroundSpotDuplicateColor); /* Background color for duplicates */
+    background-color: var(--bg-duplicate);
 }
 
-.mode-CW {}
-.mode-SSB {}
-.mode-FM {}
-.mode-FT8 {}
-.mode-DATA {}
-.mode-OTHER {}  /* catch-all for unrecognized modes */
+/* Mode-specific styles */
+.mode-CW, .mode-SSB, .mode-FM, .mode-FT8, .mode-DATA, .mode-OTHER {}
 
-#sotaTable th:nth-child(3), #sotaTable td:nth-child(3) {
-    text-align: right;  /* Right-align the Distance column */
-}
-
-#sotaTable th:nth-child(5), #sotaTable td:nth-child(5) {
-    text-align: right;  /* Right-align the MHz column */
-}
-
-/* ---------------------------- POTA content page */
-
-#potaTable th:nth-child(3), #potaTable td:nth-child(3) {
-    text-align: right;  /* Right-align the Distance column */
-}
-
+/* Alignment for specific columns */
+#sotaTable th:nth-child(3), #sotaTable td:nth-child(3),
+#sotaTable th:nth-child(5), #sotaTable td:nth-child(5),
+#potaTable th:nth-child(3), #potaTable td:nth-child(3),
 #potaTable th:nth-child(5), #potaTable td:nth-child(5) {
-    text-align: right;  /* Right-align the KHz column */
+    text-align: right;
 }
 
-/* ---------------------------- CAT Page */
-
-/* CAT Page Styles - Aligned with Settings style */
-.cat-container {
-    padding: 10px;
+/* =========================== CAT and Settings Page Styles */
+.cat-container, .settings-container {
+    padding: var(--spacing-medium);
 }
 
-.msg-section, .keyer-section, .power-section {
+.msg-section, .keyer-section, .power-section, .wifi-client {
     background-color: #f0f0f0;
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 15px;
+    padding: var(--spacing-medium);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-medium);
 }
 
-.cat-container h2 {
-    background-color: var(--secondary-bg-color);
-    color: var(--secondary-text-color);
+.cat-container h2, .settings-container h2 {
     font-size: 1.0em;
-    font-weight: 600;
-    padding: 0.2em;
     margin-top: 0;
-    margin-bottom: 10px;
+    margin-bottom: var(--spacing-medium);
 }
 
 .button-row {
     display: flex;
     justify-content: space-around;
-    margin-bottom: 10px;
+    margin-bottom: var(--spacing-medium);
 }
 
-button.bigthumb {
+button.bigthumb, .sync-button, .save-button, .reset-button {
     font-size: 16px;
-    padding: 10px 20px;
-    margin: 5px;
-    border-radius: 5px;
-    background-color: var(--button-color);
-    color: white;
+    padding: var(--spacing-medium) var(--spacing-large);
+    margin: var(--spacing-small);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-button);
+    color: var(--text-button);
     border: none;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color var(--transition-speed) ease;
 }
 
-button.bigthumb:active {
-    background-color: #0056b3;
+button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:active {
+    background-color: var(--bg-button-active);
 }
 
 .input-group {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: var(--spacing-medium);
 }
 
 .input-group input[type="text"] {
     flex-grow: 1;
     font-size: 16px;
     padding: 8px;
-    margin-right: 10px;
+    margin-right: var(--spacing-medium);
     border: 1px solid #ccc;
-    border-radius: 5px;
+    border-radius: var(--border-radius);
 }
 
 .input-group button {
     font-size: 16px;
     padding: 8px 15px;
-    border-radius: 5px;
-    background-color: var(--button-color);
-    color: white;
+    border-radius: var(--border-radius);
+    background-color: var(--bg-button);
+    color: var(--text-button);
     border: none;
     cursor: pointer;
 }
 
 hr {
-    border-color: var(--secondary-bg-color);
-    margin-top: 20px;
-    margin-bottom: 20px;
+    border-color: var(--bg-secondary);
+    margin-top: var(--spacing-large);
+    margin-bottom: var(--spacing-large);
 }
 
-/* Media query for larger screens */
-@media (min-width: 600px) {
-    .cat-container {
-        max-width: 600px;
-        margin: 0 auto;
-    }
-}
-
-/* ---------------------------- Settings Page */
-
-.settings-container {
-    padding: 10px;
-}
-
-.time-sync-section, .wifi-settings-form, .factory-reset-form {
-    margin-bottom: 20px;
-}
-
-.sync-button, .save-button, .reset-button {
-    background-color: var(--button-color) !important; /* Ensure the background color stays */
-    color: white !important; /* Ensure text color stays white */
-    border: none;
-    padding: 10px 20px;
-    margin-top: 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.sync-button:hover, .save-button:hover, .reset-button:hover {
-    background-color: #0056b3 !important; /* Slightly darker shade of the original button color for hover state */
-}
-
-.sync-button:active, .save-button:active, .reset-button:active {
-    background-color: #004094 !important; /* Even darker for active state, ensuring contrast against white text */
-}
-
-.sync-button:focus, .save-button:focus, .reset-button:focus {
-    outline: 2px solid #004094 !important;
-    outline-offset: 2px;
-}
-
+/* WiFi Settings Specific Styles */
 .wifi-instructions {
     font-size: 12px;
 }
 
-.wifi-client h3 {
-    margin-top: 0;
-    margin-bottom: 10px;
-}
-
-.wifi-client {
-    background-color: #f0f0f0;
-    padding: 10px;
-    padding-bottom: 5px;
-    border-radius: 5px;
-    margin-bottom: 15px;
-    display: flex;
-    flex-direction: column;
-}
-
 .wifi-row {
     display: flex;
-    justify-content: flex-start; /* Align items to the start of the container */
-    align-items: center; /* Align items vertically in the middle */
-    margin-bottom: 3.5px; /* Reduced from 7px to further tighten vertical spacing */
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 3.5px;
 }
 
 .wifi-label, .wifi-client input[type="text"], .wifi-client input[type="password"] {
-    margin-right: 10px; /* Ensure consistent spacing */
-    width: calc(50% - 10px); /* Adjust width accounting for margin */
-    font-size: 16px; /* Matching the increased text size */
-    padding: 8px; /* Adjust padding to accommodate the text, can be adjusted if needed */
-}
-
-/* Specifically target the password labels for adjustment */
-.wifi-label:nth-child(2), .wifi-client input[type="password"] {
-    margin-left: 0; /* Remove any additional left margin for password elements */
+    margin-right: var(--spacing-medium);
+    width: calc(50% - var(--spacing-medium));
+    font-size: 16px;
+    padding: 8px;
 }
 
 .show-password-row {
     display: flex;
-    justify-content: flex-start; /* Aligns to the left */
-    padding-left: calc(50% + 5px); /* Adjust if necessary to align under the Password input */
-    margin-top: 2.5px; /* Reduced for less space above this row */
-    margin-bottom: 0; /* Adjust if necessary to reduce extra space below this row */
+    justify-content: flex-start;
+    padding-left: calc(50% + 5px);
+    margin-top: 2.5px;
+    margin-bottom: 0;
 }
 
 .show-password {
-    margin-left: 0; /* Ensures alignment with the left edge of the password input */
-    font-size: 16px; /* Match the text size of inputs */
+    margin-left: 0;
+    font-size: 16px;
 }
 
-/* Ensure the "SSID" label and input are aligned to start, making space for the "Show" under "Password" */
-.wifi-label:first-child, .wifi-client input[type="text"]:first-child {
-    flex-grow: 2;
-}
-
-.wifi-client input[type="text"],
-.wifi-client input[type="password"] {
-    width: calc(50% - 10px); /* Adjust width if necessary, accounting for margins */
-    margin-right: 10px; /* Ensure consistent spacing */
-    font-size: 16px; /* Increase font size for better readability */
-    padding: 8px; /* Adjust padding to ensure the larger text fits well within the input box */
-}
-
-/* Style for valid input fields */
 .wifi-client input[type="text"]:valid,
 .wifi-client input[type="password"]:valid {
-    color: green; /* Color for text when input is valid */
-    border: 2px solid green; /* Optional: add a green border to highlight valid inputs */
+    color: var(--color-success);
+    border: 2px solid var(--color-success);
 }
 
-/* Style for invalid input fields */
 .wifi-client input[type="text"]:invalid,
 .wifi-client input[type="password"]:invalid {
-    color: red; /* Color for text when input is invalid */
-    border: 2px solid red; /* Optional: add a red border to highlight invalid inputs */
+    color: var(--color-danger);
+    border: 2px solid var(--color-danger);
 }
 
-/* Apply this style to the containers of the buttons if they're not already flex containers */
 .wifi-settings-form, .factory-reset-form {
     display: flex;
     flex-direction: column;
-    align-items: center; /* Centers children horizontally in a column layout */
+    align-items: center;
 }
 
-/* If the buttons need specific targeting for centering */
-.save-button, .reset-button {
-    margin: 10px auto; /* Adds top/bottom margin for spacing, auto margins on left/right for centering */
-    display: block; /* Ensures the element is block-level for margin auto to work */
-}
-
-hr {
-    border-color: var(--secondary-bg-color);
-    margin-top: 20px;
-    margin-bottom: 20px;
-}
-
-/* ----------------------------- About Page */
-
+/* =========================== About Page */
 .aboutParagraph {
     padding: 1.5em;
     margin: 0.5em;
 }
-
 
 /* =========================== Footer Navigation Bar */
 .tabBar {
@@ -469,28 +386,37 @@ hr {
     left: 0;
     right: 0;
     bottom: 0;
-    width: 100%; /* Ensures it spans the full width without causing overflow */
-    background: var(--primary-bg-color);
-    height: 56px; /* Adjust as needed */
-    z-index: 1000; /* Keeps it above other content */
+    width: 100%;
+    background: var(--bg-primary);
+    height: 56px;
+    z-index: 1000;
 }
+
 .tabBar button {
     flex: 1;
     font-size: normal;
     font-weight: bolder;
     text-align: center;
-    padding: 10px 2px 10px 2px;
+    padding: var(--spacing-medium) 2px;
     border: none;
     background: none;
-    color: var(--primary-text-color);
+    color: var(--text-primary);
     outline: none;
 }
 
 .tabBar button.tabActive {
     font-size: large;
-    color: var(--active-tab-color);
+    color: var(--color-active);
 }
 
 .tabIcons {
     font-size: var(--tab-icon-size);
+}
+
+/* =========================== Media Queries */
+@media (min-width: 600px) {
+    .cat-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
 }
