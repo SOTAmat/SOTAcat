@@ -8,7 +8,7 @@ SOTACAT is a small hardware module that plugs into an Elecraft KX2 or KX3 radio�
 
 1. **Your radio controlled from a web page:**
 
-   Acts as a WiFi hotspot in the field and a web server. Your radio becomes a web page allowing control of your radio. Just connect to the WiFi hotspot “SOTACAT_xxxx” SSID in the field, and once connected launch your web browser and navigate to the page [http://sotacat.local](http://sotacat.local) (some Android devcies don't understand `.local` addresses, in that case just use the URL [192.168.4.1](192.168.4.1) instead).
+   Acts as a WiFi hotspot in the field and a web server. Your radio becomes a web page allowing control of your radio. Just connect to the WiFi hotspot “SOTACAT_xxxx” SSID in the field, and once connected launch your web browser and navigate to the page [http://sotacat.local](http://sotacat.local) (some Android devcies don't understand `.local` addresses, in that case just use the URL [192.168.4.1](192.168.4.1) instead).  For more detail, see "Initial Setup of SOTACAT Network connection" below.
    ![Hand-built SOTACAT module](https://sotamat.com/wp-content/uploads/2024/02/image-2.png)
 
 2. **SOTA/POTA Click-to-Pounce:**
@@ -73,8 +73,9 @@ Once the SOTACAT firmware is installed and running, you should:
 1. Once connected to the hotspot WiFi, open a web browser on your phone and navigate to the URL [sotacat.local](sotacat.local) (iOS and some Android devices), or if that doesn't work try [192.168.4.1](192.168.4.1) (all devices). Do not use HTTPS: the SOTACAT only supports HTTP connections.
 1. On the displayed SOTACAT page, select the "Settings" icon at the bottom. There you will set your preferred network credentials, following the instructions displayed. There are (up to) three networks to define there:
    1. **SOTACAT connects to your Home WiFi:** your SOTACAT can connect to your home network so you cell phone and SOTACAT and your computer can all be on the same network and all talk with each other. (optional)
-   1. **SOTACAT connects to your cellphone hotspot (in the field):** This is useful for Android phones that don't support split networking (where the phone is connected to both SOTACAT via WiFi and the internet via the cellular network). By having the SOTACAT connect to the phone and the phone connects to the cell network you simulate split networking. This is NOT needed on iOS and you can leave these fields blank.
-   1. **Cellphone connects to the SOTACAT hotspot (in the field):** On devcies that support split-networking (all iOS devices and some Androids, see notes above) this is the mode you should use. Your phone connects to the SOTACAT's hotspot via WiFi while also connected to the internet via the cellular network.
+   1. **SOTACAT connects to your cellphone hotspot (in the field):** This is useful for Android phones that don't support split networking (where the phone is connected to both SOTACAT via WiFi and the internet via the cellular network). Android users may also benefit from installing [Bonjour Browser][https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser] from the Google Play Store, to see the SOTACAT web server address.
+By having the SOTACAT connect to the phone and the phone connected to the cell network, you simulate split networking. This is NOT needed on iOS and you can leave these fields blank and use the next option instead.
+   1. **Cellphone connects to the SOTACAT hotspot (in the field):** On devices that support split-networking (all iOS devices and some Androids, see notes above) this is the mode you should use. Your phone connects to the SOTACAT's hotspot via WiFi while also connected to the internet via the cellular network.
 
 ## Attribution
 
