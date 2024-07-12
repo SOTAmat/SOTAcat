@@ -17,7 +17,8 @@ typedef enum {
     MODE_AM      = 5,
     MODE_DATA    = 6,
     MODE_CW_R    = 7,
-    MODE_DATA_R  = 9
+    MODE_DATA_R  = 9,
+    MODE_LAST    = 9
 } radio_mode_t;
 
 typedef struct {

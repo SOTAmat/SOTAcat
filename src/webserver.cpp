@@ -76,29 +76,29 @@ typedef struct
  *  GET, PUT, POST handlers
  */
 static const api_handler_t api_handlers[] = {
-    // method   api_name            handler_func                  requires_radio
-    // ======== =================== ============================= =============
+  // method     api_name            handler_func                  requires_radio
+  // ========== =================== ============================= =============
     {HTTP_GET,  "batteryPercent",   handler_batteryPercent_get,   false},
     {HTTP_GET,  "batteryVoltage",   handler_batteryVoltage_get,   false},
-    {HTTP_GET,  "connectionStatus", handler_connectionStatus_get, true},
-    {HTTP_GET,  "frequency",        handler_frequency_get,        true},
-    {HTTP_GET,  "mode",             handler_mode_get,             true},
-    {HTTP_GET,  "power",            handler_power_get,            true},
-    {HTTP_GET,  "rxBandwidth",      handler_rxBandwidth_get,      true},
+    {HTTP_GET,  "connectionStatus", handler_connectionStatus_get, true },
+    {HTTP_GET,  "frequency",        handler_frequency_get,        true },
+    {HTTP_GET,  "mode",             handler_mode_get,             true },
+    {HTTP_GET,  "power",            handler_power_get,            true },
+    {HTTP_GET,  "rxBandwidth",      handler_mode_get,             true }, // alias for "mode"
     {HTTP_GET,  "settings",         handler_settings_get,         false},
     {HTTP_GET,  "version",          handler_version_get,          false},
-    {HTTP_PUT,  "frequency",        handler_frequency_put,        true},
-    {HTTP_PUT,  "keyer",            handler_keyer_put,            true},
-    {HTTP_PUT,  "mode",             handler_mode_put,             true},
-    {HTTP_PUT,  "msg",              handler_msg_put,              true},
-    {HTTP_PUT,  "power",            handler_power_put,            true},
-    {HTTP_PUT,  "rxBandwidth",      handler_rxBandwidth_put,      true},
-    {HTTP_PUT,  "time",             handler_time_put,             true},
-    {HTTP_POST, "prepareft8",       handler_prepareft8_post,      true},
-    {HTTP_POST, "ft8",              handler_ft8_post,             true},
-    {HTTP_POST, "cancelft8",        handler_cancelft8_post,       true},
+    {HTTP_PUT,  "frequency",        handler_frequency_put,        true },
+    {HTTP_PUT,  "keyer",            handler_keyer_put,            true },
+    {HTTP_PUT,  "mode",             handler_mode_put,             true },
+    {HTTP_PUT,  "msg",              handler_msg_put,              true },
+    {HTTP_PUT,  "power",            handler_power_put,            true },
+    {HTTP_PUT,  "rxBandwidth",      handler_mode_put,             true }, // alias for "mode"
+    {HTTP_PUT,  "time",             handler_time_put,             true },
+    {HTTP_POST, "prepareft8",       handler_prepareft8_post,      true },
+    {HTTP_POST, "ft8",              handler_ft8_post,             true },
+    {HTTP_POST, "cancelft8",        handler_cancelft8_post,       true },
     {HTTP_POST, "settings",         handler_settings_post,        false},
-    {0, NULL, NULL, false} // Sentinel to mark end of array
+    {0,         NULL,               NULL,                         false}  // Sentinel to mark end of array
 };
 
 /**

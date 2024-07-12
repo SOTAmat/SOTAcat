@@ -13,8 +13,6 @@ extern esp_err_t handler_mode_put (httpd_req_t *);
 extern esp_err_t handler_msg_put (httpd_req_t *);
 extern esp_err_t handler_power_get (httpd_req_t *);
 extern esp_err_t handler_power_put (httpd_req_t *);
-extern esp_err_t handler_rxBandwidth_get (httpd_req_t *);
-extern esp_err_t handler_rxBandwidth_put (httpd_req_t *);
 extern esp_err_t handler_prepareft8_post (httpd_req_t *);
 extern esp_err_t handler_ft8_post (httpd_req_t *);
 extern esp_err_t handler_cancelft8_post (httpd_req_t *);

@@ -30,7 +30,7 @@ function tuneRadioHz(frequency, mode)
     .then(response => {
         console.log('Frequency updated successfully');
         if (response.ok) {
-                fetch('/api/v1/rxBandwidth?bw=' + useMode, { method: 'PUT' })
+                fetch('/api/v1/mode?bw=' + useMode, { method: 'PUT' })
                 .then(response => {
                     if (response.ok)    {   console.log('Mode updated successfully');   }
                     else                {   console.error('Error updating mode');       }
