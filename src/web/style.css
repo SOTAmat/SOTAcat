@@ -238,8 +238,16 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
     background-color: var(--bg-duplicate);
 }
 
-/* Mode-specific styles */
-.mode-CW, .mode-SSB, .mode-FM, .mode-FT8, .mode-DATA, .mode-OTHER {}
+/* Mode-specific styles Note that each is defined separately, rather than having
+ * them share a common definition. This is intentional, so that each mode may be
+ * further manipulated separately,
+ */
+.mode-CW {}
+.mode-SSB {}
+.mode-FM {}
+.mode-FT8 {}
+.mode-DATA {}
+.mode-OTHER {}
 
 /* Alignment for specific columns */
 #sotaTable th:nth-child(3), #sotaTable td:nth-child(3),
