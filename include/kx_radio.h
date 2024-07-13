@@ -1,7 +1,8 @@
 #pragma once
 
-#include <stdint.h>
 #include "lockable.h"
+
+#include <stdint.h>
 
 #define SC_KX_COMMUNICATION_RETRIES 3
 
@@ -49,8 +50,8 @@ class KXRadio : public Lockable {
     KXRadio();
 
   public:
-    static KXRadio & getInstance();
-    int              connect();
+    static KXRadio & getInstance ();
+    int              connect ();
     void             empty_kx_input_buffer (int wait_ms);
     long             get_from_kx (const char * command, int tries, int num_digits);
     bool             put_to_kx (const char * command, int num_digits, long value, int tries);
@@ -60,7 +61,8 @@ class KXRadio : public Lockable {
     void             restore_kx_state (const kx_state_t * in_state, int tries);
     bool             get_from_kx_string (const char * command, int tries, char * result, int result_size);
     bool             put_to_kx_command_string (const char * cmd, int tries);
-    bool             is_connected() const { return m_is_connected; }
+
+    bool is_connected () const { return m_is_connected; }
 };
 
 extern KXRadio & kxRadio;  // global singleton

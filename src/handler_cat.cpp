@@ -1,10 +1,11 @@
-#include <memory>
 #include "globals.h"
 #include "kx_radio.h"
 #include "webserver.h"
 
+#include <memory>
+
 #include <esp_log.h>
-static const char * TAG8 = "sc:hdl_cat ";
+static const char * TAG8 = "sc:hdl_cat.";
 
 /**
  * Handles an HTTP PUT request to play a pre-recorded message from bank 1 or 2

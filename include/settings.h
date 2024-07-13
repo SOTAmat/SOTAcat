@@ -2,10 +2,10 @@
 
 // ADC Battery measurement
 #define BATTERY_SAMPLES_TO_AVERAGE 16
-#define BATTERY_CALIBRATION_VALUE 1.006879
+#define BATTERY_CALIBRATION_VALUE  1.006879
 
 // LED behavior
-#define LED_FLASH_MSEC 25
+#define LED_FLASH_MSEC    25
 #define LED_OFF_TIME_MSEC 3000
 
 // Power management
@@ -25,4 +25,4 @@ extern char g_sta2_pass[MAX_WIFI_SSID_SIZE];
 extern char g_ap_ssid[MAX_WIFI_SSID_SIZE];
 extern char g_ap_pass[MAX_WIFI_PASS_SIZE];
 
-extern void init_settings();
+extern void init_settings ();

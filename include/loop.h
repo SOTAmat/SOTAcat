@@ -1,3 +1,3 @@
 #pragma once
 
-extern void loop();
+extern void loop ();
