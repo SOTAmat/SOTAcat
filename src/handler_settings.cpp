@@ -218,7 +218,7 @@ static void parse_and_process_json (char * json) {
 static esp_err_t retrieve_and_send_settings (httpd_req_t * req) {
     std::shared_ptr<char[]> buf = get_settings_json();
     if (!buf)
-        REPLY_WITH_FAILURE (req, 500, "heap allocation failed");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
 
     ESP_LOGI (TAG8, "returning settings");
     httpd_resp_set_type (req, "application/json");
@@ -251,18 +251,19 @@ esp_err_t handler_settings_post (httpd_req_t * req) {
 
     std::unique_ptr<char[]> buf (new char[req->content_len]);
     if (!buf)
-        REPLY_WITH_FAILURE (req, 500, "heap allocation failed");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+
     char * unsafe_buf = buf.get();  // reference to an ephemeral buffer
 
     // Get the content
     int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
     if (ret <= 0)
-        REPLY_WITH_FAILURE (req, 404, "post content not received");
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "post content not received");
 
     parse_and_process_json (unsafe_buf);
 
     if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
-        REPLY_WITH_FAILURE (req, 500, "failed commit settings to nvs");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
 
     populate_settings();
 
@@ -294,16 +295,14 @@ esp_err_t handler_settings_post (httpd_req_t * req) {
         esp_err_t timer_create_result = esp_timer_create (&timer_args, timer.get());
         if (timer_create_result != ESP_OK) {
             ESP_LOGE (TAG8, "Failed to create timer: %s", esp_err_to_name (timer_create_result));
-            REPLY_WITH_FAILURE (req, 500, "Failed to create reboot timer");
-            return timer_create_result;
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create reboot timer");
         }
 
         // Start the timer with error handling
         esp_err_t timer_start_result = esp_timer_start_once (*timer, REBOOT_DELAY_US);
         if (timer_start_result != ESP_OK) {
             ESP_LOGE (TAG8, "Failed to start timer: %s", esp_err_to_name (timer_start_result));
-            REPLY_WITH_FAILURE (req, 500, "Failed to start reboot timer");
-            return timer_start_result;
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to start reboot timer");
         }
 
         REPLY_WITH_SUCCESS();

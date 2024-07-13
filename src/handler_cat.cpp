@@ -80,7 +80,7 @@ esp_err_t handler_power_put (httpd_req_t * req) {
     {
         const std::lock_guard<Lockable> lock (kxRadio);
         if (!kxRadio.put_to_kx ("PC", 3, atoi (param_value), SC_KX_COMMUNICATION_RETRIES))
-            REPLY_WITH_FAILURE (req, 404, "unable to set power");
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
     }
 
     REPLY_WITH_SUCCESS();

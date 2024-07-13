@@ -243,7 +243,7 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     if (CommandInProgress || ft8ConfigInfo != NULL)
-        REPLY_WITH_FAILURE (req, 500, "prepare called while another command already in progress");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "prepare called while another command already in progress");
 
     /**
      * In this short window of time between the check of CommandInProgress above,
@@ -277,7 +277,7 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
           httpd_query_key_value (unsafe_buf, "audioFrequency", audioFreq_str, sizeof (audioFreq_str)) == ESP_OK &&
           (audioFreq = atoi (audioFreq_str)) > 0)) {
         CommandInProgress = false;
-        REPLY_WITH_FAILURE (req, 404, "parameter parsing error");
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
     }
 
     // Set the system clock based on the time received from the phone
@@ -302,14 +302,14 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     int     rc = pack77 (ft8_msg, packed);
     if (rc < 0) {
         CommandInProgress = false;
-        REPLY_WITH_FAILURE (req, 500, "can't parse FT8 message");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "can't parse FT8 message");
     }
 
     // Second, encode the binary message as a sequence of FSK tones
     uint8_t * tones = new uint8_t[FT8_NN];  // Array of 79 tones (symbols)
     if (tones == NULL) {
         CommandInProgress = false;
-        REPLY_WITH_FAILURE (req, 500, "can't allocate memory for FT8 tones");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "can't allocate memory for FT8 tones");
     }
 
     ft8_encode (packed, tones);
@@ -380,7 +380,7 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     if (ft8TaskInProgress)
-        REPLY_WITH_FAILURE (req, 500, "post called while another FT8 task already in progress");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "post called while another FT8 task already in progress");
 
     STANDARD_DECODE_QUERY (req, unsafe_buf);
 
@@ -407,7 +407,7 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
           httpd_query_key_value (unsafe_buf, "audioFrequency", audioFreq_str, sizeof (audioFreq_str)) == ESP_OK &&
           (audioFreq = atoi (audioFreq_str)) > 0)) {
         CommandInProgress = false;
-        REPLY_WITH_FAILURE (req, 404, "parameter parsing error");
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
     }
 
     // Offload playing the FT8 audio

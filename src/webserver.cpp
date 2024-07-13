@@ -41,8 +41,8 @@ typedef struct
  * Represents an array of asset entries to facilitate URI to asset mapping.
  */
 static const asset_entry_t asset_map[] = {
-  // uri             asset_start        asset_end          asset_type         cache_time
-  // =============== ================== ================== ================== ======================
+  // uri               asset_start        asset_end          asset_type         cache_time
+  // ================= ================== ================== ================== ======================
     {"/",              index_html_srt,    index_html_end,    "text/html",       60}, // 1 minute cache
     {"/index.html",    index_html_srt,    index_html_end,    "text/html",       60},
     {"/style.css",     style_css_srt,     style_css_end,     "text/css",        60},
@@ -121,10 +121,10 @@ static int find_and_execute_api_handler (int method, const char * api_name, cons
             if (kxRadio.is_connected() || !handler->requires_radio)
                 return handler->handler_func (req);
             else
-                REPLY_WITH_FAILURE (req, 500, "radio not connected");
+                REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio not connected");
         }
 
-    REPLY_WITH_FAILURE (req, 404, "handler not found");
+    REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "handler not found");
 }
 
 /**
@@ -249,6 +249,7 @@ bool url_decode_in_place (char * str) {
                 a -= ('A' - 10);
             else
                 a -= '0';
+
             if (b >= 'a')
                 b -= 'a' - 'A';
             if (b >= 'A')
@@ -263,9 +264,8 @@ bool url_decode_in_place (char * str) {
             *dst++ = ' ';
             str++;
         }
-        else {
+        else
             *dst++ = *str++;
-        }
     }
     *dst = '\0';
 

@@ -144,7 +144,7 @@ esp_err_t handler_time_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "time", param_value);
 
     if (!set_time (param_value))
-        REPLY_WITH_FAILURE (req, 500, "failed to set time");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set time");
 
     REPLY_WITH_SUCCESS();
 }

@@ -25,7 +25,7 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
     }
 
     if (frequency <= 0)
-        REPLY_WITH_FAILURE (req, 500, "invalid frequency from radio");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "invalid frequency from radio");
 
     // Frequency is valid, send response back to phone
     char buf[16];
@@ -52,12 +52,12 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
     int freq = atoi (param_value);  // Convert the parameter to an integer
     ESP_LOGI (TAG8, "freqency %d", freq);
     if (freq <= 0)
-        REPLY_WITH_FAILURE (req, 404, "invalid frequency");
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid frequency");
 
     {
         const std::lock_guard<Lockable> lock (kxRadio);
         if (!kxRadio.put_to_kx ("FA", 11, freq, SC_KX_COMMUNICATION_RETRIES))
-            REPLY_WITH_FAILURE (req, 500, "failed to set frequency");
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set frequency");
     }
 
     REPLY_WITH_SUCCESS();

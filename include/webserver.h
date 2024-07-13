@@ -31,18 +31,18 @@ extern esp_err_t handler_version_get (httpd_req_t *);
  * @param req the httpd_req_t object containing the request
  * @param unsafe_buf a pointer to a newly allocated object containing the query
  */
-#define STANDARD_DECODE_QUERY(req, unsafe_buf)                            \
-    /* Get the length of the URL query */                                 \
-    size_t buf_len = httpd_req_get_url_query_len (req) + 1;               \
-    if (buf_len <= 1)                                                     \
-        REPLY_WITH_FAILURE (req, 404, "missing query string");            \
-    std::unique_ptr<char[]> buf (new char[buf_len]);                      \
-    if (!buf)                                                             \
-        REPLY_WITH_FAILURE (req, 500, "heap allocation failed");          \
-    char * unsafe_buf = buf.get(); /* reference to an ephemeral buffer */ \
-    /* Get the URL query */                                               \
-    if (httpd_req_get_url_query_str (req, unsafe_buf, buf_len) != ESP_OK) \
-        REPLY_WITH_FAILURE (req, 404, "query parsing error");             \
+#define STANDARD_DECODE_QUERY(req, unsafe_buf)                                               \
+    /* Get the length of the URL query */                                                    \
+    size_t buf_len = httpd_req_get_url_query_len (req) + 1;                                  \
+    if (buf_len <= 1)                                                                        \
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "missing query string");               \
+    std::unique_ptr<char[]> buf (new char[buf_len]);                                         \
+    if (!buf)                                                                                \
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed"); \
+    char * unsafe_buf = buf.get(); /* reference to an ephemeral buffer */                    \
+    /* Get the URL query */                                                                  \
+    if (httpd_req_get_url_query_str (req, unsafe_buf, buf_len) != ESP_OK)                    \
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "query parsing error");                \
     ESP_LOGV (TAG8, "request buffer[%d] = \"%s\"", buf_len, unsafe_buf);
 
 
@@ -57,7 +57,7 @@ extern esp_err_t handler_version_get (httpd_req_t *);
 #define STANDARD_DECODE_PARAMETER(unsafe_buf, param_name, param_value)                               \
     char param_value[64] = {0};                                                                      \
     if (httpd_query_key_value (unsafe_buf, param_name, param_value, sizeof (param_value)) != ESP_OK) \
-        REPLY_WITH_FAILURE (req, 404, "parameter parsing error");
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
 
 /**
  * Helper definition, to be used within a function body.
@@ -76,11 +76,15 @@ extern esp_err_t handler_version_get (httpd_req_t *);
     STANDARD_DECODE_QUERY (req, unsafe_buf);                         \
     STANDARD_DECODE_PARAMETER (unsafe_buf, param_name, param_value);
 
-#define REPLY_WITH_FAILURE(req, code, message) \
-    do {                                       \
-        ESP_LOGE (TAG8, message);              \
-        httpd_resp_send_##code (req);          \
-        return ESP_FAIL;                       \
+#define REPLY_WITH_FAILURE(req, code, message)                                    \
+    do {                                                                          \
+        ESP_LOGE (TAG8, "%s", message);                                           \
+        const char * json_error_template = "{\"error\": \"%s\"}";                 \
+        char         json_error[128];                                             \
+        snprintf (json_error, sizeof (json_error), json_error_template, message); \
+        httpd_resp_set_type (req, "application/json");                            \
+        httpd_resp_send_err (req, code, json_error);                              \
+        return ESP_FAIL;                                                          \
     } while (0)
 
 #define REPLY_WITH_SUCCESS()                                \

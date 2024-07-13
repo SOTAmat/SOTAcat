@@ -63,7 +63,7 @@ esp_err_t handler_mode_get (httpd_req_t * req) {
 
     // Validate the mode and respond with an error if unrecognized
     if (mode < MODE_UNKNOWN || mode > MODE_LAST)
-        REPLY_WITH_FAILURE (req, 500, "unrecognized mode");
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unrecognized mode");
 
     // Ensure the mode is valid and respond with the mode name
     assert (radio_mode_map[mode].mode == mode);
@@ -109,7 +109,7 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
                 }
         // Respond with an error if the mode is not recognized
         if (mode == MODE_UNKNOWN)
-            REPLY_WITH_FAILURE (req, 404, "invalid bw");
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid bw");
 
         // Set the radio mode
         kxRadio.put_to_kx ("MD", 1, mode, SC_KX_COMMUNICATION_RETRIES);
