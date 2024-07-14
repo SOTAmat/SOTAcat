@@ -1,9 +1,9 @@
-#include "handler_ft8.h"
 #include "../lib/ft8_encoder/ft8/constants.h"
 #include "../lib/ft8_encoder/ft8/encode.h"
 #include "../lib/ft8_encoder/ft8/pack.h"
 #include "globals.h"
 #include "idle_status_task.h"
+#include "kx_radio.h"
 #include "settings.h"
 #include "settings_hardware_specific.h"
 #include "webserver.h"
@@ -40,6 +40,13 @@ static bool ft8TaskInProgress = false;
  * This pointer is initially set to NULL and is allocated when preparing for an FT8 transmission.
  * It must be properly managed to avoid memory leaks and is cleaned up after the transmission completes or is cancelled.
  */
+typedef struct
+{
+    long         baseFreq;
+    uint8_t *    tones;
+    kx_state_t * kx_state;
+} ft8_task_pack_t;
+
 static ft8_task_pack_t * ft8ConfigInfo = NULL;
 
 /**

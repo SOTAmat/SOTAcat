@@ -1,6 +1,5 @@
 #include "kx_radio.h"
 #include "settings_hardware_specific.h"
-#include "settings_radio_specific.h"
 
 #include <cstring>
 #include <driver/uart.h>
@@ -23,6 +22,10 @@ static const char * TAG8 = "sc:kx_radio";
 
 // Global static instance
 KXRadio & kxRadio = KXRadio::getInstance();
+
+// 0.5 seconds / 500 ms
+#define KX_TIMEOUT_MS_SHORT_COMMANDS 100
+#define KX_TIMEOUT_MS_LONG_COMMANDS  1000
 
 /*
  * Utilities
