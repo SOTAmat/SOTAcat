@@ -478,7 +478,7 @@ void KXRadio::restore_kx_state (const kx_state_t * in_state, int tries) {
     if (!locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    put_to_kx ("MD", 1, 3, SC_KX_COMMUNICATION_RETRIES);                        // To reset the Peaking Filter mode we have to be in CW mode: MD3;
+    put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);                  // To reset the Peaking Filter mode we have to be in CW mode: MD3;
     put_to_kx ("AP", 1, in_state->audio_peaking, SC_KX_COMMUNICATION_RETRIES);  // APn;
     put_to_kx ("MD", 1, in_state->mode, SC_KX_COMMUNICATION_RETRIES);
     put_to_kx ("FA", 11, in_state->vfo_a_freq, SC_KX_COMMUNICATION_RETRIES);
