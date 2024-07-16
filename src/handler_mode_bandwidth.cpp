@@ -45,6 +45,12 @@ radio_mode_t get_radio_mode () {
         const std::lock_guard<Lockable> lock (kxRadio);
         mode = kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
     }
+    ESP_LOGI (TAG8, "mode = %ld (%s)", mode, radio_mode_map[mode].name);
+
+    // Ensure the mode is valid - this is really a double-check that our array
+    // of modes is properly formed, moreso than a potential runtime error.
+    assert (radio_mode_map[mode].mode == mode);
+
     return static_cast<radio_mode_t> (mode);
 }
 
@@ -59,14 +65,11 @@ esp_err_t handler_mode_get (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     radio_mode_t mode = get_radio_mode();
-    ESP_LOGI (TAG8, "mode = %c", mode + '0');
 
     // Validate the mode and respond with an error if unrecognized
     if (mode < MODE_UNKNOWN || mode > MODE_LAST)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unrecognized mode");
 
-    // Ensure the mode is valid and respond with the mode name
-    assert (radio_mode_map[mode].mode == mode);
     httpd_resp_send (req, radio_mode_map[mode].name, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
