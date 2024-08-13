@@ -2,10 +2,10 @@
 #include "enter_deep_sleep.h"
 #include "get_battery_voltage.h"
 #include "globals.h"
+#include "hardware_specific.h"
 #include "idle_status_task.h"
 #include "kx_radio.h"
 #include "settings.h"
-#include "settings_hardware_specific.h"
 #include "setup_adc.h"
 #include "webserver.h"
 #include "wifi.h"
@@ -59,6 +59,8 @@ void start_radio_connection_task (TaskNotifyConfig * config) {
 
 // ====================================================================================================
 void setup () {
+    set_hardware_specific();
+
 // We no longer need to set the log level here, as it is set in the platformio.ini file
 // differently for each build target.  I only leave it here if in the future you want
 // to have the platformio.ini use "Debug" or "Informational" for debug builds, and
@@ -77,8 +79,10 @@ void setup () {
     //  Turn on the board LED to indicate that we are starting up
     gpio_set_direction (LED_BLUE, GPIO_MODE_OUTPUT);
     gpio_set_direction (LED_RED, GPIO_MODE_OUTPUT);
-    gpio_set_direction (LED_RED_SUPL, GPIO_MODE_OUTPUT);
-    gpio_set_level (LED_RED_SUPL, 1);
+    if (LED_RED_SUPL > 0) {
+        gpio_set_direction (LED_RED_SUPL, GPIO_MODE_OUTPUT);
+        gpio_set_level (LED_RED_SUPL, 1);
+    }
     gpio_set_level (LED_BLUE, LED_ON);
     gpio_set_level (LED_RED, LED_ON);
 

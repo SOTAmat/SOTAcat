@@ -1,5 +1,5 @@
 #include "kx_radio.h"
-#include "settings_hardware_specific.h"
+#include "hardware_specific.h"
 
 #include <cstring>
 #include <driver/uart.h>
@@ -153,8 +153,10 @@ int KXRadio::connect() {
     };
     uart_param_config (UART_NUM, &uart_config);
     uart_set_pin (UART_NUM, UART2_TX_PIN, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    // Invert UART2 TX and RX signals
-    uart_set_line_inverse (UART_NUM, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
+    if (HW_TYPE == SOTAcat_HW_Type::AB6D_1) {
+        // Invert UART2 TX and RX signals
+        uart_set_line_inverse (UART_NUM, UART_SIGNAL_RXD_INV | UART_SIGNAL_TXD_INV);
+    }
 
     uint8_t buffer[256];
     while (true) {

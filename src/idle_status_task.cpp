@@ -2,8 +2,8 @@
 #include "enter_deep_sleep.h"
 #include "get_battery_voltage.h"
 #include "globals.h"
+#include "hardware_specific.h"
 #include "settings.h"
-#include "settings_hardware_specific.h"
 
 #include <driver/gpio.h>
 #include <math.h>

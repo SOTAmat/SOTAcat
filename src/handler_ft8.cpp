@@ -2,10 +2,10 @@
 #include "../lib/ft8_encoder/ft8/encode.h"
 #include "../lib/ft8_encoder/ft8/pack.h"
 #include "globals.h"
+#include "hardware_specific.h"
 #include "idle_status_task.h"
 #include "kx_radio.h"
 #include "settings.h"
-#include "settings_hardware_specific.h"
 #include "webserver.h"
 
 #include <driver/gpio.h>

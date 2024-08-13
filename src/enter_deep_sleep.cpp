@@ -1,6 +1,6 @@
 #include "enter_deep_sleep.h"
+#include "hardware_specific.h"
 #include "settings.h"
-#include "settings_hardware_specific.h"
 #include "setup_adc.h"
 
 #include <driver/rtc_io.h>
@@ -30,9 +30,11 @@ void enter_deep_sleep () {
     gpio_pullup_dis (LED_RED);
     gpio_pulldown_dis (LED_RED);
 
-    gpio_set_direction (LED_RED_SUPL, GPIO_MODE_INPUT);
-    gpio_pullup_dis (LED_RED_SUPL);
-    gpio_pulldown_dis (LED_RED_SUPL);
+    if (LED_RED_SUPL > 0) {
+        gpio_set_direction (LED_RED_SUPL, GPIO_MODE_INPUT);
+        gpio_pullup_dis (LED_RED_SUPL);
+        gpio_pulldown_dis (LED_RED_SUPL);
+    }
 
 #ifndef SEEED_XIAO
     rtc_gpio_isolate (LED_BLUE);

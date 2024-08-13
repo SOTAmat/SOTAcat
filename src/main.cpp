@@ -4,7 +4,7 @@
 #include <esp_log.h>
 static const char * TAG8 = "sc:SOTAcat.";
 
-extern "C" void app_main (void) {
+extern "C" void app_main () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     setup();
