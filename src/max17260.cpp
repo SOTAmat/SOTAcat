@@ -74,7 +74,6 @@ const float vrecover_v_per_bit = 0.040;  // default 3.88 -- voltage at which to 
 // Registers like capacity are odd and can cause problems if the units are incorrect
 // Divide by units_per_bit to set a register, multiply when reading for display
 
-
 void Max17620::default_setup (max17620_setup_t * setup) {
     setup->design_cap = (500.0);           // Battery cell design capacity, mAh
     setup->i_chg_term = (0.13 * 370.370);  // mA per XC6802MR datasheet and XIAO charge current TODO
