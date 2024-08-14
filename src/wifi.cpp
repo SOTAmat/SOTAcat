@@ -102,6 +102,7 @@ static void wifi_init_sta (const char * ssid, const char * password) {
 
 // Function to stop AP mode
 static void stop_ap_mode () {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
     if (s_ap_active) {
         ESP_LOGI (TAG8, "Stopping AP mode");
         ESP_ERROR_CHECK (esp_wifi_set_mode (WIFI_MODE_STA));
@@ -112,6 +113,7 @@ static void stop_ap_mode () {
 
 // Function to stop STA mode
 static void stop_sta_mode () {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
     if (s_sta_connected) {
         ESP_LOGI (TAG8, "Disconnecting from STA mode");
         ESP_ERROR_CHECK (esp_wifi_disconnect());
@@ -125,6 +127,8 @@ static void wifi_event_handler (void *           arg,
                                 esp_event_base_t event_base,
                                 int32_t          event_id,
                                 void *           event_data) {
+    ESP_LOGV (TAG8, "trace: %s(event_base = '%s', event_id = %ld)", __func__, event_base, event_id);
+
     static int  quick_connect_attempts     = 0;
     static bool trying_ssid1               = true;
     static bool initial_connection_attempt = true;
@@ -297,6 +301,8 @@ void start_mdns_service () {
 }
 
 void wifi_task (void * pvParameters) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
     TaskNotifyConfig * config = (TaskNotifyConfig *)pvParameters;
     wifi_init();
 
@@ -315,6 +321,8 @@ void wifi_task (void * pvParameters) {
 }
 
 void start_wifi_task (TaskNotifyConfig * config) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
     xTaskCreate (&wifi_task, "wifi_task", 4096, (void *)config, SC_TASK_PRIORITY_NORMAL, NULL);
 }
 
