@@ -5,3 +5,6 @@
 [submodule "lib/improv-wifi"]
 	path = lib/improv-wifi
 	url = https://github.com/improv-wifi/sdk-cpp.git
+[submodule "lib/esp32-smbus"]
+	path = lib/esp32-smbus
+	url = https://github.com/poynting/esp32-smbus/

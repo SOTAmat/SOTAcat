@@ -1,6 +1,6 @@
 #include "setup.h"
+#include "battery_monitor.h"
 #include "enter_deep_sleep.h"
-#include "get_battery_voltage.h"
 #include "globals.h"
 #include "hardware_specific.h"
 #include "idle_status_task.h"
@@ -32,7 +32,7 @@ void startup_watchdog_timer (void * _) {
     }
     // We will never turn off if the unit is plugged in and is charging,
     // as the battery voltage will never dip below 80%.
-    while (get_battery_percentage (get_battery_voltage()) >= BATTERY_SHUTOFF_PERCENTAGE);
+    while (get_battery_percentage() >= BATTERY_SHUTOFF_PERCENTAGE);
 
     ESP_LOGI (TAG8, "Startup watchdog timer expired, and battery not charged; shutting down.");
     enter_deep_sleep();
@@ -116,6 +116,11 @@ void setup () {
     uint32_t notification_value;
     xTaskNotifyWait (0, 0, &notification_value, portMAX_DELAY);
 
+    // Setup battery monitoring task
+    TaskHandle_t xBatteryMonitorHandle = NULL;
+    xTaskCreate (&battery_monitor_task, "battery_monitor_task", 2048, NULL, SC_TASK_PRIORITY_IDLE + 1, &xBatteryMonitorHandle);
+    ESP_LOGI (TAG8, "battery_monitor task started.");
+
     gpio_set_level (LED_RED, LED_OFF);
     ESP_LOGI (TAG8, "wifi initialized.");
 
@@ -139,15 +144,7 @@ void setup () {
 
     // Wait for radio connection
     xTaskNotifyWait (0, 0, &notification_value, portMAX_DELAY);
-    ESP_LOGI (TAG8, "Radio connection established");
-
-    // // kxRadio is statically initialized as a singleton, but we
-    // // do need to connect SOTACAT to its ACC port
-    // {
-    //     const std::lock_guard<Lockable> lock(kxRadio);
-    //     kxRadio.connect(); // this will block until radio connected
-    // }
-    // ESP_LOGI(TAG8, "radio connection established");
+    ESP_LOGI (TAG8, "radio connection established.");
 
     //  We exit with the LED off.
     gpio_set_level (LED_BLUE, LED_OFF);

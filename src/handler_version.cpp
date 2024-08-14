@@ -4,7 +4,7 @@
 
 #include <esp_log.h>
 
-static const char * TAG8 = "sc:hdl_version";
+static const char * TAG8 = "sc:hdl_vers";
 
 /**
  * Handles an HTTP GET request to retrieve the build version information of the software running on the radio.

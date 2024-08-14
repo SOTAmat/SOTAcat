@@ -1,6 +1,6 @@
 #include "idle_status_task.h"
+#include "battery_monitor.h"
 #include "enter_deep_sleep.h"
-#include "get_battery_voltage.h"
 #include "globals.h"
 #include "hardware_specific.h"
 #include "settings.h"
@@ -8,6 +8,11 @@
 #include <driver/gpio.h>
 #include <math.h>
 #include <time.h>
+
+#include "esp_timer.h"
+#include "max17260.h"
+#include "smbus.h"
+#include <driver/i2c.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:idletask";
@@ -22,10 +27,9 @@ static const char * TAG8 = "sc:idletask";
  */
 void idle_status_task (void * _pvParameter) {
     while (1) {
-        float batv = get_battery_voltage();
+        size_t _free  = 0;
+        size_t _alloc = 0;
 
-        size_t            _free  = 0;
-        size_t            _alloc = 0;
         multi_heap_info_t hinfo;
         heap_caps_get_info (&hinfo, MALLOC_CAP_DEFAULT);
         _free  = hinfo.total_free_bytes;
@@ -38,8 +42,15 @@ void idle_status_task (void * _pvParameter) {
 
         int blinks = ceil ((now - LastUserActivityUnixTime) / (AUTO_SHUTDOWN_TIME_SECONDS / 4.0));
         ESP_LOGV (TAG8, "blinks %d", blinks);
+
+        // Count USB detection as a user event
+        if (gpio_get_level (USB_DET_PIN)) {
+            ESP_LOGV (TAG8, "USB power connected");
+            blinks = 1;
+        }
+
         if (blinks > 4) {
-            if (get_battery_percentage (batv) < BATTERY_SHUTOFF_PERCENTAGE) {
+            if (get_battery_percentage() < BATTERY_SHUTOFF_PERCENTAGE) {
                 gpio_set_level (LED_BLUE, LED_ON);
                 gpio_set_level (LED_RED, LED_ON);
                 vTaskDelay (LED_FLASH_MSEC * 15 / portTICK_PERIOD_MS);
