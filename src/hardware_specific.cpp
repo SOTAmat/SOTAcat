@@ -1,8 +1,9 @@
 #include "hardware_specific.h"
+#include <driver/gpio.h>
 #include <driver/uart.h>
 
 #include <esp_log.h>
-static const char * TAG8 = "sc:hw_spec ";
+static const char * TAG8 = "sc:hw_spec.";
 
 SOTAcat_HW_Type HW_TYPE = SOTAcat_HW_Type::unknown;
 int             UART_NUM;
@@ -19,6 +20,7 @@ int             LED_ON;
 int             ADC_BATTERY;
 
 static SOTAcat_HW_Type detect_hardware_type (void) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
     /*
      * Here is where we should do the magic to determine
      * which hardware we are using.
@@ -26,16 +28,36 @@ static SOTAcat_HW_Type detect_hardware_type (void) {
      * and https://sota-na.slack.com/archives/C06N224JD1R/p1722108863599379 (ff.)
      * for possible methods.
      */
-    if (true)  // FIXME: replace with a real detection method
-        return SOTAcat_HW_Type::AB6D_1;
-    else
-        return SOTAcat_HW_Type::K5EM_1;
+
+    // configure GPIO6 as input with a weak pull-down
+    gpio_config_t io_conf;
+    io_conf.intr_type    = GPIO_INTR_DISABLE;     // Disable interrupt
+    io_conf.mode         = GPIO_MODE_INPUT;       // Set as input mode
+    io_conf.pin_bit_mask = (1ULL << GPIO_NUM_6);  // Select GPIO6
+    io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;  // Enable weak pull-down resistor
+    io_conf.pull_up_en   = GPIO_PULLUP_DISABLE;   // Disable pull-up resistor
+    gpio_config (&io_conf);
+
+    // read the GPIO6 level
+    int gpio_level = gpio_get_level (GPIO_NUM_6);
+
+    // de-init GPIO6 (set back to default configuration)
+    gpio_reset_pin (GPIO_NUM_6);
+
+    // determine hardware type based on GPIO level
+    if (gpio_level == 1) {
+        ESP_LOGI (TAG8, "K5EM_1 hardware detected");
+        return SOTAcat_HW_Type::K5EM_1;  // GPIO6 is high, K5EM_1 detected
+    }
+    else {
+        ESP_LOGI (TAG8, "AB6D_1 hardware detected");
+        return SOTAcat_HW_Type::AB6D_1;  // GPIO6 is low, AB6D_1 detected
+    }
 }
 
 void set_hardware_specific (void) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    HW_TYPE = detect_hardware_type();
     LED_OFF = 1;
     LED_ON  = 0;
 
@@ -49,6 +71,8 @@ void set_hardware_specific (void) {
     UART2_RX_PIN = ((gpio_num_t)20);
     LED_BLUE     = ((gpio_num_t)10);
     ADC_BATTERY  = 0;
+
+    HW_TYPE = detect_hardware_type();
     switch (HW_TYPE) {
     case SOTAcat_HW_Type::AB6D_1:
         UART2_TX_PIN = ((gpio_num_t)21);

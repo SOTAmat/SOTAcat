@@ -59,8 +59,6 @@ void start_radio_connection_task (TaskNotifyConfig * config) {
 
 // ====================================================================================================
 void setup () {
-    set_hardware_specific();
-
 // We no longer need to set the log level here, as it is set in the platformio.ini file
 // differently for each build target.  I only leave it here if in the future you want
 // to have the platformio.ini use "Debug" or "Informational" for debug builds, and
@@ -75,6 +73,8 @@ void setup () {
     }
 #endif
     ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    set_hardware_specific();
 
     //  Turn on the board LED to indicate that we are starting up
     gpio_set_direction (LED_BLUE, GPIO_MODE_OUTPUT);
