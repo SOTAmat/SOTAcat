@@ -6,7 +6,7 @@
 static const char * TAG8 = "sc:hw_spec.";
 
 SOTAcat_HW_Type HW_TYPE = SOTAcat_HW_Type::unknown;
-int             UART_NUM;
+uart_port_t     UART_NUM;
 gpio_num_t      UART2_TX_PIN = ((gpio_num_t)-1);
 gpio_num_t      UART2_RX_PIN = ((gpio_num_t)-1);
 gpio_num_t      LED_BLUE     = ((gpio_num_t)-1);

@@ -12,7 +12,7 @@ adc_oneshot_unit_init_cfg_t Global_init_config1 = {
     .ulp_mode = ADC_ULP_MODE_DISABLE,
 };
 adc_oneshot_chan_cfg_t Global_chan_cfg = {
-    .atten    = ADC_ATTEN_DB_11,
+    .atten    = ADC_ATTEN_DB_12,
     .bitwidth = ADC_BITWIDTH_DEFAULT,
 };
 adc_cali_handle_t Global_cali_handle = NULL;

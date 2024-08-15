@@ -2,6 +2,8 @@
 #include "globals.h"
 #include "kx_radio.h"
 
+#include <ctype.h>
+
 #include <esp_log.h>
 static const char * TAG8 = "sc:webserve";
 
@@ -238,7 +240,8 @@ void start_webserver () {
  */
 bool url_decode_in_place (char * str) {
     char * dst = str;
-    int    a, b;
+    int    a   = -1;
+    int    b   = -1;
     while (*str) {
         if ((*str == '%') &&
             ((a = str[1]) && (b = str[2])) &&
