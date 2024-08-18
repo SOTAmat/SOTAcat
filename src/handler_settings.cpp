@@ -4,16 +4,12 @@
 
 #include <esp_err.h>
 #include <esp_mac.h>
-#include <esp_timer.h>
 #include <nvs_flash.h>
 
 #include <memory>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:hdl_setg";
-
-// Define a constant for the reboot delay
-const uint64_t REBOOT_DELAY_US = 1500000;  // 1 second in microseconds
 
 /**
  * Definitions for Wi-Fi SSID and password keys and their corresponding global storage variables.
@@ -273,37 +269,9 @@ esp_err_t handler_settings_post (httpd_req_t * req) {
         // Reboot with the new settings
         ESP_LOGI (TAG8, "rebooting to apply new settings");
 
-        // Use a unique_ptr with a custom deleter for proper resource management
-        auto deleter = [] (esp_timer_handle_t * t) {
-            if (t && *t) {
-                esp_timer_delete (*t);
-                delete t;
-            }
-        };
-        std::unique_ptr<esp_timer_handle_t, decltype (deleter)> timer (new esp_timer_handle_t (nullptr), deleter);
-
-        const esp_timer_create_args_t timer_args = {
-            .callback = [] (void * arg) {
-                esp_restart();
-            },
-            .arg                   = nullptr,
-            .dispatch_method       = ESP_TIMER_TASK,
-            .name                  = "reboot_timer",
-            .skip_unhandled_events = false};
-
-        // Create the timer with error handling
-        esp_err_t timer_create_result = esp_timer_create (&timer_args, timer.get());
-        if (timer_create_result != ESP_OK) {
-            ESP_LOGE (TAG8, "Failed to create timer: %s", esp_err_to_name (timer_create_result));
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to create reboot timer");
-        }
-
-        // Start the timer with error handling
-        esp_err_t timer_start_result = esp_timer_start_once (*timer, REBOOT_DELAY_US);
-        if (timer_start_result != ESP_OK) {
-            ESP_LOGE (TAG8, "Failed to start timer: %s", esp_err_to_name (timer_start_result));
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to start reboot timer");
-        }
+        result = schedule_deferred_reboot (req);
+        if (result != ESP_OK)
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to schedule reboot");
 
         REPLY_WITH_SUCCESS();
     }

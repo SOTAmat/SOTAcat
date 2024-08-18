@@ -2,8 +2,9 @@
 
 #include <esp_http_server.h>
 
-extern void start_webserver ();
-extern bool url_decode_in_place (char * str);
+extern void      start_webserver ();
+extern bool      url_decode_in_place (char * str);
+extern esp_err_t schedule_deferred_reboot (httpd_req_t * req);
 
 extern esp_err_t handler_frequency_get (httpd_req_t *);
 extern esp_err_t handler_frequency_put (httpd_req_t *);

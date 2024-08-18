@@ -3,6 +3,9 @@
 #include "kx_radio.h"
 
 #include <ctype.h>
+#include <memory>
+
+#include <esp_timer.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:webserve";
@@ -273,4 +276,54 @@ bool url_decode_in_place (char * str) {
     *dst = '\0';
 
     return true;
+}
+
+// Define a constant for the reboot delay
+const uint64_t REBOOT_DELAY_US = 1500000;  // 1.5 seconds in microseconds
+
+/**
+ * Schedules a deferred system reboot using a high-resolution timer.
+ *
+ * @param req        Pointer to the HTTP request object (httpd_req_t). This is passed to allow the
+ *                   function to respond with failure in case of an error, but it is not modified
+ *                   within the function.
+ *
+ * @return
+ *   - ESP_OK on successful scheduling of the reboot.
+ *   - ESP_ERR_* code on failure, indicating the specific error that occurred.
+ */
+esp_err_t schedule_deferred_reboot (httpd_req_t * req) {
+    // Use a unique_ptr with a custom deleter for proper resource management
+    auto deleter = [] (esp_timer_handle_t * t) {
+        if (t && *t) {
+            esp_timer_delete (*t);
+            delete t;
+        }
+    };
+    std::unique_ptr<esp_timer_handle_t, decltype (deleter)> timer (new esp_timer_handle_t (nullptr), deleter);
+
+    const esp_timer_create_args_t timer_args = {
+        .callback = [] (void * arg) {
+            esp_restart();
+        },
+        .arg                   = nullptr,
+        .dispatch_method       = ESP_TIMER_TASK,
+        .name                  = "reboot_timer",
+        .skip_unhandled_events = false};
+
+    // Create the timer with error handling
+    esp_err_t timer_create_result = esp_timer_create (&timer_args, timer.get());
+    if (timer_create_result != ESP_OK) {
+        ESP_LOGE (TAG8, "Failed to create timer: %s", esp_err_to_name (timer_create_result));
+        return timer_create_result;
+    }
+
+    // Start the timer with error handling
+    esp_err_t timer_start_result = esp_timer_start_once (*timer, REBOOT_DELAY_US);
+    if (timer_start_result != ESP_OK) {
+        ESP_LOGE (TAG8, "Failed to start timer: %s", esp_err_to_name (timer_start_result));
+        return timer_start_result;
+    }
+
+    return ESP_OK;
 }
