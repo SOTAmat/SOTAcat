@@ -8,6 +8,8 @@ enum class SOTAcat_HW_Type {
     K5EM_1   // the first module with battery monitor and professional casing
 };
 
+extern const char * HW_TYPE_STR;
+
 extern SOTAcat_HW_Type HW_TYPE;
 
 extern uart_port_t UART_NUM;

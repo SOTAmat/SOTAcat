@@ -6,6 +6,7 @@
 static const char * TAG8 = "sc:hw_spec.";
 
 SOTAcat_HW_Type HW_TYPE = SOTAcat_HW_Type::unknown;
+const char *    HW_TYPE_STR  = "unknown";
 uart_port_t     UART_NUM;
 gpio_num_t      UART2_TX_PIN = ((gpio_num_t)-1);
 gpio_num_t      UART2_RX_PIN = ((gpio_num_t)-1);
@@ -75,11 +76,13 @@ void set_hardware_specific (void) {
     HW_TYPE = detect_hardware_type();
     switch (HW_TYPE) {
     case SOTAcat_HW_Type::AB6D_1:
+        HW_TYPE_STR = "AB6D_1";
         UART2_TX_PIN = ((gpio_num_t)21);
         LED_RED_SUPL = ((gpio_num_t)9);
         LED_RED      = ((gpio_num_t)8);
         break;
     case SOTAcat_HW_Type::K5EM_1:
+        HW_TYPE_STR = "K5EM_1";
         UART2_TX_PIN = ((gpio_num_t)4);  // deconflict with the fsbl outputs
         LED_RED      = ((gpio_num_t)9);
         LED_RED_SUPL = ((gpio_num_t)-1);  // remove second control line for red/amber LED
