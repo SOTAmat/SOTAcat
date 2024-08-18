@@ -30,7 +30,7 @@ char              g_sta1_pass[MAX_WIFI_PASS_SIZE];
 static const char s_sta2_ssid_key[] = "sta2_ssid";
 char              g_sta2_ssid[MAX_WIFI_SSID_SIZE];
 static const char s_sta2_pass_key[] = "sta2_pass";
-char              g_sta2_pass[MAX_WIFI_SSID_SIZE];
+char              g_sta2_pass[MAX_WIFI_PASS_SIZE];
 static const char s_ap_ssid_key[] = "ap_ssid";
 char              g_ap_ssid[MAX_WIFI_SSID_SIZE];
 static const char s_ap_pass_key[] = "ap_pass";
