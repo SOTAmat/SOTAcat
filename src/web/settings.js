@@ -60,7 +60,7 @@ function saveSettings() {
     .then(response => response.json())
     .then(data => {
         console.log('Success:', data);
-        alert('Settings saved successfully! Your SOTACAT is rebooting with the new settings...');
+        alert("Settings saved successfully!\nYour SOTAcat is rebooting with the new settings.\nPlease restart your browser.");
     })
     .catch((error) => {
         console.error('Error:', error);
