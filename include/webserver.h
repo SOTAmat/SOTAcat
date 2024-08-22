@@ -77,20 +77,43 @@ extern esp_err_t handler_version_get (httpd_req_t *);
     STANDARD_DECODE_QUERY (req, unsafe_buf);                         \
     STANDARD_DECODE_PARAMETER (unsafe_buf, param_name, param_value);
 
-#define REPLY_WITH_FAILURE(req, code, message)                                    \
-    do {                                                                          \
-        ESP_LOGE (TAG8, "%s", message);                                           \
-        const char * json_error_template = "{\"error\": \"%s\"}";                 \
-        char         json_error[128];                                             \
-        snprintf (json_error, sizeof (json_error), json_error_template, message); \
-        httpd_resp_set_type (req, "application/json");                            \
-        httpd_resp_send_err (req, code, json_error);                              \
-        return ESP_FAIL;                                                          \
+/**
+ * Logs an error message, sends a JSON-formatted error response, and returns `ESP_FAIL`.
+ *
+ * @param req     The HTTP request handler (type: `httpd_req_t *`) used to send the response back to the client.
+ * @param code    The HTTP status code (type: `httpd_err_code_t`) to be sent as part of the response,
+ *                e.g., `HTTPD_500_INTERNAL_SERVER_ERROR`, rather than `500`.
+ * @param message The error message (type: `const char *`) that will be logged and included in the
+ *                JSON response body.
+ *
+ * @note
+ * - Since this macro includes a `return ESP_FAIL;`, it exits the current
+ * function and should be used in functions that return `esp_err_t`.
+ *
+ * - Regrettably, the "application/json payload" type will get overridden as
+ * "text/plain" by the `http_resp_send_err function`. See
+ * https://github.com/espressif/esp-idf/blob/d7ca8b94c852052e3bc33292287ef4dd62c9eeb1/components/esp_http_server/src/httpd_txrx.c#L388
+ *
+ */
+#define REPLY_WITH_FAILURE(req, code, message)                                                         \
+    do {                                                                                               \
+        ESP_LOGE (TAG8, "%s", message);                                                                \
+        const char * json_error_template = "{\"error\": \"%s\"}";                                      \
+        char         json_error[128];                                                                  \
+        snprintf (json_error, sizeof (json_error), json_error_template, message);                      \
+        httpd_resp_set_type (req, "application/json"); /* will get clobbered by httpd_resp_send_err */ \
+        httpd_resp_send_err (req, code, json_error);                                                   \
+        return ESP_FAIL;                                                                               \
     } while (0)
 
-#define REPLY_WITH_SUCCESS()                                \
-    do {                                                    \
-        ESP_LOGD (TAG8, "success");                         \
-        httpd_resp_send (req, "OK", HTTPD_RESP_USE_STRLEN); \
-        return ESP_OK;                                      \
+/**
+ * Logs a success message, sets the HTTP status to "204 No Content", sends an empty response,
+ * and exits the current function with `ESP_OK`.
+ */
+#define REPLY_WITH_SUCCESS()                           \
+    do {                                               \
+        ESP_LOGD (TAG8, "success");                    \
+        httpd_resp_set_status (req, "204 No Content"); \
+        httpd_resp_send (req, NULL, 0);                \
+        return ESP_OK;                                 \
     } while (0)

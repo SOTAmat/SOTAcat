@@ -28,8 +28,8 @@ function tuneRadioHz(frequency, mode)
 
     fetch('/api/v1/frequency?frequency=' + frequency, { method: 'PUT' })
     .then(response => {
-        console.log('Frequency updated successfully');
         if (response.ok) {
+                console.log('Frequency updated successfully');
                 fetch('/api/v1/mode?bw=' + useMode, { method: 'PUT' })
                 .then(response => {
                     if (response.ok)    {   console.log('Mode updated successfully');   }

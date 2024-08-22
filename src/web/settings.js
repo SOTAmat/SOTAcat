@@ -1,19 +1,20 @@
 function syncTime() {
-    // Get the browser's current utc time in whole seconds
+    // Get the browser's current UTC time in whole seconds
     const now = Math.round(Date.now() / 1000);
 
-     // Create the PUT request using Fetch API
+    // Create the PUT request using Fetch API
     fetch('/api/v1/time?time=' + now, { method: 'PUT' })
     .then(response => {
-        if (response.ok) {
-            return response.json();
+        if (response.status === 204) {
+            console.log('Time sync successful');
+            return null;  // No content, sync was successful
+        } else if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Unknown error');
+            });
         }
-        throw new Error('Network response was not ok.');
     })
-    .then(data => {
-        console.log('Time sync successful:', data);
-    })
-    .catch(error => console.error('Fetch error:', error));
+    .catch(error => console.error('Time sync failed:', error.message));
 }
 
 function togglePasswordVisibility(inputId) {
