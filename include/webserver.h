@@ -12,6 +12,7 @@ extern esp_err_t handler_keyer_put (httpd_req_t *);
 extern esp_err_t handler_mode_get (httpd_req_t *);
 extern esp_err_t handler_mode_put (httpd_req_t *);
 extern esp_err_t handler_msg_put (httpd_req_t *);
+extern esp_err_t handler_ota_post (httpd_req_t *);
 extern esp_err_t handler_power_get (httpd_req_t *);
 extern esp_err_t handler_power_put (httpd_req_t *);
 extern esp_err_t handler_prepareft8_post (httpd_req_t *);

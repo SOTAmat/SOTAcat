@@ -111,6 +111,66 @@ function onSubmitSettings(event) {
     saveSettings();
 }
 
+
+function updateButtonText() {
+    const fileInput = document.getElementById('ota-file');
+    const uploadButton = document.getElementById('upload-button');
+
+    if (fileInput.files.length > 0) {
+        const fileName = fileInput.files[0].name;
+        uploadButton.textContent = `Upload ${fileName}`;
+        uploadButton.disabled = false; // Enable the button once a file is selected
+    } else {
+        uploadButton.textContent = 'Upload Firmware';
+        uploadButton.disabled = true; // Keep the button disabled if no file is selected
+    }
+}
+
+function uploadFirmware() {
+    const otaFileInput = document.getElementById('ota-file');
+    const otaStatus = document.getElementById('ota-status');
+    const file = otaFileInput.files[0];
+
+    if (!file) {
+        alert('Please select a firmware file to upload.');
+        return;
+    }
+
+    const blob = new Blob([file], { type: 'application/octet-stream' });
+
+    fetch('/api/v1/ota', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/octet-stream' },
+        body: blob
+    })
+    .then(response => {
+        if (response.ok) {
+            // Successful OTA upload, no content returned
+            otaStatus.innerHTML = 'Firmware upload successful. SOTAcat will now reboot.';
+            alert("Firmware upload successful.\nYour SOTAcat is rebooting with the new firmware.\nPlease restart your browser.");
+            return null;  // No further processing needed
+        }
+        else {
+            // Error occurred, expecting a JSON error message in a "text/plain" content type
+            return response.text().then(text => {
+                let errorData;
+                try {
+                    errorData = JSON.parse(text);
+                }
+                catch (e) {
+                    throw new Error('Failed to parse error response from server');
+                }
+                throw new Error(errorData.error || 'Unknown error occurred');
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Firmware upload error:', error);
+        otaStatus.innerHTML = `Firmware upload failed: ${error.message}`;
+        alert(`Firmware upload failed: ${message.error}`);
+    });
+}
+
 gSubmitSettingsAttached = false;
 
 function attachSubmitSettings() {

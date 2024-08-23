@@ -379,6 +379,76 @@ hr {
     align-items: center;
 }
 
+/* Firmware Update Specific Styles */
+.firmware-update-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.firmware-client {
+    background-color: #f0f0f0;
+    padding: var(--spacing-medium);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-medium);
+}
+
+.firmware-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 3.5px;
+}
+
+.firmware-label, .firmware-client input[type="file"] {
+    margin-right: var(--spacing-medium);
+    width: calc(50% - var(--spacing-medium));
+    font-size: 16px;
+    padding: 8px;
+}
+
+.file-label {
+    display: inline-block;
+    padding: var(--spacing-medium) var(--spacing-large);
+    background-color: var(--bg-button);
+    color: var(--text-button);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    text-align: center;
+    transition: background-color var(--transition-speed) ease;
+    white-space: nowrap;  /* Prevents text wrapping */
+    width: auto;  /* Automatically adjust width based on content */
+    max-width: 100%; /* Ensures it does not exceed container size */
+    min-width: 250px; /* Adjust this value as needed */
+    width: auto;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    overflow: hidden; /* Prevents any overflow issues */
+    vertical-align: middle; /* Aligns label with other elements */
+}
+
+/* Styling the upload button consistently with others */
+.upload-button {
+    font-size: 16px;
+    padding: var(--spacing-medium) var(--spacing-large);
+    margin: var(--spacing-small);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-button);
+    color: var(--text-button);
+    border: none;
+    cursor: pointer;
+    transition: background-color var(--transition-speed) ease;
+}
+
+.upload-button:active {
+    background-color: var(--bg-button-active);
+}
+
+.upload-button:disabled {
+    background-color: #cccccc; /* Grey background */
+    color: #666666; /* Grey text */
+    cursor: not-allowed; /* Changes the cursor to indicate the button is not clickable */
+}
+
 /* =========================== About Page */
 .aboutParagraph {
     padding: 1.5em;

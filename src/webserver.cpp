@@ -102,6 +102,7 @@ static const api_handler_t api_handlers[] = {
     {HTTP_POST, "ft8",              handler_ft8_post,             true },
     {HTTP_POST, "cancelft8",        handler_cancelft8_post,       true },
     {HTTP_POST, "settings",         handler_settings_post,        false},
+    {HTTP_POST, "ota",              handler_ota_post,             false},
     {0,         NULL,               NULL,                         false}  // Sentinel to mark end of array
 };
 

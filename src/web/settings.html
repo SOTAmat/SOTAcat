@@ -147,6 +147,24 @@
     <input type="submit" class="save-button" value="Save and Reboot" />
   </form>
   <hr />
+<h2>Firmware Update</h2>
+<form id="ota-update-form" enctype="multipart/form-data" class="firmware-update-form">
+  <div class="firmware-client">
+    <div class="firmware-row">
+      <div class="firmware-label">
+        <label for="ota-file" class="file-label">Select firmware (.bin) file</label>
+      </div>
+      <input type="file" id="ota-file" name="ota-file" accept=".bin" required onchange="updateButtonText()" style="display: none;" />
+    </div>
+    <div class="firmware-row">
+      <button type="button" id="upload-button" class="upload-button" onclick="uploadFirmware()" disabled>Upload Firmware</button>
+    </div>
+  </div>
+</form>
+<div id="ota-status"></div>
+<hr />
+  <hr />
+
   <!--
     <form
       action="/api/v1/factoryReset"
