@@ -31,15 +31,15 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
         case WIFI_EVENT_STA_START:
-            ESP_LOGI (TAG8, "WIFI_EVENT_STA_START");
+            ESP_LOGI (TAG8, "received event WIFI_EVENT_STA_START, connecting");
             esp_wifi_connect();
             break;
         case WIFI_EVENT_STA_CONNECTED:
-            ESP_LOGI (TAG8, "WIFI_EVENT_STA_CONNECTED");
+            ESP_LOGI (TAG8, "received event WIFI_EVENT_STA_CONNECTED, recording connected");
             s_sta_connected = true;
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
-            ESP_LOGI (TAG8, "WIFI_EVENT_STA_DISCONNECTED");
+            ESP_LOGI (TAG8, "received event WIFI_EVENT_STA_DISCONNECTED");
             s_sta_connected = false;
             if (!s_ap_client_connected) {
                 esp_wifi_connect();  // Attempt to reconnect immediately
@@ -47,7 +47,7 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             break;
         case WIFI_EVENT_AP_STACONNECTED: {
             wifi_event_ap_staconnected_t * event = (wifi_event_ap_staconnected_t *)event_data;
-            ESP_LOGI (TAG8, "Station " MACSTR " joined, AID=%d", MAC2STR (event->mac), event->aid);
+            ESP_LOGI (TAG8, "station " MACSTR " connected, aid=%d", MAC2STR (event->mac), event->aid);
             s_ap_client_connected = true;
 
             // Reapply AP settings to ensure correct gateway configuration
@@ -63,7 +63,7 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
         }
         case WIFI_EVENT_AP_STADISCONNECTED: {
             wifi_event_ap_stadisconnected_t * event = (wifi_event_ap_stadisconnected_t *)event_data;
-            ESP_LOGI (TAG8, "Station " MACSTR " left, AID=%d", MAC2STR (event->mac), event->aid);
+            ESP_LOGI (TAG8, "station " MACSTR " disconnected, aid=%d", MAC2STR (event->mac), event->aid);
             s_ap_client_connected = false;
             break;
         }
@@ -72,7 +72,7 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
     else if (event_base == IP_EVENT) {
         if (event_id == IP_EVENT_STA_GOT_IP) {
             ip_event_got_ip_t * event = (ip_event_got_ip_t *)event_data;
-            ESP_LOGI (TAG8, "Got IP:" IPSTR, IP2STR (&event->ip_info.ip));
+            ESP_LOGI (TAG8, "got ip:" IPSTR, IP2STR (&event->ip_info.ip));
             wifi_connected = true;
         }
     }
@@ -119,12 +119,12 @@ static void wifi_init_softap () {
     ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
     ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
 
-    ESP_LOGI (TAG8, "Soft AP setup complete. SSID:%s password:%s", g_ap_ssid, g_ap_pass);
+    ESP_LOGI (TAG8, "soft ap setup complete. ssid: %s", g_ap_ssid);
     s_ap_active = true;
 }
 
 static void wifi_init_sta (const char * ssid, const char * password) {
-    ESP_LOGI (TAG8, "Attempting SSID:%s password:%s", ssid, password);
+    ESP_LOGI (TAG8, "attempting ssid: %s", ssid);
     wifi_config_t wifi_config = {
         .sta = {
                 .ssid            = {0},
@@ -165,7 +165,7 @@ static void wifi_init_sta (const char * ssid, const char * password) {
     strlcpy ((char *)wifi_config.sta.password, password, sizeof (wifi_config.sta.password));
     ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_STA, &wifi_config));
 
-    ESP_LOGI (TAG8, "Connecting to AP SSID:%s password:%s", ssid, password);
+    ESP_LOGI (TAG8, "connecting to ap ssid: %s", ssid);
     esp_wifi_connect();
 }
 
@@ -193,14 +193,14 @@ static void wifi_attenuate_power () {
     // Not required, but we read the starting power just for informative purposes
     int8_t curr_wifi_power = 0;
     ESP_ERROR_CHECK (esp_wifi_get_max_tx_power (&curr_wifi_power));
-    ESP_LOGI (TAG8, "Default max TX power: %d", curr_wifi_power);
+    ESP_LOGI (TAG8, "default max tx power: %d", curr_wifi_power);
 
     const int8_t MAX_TX_PWR = 44;  // level 5 - 2dBm = 11dBm
-    ESP_LOGI (TAG8, "Setting WiFi max power to %d", MAX_TX_PWR);
+    ESP_LOGI (TAG8, "setting wifi max power to %d", MAX_TX_PWR);
     ESP_ERROR_CHECK (esp_wifi_set_max_tx_power (MAX_TX_PWR));
 
     ESP_ERROR_CHECK (esp_wifi_get_max_tx_power (&curr_wifi_power));
-    ESP_LOGI (TAG8, "Confirmed new max TX power: %d", curr_wifi_power);
+    ESP_LOGI (TAG8, "confirmed new max tx power: %d", curr_wifi_power);
 }
 
 // Function to initialize WiFi
@@ -220,7 +220,7 @@ void wifi_init () {
     ESP_ERROR_CHECK (esp_wifi_init (&cfg));
 
     // Set storage to RAM before any other WiFi calls
-    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    ESP_ERROR_CHECK (esp_wifi_set_storage (WIFI_STORAGE_RAM));
 
     ESP_ERROR_CHECK (esp_event_handler_register (WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
     ESP_ERROR_CHECK (esp_event_handler_register (IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
@@ -228,24 +228,24 @@ void wifi_init () {
     ESP_ERROR_CHECK (esp_wifi_set_mode (WIFI_MODE_APSTA));
 
     // Clear any existing WiFi configuration
-    wifi_config_t wifi_config = {};
-    wifi_config.sta.ssid[0] = '\0';
+    wifi_config_t wifi_config   = {};
+    wifi_config.sta.ssid[0]     = '\0';
     wifi_config.sta.password[0] = '\0';
-    wifi_config.sta.bssid_set = false;
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    
+    wifi_config.sta.bssid_set   = false;
+    ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_STA, &wifi_config));
+
     // Clear AP configuration as well
-    wifi_config_t ap_config = {};
-    ap_config.ap.ssid[0] = '\0';
-    ap_config.ap.password[0] = '\0';
-    ap_config.ap.ssid_len = 0;
-    ap_config.ap.channel = 1;
-    ap_config.ap.authmode = WIFI_AUTH_OPEN;
-    ap_config.ap.ssid_hidden = 0;
-    ap_config.ap.max_connection = 4;
+    wifi_config_t ap_config      = {};
+    ap_config.ap.ssid[0]         = '\0';
+    ap_config.ap.password[0]     = '\0';
+    ap_config.ap.ssid_len        = 0;
+    ap_config.ap.channel         = 1;
+    ap_config.ap.authmode        = WIFI_AUTH_OPEN;
+    ap_config.ap.ssid_hidden     = 0;
+    ap_config.ap.max_connection  = 4;
     ap_config.ap.beacon_interval = 100;
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
-        
+    ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_AP, &ap_config));
+
     wifi_init_softap();
 
     // Disconnect if we're connected to any AP
@@ -255,19 +255,18 @@ void wifi_init () {
 
     wifi_attenuate_power();
 
-    ESP_LOGI (TAG8, "WiFi initialization complete");
+    ESP_LOGI (TAG8, "wifi initialization complete");
 }
 
 void start_mdns_service () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    ESP_LOGI (TAG8, "Starting mDNS service");
+    ESP_LOGI (TAG8, "starting mdns service");
     esp_err_t err = mdns_init();
     if (err) {
-        ESP_LOGE (TAG8, "mDNS Init failed: %d", err);
+        ESP_LOGE (TAG8, "mdns init failed: %d", err);
         return;
     }
-
 
     // Set the hostname
     ESP_ERROR_CHECK (mdns_hostname_set ("sotacat"));
@@ -278,7 +277,7 @@ void start_mdns_service () {
     // You can also add services to announce
     mdns_service_add (NULL, "_http", "_tcp", 80, NULL, 0);
 
-    ESP_LOGI (TAG8, "mDNS service started");
+    ESP_LOGI (TAG8, "mdns service started");
 }
 
 void wifi_task (void * pvParameters) {
