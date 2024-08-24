@@ -59,12 +59,12 @@ void start_radio_connection_task (TaskNotifyConfig * config) {
 
 // ====================================================================================================
 void setup () {
-// We no longer need to set the log level here, as it is set in the platformio.ini file
-// differently for each build target.  I only leave it here if in the future you want
-// to have the platformio.ini use "Debug" or "Informational" for debug builds, and
-// "Informational" or "Warning" for release builds.  In that case for deep debug you can set
-// "ESP_LOG_VERBOSE" here.
-//    esp_log_level_set("*", ESP_LOG_VERBOSE);
+    // We no longer need to set the log level here, as it is set in the platformio.ini file
+    // differently for each build target.  I only leave it here if in the future you want
+    // to have the platformio.ini use "Debug" or "Informational" for debug builds, and
+    // "Informational" or "Warning" for release builds.  In that case for deep debug you can set
+    // "ESP_LOG_VERBOSE" here.
+    esp_log_level_set ("*", ESP_LOG_VERBOSE);
 #if 0
     for (int i = 0; i < 5; i++)
     {
@@ -124,9 +124,10 @@ void setup () {
     gpio_set_level (LED_RED, LED_OFF);
     ESP_LOGI (TAG8, "wifi initialized.");
 
-    // After connecting to WiFi, start mDNS service
-    start_mdns_service();
-    ESP_LOGI (TAG8, "mdns initialized.");
+    // mDNS is now started in the WiFi task
+    // // After connecting to WiFi, start mDNS service
+    // start_mdns_service();
+    // ESP_LOGI (TAG8, "mdns initialized.");
 
     // Start the web server
     start_webserver();

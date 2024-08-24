@@ -73,7 +73,7 @@ float get_analog_battery_percentage (float voltage) {
 #define I2C_MASTER_NUM       (I2C_NUM_0)
 #define I2C_MASTER_FREQ_HZ   (400000)
 #define SMBUS_TIMEOUT_MS     (1000)  // Timeout after this time if no ack received
-#define BATTERY_POLL_TIME_MS (1000)  // Approximate rate at which to poll the battery info
+#define BATTERY_POLL_TIME_MS (5000)  // Approximate rate at which to poll the battery info
 
 static bool                    max17260_detected = false;
 static float                   vbat_analog       = 0;

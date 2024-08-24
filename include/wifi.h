@@ -23,7 +23,7 @@ void wifi_init (void);
  * allowing the device to be discoverable on the local network with a name
  * in the form of <hostname>.local.
  */
-void start_mdns_service (void);
+bool start_mdns_service (void);
 
 /**
  * @brief Start the WiFi task.

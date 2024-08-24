@@ -15,24 +15,27 @@
 #include <mdns.h>
 
 #include <esp_log.h>
+
+#define MAX_RETRY_WIFI_STATION_CONNECT 3
+
 static const char * TAG8 = "sc:wifi....";
 
 static bool          wifi_connected        = false;
 static bool          s_sta_connected       = false;
-static bool          s_ap_active           = false;
 static bool          s_ap_client_connected = false;
+static bool          s_wifi_sta_started    = false;
 static esp_netif_t * sta_netif;
 static esp_netif_t * ap_netif;
 
 // Function to handle WiFi events
 static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t event_id, void * event_data) {
-    ESP_LOGV (TAG8, "trace: %s(event_base = '%s', event_id = %ld)", __func__, event_base, event_id);
+    ESP_LOGV (TAG8, "trace: %s(event_base = \'%s\', event_id = %ld)", __func__, event_base, event_id);
 
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
         case WIFI_EVENT_STA_START:
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_START");
-            esp_wifi_connect();
+            s_wifi_sta_started = true;
             break;
         case WIFI_EVENT_STA_CONNECTED:
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_CONNECTED");
@@ -40,15 +43,15 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_DISCONNECTED");
-            s_sta_connected = false;
-            if (!s_ap_client_connected) {
-                esp_wifi_connect();  // Attempt to reconnect immediately
-            }
+            s_sta_connected    = false;
+            s_wifi_sta_started = false;
             break;
+
         case WIFI_EVENT_AP_STACONNECTED: {
             wifi_event_ap_staconnected_t * event = (wifi_event_ap_staconnected_t *)event_data;
             ESP_LOGI (TAG8, "Station " MACSTR " joined, AID=%d", MAC2STR (event->mac), event->aid);
             s_ap_client_connected = true;
+            wifi_connected        = true;
 
             // Reapply AP settings to ensure correct gateway configuration
             esp_netif_ip_info_t ip_info;
@@ -58,22 +61,41 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             ESP_ERROR_CHECK (esp_netif_dhcps_stop (ap_netif));
             ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
             ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
-
             break;
         }
+
         case WIFI_EVENT_AP_STADISCONNECTED: {
             wifi_event_ap_stadisconnected_t * event = (wifi_event_ap_stadisconnected_t *)event_data;
             ESP_LOGI (TAG8, "Station " MACSTR " left, AID=%d", MAC2STR (event->mac), event->aid);
-            s_ap_client_connected = false;
+
+            // Check if this was the last client
+            wifi_sta_list_t sta_list;
+            esp_wifi_ap_get_sta_list (&sta_list);
+            if (sta_list.num == 0) {
+                s_ap_client_connected = false;
+                wifi_connected        = s_sta_connected;
+            }
+
             break;
         }
+        default:
+            break;
         }
     }
     else if (event_base == IP_EVENT) {
-        if (event_id == IP_EVENT_STA_GOT_IP) {
+        switch (event_id) {
+        case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t * event = (ip_event_got_ip_t *)event_data;
-            ESP_LOGI (TAG8, "Got IP:" IPSTR, IP2STR (&event->ip_info.ip));
+            ESP_LOGI (TAG8, "Got IP: " IPSTR, IP2STR (&event->ip_info.ip));
             wifi_connected = true;
+            break;
+        }
+        case IP_EVENT_STA_LOST_IP:
+            ESP_LOGI (TAG8, "Lost IP address.");
+            wifi_connected = false;
+            break;
+        default:
+            break;
         }
     }
 }
@@ -88,9 +110,9 @@ static void wifi_init_softap () {
                .password        = {0},
                .ssid_len        = 0,
                .channel         = 1,
-               .authmode        = WIFI_AUTH_WPA_WPA2_PSK,
+               .authmode        = WIFI_AUTH_WPA2_PSK,
                .ssid_hidden     = 0,
-               .max_connection  = 4,
+               .max_connection  = 8,
                .beacon_interval = 100,
                .pairwise_cipher = WIFI_CIPHER_TYPE_TKIP_CCMP,
                .ftm_responder   = false,
@@ -119,12 +141,12 @@ static void wifi_init_softap () {
     ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
     ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
 
-    ESP_LOGI (TAG8, "Soft AP setup complete. SSID:%s password:%s", g_ap_ssid, g_ap_pass);
-    s_ap_active = true;
+    ESP_LOGI (TAG8, "Soft AP setup complete. SSID:%s", g_ap_ssid);
+    s_ap_client_connected = true;
 }
 
 static void wifi_init_sta (const char * ssid, const char * password) {
-    ESP_LOGI (TAG8, "Attempting SSID:%s password:%s", ssid, password);
+    ESP_LOGI (TAG8, "Attempting SSID:%s", ssid);
     wifi_config_t wifi_config = {
         .sta = {
                 .ssid            = {0},
@@ -165,8 +187,11 @@ static void wifi_init_sta (const char * ssid, const char * password) {
     strlcpy ((char *)wifi_config.sta.password, password, sizeof (wifi_config.sta.password));
     ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_STA, &wifi_config));
 
-    ESP_LOGI (TAG8, "Connecting to AP SSID:%s password:%s", ssid, password);
-    esp_wifi_connect();
+    // Signal that a new configuration has been set
+    s_wifi_sta_started = true;
+
+    ESP_LOGI (TAG8, "Station configuration set to access AP SSID:%s", ssid);
+    // esp_wifi_connect(); <-- we no longer do it here, we do it in the main wifi_task loop
 }
 
 // Function to reduce WiFi transmit power
@@ -210,64 +235,83 @@ void wifi_init () {
     s_sta_connected       = false;
     s_ap_client_connected = false;
 
+    ESP_LOGV (TAG8, "trace: %s()-A", __func__);
+
     ESP_ERROR_CHECK (esp_netif_init());
+    ESP_LOGV (TAG8, "trace: %s()-B", __func__);
     ESP_ERROR_CHECK (esp_event_loop_create_default());
 
+    ESP_LOGV (TAG8, "trace: %s()-C", __func__);
+
     sta_netif = esp_netif_create_default_wifi_sta();
-    ap_netif  = esp_netif_create_default_wifi_ap();
+    ESP_LOGV (TAG8, "trace: %s()-D", __func__);
+    ap_netif = esp_netif_create_default_wifi_ap();
+    ESP_LOGV (TAG8, "trace: %s()-E", __func__);
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_LOGV (TAG8, "trace: %s()-F", __func__);
+
     ESP_ERROR_CHECK (esp_wifi_init (&cfg));
+    ESP_LOGV (TAG8, "trace: %s()-G", __func__);
 
     // Set storage to RAM before any other WiFi calls
-    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    ESP_ERROR_CHECK (esp_wifi_set_storage (WIFI_STORAGE_RAM));
+    ESP_LOGV (TAG8, "trace: %s()-H", __func__);
 
     ESP_ERROR_CHECK (esp_event_handler_register (WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
+    ESP_LOGV (TAG8, "trace: %s()-I", __func__);
     ESP_ERROR_CHECK (esp_event_handler_register (IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
+    ESP_LOGV (TAG8, "trace: %s()-J", __func__);
 
     ESP_ERROR_CHECK (esp_wifi_set_mode (WIFI_MODE_APSTA));
+    ESP_LOGV (TAG8, "trace: %s()-K", __func__);
 
     // Clear any existing WiFi configuration
-    wifi_config_t wifi_config = {};
-    wifi_config.sta.ssid[0] = '\0';
+    wifi_config_t wifi_config   = {};
+    wifi_config.sta.ssid[0]     = '\0';
     wifi_config.sta.password[0] = '\0';
-    wifi_config.sta.bssid_set = false;
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    
+    wifi_config.sta.bssid_set   = false;
+    ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_STA, &wifi_config));
+    ESP_LOGV (TAG8, "trace: %s()-L", __func__);
+
     // Clear AP configuration as well
-    wifi_config_t ap_config = {};
-    ap_config.ap.ssid[0] = '\0';
-    ap_config.ap.password[0] = '\0';
-    ap_config.ap.ssid_len = 0;
-    ap_config.ap.channel = 1;
-    ap_config.ap.authmode = WIFI_AUTH_OPEN;
-    ap_config.ap.ssid_hidden = 0;
-    ap_config.ap.max_connection = 4;
+    wifi_config_t ap_config      = {};
+    ap_config.ap.ssid[0]         = '\0';
+    ap_config.ap.password[0]     = '\0';
+    ap_config.ap.ssid_len        = 0;
+    ap_config.ap.channel         = 1;
+    ap_config.ap.authmode        = WIFI_AUTH_OPEN;
+    ap_config.ap.ssid_hidden     = 0;
+    ap_config.ap.max_connection  = 4;
     ap_config.ap.beacon_interval = 100;
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
-        
+
+    ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_AP, &ap_config));
+    ESP_LOGV (TAG8, "trace: %s()-M", __func__);
+
     wifi_init_softap();
+    ESP_LOGV (TAG8, "trace: %s()-N", __func__);
 
     // Disconnect if we're connected to any AP
     esp_wifi_disconnect();
+    ESP_LOGV (TAG8, "trace: %s()-O", __func__);
 
     ESP_ERROR_CHECK (esp_wifi_start());
+    ESP_LOGV (TAG8, "trace: %s()-P", __func__);
 
     wifi_attenuate_power();
 
     ESP_LOGI (TAG8, "WiFi initialization complete");
 }
 
-void start_mdns_service () {
+bool start_mdns_service () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     ESP_LOGI (TAG8, "Starting mDNS service");
     esp_err_t err = mdns_init();
     if (err) {
         ESP_LOGE (TAG8, "mDNS Init failed: %d", err);
-        return;
+        return false;
     }
-
 
     // Set the hostname
     ESP_ERROR_CHECK (mdns_hostname_set ("sotacat"));
@@ -279,45 +323,133 @@ void start_mdns_service () {
     mdns_service_add (NULL, "_http", "_tcp", 80, NULL, 0);
 
     ESP_LOGI (TAG8, "mDNS service started");
+    return true;
 }
 
 void wifi_task (void * pvParameters) {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-
     TaskNotifyConfig * config = (TaskNotifyConfig *)pvParameters;
+
     wifi_init();
 
-    const int  STA_CONNECT_TIMEOUT = (6 * 1000);  // 6 seconds timeout
-    int        current_ssid        = 1;
-    TickType_t last_attempt_time   = xTaskGetTickCount();
+    const int  CONNECT_ATTEMPT_TIME_MS = 10000;  // 10 seconds timeout
+    int        current_ssid            = 1;
+    TickType_t attempt_start_time      = 0;
+    bool       mdns_started            = false;
+    bool       previously_connected    = false;
+    bool       sta_mode_aborted        = false;
 
-    while (!s_sta_connected && !s_ap_client_connected) {
-        if ((xTaskGetTickCount() - last_attempt_time) * portTICK_PERIOD_MS >= STA_CONNECT_TIMEOUT) {
-            if (current_ssid == 1) {
-                wifi_init_sta (g_sta1_ssid, g_sta1_pass);
-                current_ssid = 2;
-            }
-            else {
-                wifi_init_sta (g_sta2_ssid, g_sta2_pass);
-                current_ssid = 1;
-            }
-            last_attempt_time = xTaskGetTickCount();
-        }
-        vTaskDelay (pdMS_TO_TICKS (100));
-    }
+    enum WifiState {
+        NO_CONNECTION,
+        CONNECTING,
+        CONNECTED
+    } wifi_state = NO_CONNECTION;
 
-    start_mdns_service();
-
-    xTaskNotify (config->setup_task_handle, config->notification_bit, eSetBits);
-
-    // Monitor connection status
     while (true) {
-        if (!s_sta_connected && !s_ap_client_connected) {
-            // If connection is lost, start cycling again
-            current_ssid      = 1;
-            last_attempt_time = xTaskGetTickCount() - STA_CONNECT_TIMEOUT;  // Force immediate attempt
+        TickType_t current_time = xTaskGetTickCount();
+
+        switch (wifi_state) {
+        case NO_CONNECTION:
+            if (wifi_connected) {
+                wifi_state = CONNECTED;
+                break;
+            }
+
+            if (mdns_started) {
+                mdns_free();
+                mdns_started = false;
+                ESP_LOGI (TAG8, "mDNS stopped due to lost connection");
+            }
+
+            if (!s_wifi_sta_started || (current_time - attempt_start_time) * portTICK_PERIOD_MS >= CONNECT_ATTEMPT_TIME_MS) {
+                esp_wifi_disconnect();
+
+                const char * ssid     = NULL;
+                const char * password = NULL;
+
+                if (strlen (g_sta1_ssid) == 0 && strlen (g_sta2_ssid) == 0) {
+                    if (!sta_mode_aborted) {
+                        ESP_LOGE (TAG8, "Both SSIDs are empty. Aborting station mode connection attempts.");
+                        sta_mode_aborted = true;
+                    }
+                }
+                else {
+                    if (current_ssid == 1 && strlen (g_sta1_ssid) > 0) {
+                        ssid         = g_sta1_ssid;
+                        password     = g_sta1_pass;
+                        current_ssid = 2;
+                    }
+                    else if (strlen (g_sta2_ssid) > 0) {
+                        ssid         = g_sta2_ssid;
+                        password     = g_sta2_pass;
+                        current_ssid = 1;
+                    }
+                    else {
+                        current_ssid = (current_ssid == 1) ? 2 : 1;
+                    }
+                }
+
+                if (ssid != NULL) {
+                    wifi_init_sta (ssid, password);
+                    ESP_LOGI (TAG8, "Attempting connection to SSID: %s", ssid);
+                    esp_wifi_connect();
+                    attempt_start_time = current_time;
+                    wifi_state         = CONNECTING;
+                }
+                else {
+                    vTaskDelay (pdMS_TO_TICKS (CONNECT_ATTEMPT_TIME_MS));
+                }
+            }
+            break;
+
+        case CONNECTING:
+            if (wifi_connected) {
+                wifi_state = CONNECTED;
+                ESP_LOGI (TAG8, "Connection established");
+            }
+            else if (!s_wifi_sta_started || (current_time - attempt_start_time) * portTICK_PERIOD_MS >= CONNECT_ATTEMPT_TIME_MS) {
+                wifi_state = NO_CONNECTION;
+                ESP_LOGI (TAG8, "Connection attempt failed or timed out. Will try next SSID.");
+            }
+            break;
+
+        case CONNECTED:
+            if (!wifi_connected) {
+                wifi_state = NO_CONNECTION;
+                ESP_LOGI (TAG8, "All connections lost");
+                break;
+            }
+
+            if (!mdns_started) {
+                if (start_mdns_service() == true) {
+                    mdns_started = true;
+                    ESP_LOGI (TAG8, "mDNS service started");
+                }
+                else {
+                    ESP_LOGE (TAG8, "Failed to start mDNS service.");
+                }
+            }
+
+            if (!previously_connected) {
+                xTaskNotify (config->setup_task_handle, config->notification_bit, eSetBits);
+                previously_connected = true;
+                ESP_LOGI (TAG8, "Initial connection established, setup task notified");
+            }
+
+            // If connected as AP, ensure proper DHCP and gateway settings
+            if (s_ap_client_connected) {
+                esp_netif_ip_info_t ip_info;
+                IP4_ADDR (&ip_info.ip, 192, 168, 4, 1);
+                IP4_ADDR (&ip_info.gw, 0, 0, 0, 0);  // Set gateway to 0.0.0.0 to indicate no internet route
+                IP4_ADDR (&ip_info.netmask, 255, 255, 255, 0);
+                ESP_ERROR_CHECK (esp_netif_dhcps_stop (ap_netif));
+                ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
+                ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
+                ESP_LOGI (TAG8, "AP mode: DHCP server reconfigured with non-routable gateway");
+            }
+            break;
         }
-        vTaskDelay (pdMS_TO_TICKS (1000));
+
+        vTaskDelay (pdMS_TO_TICKS (333));
     }
 }
 
