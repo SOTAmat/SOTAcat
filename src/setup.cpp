@@ -64,7 +64,7 @@ void setup () {
     // to have the platformio.ini use "Debug" or "Informational" for debug builds, and
     // "Informational" or "Warning" for release builds.  In that case for deep debug you can set
     // "ESP_LOG_VERBOSE" here.
-    esp_log_level_set ("*", ESP_LOG_VERBOSE);
+    // esp_log_level_set ("*", ESP_LOG_VERBOSE);
 #if 0
     for (int i = 0; i < 5; i++)
     {

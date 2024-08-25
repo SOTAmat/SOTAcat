@@ -24,6 +24,7 @@ static bool          wifi_connected        = false;
 static bool          s_sta_connected       = false;
 static bool          s_ap_client_connected = false;
 static bool          s_wifi_sta_started    = false;
+static bool          s_dhcp_configured     = false;
 static esp_netif_t * sta_netif;
 static esp_netif_t * ap_netif;
 
@@ -43,9 +44,21 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_DISCONNECTED");
-            s_sta_connected    = false;
-            s_wifi_sta_started = false;
+            s_sta_connected = false;
+
+            static int retry_count = 0;
+            if (retry_count < MAX_RETRY_WIFI_STATION_CONNECT) {
+                ESP_LOGI (TAG8, "Retrying connection to SSID...");
+                esp_wifi_connect();
+                retry_count++;
+            }
+            else {
+                ESP_LOGI (TAG8, "Maximum retry attempts reached. Switching SSID or resetting state.");
+                retry_count = 0;
+                // Optionally switch SSID or reset state to trigger alternate logic
+            }
             break;
+
 
         case WIFI_EVENT_AP_STACONNECTED: {
             wifi_event_ap_staconnected_t * event = (wifi_event_ap_staconnected_t *)event_data;
@@ -53,16 +66,23 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             s_ap_client_connected = true;
             wifi_connected        = true;
 
-            // Reapply AP settings to ensure correct gateway configuration
-            esp_netif_ip_info_t ip_info;
-            IP4_ADDR (&ip_info.ip, 192, 168, 4, 1);
-            IP4_ADDR (&ip_info.gw, 0, 0, 0, 0);
-            IP4_ADDR (&ip_info.netmask, 255, 255, 255, 0);
-            ESP_ERROR_CHECK (esp_netif_dhcps_stop (ap_netif));
-            ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
-            ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
+            // Check current settings before reapplying AP settings
+            esp_netif_ip_info_t current_ip_info;
+            esp_netif_get_ip_info (ap_netif, &current_ip_info);
+
+            esp_netif_ip_info_t desired_ip_info;
+            IP4_ADDR (&desired_ip_info.ip, 192, 168, 4, 1);
+            IP4_ADDR (&desired_ip_info.gw, 0, 0, 0, 0);  // Non-routable gateway
+            IP4_ADDR (&desired_ip_info.netmask, 255, 255, 255, 0);
+            s_dhcp_configured = true;
+
+            if (memcmp (&current_ip_info, &desired_ip_info, sizeof (esp_netif_ip_info_t)) != 0) {
+                // Only reapply if the configuration has changed
+                esp_netif_set_ip_info (ap_netif, &desired_ip_info);
+            }
             break;
         }
+
 
         case WIFI_EVENT_AP_STADISCONNECTED: {
             wifi_event_ap_stadisconnected_t * event = (wifi_event_ap_stadisconnected_t *)event_data;
@@ -74,8 +94,8 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             if (sta_list.num == 0) {
                 s_ap_client_connected = false;
                 wifi_connected        = s_sta_connected;
+                s_dhcp_configured     = false;
             }
-
             break;
         }
         default:
@@ -104,24 +124,24 @@ static void wifi_init_softap () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     ESP_LOGI (TAG8, "Setting up soft AP");
-    wifi_config_t wifi_config = {
-        .ap = {
-               .ssid            = {0},
-               .password        = {0},
-               .ssid_len        = 0,
-               .channel         = 1,
-               .authmode        = WIFI_AUTH_WPA2_PSK,
-               .ssid_hidden     = 0,
-               .max_connection  = 8,
-               .beacon_interval = 100,
-               .pairwise_cipher = WIFI_CIPHER_TYPE_TKIP_CCMP,
-               .ftm_responder   = false,
-               .pmf_cfg         = {
-                        .capable  = true,
-                        .required = false},
-               .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
-               },
+    wifi_config_t    wifi_config = {};
+    wifi_ap_config_t ap_config   = {
+          .ssid            = "",
+          .password        = "",
+          .ssid_len        = 0,
+          .channel         = 1,
+          .authmode        = WIFI_AUTH_WPA2_PSK,
+          .ssid_hidden     = 0,
+          .max_connection  = 8,
+          .beacon_interval = 100,
+          .pairwise_cipher = WIFI_CIPHER_TYPE_CCMP,
+          .ftm_responder   = false,
+          .pmf_cfg         = {
+                              .capable  = true,
+                              .required = false},
+          .sae_pwe_h2e = WPA3_SAE_PWE_BOTH
     };
+    memcpy (&wifi_config.ap, &ap_config, sizeof (wifi_ap_config_t));
 
     strlcpy ((char *)wifi_config.ap.ssid, g_ap_ssid, sizeof (wifi_config.ap.ssid));
     wifi_config.ap.ssid_len = strlen (g_ap_ssid);
@@ -142,49 +162,18 @@ static void wifi_init_softap () {
     ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
 
     ESP_LOGI (TAG8, "Soft AP setup complete. SSID:%s", g_ap_ssid);
-    s_ap_client_connected = true;
 }
 
 static void wifi_init_sta (const char * ssid, const char * password) {
     ESP_LOGI (TAG8, "Attempting SSID:%s", ssid);
-    wifi_config_t wifi_config = {
-        .sta = {
-                .ssid            = {0},
-                .password        = {0},
-                .scan_method     = WIFI_FAST_SCAN,
-                .bssid_set       = false,
-                .bssid           = {0},
-                .channel         = 0,
-                .listen_interval = 0,
-                .sort_method     = WIFI_CONNECT_AP_BY_SIGNAL,
-                .threshold       = {
-                      .rssi     = 0,
-                      .authmode = WIFI_AUTH_WPA2_PSK},
-                .pmf_cfg                                        = {.capable = true, .required = false},
-                .rm_enabled                                     = 0,
-                .btm_enabled                                    = 0,
-                .mbo_enabled                                    = 0,
-                .ft_enabled                                     = 0,
-                .owe_enabled                                    = 0,
-                .transition_disable                             = 0,
-                .reserved                                       = 0,
-                .sae_pwe_h2e                                    = WPA3_SAE_PWE_HUNT_AND_PECK,
-                .sae_pk_mode                                    = WPA3_SAE_PK_MODE_AUTOMATIC,
-                .failure_retry_cnt                              = 0,
-                .he_dcm_set                                     = 0,
-                .he_dcm_max_constellation_tx                    = 0,
-                .he_dcm_max_constellation_rx                    = 0,
-                .he_mcs9_enabled                                = 0,
-                .he_su_beamformee_disabled                      = 0,
-                .he_trig_su_bmforming_feedback_disabled         = 0,
-                .he_trig_mu_bmforming_partial_feedback_disabled = 0,
-                .he_trig_cqi_feedback_disabled                  = 0,
-                .he_reserved                                    = 0,
-                .sae_h2e_identifier                             = {0}},
-    };
+    wifi_config_t wifi_config = {};
 
     strlcpy ((char *)wifi_config.sta.ssid, ssid, sizeof (wifi_config.sta.ssid));
     strlcpy ((char *)wifi_config.sta.password, password, sizeof (wifi_config.sta.password));
+    wifi_config.sta.scan_method        = WIFI_FAST_SCAN;
+    wifi_config.sta.sort_method        = WIFI_CONNECT_AP_BY_SIGNAL;
+    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+
     ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_STA, &wifi_config));
 
     // Signal that a new configuration has been set
@@ -235,68 +224,39 @@ void wifi_init () {
     s_sta_connected       = false;
     s_ap_client_connected = false;
 
-    ESP_LOGV (TAG8, "trace: %s()-A", __func__);
-
     ESP_ERROR_CHECK (esp_netif_init());
-    ESP_LOGV (TAG8, "trace: %s()-B", __func__);
     ESP_ERROR_CHECK (esp_event_loop_create_default());
 
-    ESP_LOGV (TAG8, "trace: %s()-C", __func__);
-
     sta_netif = esp_netif_create_default_wifi_sta();
-    ESP_LOGV (TAG8, "trace: %s()-D", __func__);
-    ap_netif = esp_netif_create_default_wifi_ap();
-    ESP_LOGV (TAG8, "trace: %s()-E", __func__);
+    ap_netif  = esp_netif_create_default_wifi_ap();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_LOGV (TAG8, "trace: %s()-F", __func__);
-
     ESP_ERROR_CHECK (esp_wifi_init (&cfg));
-    ESP_LOGV (TAG8, "trace: %s()-G", __func__);
 
     // Set storage to RAM before any other WiFi calls
     ESP_ERROR_CHECK (esp_wifi_set_storage (WIFI_STORAGE_RAM));
-    ESP_LOGV (TAG8, "trace: %s()-H", __func__);
 
     ESP_ERROR_CHECK (esp_event_handler_register (WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
-    ESP_LOGV (TAG8, "trace: %s()-I", __func__);
     ESP_ERROR_CHECK (esp_event_handler_register (IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
-    ESP_LOGV (TAG8, "trace: %s()-J", __func__);
 
     ESP_ERROR_CHECK (esp_wifi_set_mode (WIFI_MODE_APSTA));
-    ESP_LOGV (TAG8, "trace: %s()-K", __func__);
 
     // Clear any existing WiFi configuration
-    wifi_config_t wifi_config   = {};
-    wifi_config.sta.ssid[0]     = '\0';
-    wifi_config.sta.password[0] = '\0';
-    wifi_config.sta.bssid_set   = false;
+    wifi_config_t wifi_config = {};
     ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_STA, &wifi_config));
-    ESP_LOGV (TAG8, "trace: %s()-L", __func__);
 
     // Clear AP configuration as well
     wifi_config_t ap_config      = {};
-    ap_config.ap.ssid[0]         = '\0';
-    ap_config.ap.password[0]     = '\0';
-    ap_config.ap.ssid_len        = 0;
     ap_config.ap.channel         = 1;
-    ap_config.ap.authmode        = WIFI_AUTH_OPEN;
-    ap_config.ap.ssid_hidden     = 0;
     ap_config.ap.max_connection  = 4;
     ap_config.ap.beacon_interval = 100;
-
     ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_AP, &ap_config));
-    ESP_LOGV (TAG8, "trace: %s()-M", __func__);
-
     wifi_init_softap();
-    ESP_LOGV (TAG8, "trace: %s()-N", __func__);
 
     // Disconnect if we're connected to any AP
     esp_wifi_disconnect();
-    ESP_LOGV (TAG8, "trace: %s()-O", __func__);
 
     ESP_ERROR_CHECK (esp_wifi_start());
-    ESP_LOGV (TAG8, "trace: %s()-P", __func__);
 
     wifi_attenuate_power();
 
@@ -331,7 +291,7 @@ void wifi_task (void * pvParameters) {
 
     wifi_init();
 
-    const int  CONNECT_ATTEMPT_TIME_MS = 10000;  // 10 seconds timeout
+    const int  CONNECT_ATTEMPT_TIME_MS = 5000;  // 5 seconds timeout
     int        current_ssid            = 1;
     TickType_t attempt_start_time      = 0;
     bool       mdns_started            = false;
@@ -436,7 +396,7 @@ void wifi_task (void * pvParameters) {
             }
 
             // If connected as AP, ensure proper DHCP and gateway settings
-            if (s_ap_client_connected) {
+            if (s_ap_client_connected && !s_dhcp_configured) {
                 esp_netif_ip_info_t ip_info;
                 IP4_ADDR (&ip_info.ip, 192, 168, 4, 1);
                 IP4_ADDR (&ip_info.gw, 0, 0, 0, 0);  // Set gateway to 0.0.0.0 to indicate no internet route
@@ -444,6 +404,7 @@ void wifi_task (void * pvParameters) {
                 ESP_ERROR_CHECK (esp_netif_dhcps_stop (ap_netif));
                 ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
                 ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
+                s_dhcp_configured = true;
                 ESP_LOGI (TAG8, "AP mode: DHCP server reconfigured with non-routable gateway");
             }
             break;
