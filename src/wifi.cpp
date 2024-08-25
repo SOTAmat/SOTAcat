@@ -39,11 +39,11 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             s_wifi_sta_started = true;
             break;
         case WIFI_EVENT_STA_CONNECTED:
-            ESP_LOGI (TAG8, "WIFI_EVENT_STA_CONNECTED");
+            ESP_LOGI (TAG8, "received event WIFI_EVENT_STA_CONNECTED, recording connected");
             s_sta_connected = true;
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
-            ESP_LOGI (TAG8, "WIFI_EVENT_STA_DISCONNECTED");
+            ESP_LOGI (TAG8, "received event WIFI_EVENT_STA_DISCONNECTED");
             s_sta_connected = false;
 
             static int retry_count = 0;
@@ -62,7 +62,7 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
 
         case WIFI_EVENT_AP_STACONNECTED: {
             wifi_event_ap_staconnected_t * event = (wifi_event_ap_staconnected_t *)event_data;
-            ESP_LOGI (TAG8, "Station " MACSTR " joined, AID=%d", MAC2STR (event->mac), event->aid);
+            ESP_LOGI (TAG8, "station " MACSTR " connected, aid=%d", MAC2STR (event->mac), event->aid);
             s_ap_client_connected = true;
             wifi_connected        = true;
 
@@ -207,14 +207,14 @@ static void wifi_attenuate_power () {
     // Not required, but we read the starting power just for informative purposes
     int8_t curr_wifi_power = 0;
     ESP_ERROR_CHECK (esp_wifi_get_max_tx_power (&curr_wifi_power));
-    ESP_LOGI (TAG8, "Default max TX power: %d", curr_wifi_power);
+    ESP_LOGI (TAG8, "default max tx power: %d", curr_wifi_power);
 
     const int8_t MAX_TX_PWR = 44;  // level 5 - 2dBm = 11dBm
-    ESP_LOGI (TAG8, "Setting WiFi max power to %d", MAX_TX_PWR);
+    ESP_LOGI (TAG8, "setting wifi max power to %d", MAX_TX_PWR);
     ESP_ERROR_CHECK (esp_wifi_set_max_tx_power (MAX_TX_PWR));
 
     ESP_ERROR_CHECK (esp_wifi_get_max_tx_power (&curr_wifi_power));
-    ESP_LOGI (TAG8, "Confirmed new max TX power: %d", curr_wifi_power);
+    ESP_LOGI (TAG8, "confirmed new max tx power: %d", curr_wifi_power);
 }
 
 // Function to initialize WiFi
@@ -260,13 +260,13 @@ void wifi_init () {
 
     wifi_attenuate_power();
 
-    ESP_LOGI (TAG8, "WiFi initialization complete");
+    ESP_LOGI (TAG8, "wifi initialization complete");
 }
 
 bool start_mdns_service () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    ESP_LOGI (TAG8, "Starting mDNS service");
+    ESP_LOGI (TAG8, "starting mdns service");
     esp_err_t err = mdns_init();
     if (err) {
         ESP_LOGE (TAG8, "mDNS Init failed: %d", err);
