@@ -16,8 +16,6 @@
 
 #include <esp_log.h>
 
-#define MAX_RETRY_WIFI_STATION_CONNECT 3
-
 static const char * TAG8 = "sc:wifi....";
 
 static bool          wifi_connected        = false;
@@ -25,6 +23,7 @@ static bool          s_sta_connected       = false;
 static bool          s_ap_client_connected = false;
 static bool          s_wifi_sta_started    = false;
 static bool          s_dhcp_configured     = false;
+static int           retry_count           = 0;
 static esp_netif_t * sta_netif;
 static esp_netif_t * ap_netif;
 
@@ -38,6 +37,10 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_START");
             s_wifi_sta_started = true;
             break;
+        case WIFI_EVENT_STA_STOP:
+            ESP_LOGI (TAG8, "WIFI_EVENT_STA_STOP");
+            s_wifi_sta_started = false;
+            break;
         case WIFI_EVENT_STA_CONNECTED:
             ESP_LOGI (TAG8, "received event WIFI_EVENT_STA_CONNECTED, recording connected");
             s_sta_connected = true;
@@ -46,7 +49,6 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             ESP_LOGI (TAG8, "received event WIFI_EVENT_STA_DISCONNECTED");
             s_sta_connected = false;
 
-            static int retry_count = 0;
             if (retry_count < MAX_RETRY_WIFI_STATION_CONNECT) {
                 ESP_LOGI (TAG8, "Retrying connection to SSID...");
                 esp_wifi_connect();
@@ -176,11 +178,7 @@ static void wifi_init_sta (const char * ssid, const char * password) {
 
     ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_STA, &wifi_config));
 
-    // Signal that a new configuration has been set
-    s_wifi_sta_started = true;
-
     ESP_LOGI (TAG8, "Station configuration set to access AP SSID:%s", ssid);
-    // esp_wifi_connect(); <-- we no longer do it here, we do it in the main wifi_task loop
 }
 
 // Function to reduce WiFi transmit power
@@ -293,7 +291,7 @@ void wifi_task (void * pvParameters) {
 
     const int  CONNECT_ATTEMPT_TIME_MS = 5000;  // 5 seconds timeout
     int        current_ssid            = 1;
-    TickType_t attempt_start_time      = 0;
+    TickType_t attempt_start_time      = -CONNECT_ATTEMPT_TIME_MS;
     bool       mdns_started            = false;
     bool       previously_connected    = false;
     bool       sta_mode_aborted        = false;
@@ -333,6 +331,7 @@ void wifi_task (void * pvParameters) {
                     }
                 }
                 else {
+                    sta_mode_aborted = false;  // Reset the flag if at least one SSID is available
                     if (current_ssid == 1 && strlen (g_sta1_ssid) > 0) {
                         ssid         = g_sta1_ssid;
                         password     = g_sta1_pass;
@@ -348,7 +347,7 @@ void wifi_task (void * pvParameters) {
                     }
                 }
 
-                if (ssid != NULL) {
+                if (ssid != NULL && !sta_mode_aborted) {
                     wifi_init_sta (ssid, password);
                     ESP_LOGI (TAG8, "Attempting connection to SSID: %s", ssid);
                     esp_wifi_connect();
@@ -376,6 +375,7 @@ void wifi_task (void * pvParameters) {
             if (!wifi_connected) {
                 wifi_state = NO_CONNECTION;
                 ESP_LOGI (TAG8, "All connections lost");
+                attempt_start_time = current_time;  // Reset the timer for immediate attempt
                 break;
             }
 
