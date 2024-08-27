@@ -24,6 +24,7 @@ struct time_hms {
  * @return Combined integer value.
  */
 inline int decode_couplet (char ten, char one) {
+    // note high bit 0x80 may be set on tens digit of each couplet, to represent the decimal point
     return 10 * ((ten & 0x7f) - '0') + one - '0';
 }
 
@@ -44,7 +45,7 @@ static bool get_radio_time (time_hms * radio_time) {
     // expect buf to look like
     //          DS@@1²3´5¶af;
     // index    0123456789012
-    // note high bit 0x80 is set on ones digit of each couplet, to represent the decimal point
+    // note high bit 0x80 may be set on tens digit of each couplet, to represent the decimal point
     radio_time->hrs = decode_couplet (buf[4], buf[5]);
     radio_time->min = decode_couplet (buf[6], buf[7]);
     radio_time->sec = decode_couplet (buf[8], buf[9]);
@@ -89,14 +90,23 @@ static bool convert_client_time (long int long_time, time_hms * client_time) {
 static void adjust_component (char const * selector, int diff) {
     ESP_LOGV (TAG8, "trace: %s('%s', %d)", __func__, selector, diff);
 
-    char dir[6 + 3 * 60] = {};  // size: "SWTnn;" = 6, + "UP;"|"DN;" = 3, * at most once per sec or min or hour = 60
-    strcpy (dir, selector);
+    if (!diff)
+        return;
+
+    size_t abs_diff = std::abs (diff);
+    assert (abs_diff <= 60);
+    const size_t adjustment_size             = (sizeof ("SWTnn;") - 1) + abs_diff * (sizeof ("UP;") - 1) + 1;
+    char         adjustment[adjustment_size] = {0};
+    strcat (adjustment, selector);
     for (int ii = diff; ii > 0; --ii)
-        strcat (dir, "UP;");
+        strcat (adjustment, "UP;");
     for (int ii = diff; ii < 0; ++ii)
-        strcat (dir, "DN;");
-    ESP_LOGI (TAG8, "adjustment should be %s", dir);
-    kxRadio.put_to_kx_command_string (dir, 1);
+        strcat (adjustment, "DN;");
+    ESP_LOGV (TAG8, "adjustment should be %s", adjustment);
+    kxRadio.put_to_kx_command_string (adjustment, 1);
+
+    // empirically determined delay to allow radio to complete the action
+    vTaskDelay (pdMS_TO_TICKS (30 * abs_diff));
 }
 
 /**
