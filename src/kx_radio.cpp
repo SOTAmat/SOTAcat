@@ -244,11 +244,8 @@ long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
 
     int wait_time = KX_TIMEOUT_MS_SHORT_COMMANDS;
 
-    if (strncmp (command, "AP", 2) == 0 ||
-        strncmp (command, "FA", 2) == 0 ||
-        strncmp (command, "FR", 2) == 0 ||
-        strncmp (command, "FT", 2) == 0 ||
-        strncmp (command, "MD", 2) == 0)
+    const char * long_command_prefixes = "AP FA FR FT MD PC";
+    if (command != NULL && strstr (long_command_prefixes, command) != NULL)
         wait_time = KX_TIMEOUT_MS_LONG_COMMANDS;
 
     snprintf (cmd_buff, sizeof (cmd_buff), "%s;", command);
