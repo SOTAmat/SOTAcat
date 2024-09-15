@@ -297,6 +297,17 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
     background-color: var(--bg-button-active);
 }
 
+#xmitButton {
+    background-color: var(--bg-button); /* Default background */
+    width: 100%; /* Make the button take the full width of its container */
+    max-width: 300px; /* Set a maximum width for the button (adjust as needed) */
+    padding: 15px; /* Increase the padding to make it look larger */
+}
+
+#xmitButton.active {
+    background-color: var(--color-danger); /* Red when active */
+}
+
 .input-group {
     display: flex;
     justify-content: space-between;

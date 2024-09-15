@@ -6,6 +6,31 @@ function playMsg(slot) {
   );
 }
 
+let isXmitActive = false;
+
+function sendXmitRequest(state) {
+  const url = "/api/v1/xmit?state=" + state;
+  fetch(url, { method: "PUT" }).catch((error) =>
+    console.error("Fetch error:", error)
+  );
+}
+
+function toggleXmit() {
+  const xmitButton = document.getElementById("xmitButton");
+
+  // Toggle the state
+  isXmitActive = !isXmitActive;
+
+  // Change button appearance
+  if (isXmitActive) {
+    xmitButton.classList.add("active");
+    sendXmitRequest(1);  // Send "on" signal
+  } else {
+    xmitButton.classList.remove("active");
+    sendXmitRequest(0);  // Send "off" signal
+  }
+}
+
 function setPowerMinMax(maximum) {
   const url = "/api/v1/power?power=" + (maximum ? "10" : "0");
   fetch(url, { method: "PUT" }).catch((error) =>
