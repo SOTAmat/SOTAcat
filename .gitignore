@@ -85,4 +85,5 @@ __pycache__/
 merged-firmware.bin
 esp32c3.bin
 esp32.bin
+SOTACAT-ESP32C3-OTA.bin
 
