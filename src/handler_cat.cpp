@@ -8,6 +8,32 @@
 static const char * TAG8 = "sc:hdl_cat.";
 
 /**
+ * Handles an HTTP PUT request to enable/disable transmit
+ *
+ * @param req Pointer to the HTTP request structure.  The "state" query parameter
+ *            is expected to hold either "0" (turn off transmission), or any other
+ *            integer (turn on transmission)
+ */
+esp_err_t handler_xmit_put (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    STANDARD_DECODE_SOLE_PARAMETER (req, "state", param_value);
+    ESP_LOGI (TAG8, "setting xmit to '%s'", param_value);
+
+    long         xmit    = atoi (param_value);  // Convert the parameter to an integer
+    const char * command = xmit ? "TX;" : "RX;";
+
+    {
+        const std::lock_guard<Lockable> lock (kxRadio);
+        kxRadio.put_to_kx_command_string (command, 1);
+    }
+
+    REPLY_WITH_SUCCESS();
+}
+
+/**
  * Handles an HTTP PUT request to play a pre-recorded message from bank 1 or 2
  *
  * @param req Pointer to the HTTP request structure.  The "bank" query parameter
