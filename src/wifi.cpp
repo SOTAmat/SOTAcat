@@ -1,3 +1,4 @@
+// Modified wifi.cpp
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -18,18 +19,21 @@
 
 static const char * TAG8 = "sc:wifi....";
 
-static bool          wifi_connected        = false;
-static bool          s_sta_connected       = false;
-static bool          s_ap_client_connected = false;
-static bool          s_wifi_sta_started    = false;
-static bool          s_dhcp_configured     = false;
-static int           retry_count           = 0;
+// Shared variables accessed from multiple contexts
+static volatile bool s_sta_connected       = false;
+static volatile bool s_ap_client_connected = false;
+static volatile bool wifi_connected        = false;
+
+static bool          s_wifi_sta_started = false;
+static bool          s_wifi_ap_started  = false;
+static bool          s_dhcp_configured  = false;
+static int           retry_count        = 0;
 static esp_netif_t * sta_netif;
 static esp_netif_t * ap_netif;
 
-// Function to handle WiFi events
+// Function to handle Wi-Fi events
 static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t event_id, void * event_data) {
-    ESP_LOGV (TAG8, "trace: %s(event_base = \'%s\', event_id = %ld)", __func__, event_base, event_id);
+    ESP_LOGV (TAG8, "trace: %s(event_base = '%s', event_id = %ld)", __func__, event_base, event_id);
 
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
@@ -40,18 +44,24 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
         case WIFI_EVENT_STA_STOP:
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_STOP");
             s_wifi_sta_started = false;
+            wifi_connected     = false;
             break;
         case WIFI_EVENT_STA_CONNECTED:
-            ESP_LOGI (TAG8, "received event WIFI_EVENT_STA_CONNECTED, recording connected");
+            ESP_LOGI (TAG8, "WIFI_EVENT_STA_CONNECTED");
             s_sta_connected = true;
+            wifi_connected  = true;
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
-            ESP_LOGI (TAG8, "received event WIFI_EVENT_STA_DISCONNECTED");
+            ESP_LOGI (TAG8, "WIFI_EVENT_STA_DISCONNECTED");
             s_sta_connected = false;
+            wifi_connected  = false;
 
             if (retry_count < MAX_RETRY_WIFI_STATION_CONNECT) {
                 ESP_LOGI (TAG8, "Retrying connection to SSID...");
-                esp_wifi_connect();
+                esp_err_t err = esp_wifi_connect();
+                if (err != ESP_OK) {
+                    ESP_LOGE (TAG8, "Failed to initiate STA connection: %s", esp_err_to_name (err));
+                }
                 retry_count++;
             }
             else {
@@ -61,10 +71,18 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             }
             break;
 
+        case WIFI_EVENT_AP_START:
+            ESP_LOGI (TAG8, "WIFI_EVENT_AP_START");
+            s_wifi_ap_started = true;
+            break;
+        case WIFI_EVENT_AP_STOP:
+            ESP_LOGI (TAG8, "WIFI_EVENT_AP_STOP");
+            s_wifi_ap_started = false;
+            break;
 
         case WIFI_EVENT_AP_STACONNECTED: {
             wifi_event_ap_staconnected_t * event = (wifi_event_ap_staconnected_t *)event_data;
-            ESP_LOGI (TAG8, "station " MACSTR " connected, aid=%d", MAC2STR (event->mac), event->aid);
+            ESP_LOGI (TAG8, "Station " MACSTR " connected, aid=%d", MAC2STR (event->mac), event->aid);
             s_ap_client_connected = true;
             wifi_connected        = true;
 
@@ -85,15 +103,14 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             break;
         }
 
-
         case WIFI_EVENT_AP_STADISCONNECTED: {
             wifi_event_ap_stadisconnected_t * event = (wifi_event_ap_stadisconnected_t *)event_data;
-            ESP_LOGI (TAG8, "Station " MACSTR " left, AID=%d", MAC2STR (event->mac), event->aid);
+            ESP_LOGI (TAG8, "Station " MACSTR " disconnected, AID=%d", MAC2STR (event->mac), event->aid);
 
             // Check if this was the last client
             wifi_sta_list_t sta_list;
-            esp_wifi_ap_get_sta_list (&sta_list);
-            if (sta_list.num == 0) {
+            esp_err_t       err = esp_wifi_ap_get_sta_list (&sta_list);
+            if (err == ESP_OK && sta_list.num == 0) {
                 s_ap_client_connected = false;
                 wifi_connected        = s_sta_connected;
                 s_dhcp_configured     = false;
@@ -181,7 +198,7 @@ static void wifi_init_sta (const char * ssid, const char * password) {
     ESP_LOGI (TAG8, "Station configuration set to access AP SSID:%s", ssid);
 }
 
-// Function to reduce WiFi transmit power
+// Function to reduce Wi-Fi transmit power
 static void wifi_attenuate_power () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
     /*
@@ -215,12 +232,14 @@ static void wifi_attenuate_power () {
     ESP_LOGI (TAG8, "confirmed new max tx power: %d", curr_wifi_power);
 }
 
-// Function to initialize WiFi
+// Function to initialize Wi-Fi
 void wifi_init () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     s_sta_connected       = false;
     s_ap_client_connected = false;
+    wifi_connected        = false;
+    s_wifi_ap_started     = false;
 
     ESP_ERROR_CHECK (esp_netif_init());
     ESP_ERROR_CHECK (esp_event_loop_create_default());
@@ -252,7 +271,10 @@ void wifi_init () {
     wifi_init_softap();
 
     // Disconnect if we're connected to any AP
-    esp_wifi_disconnect();
+    esp_err_t err = esp_wifi_disconnect();
+    if (err != ESP_OK && err != ESP_ERR_WIFI_NOT_STARTED) {
+        ESP_LOGE (TAG8, "Error disconnecting Wi-Fi: %s", esp_err_to_name (err));
+    }
 
     ESP_ERROR_CHECK (esp_wifi_start());
 
@@ -350,8 +372,12 @@ void wifi_task (void * pvParameters) {
                 if (ssid != NULL && !sta_mode_aborted) {
                     wifi_init_sta (ssid, password);
                     ESP_LOGI (TAG8, "Attempting connection to SSID: %s", ssid);
-                    esp_wifi_connect();
+                    esp_err_t err = esp_wifi_connect();
+                    if (err != ESP_OK) {
+                        ESP_LOGE (TAG8, "Failed to initiate STA connection: %s", esp_err_to_name (err));
+                    }
                     attempt_start_time = current_time;
+                    retry_count        = 0;
                     wifi_state         = CONNECTING;
                 }
                 else {
@@ -380,7 +406,7 @@ void wifi_task (void * pvParameters) {
             }
 
             if (!mdns_started) {
-                if (start_mdns_service() == true) {
+                if (start_mdns_service()) {
                     mdns_started = true;
                     ESP_LOGI (TAG8, "mDNS service started");
                 }
@@ -395,18 +421,6 @@ void wifi_task (void * pvParameters) {
                 ESP_LOGI (TAG8, "Initial connection established, setup task notified");
             }
 
-            // If connected as AP, ensure proper DHCP and gateway settings
-            if (s_ap_client_connected && !s_dhcp_configured) {
-                esp_netif_ip_info_t ip_info;
-                IP4_ADDR (&ip_info.ip, 192, 168, 4, 1);
-                IP4_ADDR (&ip_info.gw, 0, 0, 0, 0);  // Set gateway to 0.0.0.0 to indicate no internet route
-                IP4_ADDR (&ip_info.netmask, 255, 255, 255, 0);
-                ESP_ERROR_CHECK (esp_netif_dhcps_stop (ap_netif));
-                ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
-                ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
-                s_dhcp_configured = true;
-                ESP_LOGI (TAG8, "AP mode: DHCP server reconfigured with non-routable gateway");
-            }
             break;
         }
 
