@@ -76,12 +76,28 @@ static long msUntilFT8Window () {
 static void waitForFT8Window () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    long delay_ms = msUntilFT8Window();
+    long       delay_ms                       = msUntilFT8Window();
+    const long cancellation_check_interval_ms = 250;
+
+    // Wait for the next 15-second boundary to start the FT8 transmission
 
     // Use vTaskDelay to wait for the calculated delay in ticks
     // Note: pdMS_TO_TICKS converts milliseconds to ticks
-    if (delay_ms > 0)
-        vTaskDelay (pdMS_TO_TICKS (delay_ms));
+    while (delay_ms > 0) {
+        // If CancelRadioFT8ModeTime is <= 1, exit the function immediately
+        if (CancelRadioFT8ModeTime <= 1) {
+            ESP_LOGI (TAG8, "CancelRadioFT8ModeTime triggered, returning early.");
+            return;
+        }
+
+        // Wait for the lesser of the remaining delay or the check interval
+        long wait_time = (delay_ms < cancellation_check_interval_ms) ? delay_ms : cancellation_check_interval_ms;
+
+        vTaskDelay (pdMS_TO_TICKS (wait_time));
+
+        // Decrease the remaining delay
+        delay_ms -= wait_time;
+    }
 }
 
 #define EASE_STEPS 1
@@ -164,11 +180,16 @@ static void xmit_ft8_task (void * pvParameter) {
         // Note that the Elecraft KX2/KX3 radios do not allow fractional Hz, so we round to the nearest Hz.
         for (int j = 0; j < FT8_NN; ++j) {
             long next_frequency = info->baseFreq + (long)round (info->tones[j] * 6.25);
+
             sendFT8Tone (prior_frequency,
                          next_frequency,
                          &lastWakeTime,
                          toneInterval);
+
             prior_frequency = next_frequency;
+
+            if (CancelRadioFT8ModeTime <= 1)
+                break;
         }
 
         // Tell the radio to turn off the CW tone
@@ -198,8 +219,9 @@ static void xmit_ft8_task (void * pvParameter) {
 static void cleanup_ft8_task (void * pvParameter) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    while (esp_timer_get_time() < CancelRadioFT8ModeTime || ft8TaskInProgress)
+    while (esp_timer_get_time() < CancelRadioFT8ModeTime || ft8TaskInProgress) {
         vTaskDelay (pdMS_TO_TICKS (250));
+    }
 
     CancelRadioFT8ModeTime = 0;  // Race condition here, but minimize the probability by clearing immediately
 
@@ -249,8 +271,10 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (CommandInProgress || ft8ConfigInfo != NULL)
+    if (CommandInProgress || ft8ConfigInfo != NULL) {
+        CancelRadioFT8ModeTime = 1;
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "prepare called while another command already in progress");
+    }
 
     /**
      * In this short window of time between the check of CommandInProgress above,
