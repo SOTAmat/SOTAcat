@@ -421,6 +421,18 @@ void wifi_task (void * pvParameters) {
                 ESP_LOGI (TAG8, "Initial connection established, setup task notified");
             }
 
+            // Re-add the DHCP server reconfiguration logic
+            if (s_ap_client_connected && !s_dhcp_configured) {
+                esp_netif_ip_info_t ip_info;
+                IP4_ADDR (&ip_info.ip, 192, 168, 4, 1);
+                IP4_ADDR (&ip_info.gw, 0, 0, 0, 0);  // Set gateway to 0.0.0.0 to indicate no internet route
+                IP4_ADDR (&ip_info.netmask, 255, 255, 255, 0);
+                ESP_ERROR_CHECK (esp_netif_dhcps_stop (ap_netif));
+                ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
+                ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
+                s_dhcp_configured = true;
+                ESP_LOGI (TAG8, "AP mode: DHCP server reconfigured with non-routable gateway");
+            }
             break;
         }
 
