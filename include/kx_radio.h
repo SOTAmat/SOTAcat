@@ -51,18 +51,21 @@ class KXRadio : public Lockable {
 
   public:
     static KXRadio & getInstance ();
-    int              connect ();
-    void             empty_kx_input_buffer (int wait_ms);
-    long             get_from_kx (const char * command, int tries, int num_digits);
-    bool             put_to_kx (const char * command, int num_digits, long value, int tries);
-    long             get_from_kx_menu_item (uint8_t menu_item, int tries);
-    bool             put_to_kx_menu_item (uint8_t menu_item, long value, int tries);
-    void             get_kx_state (kx_state_t * in_state);
-    void             restore_kx_state (const kx_state_t * in_state, int tries);
-    bool             get_from_kx_string (const char * command, int tries, char * result, int result_size);
-    bool             put_to_kx_command_string (const char * cmd, int tries);
+
+    int connect ();
 
     bool is_connected () const { return m_is_connected; }
+
+    void empty_kx_input_buffer (int wait_ms);
+
+    long get_from_kx (const char * command, int tries, int num_digits);
+    bool put_to_kx (const char * command, int num_digits, long value, int tries);
+    long get_from_kx_menu_item (uint8_t menu_item, int tries);
+    bool put_to_kx_menu_item (uint8_t menu_item, long value, int tries);
+    bool get_from_kx_string (const char * command, int tries, char * result, int result_size);
+    bool put_to_kx_command_string (const char * command, int tries);
+    void get_kx_state (kx_state_t * in_state);
+    void restore_kx_state (const kx_state_t * in_state, int tries);
 };
 
 extern KXRadio & kxRadio;  // global singleton
