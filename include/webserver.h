@@ -113,10 +113,11 @@ extern esp_err_t handler_xmit_put (httpd_req_t *);
  * Logs a success message, sets the HTTP status to "204 No Content", sends an empty response,
  * and exits the current function with `ESP_OK`.
  */
-#define REPLY_WITH_SUCCESS()                           \
-    do {                                               \
-        ESP_LOGD (TAG8, "success");                    \
-        httpd_resp_set_status (req, "204 No Content"); \
-        httpd_resp_send (req, NULL, 0);                \
-        return ESP_OK;                                 \
+#define REPLY_WITH_SUCCESS()                             \
+    do {                                                 \
+        ESP_LOGD (TAG8, "success");                      \
+        httpd_resp_set_status (req, "204 No Content");   \
+        httpd_resp_set_hdr (req, "Connection", "close"); \
+        httpd_resp_send (req, NULL, 0);                  \
+        return ESP_OK;                                   \
     } while (0)

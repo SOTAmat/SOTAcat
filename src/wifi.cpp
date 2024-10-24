@@ -2,6 +2,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_netif.h"
+#include "esp_netif_types.h"
 #include <string.h>
 
 #include "globals.h"
@@ -17,6 +18,11 @@
 
 #include <esp_log.h>
 
+// Add at top with other includes
+#include "lwip/netdb.h"
+#include "lwip/sockets.h"
+#include "lwip/tcp.h"
+
 static const char * TAG8 = "sc:wifi....";
 
 // Shared variables accessed from multiple contexts
@@ -30,6 +36,14 @@ static bool          s_dhcp_configured  = false;
 static int           retry_count        = 0;
 static esp_netif_t * sta_netif;
 static esp_netif_t * ap_netif;
+// Add this line:
+static bool          mdns_started          = false;
+
+// Add these at the top of wifi.cpp
+#define WIFI_CONNECT_TIMEOUT_MS          10000
+#define WIFI_STATE_TRANSITION_TIMEOUT_MS 5000
+#define WIFI_RECONNECT_BACKOFF_BASE_MS   1000
+#define WIFI_MAX_BACKOFF_MS              32000
 
 // Function to handle Wi-Fi events
 static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t event_id, void * event_data) {
@@ -61,6 +75,8 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
                 esp_err_t err = esp_wifi_connect();
                 if (err != ESP_OK) {
                     ESP_LOGE (TAG8, "Failed to initiate STA connection: %s", esp_err_to_name (err));
+                    // Delay a short time before retrying
+                    vTaskDelay (pdMS_TO_TICKS (150));
                 }
                 retry_count++;
             }
@@ -68,6 +84,13 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
                 ESP_LOGI (TAG8, "Maximum retry attempts reached. Switching SSID or resetting state.");
                 retry_count = 0;
                 // Optionally switch SSID or reset state to trigger alternate logic
+            }
+
+            // Add these lines
+            if (mdns_started) {
+                mdns_free();
+                mdns_started = false;
+                ESP_LOGI (TAG8, "mDNS stopped due to disconnection");
             }
             break;
 
@@ -286,6 +309,9 @@ void wifi_init () {
 bool start_mdns_service () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
+    // Stop any existing mDNS service first
+    mdns_free();
+
     ESP_LOGI (TAG8, "starting mdns service");
     esp_err_t err = mdns_init();
     if (err) {
@@ -294,15 +320,30 @@ bool start_mdns_service () {
     }
 
     // Set the hostname
-    ESP_ERROR_CHECK (mdns_hostname_set ("sotacat"));
+    err = mdns_hostname_set ("sotacat");
+    if (err != ESP_OK) {
+        ESP_LOGE (TAG8, "mDNS hostname set failed: %s", esp_err_to_name (err));
+        mdns_free();
+        return false;
+    }
 
     // Set the default instance
-    ESP_ERROR_CHECK (mdns_instance_name_set ("SOTAcat SOTAmat Service"));
+    err = mdns_instance_name_set ("SOTAcat SOTAmat Service");
+    if (err != ESP_OK) {
+        ESP_LOGE (TAG8, "mDNS instance name set failed: %s", esp_err_to_name (err));
+        mdns_free();
+        return false;
+    }
 
-    // You can also add services to announce
-    mdns_service_add (NULL, "_http", "_tcp", 80, NULL, 0);
+    // Add service
+    err = mdns_service_add (NULL, "_http", "_tcp", 80, NULL, 0);
+    if (err != ESP_OK) {
+        ESP_LOGE (TAG8, "mDNS service add failed: %s", esp_err_to_name (err));
+        mdns_free();
+        return false;
+    }
 
-    ESP_LOGI (TAG8, "mDNS service started");
+    ESP_LOGI (TAG8, "mDNS service started successfully");
     return true;
 }
 
@@ -311,12 +352,14 @@ void wifi_task (void * pvParameters) {
 
     wifi_init();
 
-    const int  CONNECT_ATTEMPT_TIME_MS = 5000;  // 5 seconds timeout
-    int        current_ssid            = 1;
-    TickType_t attempt_start_time      = -CONNECT_ATTEMPT_TIME_MS;
-    bool       mdns_started            = false;
-    bool       previously_connected    = false;
-    bool       sta_mode_aborted        = false;
+    const int  CONNECT_ATTEMPT_TIME_MS      = 5000;   // 5 seconds timeout
+    const int  CONNECTION_CHECK_INTERVAL_MS = 10000;  // Check connection every 10 seconds
+    int        current_ssid                 = 1;
+    TickType_t attempt_start_time           = -CONNECT_ATTEMPT_TIME_MS;
+    TickType_t last_connection_check_time   = 0;
+    bool       mdns_started                 = false;
+    bool       previously_connected         = false;
+    bool       sta_mode_aborted             = false;
 
     enum WifiState {
         NO_CONNECTION,
@@ -405,13 +448,65 @@ void wifi_task (void * pvParameters) {
                 break;
             }
 
-            if (!mdns_started) {
-                if (start_mdns_service()) {
-                    mdns_started = true;
-                    ESP_LOGI (TAG8, "mDNS service started");
+            // Periodic connection check
+            if ((current_time - last_connection_check_time) * portTICK_PERIOD_MS >= CONNECTION_CHECK_INTERVAL_MS) {
+                last_connection_check_time = current_time;
+
+                wifi_ap_record_t ap_info;
+                esp_err_t        err = esp_wifi_sta_get_ap_info (&ap_info);
+
+                if (err == ESP_OK) {
+                    ESP_LOGI (TAG8, "WiFi still connected to SSID: %s, RSSI: %d", ap_info.ssid, ap_info.rssi);
                 }
                 else {
-                    ESP_LOGE (TAG8, "Failed to start mDNS service.");
+                    ESP_LOGW (TAG8, "Failed to get AP info, error: %s", esp_err_to_name (err));
+
+                    // Attempt to reconnect
+                    err = esp_wifi_connect();
+                    if (err != ESP_OK) {
+                        ESP_LOGE (TAG8, "Failed to initiate reconnection: %s", esp_err_to_name (err));
+                        wifi_state         = NO_CONNECTION;
+                        attempt_start_time = current_time;
+                    }
+                    else {
+                        ESP_LOGI (TAG8, "Reconnection attempt initiated");
+                    }
+                }
+            }
+
+            if (!mdns_started) {
+                if (s_sta_connected) {  // Only start mDNS in station mode
+                    static int mdns_retry_count = 0;
+                    if (start_mdns_service()) {
+                        mdns_started     = true;
+                        mdns_retry_count = 0;
+                        ESP_LOGI (TAG8, "mDNS service started");
+                    }
+                    else {
+                        mdns_retry_count++;
+                        ESP_LOGE (TAG8, "Failed to start mDNS service (attempt %d), will retry in 5 seconds", mdns_retry_count);
+                        if (mdns_retry_count >= 3) {
+                            ESP_LOGW (TAG8, "Multiple mDNS start failures, forcing WiFi reconnection");
+                            wifi_state       = NO_CONNECTION;  // Force reconnection
+                            mdns_retry_count = 0;
+                        }
+                        vTaskDelay (pdMS_TO_TICKS (5000));
+                    }
+                }
+            }
+            else {
+                // Periodically verify mDNS is working
+                static uint32_t last_mdns_check = 0;
+                uint32_t        now             = xTaskGetTickCount();
+                if ((now - last_mdns_check) * portTICK_PERIOD_MS >= 30000) {  // Check every 30 seconds
+                    last_mdns_check = now;
+
+                    esp_err_t err = mdns_service_instance_name_set ("_http", "_tcp", "SOTAcat SOTAmat Service");
+                    if (err != ESP_OK) {
+                        ESP_LOGW (TAG8, "mDNS service check failed, restarting service");
+                        mdns_free();
+                        mdns_started = false;
+                    }
                 }
             }
 
@@ -433,6 +528,29 @@ void wifi_task (void * pvParameters) {
                 s_dhcp_configured = true;
                 ESP_LOGI (TAG8, "AP mode: DHCP server reconfigured with non-routable gateway");
             }
+
+            // Configure TCP keepalive
+            if (s_sta_connected) {
+                int sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                if (sock >= 0) {
+                    int keepalive = 1;
+                    int keepidle  = 5;  // Idle time before starting keepalive (seconds)
+                    int keepintvl = 3;  // Interval between keepalive probes (seconds)
+                    int keepcnt   = 3;  // Number of keepalive probes before disconnect
+
+                    setsockopt (sock, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof (keepalive));
+                    setsockopt (sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof (keepidle));
+                    setsockopt (sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof (keepintvl));
+                    setsockopt (sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof (keepcnt));
+
+                    close (sock);
+                    ESP_LOGV (TAG8, "TCP keepalive configured");
+                }
+                else {
+                    ESP_LOGW (TAG8, "Failed to create socket for keepalive configuration");
+                }
+            }
+
             break;
         }
 
@@ -449,3 +567,4 @@ void start_wifi_task (TaskNotifyConfig * config) {
 bool is_wifi_connected () {
     return wifi_connected;
 }
+

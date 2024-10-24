@@ -10,9 +10,9 @@
 #include <esp_log.h>
 static const char * TAG8 = "sc:webserve";
 
-#define DECLARE_ASSET(asset)                                          \
-    extern const uint8_t asset##_end[] asm("_binary_" #asset "_end"); \
-    extern const uint8_t asset##_srt[] asm("_binary_" #asset "_start");
+#define DECLARE_ASSET(asset)                                           \
+    extern const uint8_t asset##_end[] asm ("_binary_" #asset "_end"); \
+    extern const uint8_t asset##_srt[] asm ("_binary_" #asset "_start");
 
 DECLARE_ASSET (about_html)
 DECLARE_ASSET (cat_html)
@@ -45,8 +45,8 @@ typedef struct
  * Represents an array of asset entries to facilitate URI to asset mapping.
  */
 static const asset_entry_t asset_map[] = {
-  // uri               asset_start        asset_end          asset_type         cache_time
-  // ================= ================== ================== ================== ======================
+    // uri               asset_start        asset_end          asset_type         cache_time
+    // ================= ================== ================== ================== ======================
     {"/",              index_html_srt,    index_html_end,    "text/html",       60}, // 1 minute cache
     {"/index.html",    index_html_srt,    index_html_end,    "text/html",       60},
     {"/style.css",     style_css_srt,     style_css_end,     "text/css",        60},
@@ -80,8 +80,8 @@ typedef struct
  *  GET, PUT, POST handlers
  */
 static const api_handler_t api_handlers[] = {
-  // method     api_name            handler_func                  requires_radio
-  // ========== =================== ============================= =============
+    // method     api_name            handler_func                  requires_radio
+    // ========== =================== ============================= =============
     {HTTP_GET,  "batteryPercent",   handler_batteryPercent_get,   false},
     {HTTP_GET,  "batteryVoltage",   handler_batteryVoltage_get,   false},
     {HTTP_GET,  "connectionStatus", handler_connectionStatus_get, true },
@@ -162,6 +162,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
     else                                                                     // cache forever
         snprintf (cache_header, sizeof (cache_header), "max-age=31536000");  // 1 year
     httpd_resp_set_hdr (req, "Cache-Control", cache_header);
+    httpd_resp_set_hdr (req, "Connection", "close");
 
     httpd_resp_send (
         req,
@@ -217,6 +218,10 @@ void start_webserver () {
     config.uri_match_fn      = custom_uri_matcher;
     config.keep_alive_enable = false;
     config.lru_purge_enable  = true;
+    config.max_open_sockets  = 7;  // Increase from default of 4
+    config.recv_wait_timeout = 5;  // Timeout in seconds for receiving data
+    config.send_wait_timeout = 5;  // Timeout in seconds for sending data
+
 
     httpd_handle_t server = NULL;
     if (httpd_start (&server, &config) != ESP_OK)

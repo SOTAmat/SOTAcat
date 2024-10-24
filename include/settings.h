@@ -13,7 +13,7 @@
 #define AUTO_SHUTDOWN_TIME_SECONDS (60 * 30)
 
 // WiFi Settings
-#define MAX_RETRY_WIFI_STATION_CONNECT 3
+#define MAX_RETRY_WIFI_STATION_CONNECT 4
 
 #define MAX_WIFI_SSID_SIZE 32  // see sizeof wifi_ap/sta_config_t.ssid;
 #define MAX_WIFI_PASS_SIZE 64  // see sizeof wifi_ap/sta_config_t.password;
