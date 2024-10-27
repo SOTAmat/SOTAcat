@@ -18,22 +18,24 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    long transmitting;
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
-        transmitting = kxRadio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
-    }
-
     const char * symbol;
-    switch (transmitting) {
-    case 0:
-        symbol = "🟢";
-        break;
-    case 1:
-        symbol = "🔴";
-        break;
-    default:  // includes transmitting == -1, the failure case
-        symbol = "⚪";
+
+    if (!kxRadio.is_connected())
+        symbol = "⚫";
+    else {
+        const std::lock_guard<Lockable> lock (kxRadio);
+        long                            transmitting = kxRadio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
+
+        switch (transmitting) {
+        case 0:
+            symbol = "🟢";
+            break;
+        case 1:
+            symbol = "🔴";
+            break;
+        default:  // includes transmitting == -1, the failure case
+            symbol = "⚪";
+        }
     }
     httpd_resp_set_hdr (req, "Connection", "close");
     httpd_resp_send (req, symbol, HTTPD_RESP_USE_STRLEN);
