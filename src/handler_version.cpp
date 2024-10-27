@@ -19,14 +19,9 @@ esp_err_t handler_version_get (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    assert (strlen (HW_TYPE_STR) < 20);
-    const size_t MAX_VS_LEN = 20 + sizeof (":") + sizeof (BUILD_DATE_TIME) + sizeof ('-') + sizeof (SC_BUILD_TYPE) + 1;
+    const size_t MAX_VS_LEN = strlen (HW_TYPE_STR) + sizeof (":") + sizeof (BUILD_DATE_TIME) + sizeof ('-') + sizeof (SC_BUILD_TYPE) + 1;
     char         versionString[MAX_VS_LEN];
-
     snprintf (versionString, MAX_VS_LEN, "%s:%s-%s", HW_TYPE_STR, BUILD_DATE_TIME, SC_BUILD_TYPE);
 
-    ESP_LOGI (TAG8, "returning version info: %s", versionString);
-    httpd_resp_set_hdr (req, "Connection", "close");
-    httpd_resp_send (req, versionString, HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
+    REPLY_WITH_STRING (req, versionString, "version info");
 }

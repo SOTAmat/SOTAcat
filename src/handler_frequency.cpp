@@ -31,10 +31,7 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
     char buf[16];
     snprintf (buf, sizeof (buf), "%ld", frequency);
 
-    httpd_resp_send (req, buf, HTTPD_RESP_USE_STRLEN);
-    httpd_resp_set_hdr (req, "Connection", "close");
-    ESP_LOGI (TAG8, "returning frequency: %s", buf);
-    return ESP_OK;
+    REPLY_WITH_STRING (req, buf, "frequency");
 }
 
 /**

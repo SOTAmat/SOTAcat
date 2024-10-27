@@ -216,11 +216,8 @@ static esp_err_t retrieve_and_send_settings (httpd_req_t * req) {
     if (!buf)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
 
-    ESP_LOGI (TAG8, "returning settings");
     httpd_resp_set_type (req, "application/json");
-    httpd_resp_set_hdr (req, "Connection", "close");
-    httpd_resp_send (req, buf.get(), HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
+    REPLY_WITH_STRING (req, buf.get(), "settings");
 }
 
 // ====================================================================================================

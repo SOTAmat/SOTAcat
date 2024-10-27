@@ -121,3 +121,22 @@ extern esp_err_t handler_xmit_put (httpd_req_t *);
         httpd_resp_send (req, NULL, 0);                  \
         return ESP_OK;                                   \
     } while (0)
+
+
+/**
+ * Logs a message using the description and value, then sends an HTTP response
+ * with a specified string payload and a "Connection: close" header.
+ *
+ * @param req         The HTTP request handler (type: `httpd_req_t *`) used to send the response back to the client.
+ * @param payload     The response string to be sent to the client. The length of this string is
+ *                    determined automatically using `HTTPD_RESP_USE_STRLEN`.
+ * @param description A text description of the response, used for logging purposes. This should
+ *                    provide context in the log output for easier debugging or tracking.
+ */
+#define REPLY_WITH_STRING(req, payload, description)               \
+    do {                                                           \
+        ESP_LOGI (TAG8, "returning " description ": %s", payload); \
+        httpd_resp_set_hdr (req, "Connection", "close");           \
+        httpd_resp_send (req, payload, HTTPD_RESP_USE_STRLEN);     \
+        return ESP_OK;                                             \
+    } while (0)

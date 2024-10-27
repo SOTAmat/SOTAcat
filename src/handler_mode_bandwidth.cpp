@@ -25,7 +25,7 @@ static const radio_mode_map_t radio_mode_map[] = {
     {"CW_R",    MODE_CW_R   }, //  MODE_CW_R    = 7,
     {"DATA_R",  MODE_DATA_R }, //  MODE_DATA_R  = 9,
 
-    // Aliases for "DATA":
+  // Aliases for "DATA":
     {"FT8",     MODE_DATA   },
     {"JS8",     MODE_DATA   },
     {"PK31",    MODE_DATA   },
@@ -70,9 +70,7 @@ esp_err_t handler_mode_get (httpd_req_t * req) {
     if (mode < MODE_UNKNOWN || mode > MODE_LAST)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unrecognized mode");
 
-    httpd_resp_set_hdr (req, "Connection", "close");
-    httpd_resp_send (req, radio_mode_map[mode].name, HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
+    REPLY_WITH_STRING (req, radio_mode_map[mode].name, "mode");
 }
 
 /**

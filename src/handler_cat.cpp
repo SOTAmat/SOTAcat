@@ -79,11 +79,8 @@ esp_err_t handler_power_get (httpd_req_t * req) {
 
     char power_string[8];
     snprintf (power_string, sizeof (power_string), "%ld", power);
-    ESP_LOGI (TAG8, "returning power: %s", power_string);
-    httpd_resp_set_hdr (req, "Connection", "close");
-    httpd_resp_send (req, power_string, HTTPD_RESP_USE_STRLEN);
 
-    return ESP_OK;
+    REPLY_WITH_STRING (req, power_string, "power");
 }
 
 /**
