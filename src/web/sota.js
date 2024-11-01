@@ -61,7 +61,7 @@ async function updateSotaTable()
         callsignCell.appendChild(callsignLink);
 
         row.insertCell().textContent = spot.activatorName;
-        row.insertCell().textContent = spot.summitDetails;
+        row.insertCell().textContent = spot.details;
         row.insertCell().textContent = spot.comments;
     });
 

@@ -280,12 +280,13 @@ const distanceCache = {};
 // Return an array sorted by descending timestamp
 async function enrichSpots(spots,
                            baseurl,
-                           getCodeFunc,
                            getTimeFunc,
-                           getActivatorFunc) {
+                           getActivationLocationFunc,
+                           getActivatorFunc,
+                           getLocationDetailsFunc) {
 
     spots.forEach(spot => {
-        spot.point = getCodeFunc(spot);
+        spot.point = getActivationLocationFunc(spot);
         spot.hertz = spot.frequency * 1000 * 1000;
         spot.timestamp = getTimeFunc(spot);
         spot.baseCallsign = getActivatorFunc(spot).split("/")[0];
@@ -293,6 +294,7 @@ async function enrichSpots(spots,
         spot.modeType = spot.mode;
         if (!["CW", "SSB", "FM", "FT8", "DATA"].includes(spot.modeType))
             spot.modeType = "OTHER";
+        spot.details = getLocationDetailsFunc(spot);
     });
 
     // find duplicates
@@ -348,16 +350,17 @@ async function refreshSotaPotaJson()
 {
     if (currentTabName === 'sota') {
         const limit = document.getElementById("historyDurationSelector").value;
-        // See SOTA API docs at https://api2.sota.org.uk/docs/index.html
-        fetch(`https://api2.sota.org.uk/api/spots/${limit}/all`,
+        fetch(`https://api-db2.sota.org.uk/api/spots/${limit}/all/all/`,
               { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } })
             .then(result => result.json()) // Resolve the promise to get the JSON data
             .then(data => {
                 gLatestSotaJson = enrichSpots(data,
-                                              'https://api2.sota.org.uk/api/summits',
-                                              function(spot){return spot.associationCode + "/" + spot.summitCode;}, // getCodeFunc
-                                              function(spot){return new Date(`${spot.timeStamp}Z`);},
-                                              function(spot){return spot.activatorCallsign;});
+                                              'https://api-db2.sota.org.uk/api/summits',
+                                              function(spot){return new Date(`${spot.timeStamp}`);}, // getTimeFunc
+                                              function(spot){return spot.summitCode;},               // getCodeFunc
+                                              function(spot){return spot.activatorCallsign;},        // getActivatorFunc
+                                              function(spot){return `${spot.summitName}, ${spot.AltM}m, ${spot.points} points`;}); // getLocationDetailsFunc
+
                 gLatestSotaJson.then(() => {
                     console.info('SOTA Json updated');
                     updateSotaTable();
@@ -372,9 +375,10 @@ async function refreshSotaPotaJson()
             .then(data => {
                 gLatestPotaJson = enrichSpots(data,
                                               'https://api.pota.app/park',
-                                              function(spot){return spot.reference;}, // getCodeFunc
-                                              function(spot){return new Date(`${spot.spotTime}Z`);},
-                                              function(spot){return spot.activator;});
+                                              function(spot){return new Date(`${spot.spotTime}Z`);}, // getTimeFunc
+                                              function(spot){return spot.reference;},                // getCodeFunc
+                                              function(spot){return spot.activator;},                // getActivatorFunc
+                                              function(spot){return spot.details;});                 // getLocationDetailsFunc
                 gLatestPotaJson.then(() => {
                     console.info('POTA Json updated');
                     updatePotaTable();
