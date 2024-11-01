@@ -39,7 +39,7 @@ async function updatePotaTable()
         const frequencyCell = row.insertCell();
         const frequencyLink = document.createElement('a');
         frequencyLink.href = `#`; // Placeholder
-        frequencyLink.textContent = spot.frequency;
+        frequencyLink.textContent = (spot.hertz/1000/1000).toFixed(1)
         frequencyLink.onclick = function(event) {
             event.preventDefault(); // Prevent default link behavior
             tuneRadioKHz(spot.frequency, spot.mode);

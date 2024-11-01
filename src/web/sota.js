@@ -47,7 +47,7 @@ async function updateSotaTable()
         const frequencyCell = row.insertCell();
         const frequencyLink = document.createElement('a');
         frequencyLink.href = `#`; // Placeholder
-        frequencyLink.textContent = spot.frequency;
+        frequencyLink.textContent = spot.frequency.toFixed(3);
         frequencyLink.onclick = function(event) {
             event.preventDefault(); // Prevent default link behavior
             tuneRadioMHz(spot.frequency, spot.mode);
