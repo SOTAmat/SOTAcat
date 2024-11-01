@@ -46,16 +46,13 @@ async function updateSotaTable()
 
         const frequencyCell = row.insertCell();
         const frequencyLink = document.createElement('a');
+        frequencyLink.href = '#';  // Placeholder href to ensure link styling
         if (spot.frequency && typeof spot.frequency === 'number') {
            frequencyLink.textContent = spot.frequency.toFixed(3);
            frequencyLink.onclick = function(event) {
               event.preventDefault(); // Prevent default link behavior
               tuneRadioMHz(spot.frequency, spot.mode);
             }
-        }
-        else {
-            frequencyLink.textContent = "";
-            frequencyLink.href = `#`; // Placeholder
         }
         frequencyCell.appendChild(frequencyLink);
 
