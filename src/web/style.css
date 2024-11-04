@@ -218,6 +218,22 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
     margin-left: var(--spacing-small);
 }
 
+.autoRefreshContainer {
+    display: flex;
+    align-items: center; /* This will ensure vertical alignment */
+}
+
+.autoRefresh {
+    margin-right: var(--spacing-small); /* Adds a small gap between the checkbox and the label */
+}
+
+.autoRefreshLabel {
+    font-size: var(--font-size-small);
+    margin-right: var(--spacing-small); /* Adds a small gap between the checkbox and the label */
+    font-family: Arial, sans-serif;
+    color: var(--text-secondary);
+}
+
 .showDupsContainer {
     display: flex;
     align-items: center; /* This will ensure vertical alignment */

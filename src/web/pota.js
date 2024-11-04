@@ -58,15 +58,18 @@ async function updatePotaTable()
     });
 
     tbody.parentNode.replaceChild(newTbody, tbody);
+
+    console.info('POTA table updated');
 }
 
 function potaOnAppearing() {
     console.info('POTA tab appearing');
 
+    loadAutoRefreshCheckboxState();
     loadShowSpotDupsCheckboxState();
     loadModeFilterState();
 
-    refreshSotaPotaJson();
+    refreshSotaPotaJson(false);
     if (gRefreshInterval == null)
         gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
 

@@ -86,6 +86,27 @@ function loadHistoryDurationState() {
         document.getElementById('historyDurationSelector').value = savedState;
 }
 
+// Auto-refresh spots
+
+function saveAutoRefreshCheckboxState()
+{
+    const isChecked = document.getElementById('autoRefreshSelector').checked;
+    localStorage.setItem('autoRefresh', isChecked);
+}
+
+function changeAutoRefreshCheckboxState(autoRefresh) {
+}
+
+function loadAutoRefreshCheckboxState()
+{
+    const savedState = localStorage.getItem('autoRefresh');
+    // If there's a saved state, convert it to Boolean and set the checkbox
+    if (savedState !== null) {
+        document.getElementById('autoRefreshSelector').checked = (savedState === 'true');
+        changeAutoRefreshCheckboxState(document.getElementById('autoRefreshSelector').checked);
+    }
+}
+
 // Hide/Show Spot Dups
 
 function saveShowSpotDupsCheckboxState()
@@ -165,11 +186,12 @@ function changeModeFilter(selectedMode) {
 function sotaOnAppearing() {
     console.info('SOTA tab appearing');
 
+    loadAutoRefreshCheckboxState();
     loadShowSpotDupsCheckboxState();
     loadModeFilterState();
     loadHistoryDurationState();
 
-    refreshSotaPotaJson();
+    refreshSotaPotaJson(false);
     if (gRefreshInterval == null)
         gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
 

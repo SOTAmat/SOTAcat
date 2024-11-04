@@ -2,7 +2,18 @@
   <span class="spotsTableTitle">Recent Spots</span>
   <div class="showDupsContainer">
     <input type="checkbox" id="showDupsSelector" class="showDups" checked onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();" />
-    <label for="showDupsSelector" class="showDupsLabel">Dups</label>
+    <label for="showDupsSelector" class="showDupsLabel">QSY</label>
+  </div>
+  <div class="autoRefreshContainer">
+    <button onclick="refreshSotaPotaJson(true)">Refresh</button>
+    <input
+      type="checkbox"
+      id="autoRefreshSelector"
+      class="autoRefresh"
+      checked
+      onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
+    />
+    <label for="autoRefreshSelector" class="autoRefreshLabel">auto</label>
   </div>
 </h2>
 

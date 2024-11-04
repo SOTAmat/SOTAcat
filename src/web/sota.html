@@ -5,7 +5,7 @@
     <select
       id="historyDurationSelector"
       class="historyDurationDropdown"
-      onchange="gSotaEpoch = null; refreshSotaPotaJson(); saveHistoryDurationState();"
+      onchange="refreshSotaPotaJson(true); saveHistoryDurationState();"
     >
       <option value="-1" selected>1 hour</option>
       <option value="-3">3 hours</option>
@@ -20,7 +20,18 @@
       checked
       onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();"
     />
-    <label for="showDupsSelector" class="showDupsLabel">Dups</label>
+    <label for="showDupsSelector" class="showDupsLabel">QSY</label>
+  </div>
+  <div class="autoRefreshContainer">
+    <button onclick="refreshSotaPotaJson(true)">Refresh</button>
+    <input
+      type="checkbox"
+      id="autoRefreshSelector"
+      class="autoRefresh"
+      checked
+      onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
+    />
+    <label for="autoRefreshSelector" class="autoRefreshLabel">auto</label>
   </div>
 </h2>
 

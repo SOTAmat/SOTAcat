@@ -347,6 +347,7 @@ gSotaEpoch = null;
 gLatestPotaJson = null;
 
 async function shouldCheckNewSpots(epoch) {
+    if (!document.getElementById('autoRefreshSelector').checked) return false;
     if (epoch === null) return true;
     try {
         // Fetch the latest epoch from the API
@@ -365,9 +366,9 @@ async function shouldCheckNewSpots(epoch) {
     }
 }
 
-async function refreshSotaPotaJson() {
+async function refreshSotaPotaJson(force) {
     if (currentTabName === 'sota') {
-        if (!await shouldCheckNewSpots(gSotaEpoch)) {
+        if (!force && gLatestSotaJson != null && !await shouldCheckNewSpots(gSotaEpoch)) {
             console.info('no new spots');
             return;
         }
@@ -393,7 +394,7 @@ async function refreshSotaPotaJson() {
             .catch(error => ({ error }));
     }
     else if (currentTabName === 'pota') {
-        if (!await shouldCheckNewSpots(null)) {
+        if (!force && gLatestPotaJson != null && !await shouldCheckNewSpots(null)) {
             console.info('no new spots');
             return;
         }
