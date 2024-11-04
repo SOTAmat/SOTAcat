@@ -22,6 +22,10 @@ async function updatePotaTable()
 
         if (spot.duplicate)
             row.classList.add('duplicate-row');
+        if (spot.qrt) {
+            row.classList.add('duplicate-row');
+            row.classList.add('qrt-row');
+        }
 
         const formattedTime = spot.timestamp.getUTCHours().toString().padStart(2, '0') + ':' + spot.timestamp.getUTCMinutes().toString().padStart(2, '0');
         row.insertCell().textContent = formattedTime;

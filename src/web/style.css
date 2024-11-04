@@ -254,6 +254,10 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
     background-color: var(--bg-duplicate);
 }
 
+.qrt-row {
+    text-decoration: line-through;
+}
+
 /* Mode-specific styles Note that each is defined separately, rather than having
  * them share a common definition. This is intentional, so that each mode may be
  * further manipulated separately,

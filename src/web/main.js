@@ -294,6 +294,7 @@ async function enrichSpots(spots,
         if (!["CW", "SSB", "FM", "FT8", "DATA"].includes(spot.modeType))
             spot.modeType = "OTHER";
         spot.details = getLocationDetailsFunc(spot);
+        spot.qrt = spot.type?.toLowerCase() === 'qrt';
     });
 
     // find duplicates
