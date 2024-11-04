@@ -284,7 +284,6 @@ async function enrichSpots(spots,
                            getActivationLocationFunc,
                            getActivatorFunc,
                            getLocationDetailsFunc) {
-
     spots.forEach(spot => {
         spot.point = getActivationLocationFunc(spot);
         spot.hertz = spot.frequency * 1000 * 1000;
@@ -344,16 +343,41 @@ async function enrichSpots(spots,
 }
 
 gLatestSotaJson = null;
+gSotaEpoch = null;
 gLatestPotaJson = null;
 
-async function refreshSotaPotaJson()
-{
+async function shouldCheckNewSpots(epoch) {
+    if (epoch === null) return true;
+    try {
+        // Fetch the latest epoch from the API
+        const response = await fetch('https://api-db2.sota.org.uk/api/spots/epoch');
+        if (!response.ok) {
+            console.error('Failed to fetch epoch data:', response.statusText);
+            return true; // safer to simply retrieve all the spots again
+        }
+
+        const latestEpoch = await response.text();
+        return epoch !== latestEpoch;
+    }
+    catch (error) {
+        console.error('Error fetching epoch or processing response:', error);
+        return true; // safer to simply retrieve all the spots again
+    }
+}
+
+async function refreshSotaPotaJson() {
     if (currentTabName === 'sota') {
+        if (!await shouldCheckNewSpots(gSotaEpoch)) {
+            console.info('no new spots');
+            return;
+        }
         const limit = document.getElementById("historyDurationSelector").value;
         fetch(`https://api-db2.sota.org.uk/api/spots/${limit}/all/all/`,
               { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } })
             .then(result => result.json()) // Resolve the promise to get the JSON data
             .then(data => {
+                gSotaEpoch = data[0]?.epoch ?? null;  // assume first spot's epoch is the one
+
                 gLatestSotaJson = enrichSpots(data,
                                               'https://api-db2.sota.org.uk/api/summits',
                                               function(spot){return new Date(`${spot.timeStamp}`);}, // getTimeFunc
@@ -369,6 +393,10 @@ async function refreshSotaPotaJson()
             .catch(error => ({ error }));
     }
     else if (currentTabName === 'pota') {
+        if (!await shouldCheckNewSpots(null)) {
+            console.info('no new spots');
+            return;
+        }
         fetch('https://api.pota.app/spot/activator',
               { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } })
             .then(result => result.json()) // Resolve the promise to get the JSON data

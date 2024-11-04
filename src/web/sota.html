@@ -5,7 +5,7 @@
     <select
       id="historyDurationSelector"
       class="historyDurationDropdown"
-      onchange="refreshSotaPotaJson(); saveHistoryDurationState();"
+      onchange="gSotaEpoch = null; refreshSotaPotaJson(); saveHistoryDurationState();"
     >
       <option value="-1" selected>1 hour</option>
       <option value="-3">3 hours</option>
