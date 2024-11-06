@@ -22,7 +22,7 @@ async function updatePotaTable()
 
         if (spot.duplicate)
             row.classList.add('duplicate-row');
-        if (spot.qrt) {
+        if (spot.type && spot.type !== "" && spot.type !== "NORMAL") { // "" is a normal spot, other values are not
             row.classList.add('duplicate-row');
             row.classList.add('qrt-row');
         }
