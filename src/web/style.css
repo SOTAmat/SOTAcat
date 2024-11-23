@@ -393,13 +393,15 @@ hr {
 }
 
 .wifi-client input[type="text"]:valid,
-.wifi-client input[type="password"]:valid {
+.wifi-client input[type="password"]:valid,
+.keyer-section input[type="text"]:valid {
     color: var(--color-success);
     border: 2px solid var(--color-success);
 }
 
 .wifi-client input[type="text"]:invalid,
-.wifi-client input[type="password"]:invalid {
+.wifi-client input[type="password"]:invalid,
+.keyer-section input[type="text"]:invalid {
     color: var(--color-danger);
     border: 2px solid var(--color-danger);
 }
