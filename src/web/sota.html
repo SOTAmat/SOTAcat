@@ -1,10 +1,11 @@
 <h2 class="contentPageHeaderContainer">
   <span class="spotsTableTitle"
-    >Spots in the past:
+    >Spots in past:
     <!-- Dropdown for refresh intervals -->
     <select
       id="historyDurationSelector"
       class="historyDurationDropdown"
+      aria-label="History duration"
       onchange="refreshSotaPotaJson(true); saveHistoryDurationState();"
     >
       <option value="-1" selected>1 hour</option>
@@ -42,10 +43,12 @@
         <th><span data-sort-field="timestamp">UTC</span></th>
         <th><span data-sort-field="point">Summit</span></th>
         <th><span data-sort-field="distance">Dist</span></th>
-        <th><span data-sort-field="mode">Mode</span>
+        <th>
+          <span data-sort-field="mode">Mode</span>
           <select
             id="modeFilter"
-            onchange="changeModeFilter(this.value); saveModeFilterState();">
+            onchange="changeModeFilter(this.value); saveModeFilterState();"
+          >
             <option value="All" selected="true">All</option>
             <option value="CW">CW</option>
             <option value="SSB">SSB</option>
