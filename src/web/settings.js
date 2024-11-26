@@ -129,12 +129,18 @@ function updateButtonText() {
 function uploadFirmware() {
     const otaFileInput = document.getElementById('ota-file');
     const otaStatus = document.getElementById('ota-status');
+    const uploadButton = document.getElementById('upload-button');
     const file = otaFileInput.files[0];
 
     if (!file) {
         alert('Please select a firmware file to upload.');
         return;
     }
+
+    // Disable the button and update status to show upload is in progress
+    uploadButton.disabled = true;
+    uploadButton.textContent = 'Uploading firmware...';
+    otaStatus.innerHTML = 'Uploading firmware... Please wait and do not refresh the page.';
 
     const blob = new Blob([file], { type: 'application/octet-stream' });
 
@@ -145,13 +151,23 @@ function uploadFirmware() {
     })
     .then(response => {
         if (response.ok) {
-            // Successful OTA upload, no content returned
-            otaStatus.innerHTML = 'Firmware upload successful. SOTAcat will now reboot.';
-            alert("Firmware upload successful.\nYour SOTAcat is rebooting with the new firmware.\nPlease restart your browser.");
-            return null;  // No further processing needed
+            // Update status to show firmware is being applied
+            otaStatus.innerHTML = 'Firmware upload successful. Applying firmware update...';
+            uploadButton.textContent = 'Applying firmware...';
+            
+            // Show final message and alert
+            setTimeout(() => {
+                otaStatus.innerHTML = 'Firmware upload successful. SOTAcat will now reboot.';
+                uploadButton.textContent = 'Upload Complete';
+                alert("Firmware upload successful.\nYour SOTAcat is rebooting with the new firmware.\nPlease restart your browser.");
+            }, 2000);
+            return null;
         }
         else {
-            // Error occurred, expecting a JSON error message in a "text/plain" content type
+            // Reset button state on error
+            uploadButton.disabled = false;
+            uploadButton.textContent = 'Upload Firmware';
+            
             return response.text().then(text => {
                 let errorData;
                 try {
@@ -167,7 +183,11 @@ function uploadFirmware() {
     .catch(error => {
         console.error('Firmware upload error:', error);
         otaStatus.innerHTML = `Firmware upload failed: ${error.message}`;
-        alert(`Firmware upload failed: ${message.error}`);
+        alert(`Firmware upload failed: ${error.message}`);
+        
+        // Reset button state
+        uploadButton.disabled = false;
+        uploadButton.textContent = 'Upload Firmware';
     });
 }
 
