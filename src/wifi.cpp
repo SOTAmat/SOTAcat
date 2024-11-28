@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "globals.h"
+#include "hardware_specific.h"
 #include "settings.h"
 #include "wifi.h"
 
@@ -19,6 +20,7 @@
 #include <esp_log.h>
 
 // Add at top with other includes
+#include "build_info.h"
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
 #include "lwip/tcp.h"
@@ -37,13 +39,15 @@ static int           retry_count        = 0;
 static esp_netif_t * sta_netif;
 static esp_netif_t * ap_netif;
 // Add this line:
-static bool          mdns_started          = false;
+static bool mdns_started = false;
 
 // Add these at the top of wifi.cpp
-#define WIFI_CONNECT_TIMEOUT_MS          10000
-#define WIFI_STATE_TRANSITION_TIMEOUT_MS 5000
-#define WIFI_RECONNECT_BACKOFF_BASE_MS   1000
-#define WIFI_MAX_BACKOFF_MS              32000
+#define WIFI_CONNECT_TIMEOUT_MS          5000
+#define WIFI_STATE_TRANSITION_TIMEOUT_MS 3000
+#define WIFI_RECONNECT_BACKOFF_BASE_MS   500
+#define WIFI_MAX_BACKOFF_MS              8000
+#define RECONNECT_TIMEOUT_MS             2000
+#define MDNS_SERVICE_NAME                "SOTAcat SOTAmat Service"
 
 // Function to handle Wi-Fi events
 static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t event_id, void * event_data) {
@@ -68,29 +72,12 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
         case WIFI_EVENT_STA_DISCONNECTED:
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_DISCONNECTED");
             s_sta_connected = false;
-            wifi_connected  = false;
+            wifi_connected  = s_ap_client_connected;
 
-            if (retry_count < MAX_RETRY_WIFI_STATION_CONNECT) {
-                ESP_LOGI (TAG8, "Retrying connection to SSID...");
-                esp_err_t err = esp_wifi_connect();
-                if (err != ESP_OK) {
-                    ESP_LOGE (TAG8, "Failed to initiate STA connection: %s", esp_err_to_name (err));
-                    // Delay a short time before retrying
-                    vTaskDelay (pdMS_TO_TICKS (150));
-                }
-                retry_count++;
-            }
-            else {
-                ESP_LOGI (TAG8, "Maximum retry attempts reached. Switching SSID or resetting state.");
-                retry_count = 0;
-                // Optionally switch SSID or reset state to trigger alternate logic
-            }
-
-            // Add these lines
-            if (mdns_started) {
+            if (!s_sta_connected && !s_ap_client_connected && mdns_started) {
                 mdns_free();
                 mdns_started = false;
-                ESP_LOGI (TAG8, "mDNS stopped due to disconnection");
+                ESP_LOGI (TAG8, "mDNS stopped due to all connections lost");
             }
             break;
 
@@ -108,6 +95,13 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             ESP_LOGI (TAG8, "Station " MACSTR " connected, aid=%d", MAC2STR (event->mac), event->aid);
             s_ap_client_connected = true;
             wifi_connected        = true;
+
+            // Start mDNS if not already running
+            if (!mdns_started) {
+                if (start_mdns_service()) {
+                    ESP_LOGI (TAG8, "mDNS started after AP client connection");
+                }
+            }
 
             // Check current settings before reapplying AP settings
             esp_netif_ip_info_t current_ip_info;
@@ -150,6 +144,12 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             ip_event_got_ip_t * event = (ip_event_got_ip_t *)event_data;
             ESP_LOGI (TAG8, "Got IP: " IPSTR, IP2STR (&event->ip_info.ip));
             wifi_connected = true;
+
+            if (!mdns_started) {
+                if (start_mdns_service()) {
+                    ESP_LOGI (TAG8, "mDNS started after IP acquisition");
+                }
+            }
             break;
         }
         case IP_EVENT_STA_LOST_IP:
@@ -303,6 +303,9 @@ void wifi_init () {
 
     wifi_attenuate_power();
 
+    // Disable power save mode for better mDNS reliability
+    ESP_ERROR_CHECK (esp_wifi_set_ps (WIFI_PS_NONE));
+
     ESP_LOGI (TAG8, "wifi initialization complete");
 }
 
@@ -328,22 +331,44 @@ bool start_mdns_service () {
     }
 
     // Set the default instance
-    err = mdns_instance_name_set ("SOTAcat SOTAmat Service");
+    err = mdns_instance_name_set (MDNS_SERVICE_NAME);
     if (err != ESP_OK) {
         ESP_LOGE (TAG8, "mDNS instance name set failed: %s", esp_err_to_name (err));
         mdns_free();
         return false;
     }
 
-    // Add service
-    err = mdns_service_add (NULL, "_http", "_tcp", 80, NULL, 0);
+    // Add HTTP service with TXT records
+    mdns_txt_item_t http_txt[] = {
+        {"path", "/"   },
+        {"type", "http"}
+    };
+    err = mdns_service_add (NULL, "_http", "_tcp", 80, http_txt, sizeof (http_txt) / sizeof (http_txt[0]));
     if (err != ESP_OK) {
-        ESP_LOGE (TAG8, "mDNS service add failed: %s", esp_err_to_name (err));
+        ESP_LOGE (TAG8, "mDNS HTTP service add failed: %s", esp_err_to_name (err));
         mdns_free();
         return false;
     }
 
+    // Add device-info service with proper properties
+    const size_t MAX_VS_LEN = sizeof (BUILD_DATE_TIME) + sizeof ('-') + sizeof (SC_BUILD_TYPE) + 1;
+    char         versionString[MAX_VS_LEN];
+    snprintf (versionString, MAX_VS_LEN, "%s-%s", BUILD_DATE_TIME, SC_BUILD_TYPE);
+
+    mdns_txt_item_t device_txt[] = {
+        {"model",        "SOTAcat"    },
+        {"version",      versionString},
+        {"manufacturer", HW_TYPE_STR  }
+    };
+    err = mdns_service_add (NULL, "_device-info", "_tcp", 9090, device_txt, sizeof (device_txt) / sizeof (device_txt[0]));
+    if (err != ESP_OK) {
+        ESP_LOGE (TAG8, "mDNS device-info service add failed: %s", esp_err_to_name (err));
+        // Don't fail completely if device-info service fails
+        ESP_LOGW (TAG8, "Continuing without device-info service");
+    }
+
     ESP_LOGI (TAG8, "mDNS service started successfully");
+    mdns_started = true;
     return true;
 }
 
@@ -374,6 +399,18 @@ void wifi_task (void * pvParameters) {
         case NO_CONNECTION:
             if (wifi_connected) {
                 wifi_state = CONNECTED;
+                break;
+            }
+
+            // Don't attempt STA connections if AP client is connected
+            if (s_ap_client_connected) {
+                vTaskDelay (pdMS_TO_TICKS (1000));
+                break;
+            }
+
+            // Add delay after connection loss before attempting reconnection
+            if ((current_time - attempt_start_time) * portTICK_PERIOD_MS < RECONNECT_TIMEOUT_MS) {
+                vTaskDelay (pdMS_TO_TICKS (100));
                 break;
             }
 
@@ -452,46 +489,50 @@ void wifi_task (void * pvParameters) {
             if ((current_time - last_connection_check_time) * portTICK_PERIOD_MS >= CONNECTION_CHECK_INTERVAL_MS) {
                 last_connection_check_time = current_time;
 
-                wifi_ap_record_t ap_info;
-                esp_err_t        err = esp_wifi_sta_get_ap_info (&ap_info);
+                // Only check STA connection if we're not in AP mode with clients
+                if (s_sta_connected && !s_ap_client_connected) {
+                    wifi_ap_record_t ap_info;
+                    esp_err_t        err = esp_wifi_sta_get_ap_info (&ap_info);
 
-                if (err == ESP_OK) {
-                    ESP_LOGI (TAG8, "WiFi still connected to SSID: %s, RSSI: %d", ap_info.ssid, ap_info.rssi);
-                }
-                else {
-                    ESP_LOGW (TAG8, "Failed to get AP info, error: %s", esp_err_to_name (err));
-
-                    // Attempt to reconnect
-                    err = esp_wifi_connect();
-                    if (err != ESP_OK) {
-                        ESP_LOGE (TAG8, "Failed to initiate reconnection: %s", esp_err_to_name (err));
-                        wifi_state         = NO_CONNECTION;
-                        attempt_start_time = current_time;
+                    if (err == ESP_OK) {
+                        ESP_LOGI (TAG8, "WiFi still connected to SSID: %s, RSSI: %d", ap_info.ssid, ap_info.rssi);
                     }
                     else {
-                        ESP_LOGI (TAG8, "Reconnection attempt initiated");
+                        ESP_LOGW (TAG8, "Failed to get AP info, error: %s", esp_err_to_name (err));
+
+                        // Only attempt reconnection if we're not in AP mode with clients
+                        if (!s_ap_client_connected) {
+                            err = esp_wifi_connect();
+                            if (err != ESP_OK) {
+                                ESP_LOGE (TAG8, "Failed to initiate reconnection: %s", esp_err_to_name (err));
+                                wifi_state         = NO_CONNECTION;
+                                attempt_start_time = current_time;
+                            }
+                            else {
+                                ESP_LOGI (TAG8, "Reconnection attempt initiated");
+                            }
+                        }
                     }
                 }
             }
 
             if (!mdns_started) {
-                if (s_sta_connected) {  // Only start mDNS in station mode
-                    static int mdns_retry_count = 0;
-                    if (start_mdns_service()) {
-                        mdns_started     = true;
+                // Start mDNS in either AP or STA mode when connected
+                static int mdns_retry_count = 0;
+                if (start_mdns_service()) {
+                    mdns_started     = true;
+                    mdns_retry_count = 0;
+                    ESP_LOGI (TAG8, "mDNS service started");
+                }
+                else {
+                    mdns_retry_count++;
+                    ESP_LOGE (TAG8, "Failed to start mDNS service (attempt %d), will retry in 5 seconds", mdns_retry_count);
+                    if (mdns_retry_count >= 3) {
+                        ESP_LOGW (TAG8, "Multiple mDNS start failures, forcing WiFi reconnection");
+                        wifi_state       = NO_CONNECTION;  // Force reconnection
                         mdns_retry_count = 0;
-                        ESP_LOGI (TAG8, "mDNS service started");
                     }
-                    else {
-                        mdns_retry_count++;
-                        ESP_LOGE (TAG8, "Failed to start mDNS service (attempt %d), will retry in 5 seconds", mdns_retry_count);
-                        if (mdns_retry_count >= 3) {
-                            ESP_LOGW (TAG8, "Multiple mDNS start failures, forcing WiFi reconnection");
-                            wifi_state       = NO_CONNECTION;  // Force reconnection
-                            mdns_retry_count = 0;
-                        }
-                        vTaskDelay (pdMS_TO_TICKS (5000));
-                    }
+                    vTaskDelay (pdMS_TO_TICKS (5000));
                 }
             }
             else {
@@ -567,4 +608,3 @@ void start_wifi_task (TaskNotifyConfig * config) {
 bool is_wifi_connected () {
     return wifi_connected;
 }
-
