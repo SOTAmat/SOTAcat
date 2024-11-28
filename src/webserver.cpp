@@ -10,9 +10,9 @@
 #include <esp_log.h>
 static const char * TAG8 = "sc:webserve";
 
-#define DECLARE_ASSET(asset)                                          \
-    extern const uint8_t asset##_end[] asm("_binary_" #asset "_end"); \
-    extern const uint8_t asset##_srt[] asm("_binary_" #asset "_start");
+#define DECLARE_ASSET(asset)                                           \
+    extern const uint8_t asset##_end[] asm ("_binary_" #asset "_end"); \
+    extern const uint8_t asset##_srt[] asm ("_binary_" #asset "_start");
 
 DECLARE_ASSET (about_html)
 DECLARE_ASSET (cat_html)
@@ -45,8 +45,8 @@ typedef struct
  * Represents an array of asset entries to facilitate URI to asset mapping.
  */
 static const asset_entry_t asset_map[] = {
-  // uri               asset_start        asset_end          asset_type         cache_time
-  // ================= ================== ================== ================== ======================
+    // uri               asset_start        asset_end          asset_type         cache_time
+    // ================= ================== ================== ================== ======================
     {"/",              index_html_srt,    index_html_end,    "text/html",       60}, // 1 minute cache
     {"/index.html",    index_html_srt,    index_html_end,    "text/html",       60},
     {"/style.css",     style_css_srt,     style_css_end,     "text/css",        60},
@@ -80,8 +80,8 @@ typedef struct
  *  GET, PUT, POST handlers
  */
 static const api_handler_t api_handlers[] = {
-  // method     api_name            handler_func                  requires_radio
-  // ========== =================== ============================= =============
+    // method     api_name            handler_func                  requires_radio
+    // ========== =================== ============================= =============
     {HTTP_GET,  "batteryPercent",   handler_batteryPercent_get,   false},
     {HTTP_GET,  "batteryVoltage",   handler_batteryVoltage_get,   false},
     {HTTP_GET,  "connectionStatus", handler_connectionStatus_get, false}, // disconnected radio /is/ a status
@@ -294,7 +294,7 @@ bool url_decode_in_place (char * str) {
  *   - ESP_ERR_* code on failure, indicating the specific error that occurred.
  */
 esp_err_t schedule_deferred_reboot (httpd_req_t * req) {
-    const uint64_t REBOOT_DELAY_US = 1500000;  // 1.5 seconds in microseconds
+    const uint64_t REBOOT_DELAY_US = 2000000;  // 1.5 seconds in microseconds
 
     // use a unique_ptr with a custom deleter for proper resource management
     auto deleter = [] (esp_timer_handle_t * t) {

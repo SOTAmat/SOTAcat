@@ -63,8 +63,11 @@ function saveSettings() {
         alert("Settings saved successfully!\nYour SOTAcat is rebooting with the new settings.\nPlease restart your browser.");
     })
     .catch((error) => {
-        console.error('Error:', error);
-        alert('Failed to save settings.');
+        // Only show error if we didn't get a successful response
+        if (!error.message.includes('NetworkError')) {
+            console.error('Error:', error);
+            alert('Failed to save settings.');
+        }
     });
 }
 
