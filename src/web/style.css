@@ -428,9 +428,9 @@ hr {
 
 .firmware-row {
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;  /* Center the buttons horizontally */
     align-items: center;
-    margin-bottom: 3.5px;
+    margin-bottom: 10px;
 }
 
 .firmware-label, .firmware-client input[type="file"] {
@@ -441,7 +441,7 @@ hr {
 }
 
 .file-label {
-    display: inline-block;
+    font-size: 16px;
     padding: var(--spacing-medium) var(--spacing-large);
     background-color: var(--bg-button);
     color: var(--text-button);
@@ -449,14 +449,12 @@ hr {
     cursor: pointer;
     text-align: center;
     transition: background-color var(--transition-speed) ease;
-    white-space: nowrap;  /* Prevents text wrapping */
-    width: auto;  /* Automatically adjust width based on content */
-    max-width: 100%; /* Ensures it does not exceed container size */
-    min-width: 250px; /* Adjust this value as needed */
+    white-space: nowrap;
+    min-width: 250px;
     width: auto;
-    box-sizing: border-box; /* Include padding and border in the element's total width and height */
-    overflow: hidden; /* Prevents any overflow issues */
-    vertical-align: middle; /* Aligns label with other elements */
+    box-sizing: border-box;
+    overflow: hidden;
+    vertical-align: middle;
 }
 
 /* Styling the upload button consistently with others */
@@ -530,4 +528,22 @@ hr {
         max-width: 600px;
         margin: 0 auto;
     }
+}
+
+/* Add styles for the download button */
+.download-button {
+    font-size: 16px;
+    padding: var(--spacing-medium) var(--spacing-large);
+    margin: var(--spacing-small);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-button);
+    color: var(--text-button);
+    border: none;
+    cursor: pointer;
+    transition: background-color var(--transition-speed) ease;
+    min-width: 250px; /* Match the width of other firmware buttons */
+}
+
+.download-button:active {
+    background-color: var(--bg-button-active);
 }

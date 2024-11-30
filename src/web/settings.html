@@ -46,9 +46,12 @@
       (iPhone, MacOS, Windows) or to
       <a href="http://192.168.4.1" target="_blank">http://192.168.4.1</a> or
       when using an Android hotspot, install the
-      <a href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser"
-         target="_blank">Bonjour Browser</a> app
-      from the Google Play store and use that app to navigate to the
+      <a
+        href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser"
+        target="_blank"
+        >Bonjour Browser</a
+      >
+      app from the Google Play store and use that app to navigate to the
       "sotacat.local" address. <br /><br />
     </div>
     <div class="wifi-client">
@@ -147,22 +150,72 @@
     <input type="submit" class="save-button" value="Save and Reboot" />
   </form>
   <hr />
-<h2>Firmware Update</h2>
-<form id="ota-update-form" enctype="multipart/form-data" class="firmware-update-form">
-  <div class="firmware-client">
-    <div class="firmware-row">
-      <div class="firmware-label">
-        <label for="ota-file" class="file-label">Select firmware (.bin) file</label>
+  <h2>Firmware Update</h2>
+  <form
+    id="ota-update-form"
+    enctype="multipart/form-data"
+    class="firmware-update-form"
+  >
+    <div class="firmware-instructions">
+      <br />
+      SOTACAT automatically checks for firmware updates daily when connected to
+      the internet. To update your firmware:
+      <br /><br />
+      1. <b>Download</b> the firmware .bin from the cloud to your phone's local
+      storage. The button below downloads the default firmware for the default
+      SOTACAT hardware. To see if there are other firmwares available, visit
+      <a href="https://sotamat.com/sotacat" target="_blank" rel="noopener"
+        >https://sotamat.com/sotacat</a
+      >.
+      <br />
+      2. <b>Select</b> the downloaded firmware .bin file from step 1.
+      <br />
+      3. <b>Upload</b> to send the .bin file to the SOTACAT and install it.
+    </div>
+
+    <div class="firmware-client">
+      <div class="firmware-row">
+        <button
+          type="button"
+          class="download-button"
+          onclick="window.location.href='https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin'"
+        >
+          Download Firmware
+        </button>
       </div>
-      <input type="file" id="ota-file" name="ota-file" accept=".bin" required onchange="updateButtonText()" style="display: none;" />
+      <div class="firmware-row">
+        <button
+          type="button"
+          class="file-label"
+          onclick="document.getElementById('ota-file').click()"
+        >
+          Select firmware (.bin) file
+        </button>
+        <input
+          type="file"
+          id="ota-file"
+          name="ota-file"
+          accept=".bin"
+          required
+          onchange="updateButtonText()"
+          style="display: none"
+        />
+      </div>
+      <div class="firmware-row">
+        <button
+          type="button"
+          id="upload-button"
+          class="upload-button"
+          onclick="uploadFirmware()"
+          disabled
+        >
+          Upload Firmware
+        </button>
+      </div>
     </div>
-    <div class="firmware-row">
-      <button type="button" id="upload-button" class="upload-button" onclick="uploadFirmware()" disabled>Upload Firmware</button>
-    </div>
-  </div>
-</form>
-<div id="ota-status"></div>
-<hr />
+  </form>
+  <div id="ota-status"></div>
+  <hr />
   <hr />
 
   <!--

@@ -418,6 +418,199 @@ async function refreshSotaPotaJson(force) {
     }
 }
 
+const VERSION_CHECK_INTERVAL_DAYS = 1.0;
+const VERSION_CHECK_STORAGE_KEY = 'sotacat_version_check';
+const MANIFEST_URL = 'https://sotamat.com/wp-content/uploads/manifest.json';
+const VERSION_CHECK_TIMEOUT_MS = 5000;
+
+// Add the version check functions
+function normalizeVersion(versionString) {
+    console.log('[Version Check] Parsing version string:', versionString);
+    
+    // Extract date and time components from version string
+    let match;
+    if (versionString.includes('-Release')) {
+        // Handle manifest format (e.g., "2024-11-29_11:37-Release")
+        match = versionString.match(/(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2})/);
+        console.log('[Version Check] Manifest format detected, match:', match);
+    } else if (versionString.includes(':')) {
+        // Handle device format (e.g., "AB6D_1:241129:2346-R")
+        const parts = versionString.split(':');
+        match = parts[1].match(/(\d{2})(\d{2})(\d{2})/);
+        if (match && parts[2]) {
+            const timeMatch = parts[2].match(/(\d{2})(\d{2})/);
+            if (timeMatch) {
+                match = [...match, timeMatch[1], timeMatch[2]];
+            }
+        }
+        console.log('[Version Check] Device format detected, match:', match);
+    }
+    
+    if (!match) {
+        console.log('[Version Check] Failed to match version pattern');
+        return null;
+    }
+
+    let year, month, day, hour, minute;
+    
+    if (versionString.includes('-Release')) {
+        // Manifest format parsing
+        year = parseInt(match[1]);
+        month = parseInt(match[2]);
+        day = parseInt(match[3]);
+        hour = parseInt(match[4]);
+        minute = parseInt(match[5]);
+    } else {
+        // Device format parsing
+        year = 2000 + parseInt(match[1]);
+        month = parseInt(match[2]);
+        day = parseInt(match[3]);
+        hour = parseInt(match[4] || '0');
+        minute = parseInt(match[5] || '0');
+    }
+    
+    // Adjust month after parsing (JS months are 0-based)
+    const originalMonth = month;  // Save for logging
+    month = month - 1;
+    
+    console.log('[Version Check] Parsed components:', {
+        year, originalMonth, day, hour, minute
+    });
+
+    const date = new Date(Date.UTC(year, month, day, hour, minute));
+    const timestamp = date.getTime() / 1000;
+    
+    console.log('[Version Check] Resulting timestamp:', timestamp, 
+                'Date:', date.toISOString());
+    
+    return timestamp;
+}
+
+function shouldCheckVersion() {
+    const lastCheck = localStorage.getItem(VERSION_CHECK_STORAGE_KEY);
+    console.log('[Version Check] Last check timestamp:', lastCheck);
+    if (!lastCheck) {
+        console.log('[Version Check] No previous check found, returning true');
+        return true;
+    }
+    
+    const lastCheckDate = new Date(parseInt(lastCheck));
+    const now = new Date();
+    const daysSinceLastCheck = (now - lastCheckDate) / (1000 * 60 * 60 * 24);
+    
+    console.log('[Version Check] Days since last check:', daysSinceLastCheck);
+    console.log('[Version Check] Check interval:', VERSION_CHECK_INTERVAL_DAYS);
+    const shouldCheck = daysSinceLastCheck >= VERSION_CHECK_INTERVAL_DAYS;
+    console.log('[Version Check] Should check?', shouldCheck);
+    return shouldCheck;
+}
+
+// Perform version check
+async function checkFirmwareVersion() {
+    console.log('[Version Check] Starting version check');
+    if (!shouldCheckVersion()) {
+        console.log('[Version Check] Skipping check due to interval');
+        return;
+    }
+    
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), VERSION_CHECK_TIMEOUT_MS);
+        
+        // Get current version from device
+        console.log('[Version Check] Fetching current version from device');
+        const response = await fetch('/api/v1/version', {
+            signal: controller.signal
+        });
+        if (!response.ok) {
+            console.log('[Version Check] Failed to get current version, status:', response.status);
+            return;
+        }
+        const currentVersion = await response.text();
+        console.log('[Version Check] Current device version:', currentVersion);
+        const currentBuildTime = normalizeVersion(currentVersion);
+        if (!currentBuildTime) {
+            console.error('[Version Check] Failed to parse current version');
+            return;
+        }
+
+        // Modify manifest fetch to handle CORS
+        console.log('[Version Check] Fetching manifest from:', MANIFEST_URL);
+        const manifestResponse = await fetch(MANIFEST_URL, {
+            signal: controller.signal,
+            mode: 'cors',  // Try CORS first
+            headers: {
+                'Accept': 'application/json'
+            }
+        }).catch(async () => {
+            console.log('[Version Check] CORS failed, trying no-cors mode');
+            // If CORS fails, try no-cors mode
+            return fetch(MANIFEST_URL, {
+                signal: controller.signal,
+                mode: 'no-cors'  // Fallback to no-cors
+            });
+        });
+
+        if (!manifestResponse.ok) {
+            console.log('[Version Check] Failed to fetch manifest, status:', manifestResponse.status);
+            return;
+        }
+        
+        let manifest;
+        try {
+            manifest = await manifestResponse.json();
+        } catch (e) {
+            console.info('Version check skipped: Invalid manifest JSON');
+            return;
+        }
+        
+        // Clear the timeout since we got our response
+        clearTimeout(timeoutId);
+        
+        const latestVersion = normalizeVersion(manifest.version);
+        if (!latestVersion) {
+            console.info('Version check skipped: Invalid version format in manifest');
+            return;
+        }
+
+        // Compare versions using Unix timestamps
+        console.info('[Version Check] Latest version timestamp:', new Date(latestVersion * 1000).toISOString());
+        console.info('[Version Check] Current version timestamp:', new Date(currentBuildTime * 1000).toISOString());
+
+        // Inform the user there is new firmware, and show them the datetime of the new version.
+        if (latestVersion > currentBuildTime) {
+            const userResponse = confirm(
+                'A new firmware version is available for your SOTAcat device.\n\n' +
+                'Would you like to go to the Settings page to update your firmware?\n\n' +
+                `Your version: ${new Date(currentBuildTime * 1000).toISOString()}\n` +
+                `New version: ${new Date(latestVersion    * 1000).toISOString()}`
+            );
+            
+            if (userResponse) {
+                openTab('Settings');
+            }
+        }
+        
+        // Update last check timestamp
+        localStorage.setItem(VERSION_CHECK_STORAGE_KEY, Date.now().toString());
+        
+    } catch (error) {
+        console.log('[Version Check] Error during version check:', error.message);
+        throw error;  // Re-throw to be caught by the caller
+    }
+}
+
+// Add to the DOMContentLoaded event listener in main.js
 document.addEventListener('DOMContentLoaded', function() {
     openTab('sota');
+    
+    // Schedule version check after page loads
+    setTimeout(() => {
+        console.log('[Version Check] Executing initial version check');
+        checkFirmwareVersion().catch(error => {
+            console.log('[Version Check] Error during version check:', error);
+        });
+    }, 1000);
 });
+
+
