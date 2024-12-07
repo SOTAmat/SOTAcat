@@ -1,19 +1,35 @@
 <h2 class="contentPageHeaderContainer">
-  <span class="spotsTableTitle">Recent Spots</span>
-  <div class="showDupsContainer">
-    <input type="checkbox" id="showDupsSelector" class="showDups" checked onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();" />
-    <label for="showDupsSelector" class="showDupsLabel">QRT/QSY</label>
+  <div class="header-group">
+    <span class="spotsTableTitle header-label">Recent<br />Spots</span>
   </div>
-  <div class="autoRefreshContainer">
-    <button onclick="refreshSotaPotaJson(true)">Refresh</button>
+
+  <div class="header-group">
+    <label for="showDupsSelector" class="showDupsLabel header-label"
+      >QRT/QSY</label
+    >
     <input
       type="checkbox"
-      id="autoRefreshSelector"
-      class="autoRefresh"
+      id="showDupsSelector"
+      class="showDups"
       checked
-      onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
+      onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();"
     />
-    <label for="autoRefreshSelector" class="autoRefreshLabel">auto</label>
+  </div>
+
+  <div class="header-group">
+    <button onclick="refreshSotaPotaJson(true)">Refresh</button>
+    <div style="display: flex; align-items: center">
+      <input
+        type="checkbox"
+        id="autoRefreshSelector"
+        class="autoRefresh"
+        checked
+        onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
+      />
+      <label for="autoRefreshSelector" class="autoRefreshLabel header-label"
+        >auto</label
+      >
+    </div>
   </div>
 </h2>
 
@@ -24,17 +40,23 @@
         <th><span data-sort-field="timestamp">UTC</span></th>
         <th><span data-sort-field="point">Park</span></th>
         <th><span data-sort-field="distance">Dist</span></th>
-        <th><span data-sort-field="mode">Mode</span>
-          <select
-            id="modeFilter"
-            onchange="changeModeFilter(this.value); saveModeFilterState();">
-            <option value="All" selected="true">All</option>
-            <option value="CW">CW</option>
-            <option value="SSB">SSB</option>
-            <option value="FM">FM</option>
-            <option value="FT8">FT8</option>
-            <option value="DATA">DATA</option>
-          </select>
+        <th>
+          <div
+            style="display: flex; flex-direction: column; align-items: center"
+          >
+            <span data-sort-field="mode">Mode</span>
+            <select
+              id="modeFilter"
+              onchange="changeModeFilter(this.value); saveModeFilterState();"
+            >
+              <option value="All" selected="true">All</option>
+              <option value="CW">CW</option>
+              <option value="SSB">SSB</option>
+              <option value="FM">FM</option>
+              <option value="FT8">FT8</option>
+              <option value="DATA">DATA</option>
+            </select>
+          </div>
         </th>
         <th><span data-sort-field="hertz">KHz</span></th>
         <th><span data-sort-field="activator">Call</span></th>

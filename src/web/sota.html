@@ -1,19 +1,26 @@
 <h2 class="contentPageHeaderContainer">
-  <span class="spotsTableTitle"
-    >Spots in past:
-    <!-- Dropdown for refresh intervals -->
-    <select
-      id="historyDurationSelector"
-      class="historyDurationDropdown"
-      aria-label="History duration"
-      onchange="refreshSotaPotaJson(true); saveHistoryDurationState();"
+  <div class="header-group">
+    <span class="spotsTableTitle">
+      <div style="display: flex; flex-direction: column">
+        <div class="header-label">Spots in past:</div>
+        <select
+          id="historyDurationSelector"
+          class="historyDurationDropdown"
+          aria-label="History duration"
+          onchange="refreshSotaPotaJson(true); saveHistoryDurationState();"
+        >
+          <option value="-1" selected>1 hour</option>
+          <option value="-3">3 hours</option>
+          <option value="-24">24 hours</option>
+        </select>
+      </div>
+    </span>
+  </div>
+
+  <div class="header-group">
+    <label for="showDupsSelector" class="showDupsLabel header-label"
+      >QRT/QSY</label
     >
-      <option value="-1" selected>1 hour</option>
-      <option value="-3">3 hours</option>
-      <option value="-24">24 hours</option>
-    </select>
-  </span>
-  <div class="showDupsContainer">
     <input
       type="checkbox"
       id="showDupsSelector"
@@ -21,18 +28,22 @@
       checked
       onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();"
     />
-    <label for="showDupsSelector" class="showDupsLabel">QRT/QSY</label>
   </div>
-  <div class="autoRefreshContainer">
+
+  <div class="header-group">
     <button onclick="refreshSotaPotaJson(true)">Refresh</button>
-    <input
-      type="checkbox"
-      id="autoRefreshSelector"
-      class="autoRefresh"
-      checked
-      onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
-    />
-    <label for="autoRefreshSelector" class="autoRefreshLabel">auto</label>
+    <div style="display: flex; align-items: center">
+      <input
+        type="checkbox"
+        id="autoRefreshSelector"
+        class="autoRefresh"
+        checked
+        onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
+      />
+      <label for="autoRefreshSelector" class="autoRefreshLabel header-label"
+        >auto</label
+      >
+    </div>
   </div>
 </h2>
 
@@ -44,18 +55,22 @@
         <th><span data-sort-field="point">Summit</span></th>
         <th><span data-sort-field="distance">Dist</span></th>
         <th>
-          <span data-sort-field="mode">Mode</span>
-          <select
-            id="modeFilter"
-            onchange="changeModeFilter(this.value); saveModeFilterState();"
+          <div
+            style="display: flex; flex-direction: column; align-items: center"
           >
-            <option value="All" selected="true">All</option>
-            <option value="CW">CW</option>
-            <option value="SSB">SSB</option>
-            <option value="FM">FM</option>
-            <option value="FT8">FT8</option>
-            <option value="DATA">DATA</option>
-          </select>
+            <span data-sort-field="mode">Mode</span>
+            <select
+              id="modeFilter"
+              onchange="changeModeFilter(this.value); saveModeFilterState();"
+            >
+              <option value="All" selected="true">All</option>
+              <option value="CW">CW</option>
+              <option value="SSB">SSB</option>
+              <option value="FM">FM</option>
+              <option value="FT8">FT8</option>
+              <option value="DATA">DATA</option>
+            </select>
+          </div>
         </th>
         <th><span data-sort-field="hertz">MHz</span></th>
         <th><span data-sort-field="activatorCallsign">Call</span></th>

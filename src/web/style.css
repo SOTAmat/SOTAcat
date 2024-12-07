@@ -28,6 +28,8 @@
     --font-size-large: 1.2em;
     --font-size-xlarge: 2.0em;
     --font-size-small: 0.6em;
+    --font-size-header-label: 1em;
+    --font-size-controls: 0.8em;
     --responsive-image-height: 60px;
     --tab-icon-size: 28px;
 
@@ -174,20 +176,27 @@ table, th, td {
 
 .contentPageHeaderContainer {
     display: flex;
-    justify-content: space-between; /* Ensures space between the title and the checkbox group */
-    align-items: center; /* Vertically centers children */
+    justify-content: space-between;
+    align-items: center;
     width: 100%;
-    padding: 0.2em 0;
+    padding: 0.2em 1em;
+}
+
+/* Common style for all header labels */
+.header-label {
+    font-size: var(--font-size-header-label);
+    font-family: Arial, sans-serif;
+    font-weight: 400;  /* Set your desired weight here */
+    color: var(--text-secondary);
 }
 
 .spotsTableTitle {
-    font-size: var(--font-size-medium);
-    font-family: Arial, sans-serif;
-    font-weight: 600;
+    composes: header-label;  /* Inherit common styles */
     background-color: var(--bg-secondary);
-    color: var(--text-secondary);
-    margin-left: 0.5em;
-    margin-right: auto;
+    flex: 1;
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
 }
 
 /* Table Sorting Styles, Hide arrows by default */
@@ -214,7 +223,7 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
 }
 
 .historyDurationDropdown {
-/* Add some padding to the left of the <select> element */
+    font-size: var(--font-size-controls);
     margin-left: var(--spacing-small);
 }
 
@@ -228,15 +237,15 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
 }
 
 .autoRefreshLabel {
-    font-size: var(--font-size-small);
-    margin-right: var(--spacing-small); /* Adds a small gap between the checkbox and the label */
-    font-family: Arial, sans-serif;
-    color: var(--text-secondary);
+    composes: header-label;  /* Inherit common styles */
+    margin-right: var(--spacing-small);
 }
 
 .showDupsContainer {
     display: flex;
-    align-items: center; /* This will ensure vertical alignment */
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
 }
 
 .showDups {
@@ -244,10 +253,10 @@ table.table-sortable th span[data-sort-dir="desc"]::after {
 }
 
 .showDupsLabel {
-    font-size: var(--font-size-small);
-    margin-right: var(--spacing-small); /* Adds a small gap between the checkbox and the label */
-    font-family: Arial, sans-serif;
-    color: var(--text-secondary);
+    composes: header-label;  /* Inherit common styles */
+    margin: 0 var(--spacing-small);
+    white-space: nowrap;
+    text-align: center;
 }
 
 .duplicate-row {
@@ -546,4 +555,33 @@ hr {
 
 .download-button:active {
     background-color: var(--bg-button-active);
+}
+
+/* Add styles for the three column groups */
+.header-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: fit-content;
+    padding: 0 var(--spacing-medium);
+}
+
+.header-group:first-child {
+    align-items: flex-start;
+}
+
+.header-group:last-child {
+    align-items: flex-end;
+}
+
+/* Style for the history duration dropdown */
+.historyDurationDropdown {
+    font-size: var(--font-size-controls);
+    margin-left: var(--spacing-small);
+}
+
+/* Style for the refresh buttons */
+.contentPageHeaderContainer button {
+    font-size: var(--font-size-controls);
 }

@@ -32,6 +32,7 @@ async function updateSotaTable()
         if (spot.type && spot.type !== "" && spot.type !== "NORMAL") { // "" is a normal spot, other values are not
             row.classList.add('duplicate-row');
             row.classList.add('qrt-row');
+            spot.mode = spot.type;
         }
 
         const formattedTime = spot.timestamp.getUTCHours().toString().padStart(2, '0') + ':' + spot.timestamp.getUTCMinutes().toString().padStart(2, '0');
