@@ -117,6 +117,37 @@
       </div>
     </div>
     <div class="wifi-client">
+      <h3><b>Client 3:</b> ex. Another hotspot / Boat / RV internet</h3>
+      <div class="wifi-row">
+        <div class="wifi-label"><label for="sta3-ssid">SSID:</label></div>
+        <div class="wifi-label"><label for="sta3-pass">Password:</label></div>
+      </div>
+      <div class="wifi-row">
+        <input
+          type="text"
+          id="sta3-ssid"
+          name="Client 3 SSID"
+          pattern=".{0}|.{2,31}"
+          title="empty, or 2 to 31 characters"
+        />
+        <input
+          type="password"
+          id="sta3-pass"
+          name="Client 3 Password"
+          pattern=".{0}|.{8,63}"
+          title="empty, or 8 to 63 characters"
+        />
+      </div>
+      <div class="wifi-row show-password-row">
+        <label class="show-password">
+          <input
+            type="checkbox"
+            onclick="togglePasswordVisibility('sta3-pass')"
+          />Show
+        </label>
+      </div>
+    </div>
+    <div class="wifi-client">
       <h3><b>Server:</b> iPhone connects to SOTACAT hotspot</h3>
       <div class="wifi-row">
         <div class="wifi-label"><label for="ap-ssid">SSID:</label></div>

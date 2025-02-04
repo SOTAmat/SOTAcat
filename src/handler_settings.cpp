@@ -27,6 +27,10 @@ static const char s_sta2_ssid_key[] = "sta2_ssid";
 char              g_sta2_ssid[MAX_WIFI_SSID_SIZE];
 static const char s_sta2_pass_key[] = "sta2_pass";
 char              g_sta2_pass[MAX_WIFI_PASS_SIZE];
+static const char s_sta3_ssid_key[] = "sta3_ssid";
+char              g_sta3_ssid[MAX_WIFI_SSID_SIZE];
+static const char s_sta3_pass_key[] = "sta3_pass";
+char              g_sta3_pass[MAX_WIFI_PASS_SIZE];
 static const char s_ap_ssid_key[] = "ap_ssid";
 char              g_ap_ssid[MAX_WIFI_SSID_SIZE];
 static const char s_ap_pass_key[] = "ap_pass";
@@ -87,6 +91,8 @@ static void populate_settings () {
     GET_NV_STRING (sta1_pass, "sotapota");
     GET_NV_STRING (sta2_ssid, "");
     GET_NV_STRING (sta2_pass, "");
+    GET_NV_STRING (sta3_ssid, "");
+    GET_NV_STRING (sta3_pass, "");
     GET_NV_STRING (ap_ssid, default_ap_ssid);
     GET_NV_STRING (ap_pass, "12345678");
 }
@@ -134,13 +140,15 @@ static std::shared_ptr<char[]> get_settings_json () {
                            sizeof (s_sta1_pass_key) + sizeof (g_sta1_pass) + 6 +
                            sizeof (s_sta2_ssid_key) + sizeof (g_sta2_ssid) + 6 +
                            sizeof (s_sta2_pass_key) + sizeof (g_sta2_pass) + 6 +
+                           sizeof (s_sta3_ssid_key) + sizeof (g_sta3_ssid) + 6 +
+                           sizeof (s_sta3_pass_key) + sizeof (g_sta3_pass) + 6 +
                            sizeof (s_ap_ssid_key) + sizeof (g_ap_ssid) + 6 +
                            sizeof (s_ap_pass_key) + sizeof (g_ap_pass) + 6 +
                            1;
-    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\"}";
+    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\"}";
 
     std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_sta1_ssid_key, g_sta1_ssid, s_sta1_pass_key, g_sta1_pass, s_sta2_ssid_key, g_sta2_ssid, s_sta2_pass_key, g_sta2_pass, s_ap_ssid_key, g_ap_ssid, s_ap_pass_key, g_ap_pass);
+    snprintf (buf.get(), required_size, format, s_sta1_ssid_key, g_sta1_ssid, s_sta1_pass_key, g_sta1_pass,  s_sta2_ssid_key, g_sta2_ssid, s_sta2_pass_key, g_sta2_pass, s_sta3_ssid_key, g_sta3_ssid, s_sta3_pass_key, g_sta3_pass, s_ap_ssid_key, g_ap_ssid, s_ap_pass_key, g_ap_pass);
 
     return buf;
 }

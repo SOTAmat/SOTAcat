@@ -31,6 +31,8 @@ async function fetchSettings() {
         document.getElementById('sta1-pass').value = data.sta1_pass;
         document.getElementById('sta2-ssid').value = data.sta2_ssid;
         document.getElementById('sta2-pass').value = data.sta2_pass;
+        document.getElementById('sta3-ssid').value = data.sta3_ssid;
+        document.getElementById('sta3-pass').value = data.sta3_pass;
         document.getElementById('ap-ssid').value = data.ap_ssid;
         document.getElementById('ap-pass').value = data.ap_pass;
     } catch (error) {
@@ -46,6 +48,8 @@ function saveSettings() {
         sta1_pass: document.getElementById('sta1-pass').value,
         sta2_ssid: document.getElementById('sta2-ssid').value,
         sta2_pass: document.getElementById('sta2-pass').value,
+        sta3_ssid: document.getElementById('sta3-ssid').value,
+        sta3_pass: document.getElementById('sta3-pass').value,
         ap_ssid:   document.getElementById('ap-ssid').value,
         ap_pass:   document.getElementById('ap-pass').value,
     };
@@ -76,6 +80,7 @@ function customCheckSettingsValidity() {
     const wifiPairs = [
         { ssid: document.getElementById('sta1-ssid'), pass: document.getElementById('sta1-pass') },
         { ssid: document.getElementById('sta2-ssid'), pass: document.getElementById('sta2-pass') },
+        { ssid: document.getElementById('sta3-ssid'), pass: document.getElementById('sta3-pass') },
         { ssid: document.getElementById('ap-ssid'),   pass: document.getElementById('ap-pass')   }
     ];
 
