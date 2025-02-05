@@ -426,9 +426,9 @@ void wifi_task (void * pvParameters) {
                 const char * ssid     = NULL;
                 const char * password = NULL;
 
-                if (strlen (g_sta1_ssid) == 0 && strlen (g_sta2_ssid) == 0) {
+                if (strlen (g_sta1_ssid) == 0 && strlen (g_sta2_ssid) == 0 && strlen (g_sta3_ssid) == 0) {
                     if (!sta_mode_aborted) {
-                        ESP_LOGE (TAG8, "Both SSIDs are empty. Aborting station mode connection attempts.");
+                        ESP_LOGE (TAG8, "All SSIDs are empty. Aborting station mode connection attempts.");
                         sta_mode_aborted = true;
                     }
                 }
@@ -439,9 +439,14 @@ void wifi_task (void * pvParameters) {
                         password     = g_sta1_pass;
                         current_ssid = 2;
                     }
-                    else if (strlen (g_sta2_ssid) > 0) {
+                    else if (current_ssid == 2 && strlen (g_sta2_ssid) > 0) {
                         ssid         = g_sta2_ssid;
                         password     = g_sta2_pass;
+                        current_ssid = 3;
+                    }
+                    else if (strlen (g_sta3_ssid) > 0) {
+                        ssid         = g_sta3_ssid;
+                        password     = g_sta3_pass;
                         current_ssid = 1;
                     }
                     else {

@@ -22,6 +22,8 @@ extern char g_sta1_ssid[MAX_WIFI_SSID_SIZE];
 extern char g_sta1_pass[MAX_WIFI_PASS_SIZE];
 extern char g_sta2_ssid[MAX_WIFI_SSID_SIZE];
 extern char g_sta2_pass[MAX_WIFI_PASS_SIZE];
+extern char g_sta3_ssid[MAX_WIFI_SSID_SIZE];
+extern char g_sta3_pass[MAX_WIFI_PASS_SIZE];
 extern char g_ap_ssid[MAX_WIFI_SSID_SIZE];
 extern char g_ap_pass[MAX_WIFI_PASS_SIZE];
 
