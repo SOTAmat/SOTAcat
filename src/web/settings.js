@@ -56,22 +56,31 @@ function saveSettings() {
 
     fetch('/api/v1/settings', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
     })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Success:', data);
-        alert("Settings saved successfully!\nYour SOTAcat is rebooting with the new settings.\nPlease restart your browser.");
+    .then(response => {
+        // If the response is OK but empty (likely due to reboot), assume success
+        if (response.ok) {
+            console.log('Success:', response);
+            alert("Settings saved successfully!\nYour SOTAcat is rebooting with the new settings.\nPlease restart your browser.");
+            return;
+        }
+
+        // Otherwise, parse the response for potential errors
+        return response.json().then(data => {
+            throw new Error(data.error || 'Unknown error');
+        });
     })
     .catch((error) => {
-        // Only show error if we didn't get a successful response
-        if (!error.message.includes('NetworkError')) {
-            console.error('Error:', error);
-            alert('Failed to save settings.');
+        // If the error is a network error (likely due to reboot), ignore it
+        if (error.message.includes('NetworkError')) {
+            console.warn("Ignoring expected network error due to reboot.");
+            return;
         }
+
+        console.error('Error:', error);
+        alert('Failed to save settings.');
     });
 }
 
