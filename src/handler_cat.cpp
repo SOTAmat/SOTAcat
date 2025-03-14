@@ -101,9 +101,24 @@ esp_err_t handler_power_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "power", param_value);
     ESP_LOGI (TAG8, "setting power to '%s'", param_value);
 
+    long desired_power = atoi (param_value);
     {
         const std::lock_guard<Lockable> lock (kxRadio);
-        if (!kxRadio.put_to_kx ("PC", 3, atoi (param_value), SC_KX_COMMUNICATION_RETRIES))
+        // first set it to a known value, zero
+        if (!kxRadio.put_to_kx ("PC", 3, 0, SC_KX_COMMUNICATION_RETRIES))
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
+
+        if (!desired_power)
+            REPLY_WITH_SUCCESS();  // wanted zero - we're done
+
+        // now try setting to desired value
+        kxRadio.put_to_kx ("PC", 3, desired_power, 0);
+
+        // if the read result doesn't match the desired value, then ensure it has at least changed (from zero above)
+        long power = kxRadio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
+        if (power != desired_power)
+            ESP_LOGI (TAG8, "requested power '%s', acquired only %ld", param_value, power);
+        if (power == 0)
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
     }
 

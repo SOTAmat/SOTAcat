@@ -32,7 +32,9 @@ function toggleXmit() {
 }
 
 function setPowerMinMax(maximum) {
-  const url = "/api/v1/power?power=" + (maximum ? "10" : "0");
+  // KX3 max power is 15w, KX2 will accept that and gracefully set 10w instead
+  // On both radios, actual power may be lower than requested, depending on mode, battery, etc.
+  const url = "/api/v1/power?power=" + (maximum ? "15" : "0");
   fetch(url, { method: "PUT" }).catch((error) =>
     console.error("Fetch error:", error),
   );

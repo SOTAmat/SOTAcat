@@ -365,6 +365,14 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
         adjusted_value = ((long)(value / 10)) * 10;
     }
 
+    if (tries <= 0) {
+        // simply write the command to the radio
+        uart_flush (UART_NUM);
+        uart_write_bytes (UART_NUM, out_buff, num_digits + 3);
+        return true;
+    }
+
+    // validate the write was successful
     for (int attempt = 0; attempt < tries; attempt++) {
         uart_flush (UART_NUM);
         uart_write_bytes (UART_NUM, out_buff, num_digits + 3);
