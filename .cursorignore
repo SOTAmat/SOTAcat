@@ -1,1 +1,91 @@
 # Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+
+__pycache__/
+.pio/
+.vscode/
+firmware/
+lib/
+
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# Original .gitignore from PlatformIO
+.fake
+
+# emacs / LSP / platformio
+.cache
+.ccls-cache
+compile_commands.json
+
+# configs especially volatile during development
+dependencies.lock
+
+# Used by the ESP-IDF build system to store configuration options such as boot logging and partition table:
+# At one point we were ignoring these files, but there is a lot of important stuff in them needed to get
+# consistent builds across platforms.  For example: they have the instructions on not emmiting boot logs
+# that can confuse the Elecraft KX radios, and they also have WiFi power level info which we lower to save
+# battery and reduce WiFi noise into the radio HF bands.
+# sdkconfig.*
+# !sdkconfig.default
+# !sdkconfig.seeed_xiao_esp32c3
+
+
+# ESP-IDF managed_compoments
+managed_components/
+
+
+merged-firmware.bin
+esp32c3.bin
+esp32.bin
+SOTACAT-ESP32C3-OTA.bin
+
