@@ -1,12 +1,12 @@
 <h2 class="contentPageHeaderContainer">
+  <!-- First column - Recent Spots -->
   <div class="header-group">
-    <span class="spotsTableTitle header-label">Recent<br />Spots</span>
+    <div class="header-label">Recent<br />Spots</div>
   </div>
 
+  <!-- Second column - QRT/QSY -->
   <div class="header-group">
-    <label for="showDupsSelector" class="showDupsLabel header-label"
-      >QRT/QSY</label
-    >
+    <label for="showDupsSelector" class="header-label">QRT/QSY</label>
     <input
       type="checkbox"
       id="showDupsSelector"
@@ -16,9 +16,10 @@
     />
   </div>
 
+  <!-- Third column - Refresh & Auto -->
   <div class="header-group">
     <button onclick="refreshSotaPotaJson(true)">Refresh</button>
-    <div style="display: flex; align-items: center">
+    <div>
       <input
         type="checkbox"
         id="autoRefreshSelector"
@@ -26,9 +27,7 @@
         checked
         onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
       />
-      <label for="autoRefreshSelector" class="autoRefreshLabel header-label"
-        >auto</label
-      >
+      <label for="autoRefreshSelector">auto</label>
     </div>
   </div>
 </h2>
@@ -47,6 +46,7 @@
             <span data-sort-field="mode">Mode</span>
             <select
               id="modeFilter"
+              aria-label="Filter by mode"
               onchange="changeModeFilter(this.value); saveModeFilterState();"
             >
               <option value="All" selected="true">All</option>

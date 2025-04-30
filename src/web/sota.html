@@ -1,8 +1,8 @@
 <h2 class="contentPageHeaderContainer">
   <div class="header-group">
     <span class="spotsTableTitle">
-      <div style="display: flex; flex-direction: column">
-        <div class="header-label">Spots in past:</div>
+      <div class="flex-column">
+        <div class="header-label">Show past:</div>
         <select
           id="historyDurationSelector"
           class="historyDurationDropdown"
@@ -32,7 +32,7 @@
 
   <div class="header-group">
     <button onclick="refreshSotaPotaJson(true)">Refresh</button>
-    <div style="display: flex; align-items: center">
+    <div class="flex-align-center">
       <input
         type="checkbox"
         id="autoRefreshSelector"
@@ -55,12 +55,11 @@
         <th><span data-sort-field="point">Summit</span></th>
         <th><span data-sort-field="distance">Dist</span></th>
         <th>
-          <div
-            style="display: flex; flex-direction: column; align-items: center"
-          >
+          <div class="flex-column-align-center">
             <span data-sort-field="mode">Mode</span>
             <select
               id="modeFilter"
+              aria-label="Filter by mode"
               onchange="changeModeFilter(this.value); saveModeFilterState();"
             >
               <option value="All" selected="true">All</option>
