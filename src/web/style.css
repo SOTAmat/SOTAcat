@@ -185,7 +185,7 @@ li {
     font-weight: bold;
     background-color: var(--bg-button);
     color: var(--text-button);
-    padding: 8px 15px;
+    padding: 5px 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -364,150 +364,171 @@ table a:hover {
 }
 
 /* =========================== SOTA and POTA Specific Styles */
+
+/* Remove or comment out obsolete header-group styles */
+/*
 .header-group {
     display: flex;
-    flex-direction: column; /* Changed to column to stack content */
-    align-items: center; /* Center align for QRT/QSY */
-    justify-content: center; /* Add this to center vertically */
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
     margin: 0;
-    text-align: center; /* Center the text */
-    width: 33.33%; /* Ensure equal width */
-    padding: 0 5px; /* Add padding consistent with the other rule */
+    text-align: center; 
+    width: 33.33%; 
+    padding: 0 5px; 
 }
 
-/* First group (Spots in past) */
 .header-group:first-child {
     margin-left: 0;
 }
 
-/* Middle group (QRT/QSY) */
 .header-group:nth-child(2) {
 }
 
-/* Last group (Refresh + auto) */
 .header-group:last-child {
     margin-right: 0;
 }
 
-/* New classes to replace inline styles */
-.flex-column {
+.contentPageHeaderContainer {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    padding: 0.3em 0.5em;
+    background-color: var(--color-subtitle-bg);
+    color: var(--color-black);
 }
 
-.flex-align-center {
+.header-label {
+    font-size: var(--font-size-header-label);
+    font-weight: 500;
+    color: var(--color-black);
+    display: block;
+    margin-bottom: 5px;
+}
+*/
+
+/* New styles for the 2-column layout */
+.sota-controls-row {
     display: flex;
+    justify-content: space-between;
+    align-items: center; /* Align items vertically center - changed from flex-start */
+    width: 100%;
+    padding: 0.5em; /* Add some padding */
+    background-color: var(--color-header-bg);
+    color: var(--color-secondary);
+    margin-bottom: var(--spacing-small); /* Space below the control row */
+}
+
+.sota-controls-left,
+.sota-controls-right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-small); /* Space between lines within a column */
+}
+
+.sota-controls-left {
+    align-items: flex-start; /* Left align content */
+}
+
+.sota-controls-right {
+    align-items: flex-start; /* Right align content - changed from flex-end */
+}
+
+/* Styles for the content within each line */
+.sotamat-button-container-sota,
+.qrt-qsy-container,
+.auto-refresh-container,
+.show-past-container {
+    display: flex;
+    align-items: center;
+    gap: 0; /* Remove gap here, handle spacing within prefix/main */
+    width: 100%; /* Make containers take full width */
+}
+
+/* New styles for prefix and main content alignment */
+.control-prefix {
+    min-width: 30px; /* Adjust as needed for checkbox + spacing */
+    display: flex;
+    justify-content: center; /* Center checkbox within the prefix area */
     align-items: center;
 }
 
+.control-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small); /* Apply gap to main content items */
+}
+
+/* Style for table header Mode column */
 .flex-column-align-center {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: center; /* Center items horizontally */
+    gap: var(--spacing-xs); /* Add small gap between label and select */
 }
 
-select {
-    font-size: var(--font-size-controls);
-    padding: 5px;
-    border-radius: var(--border-radius-controls); /* Added rounded corners */
-    border: 1px solid var(--color-gray-300);
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.6%205.4-7.9%205.4-12.9%200-5-1.9-9.2-5.5-12.7z%22%2F%3E%3C%2Fsvg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    background-size: 10px;
-    padding-right: 25px;
-}
-
-select:focus {
-    outline: none;
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
-}
-
-.historyDurationDropdown {
-    width: auto;
-    margin-left: var(--spacing-small);
-}
-
-input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--color-black); /* Changed border color for contrast */
+#modeFilter {
+    /* Style the mode filter select */
+    font-size: 12px; /* Keep it small */
+    padding: 3px;
     border-radius: 3px;
-    margin: 0 var(--spacing-small);
-    position: relative;
-    cursor: pointer;
-    vertical-align: middle;
-    background-color: var(--color-white);
+    width: 50px; /* Keep width small */
+    text-align: center;
+    margin-top: var(--spacing-xs); /* Add space above selector */
 }
 
-input[type="checkbox"]:checked {
-    background-color: var(--color-white);
+/* Style the copied SOTAMAT button container */
+.sotamat-button-container-sota .sotamatLaunchButton {
+    /* Keep original button styles, maybe adjust margin if needed */
+    margin: 0; /* Reset margin if necessary */
 }
 
-input[type="checkbox"]:checked::after {
-    content: "";
-    position: absolute;
-    left: 5px;
-    top: 2px;
-    width: 4px;
-    height: 8px;
-    border: solid var(--color-accent);
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
+/* Style the labels and controls */
+.qrt-qsy-container label,
+.auto-refresh-container label,
+.show-past-container label {
+    font-size: var(--font-size-controls);
+    font-weight: 500;
+    white-space: nowrap; /* Prevent labels from wrapping */
 }
 
-.contentPageHeaderContainer button {
+.auto-refresh-container button {
+    /* Use existing button styles from .contentPageHeaderContainer if desired */
     background-color: var(--color-white);
-    color: var(--color-accent);
+    color: var(--color-primary);
     border: none;
-    border-radius: var(--border-radius-controls); /* Added rounded corners */
-    padding: 6px 16px;
+    border-radius: var(--border-radius-controls);
+    padding: 3px 6px; /* Slightly smaller padding */
     font-size: var(--font-size-controls);
     font-weight: 500;
     cursor: pointer;
     transition: background-color var(--transition-speed) ease;
     box-shadow: var(--box-shadow);
-    margin-bottom: 5px; /* Add space below the button */
+    order: 2; /* Place button after the label */
+    margin-left: var(--spacing-small);
 }
 
-.contentPageHeaderContainer button:hover {
+.auto-refresh-container button:hover {
     background-color: var(--color-gray-100);
 }
 
-.contentPageHeaderContainer button:active {
+.auto-refresh-container button:active {
     background-color: var(--color-gray-200);
 }
 
-#modeFilter {
-    margin-top: 3px;
-    font-size: 12px;
-    padding: 3px;
-    border-radius: 3px;
-    width: 50px; /* Increased width to accommodate longer text */
-    text-align: center;
+.auto-refresh-container input[type="checkbox"] {
+    order: 0;
 }
 
-/* Fix for duplicate rows and QRT mode */
-.duplicate-row {
-    background-color: var(--bg-duplicate);
+.auto-refresh-container label {
+    order: 1;
+    margin: 0; /* Reset margin */
 }
 
-.qrt-row {
-    text-decoration: line-through;
-    opacity: 0.7;
-}
-
-/* Make sure mode-specific rows maintain correct styling */
-.duplicate-row.qrt-row,
-tr.duplicate-row,
-tr.qrt-row {
-    background-color: var(--bg-duplicate) !important; /* Use !important to override nth-child styles */
+.show-past-container select {
+    /* Ensure the select dropdown uses the desired styles */
+    margin-left: 0; /* Reset default margin if needed */
 }
 
 /* Mode-specific styles */
@@ -739,12 +760,14 @@ hr {
 }
 
 .tabBar button:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .tabBar button.tabActive {
     color: var(--color-accent-light);
-    border-top: 5px solid var(--color-accent-light);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-top: 7px solid var(--color-accent-light);
+    font-weight: bold;
 }
 
 .tabIcons {
