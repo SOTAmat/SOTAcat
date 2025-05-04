@@ -1,65 +1,65 @@
-<h2 class="contentPageHeaderContainer">
-  <!-- First column - Recent Spots -->
-  <div class="header-group">
-    <div class="header-label">Recent<br />Spots</div>
+<div class="sotamat-button-row">
+  <div class="sotamat-button-container-sota">
+    <button type="button" class="sotamatLaunchButton" onclick="launchSOTAmat()">
+      <span>SOTAMAT</span>
+      <span class="sotamatLaunchButtonIcon">&#128225;&#65039;</span>
+    </button>
   </div>
+</div>
 
-  <!-- Second column - QRT/QSY -->
-  <div class="header-group">
-    <label for="showDupsSelector" class="header-label">QRT/QSY</label>
-    <input
-      type="checkbox"
-      id="showDupsSelector"
-      class="showDups"
-      checked
-      onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();"
-    />
-  </div>
-
-  <!-- Third column - Refresh & Auto -->
-  <div class="header-group">
-    <button onclick="refreshSotaPotaJson(true)">Refresh</button>
-    <div>
-      <input
-        type="checkbox"
-        id="autoRefreshSelector"
-        class="autoRefresh"
-        checked
-        onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
-      />
-      <label for="autoRefreshSelector">auto</label>
+<div class="pota-controls-row">
+  <div class="pota-controls-left">
+    <div class="auto-refresh-container">
+      <div class="control-prefix">
+        <input
+          type="checkbox"
+          id="autoRefreshSelector"
+          class="autoRefresh"
+          checked
+          onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
+        />
+      </div>
+      <div class="control-main">
+        <label for="autoRefreshSelector">Auto-refresh</label>
+        <button onclick="refreshSotaPotaJson(true)">Refresh</button>
+      </div>
     </div>
   </div>
-</h2>
+
+  <div class="pota-controls-right">
+    <div class="mode-filter-container">
+      <div class="control-prefix">&nbsp;</div>
+      <div class="control-main">
+        <label for="modeFilter">Mode:</label>
+        <select
+          id="modeFilter"
+          aria-label="Filter by mode"
+          onchange="changeModeFilter(this.value); saveModeFilterState();"
+        >
+          <option value="All" selected="true">All</option>
+          <option value="CW">CW</option>
+          <option value="SSB">SSB</option>
+          <option value="FM">FM</option>
+          <option value="FT8">FT8</option>
+          <option value="FT4">FT4</option>
+          <option value="DATA">DATA</option>
+          <option value="OTHER">OTHER</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="tableContainer">
   <table id="potaTable" class="table-sortable">
     <thead>
       <tr>
         <th><span data-sort-field="timestamp">UTC</span></th>
+        <th><span data-sort-field="activator">Call</span></th>
+        <th><span data-sort-field="hertz">KHz</span></th>
+        <th><span data-sort-field="mode">Mode</span></th>
         <th><span data-sort-field="locationID">Park</span></th>
         <th><span data-sort-field="distance">Miles</span></th>
-        <th>
-          <div
-            style="display: flex; flex-direction: column; align-items: center"
-          >
-            <span data-sort-field="mode">Mode</span>
-            <select
-              id="modeFilter"
-              aria-label="Filter by mode"
-              onchange="changeModeFilter(this.value); saveModeFilterState();"
-            >
-              <option value="All" selected="true">All</option>
-              <option value="CW">CW</option>
-              <option value="SSB">SSB</option>
-              <option value="FM">FM</option>
-              <option value="FT8">FT8</option>
-              <option value="DATA">DATA</option>
-            </select>
-          </div>
-        </th>
-        <th><span data-sort-field="hertz">KHz</span></th>
-        <th><span data-sort-field="activator">Call</span></th>
         <th><span data-sort-field="locationDesc">Locator</span></th>
         <th><span data-sort-field="name">Details</span></th>
         <th><span data-sort-field="comments">Notes</span></th>

@@ -275,7 +275,7 @@ const distanceCache = {};
 // - timestamp = time of spot, in seconds since epoch UTC
 // - baseCallsign = call sign omitting suffixes
 // - mode = upcased mode as reported
-// - modeType = one of CW, SSB, FT8, DATA, or OTHER (which is a catch-all)
+// - modeType = one of CW, SSB, FT8, FT4, DATA, or OTHER (which is a catch-all)
 // - duplicate = whether the spot is a duplicate of a prior spot (boolean)
 // Return an array sorted by descending timestamp
 async function enrichSpots(spots,
@@ -283,15 +283,16 @@ async function enrichSpots(spots,
                            getTimeFunc,
                            getActivationLocationFunc,
                            getActivatorFunc,
-                           getLocationDetailsFunc) {
+                           getLocationDetailsFunc,
+                           getFrequencyHzFunc) {
     spots.forEach(spot => {
         spot.locationID = getActivationLocationFunc(spot);
-        spot.hertz = spot.frequency * 1000 * 1000;
+        spot.hertz = getFrequencyHzFunc(spot);
         spot.timestamp = getTimeFunc(spot);
         spot.baseCallsign = getActivatorFunc(spot).split("/")[0];
         spot.mode = spot.mode.toUpperCase();
         spot.modeType = spot.mode;
-        if (!["CW", "SSB", "FM", "FT8", "DATA", "OTHER"].includes(spot.modeType))
+        if (!["CW", "SSB", "FM", "FT8", "FT4", "DATA", "OTHER"].includes(spot.modeType))
             spot.modeType = "OTHER";
         spot.details = getLocationDetailsFunc(spot);
         spot.type = ("type" in spot) ? spot.type : null;
@@ -386,7 +387,8 @@ async function refreshSotaPotaJson(force) {
                                               function(spot){return new Date(`${spot.timeStamp}`);}, // getTimeFunc
                                               function(spot){return spot.summitCode;},               // getCodeFunc
                                               function(spot){return spot.activatorCallsign;},        // getActivatorFunc
-                                              function(spot){return `${spot.summitName}, ${spot.AltM}m, ${spot.points} points`;}); // getLocationDetailsFunc
+                                              function(spot){return `${spot.summitName}, ${spot.AltM}m, ${spot.points} points`;}, // getLocationDetailsFunc
+                                              function(spot){ return (spot.frequency || 0) * 1000 * 1000; }); // getFrequencyHzFunc (SOTA: MHz -> Hz)
 
             // Wait for enrichment and then update the table
             gLatestSotaJson = await enrichmentPromise;
@@ -414,7 +416,8 @@ async function refreshSotaPotaJson(force) {
                                               function(spot){return new Date(`${spot.spotTime}Z`);}, // getTimeFunc
                                               function(spot){return spot.reference;},                // getCodeFunc
                                               function(spot){return spot.activator;},                // getActivatorFunc
-                                              function(spot){return spot.details;});                 // getLocationDetailsFunc
+                                              function(spot){return spot.details;},                 // getLocationDetailsFunc
+                                              function(spot){ return (spot.frequency || 0) * 1000; }); // getFrequencyHzFunc (POTA: KHz -> Hz)
 
             // Wait for enrichment and then update the table
             gLatestPotaJson = await enrichmentPromise;

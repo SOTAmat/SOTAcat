@@ -180,12 +180,14 @@ function loadShowSpecialRowsState()
 
 // Column sorting
 
-function updateSortIndicators(headers, sortField, descending) {
+// Restore the function definition locally for SOTA
+function updateSortIndicators(headers, sortField, descending) { // Expects a NodeList of TH elements
     headers.forEach(header => {
-        if (header.getAttribute('data-sort-field') === sortField) {
-            header.setAttribute('data-sort-dir', descending ? 'desc' : 'asc');
-        } else {
-            header.removeAttribute('data-sort-dir');
+        const span = header.querySelector('span[data-sort-field]'); // Finds span inside TH
+        if (span && span.getAttribute('data-sort-field') === sortField) {
+            span.setAttribute('data-sort-dir', descending ? 'desc' : 'asc'); // Modifies span
+        } else if (span) {
+            span.removeAttribute('data-sort-dir'); // Modifies span
         }
     });
 }
@@ -269,21 +271,35 @@ function sotaOnAppearing() {
     if (gRefreshInterval == null)
         gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
 
-    const headers = document.querySelectorAll('#sotaTable span[data-sort-field]');
+    // Get TH elements instead of SPANs
+    const headers = document.querySelectorAll('#sotaTable th');
     headers.forEach(header => {
-        header.addEventListener('click', function() {
-            gSortField = this.getAttribute('data-sort-field');
-            if (gSortField === gLastSortField) {
-                gDescending = !gDescending; // Toggle the sorting direction on each click
-            } else {
-                gLastSortField = gSortField;
-                gDescending = true; // Default to descending on first click
-            }
-            updateSortIndicators(headers, gSortField, gDescending);
-            updateSotaTable();
-        });
+        // Find the span inside the TH for getting the sort field
+        const sortSpan = header.querySelector('span[data-sort-field]');
+        if (sortSpan) { // Check if the span exists
+            header.addEventListener('click', function() {
+                // Use the span's attribute
+                const clickedSortField = sortSpan.getAttribute('data-sort-field');
+                if (clickedSortField === gLastSortField) {
+                    gDescending = !gDescending; // Toggle the sorting direction on each click
+                } else {
+                    gLastSortField = clickedSortField;
+                    gDescending = true; // Default to descending on first click
+                }
+                gSortField = clickedSortField; // Update gSortField
+                // Pass the TH NodeList to the LOCAL updateSortIndicators function
+                updateSortIndicators(headers, gSortField, gDescending);
+                updateSotaTable();
+            });
+        }
     });
     // Initially set the sort indicator and sort the table
+    // Pass the TH NodeList
     updateSortIndicators(headers, gSortField, gDescending);
-    updateSotaTable(); // Assuming this function uses gSortField and gDescending to sort and display data
+    // updateSotaTable(); // Called by refreshSotaPotaJson
+}
+
+function sotaOnLeaving() {
+    console.info('SOTA tab leaving');
+    // Optional: Clear interval if needed, similar to potaOnLeaving
 }

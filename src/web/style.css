@@ -183,11 +183,11 @@ li {
 }
 
 .sotamatLaunchButton {
-    font-size: 1.1em;
+    font-size: 1.0em;
     font-weight: bold;
     background-color: var(--bg-button);
     color: var(--text-button);
-    padding: 5px 10px;
+    padding: 3px 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -556,6 +556,7 @@ table a:hover {
 .mode-SSB {}
 .mode-FM {}
 .mode-FT8 {}
+.mode-FT4 {}
 .mode-DATA {}
 .mode-OTHER {}
 
@@ -564,8 +565,9 @@ table a:hover {
 #sotaTable th:nth-child(3), #sotaTable td:nth-child(3),
 #sotaTable th:nth-child(5), #sotaTable td:nth-child(5),
 #sotaTable th:nth-child(6), #sotaTable td:nth-child(6),
+/* POTA KHz column (now 3rd), POTA Miles column (now 6th) */
 #potaTable th:nth-child(3), #potaTable td:nth-child(3),
-#potaTable th:nth-child(5), #potaTable td:nth-child(5) {
+#potaTable th:nth-child(6), #potaTable td:nth-child(6) {
     text-align: right;
 }
 
@@ -872,6 +874,8 @@ hr {
 .mode-cell-QRT {
     background-color: var(--color-danger);
 }
+.mode-cell-FT8,
+.mode-cell-FT4,
 .mode-cell-DATA {
     background-color: var(--color-green);
 }
@@ -901,3 +905,95 @@ hr {
     padding-left: 1px;  /* Reduce left padding slightly for header */
     padding-right: 1px; /* Reduce right padding slightly for header */
 }
+
+/* === New POTA Control Styles (Mirrored from SOTA) === */
+.pota-controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.6em;
+    background-color: var(--color-header-bg);
+    color: var(--color-secondary);
+}
+
+.pota-controls-left,
+.pota-controls-right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-small);
+}
+
+.pota-controls-left {
+    align-items: flex-start;
+}
+
+.pota-controls-right {
+    align-items: flex-start;
+}
+
+/* Ensure POTA containers within controls also have necessary styles */
+/* Reuse SOTA's container styles if applicable, or create POTA-specific if needed */
+.pota-controls-row .qrt-qsy-container,
+.pota-controls-row .auto-refresh-container,
+.pota-controls-row .show-past-container,
+.pota-controls-row .mode-filter-container {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+}
+
+/* Reuse SOTA's prefix/main alignment styles */
+.pota-controls-row .control-prefix {
+    min-width: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pota-controls-row .control-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+}
+
+/* Ensure POTA controls (inputs, selects, buttons) look consistent */
+.pota-controls-row input[type="checkbox"] {
+    margin: 0; /* Reset margin */
+    transform: scale(1.2); /* Slightly larger checkboxes */
+}
+
+.pota-controls-row label {
+    margin: 0; /* Reset margin */
+    white-space: nowrap;
+}
+
+.pota-controls-row button {
+    font-size: var(--font-size-controls);
+    padding: 3px 8px;
+    border-radius: var(--border-radius-controls);
+    border: none;
+    background-color: var(--bg-button);
+    color: var(--text-button);
+    cursor: pointer;
+    transition: background-color var(--transition-speed) ease;
+}
+
+.pota-controls-row button:hover {
+    background-color: var(--bg-button-hover);
+}
+
+.pota-controls-row button:active {
+    background-color: var(--bg-button-active);
+    transform: translateY(1px);
+}
+
+.pota-controls-row select {
+    font-size: var(--font-size-controls);
+    padding: 3px;
+    border-radius: var(--border-radius-controls);
+    border: 1px solid var(--color-gray-400);
+}
+
+/* === End New POTA Control Styles === */
