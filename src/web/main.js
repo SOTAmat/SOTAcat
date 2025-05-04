@@ -291,7 +291,7 @@ async function enrichSpots(spots,
         spot.baseCallsign = getActivatorFunc(spot).split("/")[0];
         spot.mode = spot.mode.toUpperCase();
         spot.modeType = spot.mode;
-        if (!["CW", "SSB", "FM", "FT8", "DATA"].includes(spot.modeType))
+        if (!["CW", "SSB", "FM", "FT8", "DATA", "OTHER"].includes(spot.modeType))
             spot.modeType = "OTHER";
         spot.details = getLocationDetailsFunc(spot);
         spot.type = ("type" in spot) ? spot.type : null;

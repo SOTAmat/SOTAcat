@@ -411,16 +411,26 @@ table a:hover {
 }
 */
 
+.sotamat-button-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center; /* Align items vertically center - changed from flex-start */
+    width: 100%;
+    padding: 0.5em 0.1em 0.1em 0.1em; /* Add some padding */
+    background-color: var(--color-header-bg);
+    color: var(--color-secondary);
+}
+
+
 /* New styles for the 2-column layout */
 .sota-controls-row {
     display: flex;
     justify-content: space-between;
     align-items: center; /* Align items vertically center - changed from flex-start */
     width: 100%;
-    padding: 0.5em; /* Add some padding */
+    padding: 0.1em; /* Add some padding */
     background-color: var(--color-header-bg);
     color: var(--color-secondary);
-    margin-bottom: var(--spacing-small); /* Space below the control row */
 }
 
 .sota-controls-left,
@@ -448,6 +458,11 @@ table a:hover {
     align-items: center;
     gap: 0; /* Remove gap here, handle spacing within prefix/main */
     width: 100%; /* Make containers take full width */
+}
+
+/* Add specific style for the SOTAMAT button container to center it */
+.sotamat-button-container-sota {
+    justify-content: center; /* Center the SOTAMAT button */
 }
 
 /* New styles for prefix and main content alignment */
@@ -580,7 +595,7 @@ table a:hover {
     font-size: 1.1em;
     margin-top: 0;
     margin-bottom: var(--spacing-medium);
-    background-color: var(--bg-header);
+    background-color: var(--bg-subtitle-bg);
     color: var(--text-secondary);
     padding: var(--spacing-medium);
     border-radius: var(--border-radius);
