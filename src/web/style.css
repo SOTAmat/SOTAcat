@@ -10,6 +10,8 @@
     --color-success: #2e7d32;
     --color-warning: #fff0f0;
     --color-white: #ffffff;
+    --color-cyan: #26C6DA;
+    --color-green: #198754;
     --color-gray-100: #f8f9fa;
     --color-gray-200: #e9ecef;
     --color-gray-300: #dee2e6;
@@ -244,20 +246,21 @@ th {
     color: var(--text-secondary);
     font-weight: 700; /* Increased to bold */
     text-align: left;
-    padding: var(--spacing-medium) var(--spacing-small);
+    padding: 8px 4px;
     white-space: nowrap;
-    border: none;
+    border: 1px solid var(--color-gray-300);
+    z-index: 1;
 }
 
 td {
-    padding: 10px var(--spacing-small);
+    padding: 8px 4px;
     text-align: left;
     white-space: nowrap;
-    border: none;
-    border-bottom: 1px solid var(--color-gray-300);
+    border: 1px solid var(--color-gray-300);
 }
 
-tr:nth-child(even) {
+/* Restore alternating row background color */
+#sotaTable tr:nth-child(even) {
     background-color: var(--color-table-row-alt);
 }
 
@@ -439,7 +442,8 @@ table a:hover {
 .sotamat-button-container-sota,
 .qrt-qsy-container,
 .auto-refresh-container,
-.show-past-container {
+.show-past-container,
+.mode-filter-container {
     display: flex;
     align-items: center;
     gap: 0; /* Remove gap here, handle spacing within prefix/main */
@@ -487,7 +491,8 @@ table a:hover {
 /* Style the labels and controls */
 .qrt-qsy-container label,
 .auto-refresh-container label,
-.show-past-container label {
+.show-past-container label,
+.mode-filter-container label {
     font-size: var(--font-size-controls);
     font-weight: 500;
     white-space: nowrap; /* Prevent labels from wrapping */
@@ -540,8 +545,10 @@ table a:hover {
 .mode-OTHER {}
 
 /* Alignment for specific columns */
+/* SOTA MHz column, SOTA Summit column, SOTA Dist column */
 #sotaTable th:nth-child(3), #sotaTable td:nth-child(3),
 #sotaTable th:nth-child(5), #sotaTable td:nth-child(5),
+#sotaTable th:nth-child(6), #sotaTable td:nth-child(6),
 #potaTable th:nth-child(3), #potaTable td:nth-child(3),
 #potaTable th:nth-child(5), #potaTable td:nth-child(5) {
     text-align: right;
@@ -831,4 +838,51 @@ hr {
 /* Firmware Update Specific Styles (remaining the same) */
 .firmware-update-form, .firmware-client, .firmware-row, .firmware-label, .file-label, .upload-button {
     /* Keep existing styles */
+}
+
+/* Style for the mode cells */
+.mode-cell {
+    color: var(--color-white);
+    border-radius: 0px;
+    padding: 0px 0px; /* Adjusted padding */
+    text-align: center;
+    font-weight: bold;
+    margin: 0px; /* Added margin around the box */
+}
+
+/* Specific background colors for modes */
+.mode-cell-CW {
+    background-color: var(--color-cyan);
+}
+.mode-cell-QRT {
+    background-color: var(--color-danger);
+}
+.mode-cell-DATA {
+    background-color: var(--color-green);
+}
+.mode-cell-AM,
+.mode-cell-OTHER {
+    background-color: var(--color-gray-800);
+}
+.mode-cell-SSB,
+.mode-cell-FM {
+    background-color: var(--color-accent);
+}
+
+/* Reduce padding specifically for the Mode column cells */
+#sotaTable td:nth-child(4) {
+    padding-left: 0px;  /* Reduce left padding */
+    padding-right: 0px; /* Reduce right padding */
+}
+
+/* Apply strikethrough to MHz column in special rows */
+.special-row td:nth-child(2),
+.special-row td:nth-child(3) {
+    text-decoration: line-through;
+}
+
+/* Reduce padding specifically for the Mode column header */
+#sotaTable th:nth-child(4) {
+    padding-left: 1px;  /* Reduce left padding slightly for header */
+    padding-right: 1px; /* Reduce right padding slightly for header */
 }

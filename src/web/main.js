@@ -270,7 +270,7 @@ async function getLocation() {
 const distanceCache = {};
 
 // Further enrich base spot details with:
-// - point = spot location (like Wc/NC-417)
+// - locationID = spot location (like W6/NC-417 or US-0041)
 // - hertz = frequency of transmission
 // - timestamp = time of spot, in seconds since epoch UTC
 // - baseCallsign = call sign omitting suffixes
@@ -285,7 +285,7 @@ async function enrichSpots(spots,
                            getActivatorFunc,
                            getLocationDetailsFunc) {
     spots.forEach(spot => {
-        spot.point = getActivationLocationFunc(spot);
+        spot.locationID = getActivationLocationFunc(spot);
         spot.hertz = spot.frequency * 1000 * 1000;
         spot.timestamp = getTimeFunc(spot);
         spot.baseCallsign = getActivatorFunc(spot).split("/")[0];
@@ -310,7 +310,7 @@ async function enrichSpots(spots,
 
     const { latitude: currentLat, longitude: currentLon } = await getLocation();
     const spotsWithDistance = await Promise.all(spots.map(async (spot) => {
-        const summitCode = spot.point;
+        const summitCode = spot.locationID;
 
         // Check if the summit's distance calculation is already in progress or done
         if (!distanceCache[summitCode]) {
@@ -374,47 +374,57 @@ async function refreshSotaPotaJson(force) {
             return;
         }
         const limit = document.getElementById("historyDurationSelector").value;
-        fetch(`https://api-db2.sota.org.uk/api/spots/${limit}/all/all/`,
-              { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } })
-            .then(result => result.json()) // Resolve the promise to get the JSON data
-            .then(data => {
-                gSotaEpoch = data[0]?.epoch ?? null;  // assume first spot's epoch is the one
+        try {
+            const result = await fetch(`https://api-db2.sota.org.uk/api/spots/${limit}/all/all/`,
+                                     { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } });
+            const data = await result.json();
+            gSotaEpoch = data[0]?.epoch ?? null; // assume first spot's epoch is the one
 
-                gLatestSotaJson = enrichSpots(data,
+            // Store the promise
+            const enrichmentPromise = enrichSpots(data,
                                               'https://api-db2.sota.org.uk/api/summits',
                                               function(spot){return new Date(`${spot.timeStamp}`);}, // getTimeFunc
                                               function(spot){return spot.summitCode;},               // getCodeFunc
                                               function(spot){return spot.activatorCallsign;},        // getActivatorFunc
                                               function(spot){return `${spot.summitName}, ${spot.AltM}m, ${spot.points} points`;}); // getLocationDetailsFunc
 
-                gLatestSotaJson.then(() => {
-                    console.info('SOTA Json updated');
-                    updateSotaTable();
-                });
-            })
-            .catch(error => ({ error }));
+            // Wait for enrichment and then update the table
+            gLatestSotaJson = await enrichmentPromise;
+            console.info('SOTA Json updated and enriched');
+            updateSotaTable(); // Call updateSotaTable *after* enrichment is complete
+
+        } catch (error) {
+            console.error('Error fetching or processing SOTA data:', error);
+            // Handle error appropriately, maybe clear the table or show an error message
+        }
     }
     else if (currentTabName === 'pota') {
-        if (!force && gLatestPotaJson != null && !await shouldCheckNewSpots(null)) {
-            console.info('no new spots');
+        // Keep POTA logic similar, ensuring updatePotaTable is called after enrichment
+        if (!force && gLatestPotaJson != null && !await shouldCheckNewSpots(null)) { // POTA API doesn't have epoch
+            console.info('no new POTA spots');
             return;
         }
-        fetch('https://api.pota.app/spot/activator',
-              { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } })
-            .then(result => result.json()) // Resolve the promise to get the JSON data
-            .then(data => {
-                gLatestPotaJson = enrichSpots(data,
+        try {
+            const result = await fetch('https://api.pota.app/spot/activator',
+                                     { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } });
+            const data = await result.json();
+
+            const enrichmentPromise = enrichSpots(data,
                                               'https://api.pota.app/park',
                                               function(spot){return new Date(`${spot.spotTime}Z`);}, // getTimeFunc
                                               function(spot){return spot.reference;},                // getCodeFunc
                                               function(spot){return spot.activator;},                // getActivatorFunc
                                               function(spot){return spot.details;});                 // getLocationDetailsFunc
-                gLatestPotaJson.then(() => {
-                    console.info('POTA Json updated');
-                    updatePotaTable();
-                });
-            })
-            .catch(error => ({ error }));
+
+            // Wait for enrichment and then update the table
+            gLatestPotaJson = await enrichmentPromise;
+            console.info('POTA Json updated and enriched');
+            updatePotaTable(); // Call updatePotaTable *after* enrichment is complete
+
+        } catch (error) {
+            console.error('Error fetching or processing POTA data:', error);
+            // Handle error appropriately
+        }
     }
 }
 

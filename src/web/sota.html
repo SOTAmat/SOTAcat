@@ -1,4 +1,13 @@
 <div class="sota-controls-row">
+  <div class="sotamat-button-container-sota">
+    <button type="button" class="sotamatLaunchButton" onclick="launchSOTAmat()">
+      <span>SOTAMAT</span>
+      <span class="sotamatLaunchButtonIcon">&#128225;&#65039;</span>
+    </button>
+  </div>
+</div>
+
+<div class="sota-controls-row">
   <div class="sota-controls-left">
     <div class="qrt-qsy-container">
       <div class="control-prefix">
@@ -7,7 +16,7 @@
           id="showDupsSelector"
           class="showDups"
           checked
-          onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();"
+          onchange="changeShowSpecialRowsState(this.checked); saveShowSpecialRowsState();"
         />
       </div>
       <div class="control-main">
@@ -29,6 +38,9 @@
         <button onclick="refreshSotaPotaJson(true)">Refresh</button>
       </div>
     </div>
+  </div>
+
+  <div class="sota-controls-right">
     <div class="show-past-container">
       <div class="control-prefix"></div>
       <div class="control-main">
@@ -45,18 +57,23 @@
         </select>
       </div>
     </div>
-  </div>
-
-  <div class="sota-controls-right">
-    <div class="sotamat-button-container-sota">
-      <button
-        type="button"
-        class="sotamatLaunchButton"
-        onclick="launchSOTAmat()"
-      >
-        <span>SOTAMAT</span>
-        <span class="sotamatLaunchButtonIcon">&#128225;&#65039;</span>
-      </button>
+    <div class="mode-filter-container">
+      <div class="control-prefix">&nbsp;</div>
+      <div class="control-main">
+        <label for="modeFilter">Mode:</label>
+        <select
+          id="modeFilter"
+          aria-label="Filter by mode"
+          onchange="changeModeFilter(this.value); saveModeFilterState();"
+        >
+          <option value="All" selected="true">All</option>
+          <option value="CW">CW</option>
+          <option value="SSB">SSB</option>
+          <option value="FM">FM</option>
+          <option value="FT8">FT8</option>
+          <option value="DATA">DATA</option>
+        </select>
+      </div>
     </div>
   </div>
 </div>
@@ -66,27 +83,11 @@
     <thead>
       <tr>
         <th><span data-sort-field="timestamp">UTC</span></th>
-        <th><span data-sort-field="point">Summit</span></th>
-        <th><span data-sort-field="distance">Dist</span></th>
-        <th>
-          <div class="flex-column-align-center">
-            <span data-sort-field="mode">Mode</span>
-            <select
-              id="modeFilter"
-              aria-label="Filter by mode"
-              onchange="changeModeFilter(this.value); saveModeFilterState();"
-            >
-              <option value="All" selected="true">All</option>
-              <option value="CW">CW</option>
-              <option value="SSB">SSB</option>
-              <option value="FM">FM</option>
-              <option value="FT8">FT8</option>
-              <option value="DATA">DATA</option>
-            </select>
-          </div>
-        </th>
-        <th><span data-sort-field="hertz">MHz</span></th>
         <th><span data-sort-field="activatorCallsign">Call</span></th>
+        <th><span data-sort-field="hertz">MHz</span></th>
+        <th><span data-sort-field="mode">Mode</span></th>
+        <th><span data-sort-field="locationID">Summit</span></th>
+        <th><span data-sort-field="distance">Miles</span></th>
         <th><span data-sort-field="activatorName">Name</span></th>
         <th><span data-sort-field="summitDetails">Details</span></th>
         <th><span data-sort-field="comments">Notes</span></th>

@@ -32,8 +32,8 @@ async function updatePotaTable()
 
         const parkCell = row.insertCell();
         const parkLink = document.createElement('a');
-        parkLink.href = `https://pota.app/#/park/${spot.point}`;
-        parkLink.textContent = `${spot.point}`;
+        parkLink.href = `https://pota.app/#/park/${spot.locationID}`;
+        parkLink.textContent = `${spot.locationID}`;
         parkCell.appendChild(parkLink);
 
         row.insertCell().textContent = spot.distance.toLocaleString();
