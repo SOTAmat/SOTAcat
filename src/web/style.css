@@ -487,16 +487,6 @@ table a:hover {
     gap: var(--spacing-xs); /* Add small gap between label and select */
 }
 
-#modeFilter {
-    /* Style the mode filter select */
-    font-size: 12px; /* Keep it small */
-    padding: 3px;
-    border-radius: 3px;
-    width: 50px; /* Keep width small */
-    text-align: center;
-    margin-top: var(--spacing-xs); /* Add space above selector */
-}
-
 /* Style the copied SOTAMAT button container */
 .sotamat-button-container-sota .sotamatLaunchButton {
     /* Keep original button styles, maybe adjust margin if needed */
@@ -597,10 +587,43 @@ table a:hover {
     font-size: 1.1em;
     margin-top: 0;
     margin-bottom: var(--spacing-medium);
-    background-color: var(--bg-subtitle-bg);
+    background-color: var(--color-header-bg);
     color: var(--text-secondary);
     padding: var(--spacing-medium);
     border-radius: var(--border-radius);
+}
+
+/* New inline header with buttons class */
+.inline-header {
+    display: flex;
+    align-items: center;
+    background-color: var(--color-header-bg);
+    color: var(--text-secondary);
+    padding: var(--spacing-medium);
+    border-radius: var(--border-radius);
+    margin-top: 0;
+    margin-bottom: var(--spacing-medium);
+}
+
+.inline-header h2 {
+    margin: 0;
+    padding: 0;
+    background: none;
+    flex-grow: 0;
+    margin-right: var(--spacing-large);
+    font-size: 1.1em;
+    width: auto;
+}
+
+.inline-header .button-row {
+    display: flex;
+    margin: 0;
+    flex-grow: 1;
+}
+
+.inline-header button.bigthumb {
+    margin: 0 var(--spacing-small);
+    padding: var(--spacing-small) var(--spacing-medium);
 }
 
 .button-row {
@@ -613,7 +636,7 @@ button.bigthumb, .sync-button, .save-button, .reset-button {
     font-size: 16px;
     padding: var(--spacing-medium) var(--spacing-large);
     margin: var(--spacing-small);
-    border-radius: var(--border-radius);
+    border-radius: 30px;
     background-color: var(--bg-button);
     color: var(--text-button);
     border: none;
@@ -634,14 +657,13 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
 #xmitButton {
     background-color: var(--bg-button);
     width: 100%;
-    max-width: 300px;
-    padding: 15px;
+    max-width: 200px;
+    padding: 10px;
     margin: 0 auto;
     display: block;
     font-weight: 600;
     font-size: 18px;
     letter-spacing: 1px;
-    border-radius: var(--border-radius);
     box-shadow: var(--box-shadow-elevated);
 }
 
@@ -997,3 +1019,42 @@ hr {
 }
 
 /* === End New POTA Control Styles === */
+
+/* Styles for SOTA control selectors for consistent sizing and alignment */
+.sota-control-selector {
+    padding: 4px 8px; /* Adjust padding as needed */
+    border: 1px solid var(--color-gray-400);
+    border-radius: var(--border-radius-controls); /* Use consistent border radius */
+    background-color: var(--bg-primary);
+    font-size: var(--font-size-controls);
+    width: 80px; /* Explicit width for alignment */
+    max-width: 100px; /* Prevent growing */
+    box-sizing: border-box;
+    height: 24px; /* Explicit height for alignment */
+    vertical-align: middle; /* Align vertically with label */
+    margin-left: auto; /* Push selector to the right */
+}
+
+/* Ensure the container for label + selector uses flex */
+.sota-controls-right .control-main {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Align items to the start */
+    width: 100%; /* Allow container to manage space */
+}
+
+/* Optional: Give labels a consistent minimum width if needed for better alignment */
+/*
+.sota-controls-right .control-main label {
+    min-width: 70px; 
+    display: inline-block;
+    text-align: right; 
+    margin-right: var(--spacing-small);
+}
+*/
+
+/* Style the copied SOTAMAT button container */
+.sotamat-button-container-sota .sotamatLaunchButton {
+    /* Keep original button styles, maybe adjust margin if needed */
+    margin: 0; /* Reset margin if necessary */
+}

@@ -1,10 +1,37 @@
 // We'll keep these global sorting variables here for now,
 // although they apply equally to sota and pota.
 // Soon, we may collapse sota and pota display.
-// NOTE: gSortField, gLastSortField, gDescending, gRefreshInterval are declared in sota.js
-// Ensure sota.js is loaded before pota.js or declare them here if needed.
+// NOTE: All global variables (gSortField, gLastSortField, gDescending, gRefreshInterval)
+// are now declared in main.js for shared access across all tabs
 
-async function updatePotaTable()
+// Add functions to save and load sort state for POTA
+function pota_saveSortState() {
+    localStorage.setItem('potaSortField', gSortField);
+    localStorage.setItem('potaSortDescending', gDescending);
+}
+
+function pota_loadSortState() {
+    const savedSortField = localStorage.getItem('potaSortField');
+    const savedSortDescending = localStorage.getItem('potaSortDescending');
+    
+    if (savedSortField !== null) {
+        gSortField = savedSortField;
+        gLastSortField = savedSortField;
+    } else {
+        // Default to timestamp if no saved value
+        gSortField = "timestamp";
+        gLastSortField = "timestamp";
+    }
+    
+    if (savedSortDescending !== null) {
+        gDescending = (savedSortDescending === 'true');
+    } else {
+        // Default to descending if no saved value
+        gDescending = true;
+    }
+}
+
+async function pota_updatePotaTable()
 {
     const data = await gLatestPotaJson;
     if (data == null)
@@ -103,58 +130,111 @@ async function updatePotaTable()
     console.info('POTA table updated');
 
     // Apply combined filters AFTER the table is built
-    applyTableFilters();
+    setTimeout(pota_applyTableFilters, 0);
 }
 
 function potaOnAppearing() {
     console.info('POTA tab appearing');
 
-    loadAutoRefreshCheckboxState();
-    loadShowSpecialRowsState(); // Updated function name
-    loadModeFilterState();
-    loadHistoryDurationState(); // Added history duration loading
+    // Load all saved settings first
+    pota_loadSortState();
+    pota_loadAutoRefreshCheckboxState();
+    pota_loadShowSpecialRowsState(); // Updated function name
+    pota_loadModeFilterState();
+    pota_loadHistoryDurationState(); // Added history duration loading
 
-    refreshSotaPotaJson(false);
-    if (gRefreshInterval == null)
+    // Add/update event listeners that might have been cleared or point to old functions
+    // (Similar logic as added to sotaOnAppearing, targeting POTA controls)
+    const modeSelector = document.getElementById('modeFilter');
+    if (modeSelector) {
+        modeSelector.onchange = function() {
+            pota_changeModeFilter(this.value);
+            pota_saveModeFilterState();
+        };
+    }
+    const specialCheckbox = document.getElementById('showSpecialRowsSelector') || document.getElementById('showDupsSelector');
+    if (specialCheckbox) {
+        specialCheckbox.onchange = function() {
+            pota_changeShowSpecialRowsState(this.checked);
+            pota_saveShowSpecialRowsState();
+        };
+    }
+    const autoRefreshCheckbox = document.getElementById('autoRefreshSelector');
+    if (autoRefreshCheckbox) {
+        autoRefreshCheckbox.onchange = function() {
+            pota_changeAutoRefreshCheckboxState(this.checked);
+            pota_saveAutoRefreshCheckboxState();
+        };
+    }
+    const historySelector = document.getElementById('historyDurationSelector');
+    if (historySelector) {
+        historySelector.onchange = function() {
+            refreshSotaPotaJson(true); // Global function
+            pota_saveHistoryDurationState();
+        };
+    }
+
+    // Apply filters to existing data if already loaded
+    if (gLatestPotaJson != null) {
+        console.log('POTA tab appearing: Using existing data');
+        // Ensure table is filled with existing data
+        pota_updatePotaTable();
+        
+        // REMOVED: Redundant explicit filter application
+        // console.log('POTA tab appearing: Reapplying filters');
+        // const modeFilter = document.getElementById('modeFilter')?.value || 'All';
+        // const showSpecialCheckbox = document.getElementById('showSpecialRowsSelector') || document.getElementById('showDupsSelector');
+        // const showSpecial = showSpecialCheckbox ? showSpecialCheckbox.checked : true;
+        // console.log(`Explicitly applying filters - Mode: ${modeFilter}, ShowSpecial: ${showSpecial}`);
+        // pota_applyTableFilters();
+    } else {
+        // Fetch new data
+        console.log('POTA tab appearing: Fetching new data');
+        refreshSotaPotaJson(true); // Force refresh to ensure we have fresh data
+    }
+
+    // Set up refresh interval if needed
+    if (gRefreshInterval == null) {
         gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
+    }
 
-    // Select the TH elements, not the inner SPANs
     const headers = document.querySelectorAll('#potaTable th'); 
     headers.forEach(header => {
-        // Find the span inside for getting the field and attaching listener
         const sortSpan = header.querySelector('span[data-sort-field]');
-        if (sortSpan) { // Ensure the span exists
-            header.addEventListener('click', function() { // Add listener to TH
+        if (sortSpan) {
+             // Remove existing listeners to avoid duplicates
+            header.replaceWith(header.cloneNode(true));
+            const newHeader = document.querySelector(`#potaTable th span[data-sort-field='${sortSpan.getAttribute('data-sort-field')}']`).closest('th');
+
+            newHeader.addEventListener('click', function() {
                 const clickedSortField = sortSpan.getAttribute('data-sort-field');
                 if (clickedSortField === gLastSortField) {
-                    gDescending = !gDescending; // Toggle the sorting direction on each click
+                    gDescending = !gDescending;
                 } else {
                     gLastSortField = clickedSortField;
-                    gDescending = true; // Default to descending on first click
+                    gDescending = true;
                 }
-                gSortField = clickedSortField; // Update gSortField
-                // Pass the TH NodeList to the local updateSortIndicators function
-                updateSortIndicators(headers, gSortField, gDescending);
-                updatePotaTable();
+                gSortField = clickedSortField;
+                // Save sort state when it changes
+                pota_saveSortState();
+                pota_updateSortIndicators(document.querySelectorAll('#potaTable th'), gSortField, gDescending);
+                pota_updatePotaTable();
             });
         }
     });
 
-    // Initially set the sort indicator and sort the table
-    // Pass the TH NodeList
-    updateSortIndicators(headers, gSortField, gDescending);
-    // updatePotaTable(); // updatePotaTable is called by refreshSotaPotaJson, which also calls applyTableFilters
+    pota_updateSortIndicators(document.querySelectorAll('#potaTable th'), gSortField, gDescending);
 }
 
 // History Duration
 
-function saveHistoryDurationState()
+function pota_saveHistoryDurationState()
 {
     const value = document.getElementById('historyDurationSelector').value;
     localStorage.setItem('historyDuration', value); // Use same key as SOTA for now
 }
 
-function loadHistoryDurationState() {
+function pota_loadHistoryDurationState() {
     const savedState = localStorage.getItem('historyDuration');
     if (savedState !== null) {
         const selector = document.getElementById('historyDurationSelector');
@@ -166,42 +246,45 @@ function loadHistoryDurationState() {
 
 // Auto-refresh spots
 
-function saveAutoRefreshCheckboxState()
+function pota_saveAutoRefreshCheckboxState()
 {
     const checkbox = document.getElementById('autoRefreshSelector');
     if (checkbox) localStorage.setItem('autoRefresh', checkbox.checked);
 }
 
-function changeAutoRefreshCheckboxState(autoRefresh) {
+function pota_changeAutoRefreshCheckboxState(autoRefresh) {
     // Currently no specific action needed when checkbox changes, besides saving state
 }
 
-function loadAutoRefreshCheckboxState()
+function pota_loadAutoRefreshCheckboxState()
 {
     const savedState = localStorage.getItem('autoRefresh');
     if (savedState !== null) {
         const checkbox = document.getElementById('autoRefreshSelector');
         if (checkbox) {
             checkbox.checked = (savedState === 'true');
-            changeAutoRefreshCheckboxState(checkbox.checked);
+            pota_changeAutoRefreshCheckboxState(checkbox.checked);
         }
     }
 }
 
 // Hide/Show Special Rows (QRT/QSY or Duplicates)
 
-function saveShowSpecialRowsState() // Renamed from saveShowSpotDupsCheckboxState
+function pota_saveShowSpecialRowsState() // Renamed from saveShowSpotDupsCheckboxState
 {
-    const isChecked = document.getElementById('showSpecialRowsSelector').checked; // Updated ID
-    localStorage.setItem('showSpecialRows', isChecked);
+    // Get a reference to the checkbox correctly regardless of ID
+    const checkbox = document.getElementById('showSpecialRowsSelector') || document.getElementById('showDupsSelector');
+    if (checkbox) {
+        localStorage.setItem('showSpecialRows', checkbox.checked);
+    }
 }
 
 // Renamed from changeShowSpotDupsCheckboxState
-function changeShowSpecialRowsState(showSpecial) {
-    applyTableFilters(); // Call the central filter function
+function pota_changeShowSpecialRowsState(showSpecial) {
+    pota_applyTableFilters(); // Call the central filter function
 }
 
-function loadShowSpecialRowsState() // Renamed from loadShowSpotDupsCheckboxState
+function pota_loadShowSpecialRowsState() // Renamed from loadShowSpotDupsCheckboxState
 {
     const savedState = localStorage.getItem('showSpecialRows');
     let isChecked = true; // Default to true (checked) if nothing is saved
@@ -210,10 +293,16 @@ function loadShowSpecialRowsState() // Renamed from loadShowSpotDupsCheckboxStat
     if (savedState !== null) {
         isChecked = (savedState === 'true');
     }
-    // Set the checkbox state
-    const checkbox = document.getElementById('showSpecialRowsSelector'); // Updated ID
+    
+    // Try to find the checkbox with either possible ID
+    const checkbox = document.getElementById('showSpecialRowsSelector') || document.getElementById('showDupsSelector');
     if (checkbox) {
         checkbox.checked = isChecked;
+         // Update the onchange handler
+        checkbox.onchange = function() {
+            pota_changeShowSpecialRowsState(this.checked);
+            pota_saveShowSpecialRowsState();
+        };
     }
 
     // Do NOT call changeShowSpecialRowsState here, it will be called after table update
@@ -222,7 +311,7 @@ function loadShowSpecialRowsState() // Renamed from loadShowSpotDupsCheckboxStat
 
 // Column sorting
 
-function updateSortIndicators(headers, sortField, descending) {
+function pota_updateSortIndicators(headers, sortField, descending) {
     headers.forEach(header => {
         const span = header.querySelector('span[data-sort-field]'); // Ensure we target the span if present
         if (span && span.getAttribute('data-sort-field') === sortField) {
@@ -235,40 +324,59 @@ function updateSortIndicators(headers, sortField, descending) {
 
 // Mode filtering
 
-function saveModeFilterState()
+function pota_saveModeFilterState()
 {
     const selector = document.getElementById('modeFilter');
     if (selector) localStorage.setItem('modeFilter', selector.value);
 }
 
-function loadModeFilterState()
+function pota_loadModeFilterState()
 {
     const savedState = localStorage.getItem('modeFilter');
     if (savedState !== null) {
         const selector = document.getElementById('modeFilter');
         if (selector) {
+            console.log('Setting POTA mode filter to:', savedState);
+            // Just set the value without triggering the filter - it will be applied later
             selector.value = savedState;
-            // Call changeModeFilter only if needed initially, handled by applyTableFilters in onAppearing
-            // changeModeFilter(selector.value);
+             // Update the onchange handler
+            selector.onchange = function() {
+                pota_changeModeFilter(this.value);
+                pota_saveModeFilterState();
+            };
+            // Don't call changeModeFilter here - it will be called in applyTableFilters
         }
     }
 }
 
-function changeModeFilter(selectedMode) {
-    applyTableFilters(); // Call the central filter function
+function pota_changeModeFilter(selectedMode) {
+    pota_applyTableFilters(); // Call the central filter function
 }
 
 // Combined filter application logic (Adapted from sota.js)
-function applyTableFilters() {
+function pota_applyTableFilters() {
     const tableBody = document.querySelector('#potaTable tbody'); // Target POTA table
-    if (!tableBody) return;
+    if (!tableBody) {
+        console.warn('POTA table body not found, cannot apply filters');
+        return;
+    }
 
     const allRows = tableBody.querySelectorAll('tr');
-    const selectedMode = document.getElementById('modeFilter').value;
-    const showSpecialCheckbox = document.getElementById('showSpecialRowsSelector');
+    if (allRows.length === 0) {
+        console.warn('No rows in POTA table, skipping filter application');
+        return;
+    }
+
+    // Get current filter settings
+    // Try to find the checkbox with either possible ID
+    const selectedMode = document.getElementById('modeFilter')?.value || 'All';
+    const showSpecialCheckbox = document.getElementById('showSpecialRowsSelector') || document.getElementById('showDupsSelector');
     const showSpecial = showSpecialCheckbox ? showSpecialCheckbox.checked : true; // Default to true if checkbox not found
 
-    console.log(`Applying POTA filters - Mode: ${selectedMode}, ShowSpecial: ${showSpecial}`);
+    console.log(`Applying POTA filters - Mode: ${selectedMode}, ShowSpecial: ${showSpecial}, Rows: ${allRows.length}`);
+
+    let visibleRows = 0;
+    let hiddenRows = 0;
 
     allRows.forEach(row => {
         // POTA doesn't have an explicit QRT class yet, so isQRT is always false
@@ -279,6 +387,7 @@ function applyTableFilters() {
         // (This case is currently inactive for POTA as isQRT is false)
         if (isQRT && showSpecial) {
             row.style.display = '';
+            visibleRows++;
             return; // Use return instead of continue in forEach callback
         }
 
@@ -299,55 +408,25 @@ function applyTableFilters() {
         // Set display based on BOTH filters for non-QRT rows or when QRT is hidden
         if (modeMatch && specialAllowed) {
             row.style.display = ''; // Show row
+            visibleRows++;
         } else {
             row.style.display = 'none'; // Hide row
-        }
-    });
-}
-
-// Page settings
-
-function potaOnAppearing() {
-    console.info('POTA tab appearing');
-
-    loadAutoRefreshCheckboxState();
-    loadShowSpecialRowsState(); // Updated function name
-    loadModeFilterState();
-    loadHistoryDurationState(); // Added history duration loading
-
-    refreshSotaPotaJson(false);
-    if (gRefreshInterval == null)
-        gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
-
-    const headers = document.querySelectorAll('#potaTable th'); 
-    headers.forEach(header => {
-        const sortSpan = header.querySelector('span[data-sort-field]');
-        if (sortSpan) {
-            header.addEventListener('click', function() {
-                const clickedSortField = sortSpan.getAttribute('data-sort-field');
-                if (clickedSortField === gLastSortField) {
-                    gDescending = !gDescending;
-                } else {
-                    gLastSortField = clickedSortField;
-                    gDescending = true;
-                }
-                gSortField = clickedSortField;
-                updateSortIndicators(headers, gSortField, gDescending);
-                updatePotaTable();
-            });
+            hiddenRows++;
         }
     });
 
-    updateSortIndicators(headers, gSortField, gDescending);
+    console.log(`POTA filter applied: ${visibleRows} visible rows, ${hiddenRows} hidden rows`);
 }
 
 // Cleanup when tab is left (if necessary)
 function potaOnLeaving() {
     console.info('POTA tab leaving');
-    // Clear the refresh interval if it's running specifically for this tab
-    // Assuming gRefreshInterval might be shared or managed elsewhere, maybe not needed
-    // if (gRefreshInterval) {
-    //     clearInterval(gRefreshInterval);
-    //     gRefreshInterval = null;
-    // }
+    // Save all settings when leaving the tab
+    pota_saveSortState();
+    pota_saveAutoRefreshCheckboxState();
+    pota_saveShowSpecialRowsState();
+    pota_saveModeFilterState();
+    
+    // Don't save historyDurationState because it's shared with SOTA
+    // and is not effectively used in POTA yet
 }

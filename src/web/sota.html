@@ -47,7 +47,7 @@
         <label>Show past:</label>
         <select
           id="historyDurationSelector"
-          class="historyDurationDropdown"
+          class="historyDurationDropdown sota-control-selector"
           aria-label="History duration"
           onchange="refreshSotaPotaJson(true); saveHistoryDurationState();"
         >
@@ -63,6 +63,7 @@
         <label for="modeFilter">Mode:</label>
         <select
           id="modeFilter"
+          class="sota-control-selector"
           aria-label="Filter by mode"
           onchange="changeModeFilter(this.value); saveModeFilterState();"
         >
