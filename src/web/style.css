@@ -503,6 +503,30 @@ table a:hover {
     margin-left: auto;
 }
 
+/* Add styles for the right-justified controls in SOTA page */
+.sota-controls-right .control-main {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding-right: 8px; /* Small right margin */
+}
+
+.sota-controls-right .sota-control-selector {
+    width: 90px; /* Fixed width for both selectors */
+}
+
+/* Apply the same margin and width to POTA page controls */
+.pota-controls-right .control-main {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding-right: 8px; /* Small right margin to match SOTA page */
+}
+
+.pota-controls-right .sota-control-selector {
+    width: 90px; /* Fixed width to match SOTA page */
+}
+
 /* Alignment for specific columns */
 #sotaTable th:nth-child(3), #sotaTable td:nth-child(3),
 #sotaTable th:nth-child(5), #sotaTable td:nth-child(5),
