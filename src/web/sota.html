@@ -1,11 +1,53 @@
-<h2 class="contentPageHeaderContainer">
-  <div class="header-group">
-    <span class="spotsTableTitle">
-      <div style="display: flex; flex-direction: column">
-        <div class="header-label">Spots in past:</div>
+<div class="sotamat-button-row">
+  <div class="sotamat-button-container-sota">
+    <button type="button" class="sotamatLaunchButton" onclick="launchSOTAmat()">
+      <span>SOTAMAT</span>
+      <span class="sotamatLaunchButtonIcon">&#128225;&#65039;</span>
+    </button>
+  </div>
+</div>
+
+<div class="sota-controls-row">
+  <div class="sota-controls-left">
+    <div class="qrt-qsy-container">
+      <div class="control-prefix">
+        <input
+          type="checkbox"
+          id="showDupsSelector"
+          class="showDups"
+          checked
+          onchange="changeShowSpecialRowsState(this.checked); saveShowSpecialRowsState();"
+        />
+      </div>
+      <div class="control-main">
+        <label for="showDupsSelector">Show QRT/QSY</label>
+      </div>
+    </div>
+    <div class="auto-refresh-container">
+      <div class="control-prefix">
+        <input
+          type="checkbox"
+          id="autoRefreshSelector"
+          class="autoRefresh"
+          checked
+          onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
+        />
+      </div>
+      <div class="control-main">
+        <label for="autoRefreshSelector">Auto-refresh</label>
+        <button onclick="refreshSotaPotaJson(true)">Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sota-controls-right">
+    <div class="show-past-container">
+      <div class="control-prefix"></div>
+      <div class="control-main">
+        <label>Show past:</label>
         <select
           id="historyDurationSelector"
-          class="historyDurationDropdown"
+          class="historyDurationDropdown sota-control-selector"
           aria-label="History duration"
           onchange="refreshSotaPotaJson(true); saveHistoryDurationState();"
         >
@@ -14,66 +56,38 @@
           <option value="-24">24 hours</option>
         </select>
       </div>
-    </span>
-  </div>
-
-  <div class="header-group">
-    <label for="showDupsSelector" class="showDupsLabel header-label"
-      >QRT/QSY</label
-    >
-    <input
-      type="checkbox"
-      id="showDupsSelector"
-      class="showDups"
-      checked
-      onchange="changeShowSpotDupsCheckboxState(this.checked); saveShowSpotDupsCheckboxState();"
-    />
-  </div>
-
-  <div class="header-group">
-    <button onclick="refreshSotaPotaJson(true)">Refresh</button>
-    <div style="display: flex; align-items: center">
-      <input
-        type="checkbox"
-        id="autoRefreshSelector"
-        class="autoRefresh"
-        checked
-        onchange="changeAutoRefreshCheckboxState(this.checked); saveAutoRefreshCheckboxState();"
-      />
-      <label for="autoRefreshSelector" class="autoRefreshLabel header-label"
-        >auto</label
-      >
+    </div>
+    <div class="mode-filter-container">
+      <div class="control-prefix">&nbsp;</div>
+      <div class="control-main">
+        <label for="modeFilter">Mode:</label>
+        <select
+          id="modeFilter"
+          class="sota-control-selector"
+          aria-label="Filter by mode"
+          onchange="changeModeFilter(this.value); saveModeFilterState();"
+        >
+          <option value="All" selected="true">All</option>
+          <option value="CW">CW</option>
+          <option value="SSB">SSB</option>
+          <option value="FM">FM</option>
+          <option value="DATA">DATA</option>
+        </select>
+      </div>
     </div>
   </div>
-</h2>
+</div>
 
 <div id="tableContainer">
   <table id="sotaTable" class="table-sortable">
     <thead>
       <tr>
         <th><span data-sort-field="timestamp">UTC</span></th>
-        <th><span data-sort-field="point">Summit</span></th>
-        <th><span data-sort-field="distance">Dist</span></th>
-        <th>
-          <div
-            style="display: flex; flex-direction: column; align-items: center"
-          >
-            <span data-sort-field="mode">Mode</span>
-            <select
-              id="modeFilter"
-              onchange="changeModeFilter(this.value); saveModeFilterState();"
-            >
-              <option value="All" selected="true">All</option>
-              <option value="CW">CW</option>
-              <option value="SSB">SSB</option>
-              <option value="FM">FM</option>
-              <option value="FT8">FT8</option>
-              <option value="DATA">DATA</option>
-            </select>
-          </div>
-        </th>
-        <th><span data-sort-field="hertz">MHz</span></th>
         <th><span data-sort-field="activatorCallsign">Call</span></th>
+        <th><span data-sort-field="hertz">MHz</span></th>
+        <th><span data-sort-field="mode">Mode</span></th>
+        <th><span data-sort-field="locationID">Summit</span></th>
+        <th><span data-sort-field="distance">Miles</span></th>
         <th><span data-sort-field="activatorName">Name</span></th>
         <th><span data-sort-field="summitDetails">Details</span></th>
         <th><span data-sort-field="comments">Notes</span></th>

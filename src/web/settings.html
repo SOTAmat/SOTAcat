@@ -1,8 +1,8 @@
 <script src="settings.js"></script>
 <div class="settings-container">
   <div class="time-sync-section">
-    Set the KX clock using your cell phone time:
-    <button class="sync-button" onclick="syncTime()">Sync Time</button>
+    <h2>Set the KX clock to your cellphone time:</h2>
+    <button class="sync-button" onclick="syncTime()">Sync Clock</button>
   </div>
   <hr />
   <h2>WiFi Settings</h2>
@@ -191,57 +191,69 @@
       <br />
       SOTACAT automatically checks for firmware updates daily when connected to
       the internet. To update your firmware:
-      <br /><br />
-      1. <b>Download</b> the firmware .bin from the cloud to your phone's local
-      storage. The button below downloads the default firmware for the default
-      SOTACAT hardware. To see if there are other firmwares available, visit
-      <a href="https://sotamat.com/sotacat" target="_blank" rel="noopener"
-        >https://sotamat.com/sotacat</a
-      >.
-      <br />
-      2. <b>Select</b> the downloaded firmware .bin file from step 1.
-      <br />
-      3. <b>Upload</b> to send the .bin file to the SOTACAT and install it.
     </div>
 
     <div class="firmware-client">
-      <div class="firmware-row">
-        <button
-          type="button"
-          class="download-button"
-          onclick="window.location.href='https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin'"
-        >
-          Download Firmware
-        </button>
+      <div class="firmware-step">
+        <div class="firmware-text">
+          1. <b>Download</b> the firmware .bin from the cloud to your phone's
+          local storage. The button below downloads the default firmware for the
+          default SOTACAT hardware. To see if there are other firmwares
+          available, visit
+          <a href="https://sotamat.com/sotacat" target="_blank" rel="noopener"
+            >https://sotamat.com/sotacat</a
+          >.
+        </div>
+        <div class="firmware-button-container">
+          <button
+            type="button"
+            class="firmware-button"
+            onclick="window.location.href='https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin'"
+          >
+            Download Firmware
+          </button>
+        </div>
       </div>
-      <div class="firmware-row">
-        <button
-          type="button"
-          class="file-label"
-          onclick="document.getElementById('ota-file').click()"
-        >
-          Select firmware (.bin) file
-        </button>
-        <input
-          type="file"
-          id="ota-file"
-          name="ota-file"
-          accept=".bin"
-          required
-          onchange="updateButtonText()"
-          style="display: none"
-        />
+
+      <div class="firmware-step">
+        <div class="firmware-text">
+          2. <b>Select</b> the downloaded firmware .bin file from step 1.
+        </div>
+        <div class="firmware-button-container">
+          <button
+            type="button"
+            class="firmware-button"
+            onclick="document.getElementById('ota-file').click()"
+          >
+            Select firmware (.bin) file
+          </button>
+          <input
+            type="file"
+            id="ota-file"
+            name="ota-file"
+            accept=".bin"
+            required
+            onchange="updateButtonText()"
+            style="display: none"
+          />
+        </div>
       </div>
-      <div class="firmware-row">
-        <button
-          type="button"
-          id="upload-button"
-          class="upload-button"
-          onclick="uploadFirmware()"
-          disabled
-        >
-          Upload Firmware
-        </button>
+
+      <div class="firmware-step">
+        <div class="firmware-text">
+          3. <b>Upload</b> to send the .bin file to the SOTACAT and install it.
+        </div>
+        <div class="firmware-button-container">
+          <button
+            type="button"
+            id="upload-button"
+            class="firmware-button"
+            onclick="uploadFirmware()"
+            disabled
+          >
+            Upload Firmware
+          </button>
+        </div>
       </div>
     </div>
   </form>

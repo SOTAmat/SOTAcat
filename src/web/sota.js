@@ -1,12 +1,33 @@
 // We'll keep these global sorting variables here for now,
 // although they apply equally to sota and pota.
 // Soon, we may collapse sota and pota display.
-gSortField = "timestamp";
-gLastSortField = gSortField;
-gDescending = true;
-gRefreshInterval = null;
+// NOTE: These variables are now declared in main.js
+// gSortField = "timestamp";
+// gLastSortField = gSortField;
+// gDescending = true;
+// gRefreshInterval = null;
 
-async function updateSotaTable()
+// Add functions to save and load sort state
+function sota_saveSortState() {
+    localStorage.setItem('sotaSortField', gSortField);
+    localStorage.setItem('sotaSortDescending', gDescending);
+}
+
+function sota_loadSortState() {
+    const savedSortField = localStorage.getItem('sotaSortField');
+    const savedSortDescending = localStorage.getItem('sotaSortDescending');
+    
+    if (savedSortField !== null) {
+        gSortField = savedSortField;
+        gLastSortField = savedSortField;
+    }
+    
+    if (savedSortDescending !== null) {
+        gDescending = (savedSortDescending === 'true');
+    }
+}
+
+async function sota_updateSotaTable()
 {
     const data = await gLatestSotaJson;
     if (data == null) {
@@ -26,29 +47,47 @@ async function updateSotaTable()
     data.forEach(spot =>
     {
         const row = newTbody.insertRow();
+        let modeType = spot.modeType;
+        let isSpecial = false; // Flag for special row status
 
-        if (spot.duplicate)
-            row.classList.add('duplicate-row');
-        if (spot.type && spot.type !== "" && spot.type !== "NORMAL") { // "" is a normal spot, other values are not
-            row.classList.add('duplicate-row');
-            row.classList.add('qrt-row');
+        // Check for duplicate
+        if (spot.duplicate) {
+            // row.classList.add('duplicate-row'); // Keep for potential separate duplicate styling if needed later
+            isSpecial = true;
+        }
+        // Check for QRT/QSY type
+        if (spot.type && spot.type !== "" && spot.type !== "NORMAL") {
             spot.mode = spot.type;
+            // Explicitly check for QRT to set the correct modeType for cell styling
+            if (spot.type.toUpperCase() === 'QRT') {
+                modeType = 'QRT'; // Use QRT for the specific class
+            } else {
+                // Decide how to handle other non-normal types like QSY if needed
+                // For now, let's keep the original modeType if it's not QRT
+                // modeType = spot.modeType; // This line might be redundant if modeType is already set
+            }
+            isSpecial = true;
         }
 
+        // Add common class if either condition is met
+        if (isSpecial) {
+            row.classList.add('special-row');
+        }
+        // Add a class to the row for mode filtering
+        row.classList.add(`row-mode-${modeType}`);
+
+        // UTC time
         const formattedTime = spot.timestamp.getUTCHours().toString().padStart(2, '0') + ':' + spot.timestamp.getUTCMinutes().toString().padStart(2, '0');
         row.insertCell().textContent = formattedTime;
 
-        const summitCell = row.insertCell();
-        const summitLink = document.createElement('a');
-        summitLink.href = `https://sotl.as/summits/${spot.point}`;
-        summitLink.textContent = spot.point;
-        summitCell.appendChild(summitLink);
+        // Callsign
+        const callsignCell = row.insertCell();
+        const callsignLink = document.createElement('a');
+        callsignLink.href = `https://qrz.com/db/${spot.baseCallsign}`; // QRZ.com doesn't support callsign suffixes
+        callsignLink.textContent = spot.activatorCallsign;
+        callsignCell.appendChild(callsignLink);
 
-        row.insertCell().textContent = spot.distance.toLocaleString();
-        const mode = spot.mode.toUpperCase().trim();
-        row.insertCell().textContent = mode;
-        row.classList.add('mode-' + spot.modeType);
-
+        // MHz Frequency
         const frequencyCell = row.insertCell();
         const frequencyLink = document.createElement('a');
         frequencyLink.href = '#';  // Placeholder href to ensure link styling
@@ -61,30 +100,51 @@ async function updateSotaTable()
         }
         frequencyCell.appendChild(frequencyLink);
 
-        const callsignCell = row.insertCell();
-        const callsignLink = document.createElement('a');
-        callsignLink.href = `https://qrz.com/db/${spot.baseCallsign}`; // QRZ.com doesn't support callsign suffixes
-        callsignLink.textContent = spot.activatorCallsign;
-        callsignCell.appendChild(callsignLink);
+        // Mode
+        const modeCell = row.insertCell(); // Get the cell itself
+        modeCell.textContent = spot.mode.toUpperCase().trim();
+        modeCell.classList.add('mode-cell'); // Add base class for common styling
+        modeCell.classList.add(`mode-cell-${modeType}`); // Add specific class for color
+        // Remove the row class for mode type as we now style the cell
+        // row.classList.add('mode-' + spot.modeType);
 
+        // Summit
+        const summitCell = row.insertCell();
+        const summitLink = document.createElement('a');
+        summitLink.href = `https://sotl.as/summits/${spot.locationID}`;
+        summitLink.textContent = spot.locationID;
+        summitCell.appendChild(summitLink);
+
+        // Distance
+        row.insertCell().textContent = spot.distance.toLocaleString();
+
+        // Name
         row.insertCell().textContent = spot.activatorName;
+
+        // Details
         row.insertCell().textContent = spot.details;
+
+        // Comments
         row.insertCell().textContent = spot.comments;
     });
 
     tbody.parentNode.replaceChild(newTbody, tbody);
     console.info('SOTA table updated');
+
+    // Apply combined filters AFTER the table is built and the DOM has likely updated
+    // Use setTimeout to defer the filter application slightly, ensuring DOM is ready
+    setTimeout(sota_applyTableFilters, 0);
 }
 
 // History Duration
 
-function saveHistoryDurationState()
+function sota_saveHistoryDurationState()
 {
     const value = document.getElementById('historyDurationSelector').value;
     localStorage.setItem('historyDuration', value);
 }
 
-function loadHistoryDurationState() {
+function sota_loadHistoryDurationState() {
     const savedState = localStorage.getItem('historyDuration');
     // If there's a saved state, convert it to Boolean and set the checkbox
     if (savedState !== null)
@@ -93,97 +153,167 @@ function loadHistoryDurationState() {
 
 // Auto-refresh spots
 
-function saveAutoRefreshCheckboxState()
+function sota_saveAutoRefreshCheckboxState()
 {
     const isChecked = document.getElementById('autoRefreshSelector').checked;
     localStorage.setItem('autoRefresh', isChecked);
 }
 
-function changeAutoRefreshCheckboxState(autoRefresh) {
+function sota_changeAutoRefreshCheckboxState(autoRefresh) {
 }
 
-function loadAutoRefreshCheckboxState()
+function sota_loadAutoRefreshCheckboxState()
 {
     const savedState = localStorage.getItem('autoRefresh');
     // If there's a saved state, convert it to Boolean and set the checkbox
     if (savedState !== null) {
         document.getElementById('autoRefreshSelector').checked = (savedState === 'true');
-        changeAutoRefreshCheckboxState(document.getElementById('autoRefreshSelector').checked);
+        sota_changeAutoRefreshCheckboxState(document.getElementById('autoRefreshSelector').checked);
     }
 }
 
-// Hide/Show Spot Dups
+// Hide/Show Special Rows (QRT/QSY or Duplicates)
 
-function saveShowSpotDupsCheckboxState()
+function sota_saveShowSpecialRowsState()
 {
     const isChecked = document.getElementById('showDupsSelector').checked;
-    localStorage.setItem('showSpotDups', isChecked);
+    localStorage.setItem('showSpecialRows', isChecked);
 }
 
-function changeShowSpotDupsCheckboxState(showDups) {
-    let styleSheet = document.styleSheets[0]; // Assuming it's in the first stylesheet
-    let duplicateRowsStyle = Array.from(styleSheet.cssRules).find(rule => rule.selectorText === '.duplicate-row');
-
-    if (showDups)
-        duplicateRowsStyle.style.display = '';     // Make sure rows are visible
-    else
-        duplicateRowsStyle.style.display = 'none'; // Hide rows
+function sota_changeShowSpecialRowsState(showSpecial) {
+    sota_applyTableFilters(); // Call the central filter function
 }
 
-function loadShowSpotDupsCheckboxState()
+function sota_loadShowSpecialRowsState()
 {
-    const savedState = localStorage.getItem('showSpotDups');
-    // If there's a saved state, convert it to Boolean and set the checkbox
+    const savedState = localStorage.getItem('showSpecialRows');
+    let isChecked = true; // Default to true (checked) if nothing is saved
+
+    // If there's a saved state, convert it to Boolean
     if (savedState !== null) {
-        document.getElementById('showDupsSelector').checked = (savedState === 'true');
-        changeShowSpotDupsCheckboxState(document.getElementById('showDupsSelector').checked);
+        isChecked = (savedState === 'true');
     }
+    // Set the checkbox state
+    const checkbox = document.getElementById('showDupsSelector');
+    if (checkbox) {
+        checkbox.checked = isChecked;
+        // Update the onchange handler to call the renamed function
+        checkbox.onchange = function() {
+            sota_changeShowSpecialRowsState(this.checked);
+            sota_saveShowSpecialRowsState();
+        };
+    } else {
+        console.warn("Could not find #showDupsSelector to update onchange handler");
+    }
+
+    // Do NOT call changeShowSpecialRowsState here, it will be called after table update
+    console.log(`Loaded ShowSpecialRows state: ${isChecked}`);
 }
 
 // Column sorting
 
-function updateSortIndicators(headers, sortField, descending) {
+// Restore the function definition locally for SOTA
+function sota_updateSortIndicators(headers, sortField, descending) { // Expects a NodeList of TH elements
     headers.forEach(header => {
-        if (header.getAttribute('data-sort-field') === sortField) {
-            header.setAttribute('data-sort-dir', descending ? 'desc' : 'asc');
-        } else {
-            header.removeAttribute('data-sort-dir');
+        const span = header.querySelector('span[data-sort-field]'); // Finds span inside TH
+        if (span && span.getAttribute('data-sort-field') === sortField) {
+            span.setAttribute('data-sort-dir', descending ? 'desc' : 'asc'); // Modifies span
+        } else if (span) {
+            span.removeAttribute('data-sort-dir'); // Modifies span
         }
     });
 }
 
 // Mode filtering
 
-function saveModeFilterState()
+function sota_saveModeFilterState()
 {
     const value = document.getElementById('modeFilter').value;
     localStorage.setItem('modeFilter', value);
 }
 
-function loadModeFilterState()
+function sota_loadModeFilterState()
 {
     const savedState = localStorage.getItem('modeFilter');
     if (savedState !== null) {
-        document.getElementById('modeFilter').value = savedState;
-        changeModeFilter(document.getElementById('modeFilter').value);
+        const selector = document.getElementById('modeFilter');
+        if (selector) {
+            console.log('Setting SOTA mode filter to:', savedState);
+            // Just set the value without triggering the filter - it will be applied later
+            selector.value = savedState;
+            // Update the onchange handler to call the renamed function
+            selector.onchange = function() {
+                sota_changeModeFilter(this.value);
+                sota_saveModeFilterState();
+            };
+            // Don't call changeModeFilter here - it will be called in applyTableFilters
+        }
     }
 }
 
-function changeModeFilter(selectedMode) {
-    let styleSheet = document.styleSheets[0]; // Assuming it's in the first stylesheet
-    let allModeStyles = Array.from(styleSheet.cssRules).filter(rule =>
-        rule.selectorText && /^\.mode-/.test(rule.selectorText));
+function sota_changeModeFilter(selectedMode) {
+    sota_applyTableFilters(); // Call the central filter function
+}
 
-    if (selectedMode === "All") {
-        allModeStyles.forEach(mode => mode.style.display = ''); // Reset display to default for all modes
+// Combined filter application logic
+function sota_applyTableFilters() {
+    const tableBody = document.querySelector('#sotaTable tbody');
+    if (!tableBody) {
+        console.warn('SOTA table body not found, cannot apply filters');
+        return;
     }
-    else {
-        allModeStyles.forEach(mode => mode.style.display = 'none'); // Hide all mode styles
-        let selectedModeStyle = allModeStyles.find(rule => rule.selectorText === `.mode-${selectedMode}`);
-        if (selectedModeStyle) {
-            selectedModeStyle.style.display = ''; // Show only the selected mode
+
+    const allRows = tableBody.querySelectorAll('tr');
+    if (allRows.length === 0) {
+        console.warn('No rows in SOTA table, skipping filter application');
+        return;
+    }
+
+    // Get current filter settings
+    const selectedMode = document.getElementById('modeFilter')?.value || 'All';
+    const showSpecial = document.getElementById('showDupsSelector')?.checked || false;
+
+    console.log(`Applying SOTA filters - Mode: ${selectedMode}, ShowSpecial: ${showSpecial}, Rows: ${allRows.length}`);
+
+    let visibleRows = 0;
+    let hiddenRows = 0;
+
+    allRows.forEach(row => {
+        const isQRT = row.classList.contains('row-mode-QRT');
+        const isSpecial = row.classList.contains('special-row'); // Includes QRT and duplicates
+
+        // Special case: Always show QRT rows if ShowQRT/QSY is checked, regardless of mode filter
+        if (isQRT && showSpecial) {
+            row.style.display = '';
+            visibleRows++;
+            return; // Use return instead of continue in forEach callback
         }
-    }
+
+        // Normal filtering logic for all other rows
+        let modeMatch = false;
+        let specialAllowed = false;
+
+        // Check mode filter
+        if (selectedMode === "All" || row.classList.contains(`row-mode-${selectedMode}`)) {
+            modeMatch = true;
+        }
+
+        // Check special row filter (applies to non-QRT special rows, or QRT rows when checkbox is off)
+        if (!isSpecial || (isSpecial && showSpecial)) {
+            specialAllowed = true;
+        }
+
+        // Set display based on BOTH filters for non-QRT rows or when QRT is hidden
+        if (modeMatch && specialAllowed) {
+            row.style.display = ''; // Show row
+            visibleRows++;
+        } else {
+            row.style.display = 'none'; // Hide row
+            hiddenRows++;
+        }
+    });
+
+    console.log(`SOTA filter applied: ${visibleRows} visible rows, ${hiddenRows} hidden rows`);
 }
 
 // Page settings
@@ -191,30 +321,102 @@ function changeModeFilter(selectedMode) {
 function sotaOnAppearing() {
     console.info('SOTA tab appearing');
 
-    loadAutoRefreshCheckboxState();
-    loadShowSpotDupsCheckboxState();
-    loadModeFilterState();
-    loadHistoryDurationState();
+    // Load all saved settings first
+    sota_loadSortState();
+    sota_loadAutoRefreshCheckboxState();
+    sota_loadShowSpecialRowsState();
+    sota_loadModeFilterState();
+    sota_loadHistoryDurationState();
 
-    refreshSotaPotaJson(false);
-    if (gRefreshInterval == null)
+    // Add/update event listeners that might have been cleared or point to old functions
+    // Mode Filter
+    const modeSelector = document.getElementById('modeFilter');
+    if (modeSelector) {
+        modeSelector.onchange = function() {
+            sota_changeModeFilter(this.value);
+            sota_saveModeFilterState();
+        };
+    }
+    // Show Dups Checkbox
+    const dupsCheckbox = document.getElementById('showDupsSelector');
+    if (dupsCheckbox) {
+        dupsCheckbox.onchange = function() {
+            sota_changeShowSpecialRowsState(this.checked);
+            sota_saveShowSpecialRowsState();
+        };
+    }
+    // Auto Refresh Checkbox
+    const autoRefreshCheckbox = document.getElementById('autoRefreshSelector');
+    if (autoRefreshCheckbox) {
+        autoRefreshCheckbox.onchange = function() {
+            sota_changeAutoRefreshCheckboxState(this.checked); // Assuming this exists and needs renaming if shared
+            sota_saveAutoRefreshCheckboxState();
+        };
+    }
+    // History Duration Selector
+    const historySelector = document.getElementById('historyDurationSelector');
+    if (historySelector) {
+        historySelector.onchange = function() {
+            refreshSotaPotaJson(true); // This might be global, check definition
+            sota_saveHistoryDurationState();
+        };
+    }
+
+    // Apply filters to existing data if already loaded
+    if (gLatestSotaJson != null) {
+        console.log('SOTA tab appearing: Using existing data');
+        // Ensure table is filled with existing data
+        sota_updateSotaTable();
+    } else {
+        // Fetch new data
+        console.log('SOTA tab appearing: Fetching new data');
+        refreshSotaPotaJson(true); // Force refresh to ensure we have fresh data (This calls sota_updateSotaTable after enrichment)
+    }
+
+    // Set up refresh interval if needed
+    if (gRefreshInterval == null) {
         gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
+    }
 
-    const headers = document.querySelectorAll('#sotaTable span[data-sort-field]');
+    // Get TH elements instead of SPANs
+    const headers = document.querySelectorAll('#sotaTable th');
     headers.forEach(header => {
-        header.addEventListener('click', function() {
-            gSortField = this.getAttribute('data-sort-field');
-            if (gSortField === gLastSortField) {
-                gDescending = !gDescending; // Toggle the sorting direction on each click
-            } else {
-                gLastSortField = gSortField;
-                gDescending = true; // Default to descending on first click
-            }
-            updateSortIndicators(headers, gSortField, gDescending);
-            updateSotaTable();
-        });
+        // Find the span inside the TH for getting the sort field
+        const sortSpan = header.querySelector('span[data-sort-field]');
+        if (sortSpan) { // Check if the span exists
+             // Remove existing listeners to avoid duplicates if sotaOnAppearing is called multiple times without full reload
+            header.replaceWith(header.cloneNode(true)); // Simple way to remove all listeners
+            const newHeader = document.querySelector(`#sotaTable th span[data-sort-field='${sortSpan.getAttribute('data-sort-field')}']`).closest('th');
+
+            newHeader.addEventListener('click', function() { // Use the new header element
+                // Use the span's attribute
+                const clickedSortField = sortSpan.getAttribute('data-sort-field');
+                if (clickedSortField === gLastSortField) {
+                    gDescending = !gDescending; // Toggle the sorting direction on each click
+                } else {
+                    gLastSortField = clickedSortField;
+                    gDescending = true; // Default to descending on first click
+                }
+                gSortField = clickedSortField; // Update gSortField
+                // Save sort state when it changes
+                sota_saveSortState();
+                // Pass the TH NodeList to the LOCAL updateSortIndicators function
+                sota_updateSortIndicators(document.querySelectorAll('#sotaTable th'), gSortField, gDescending); // Query fresh NodeList
+                sota_updateSotaTable();
+            });
+        }
     });
     // Initially set the sort indicator and sort the table
-    updateSortIndicators(headers, gSortField, gDescending);
-    updateSotaTable(); // Assuming this function uses gSortField and gDescending to sort and display data
+    // Pass the TH NodeList
+    sota_updateSortIndicators(document.querySelectorAll('#sotaTable th'), gSortField, gDescending); // Query fresh NodeList
+}
+
+function sotaOnLeaving() {
+    console.info('SOTA tab leaving');
+    // Save all settings when leaving the tab
+    sota_saveSortState();
+    sota_saveAutoRefreshCheckboxState();
+    sota_saveShowSpecialRowsState();
+    sota_saveModeFilterState();
+    sota_saveHistoryDurationState();
 }

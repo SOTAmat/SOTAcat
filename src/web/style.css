@@ -1,60 +1,86 @@
 /* =========================== Global Variables */
 :root {
-    /* Color Palette */
-    --color-primary: #222222;
-    --color-secondary: #A7A7A7;
-    --color-accent: #0A7AF3;
-    --color-active: #007bff;
-    --color-danger: #ff0000;
-    --color-success: #008000;
-    --color-warning: #ffdddd;
+    /* Color Palette - Modern with high contrast */
+    --color-primary: #121212;
+    --color-secondary: #f0f0f0;
+    --color-accent: #1976d2;
+    --color-accent-light: #2196f3;
+    --color-active: #1565c0;
+    --color-danger: #d32f2f;
+    --color-success: #2e7d32;
+    --color-warning: #fff0f0;
     --color-white: #ffffff;
-
+    --color-cyan: #26C6DA;
+    --color-green: #198754;
+    --color-gray-100: #f8f9fa;
+    --color-gray-200: #e9ecef;
+    --color-gray-300: #dee2e6;
+    --color-gray-400: #ced4da;
+    --color-gray-800: #343a40;
+    --color-black: #000000;
+    --color-table-row-alt: #f5f5f5;
+    
+    /* Logo Colors */
+    --color-header-bg: #222222;
+    --color-subtitle-bg: #A7A7A7;
+    
     /* Text Colors */
-    --text-primary: var(--color-secondary);
-    --text-secondary: var(--color-primary);
+    --text-primary: var(--color-black);
+    --text-secondary: var(--color-white);
     --text-button: var(--color-white);
+    --text-muted: var(--color-gray-800);
 
     /* Background Colors */
-    --bg-primary: var(--color-primary);
-    --bg-secondary: var(--color-secondary);
+    --bg-primary: var(--color-white);
+    --bg-secondary: var(--color-gray-200);
+    --bg-header: var(--color-accent);
     --bg-button: var(--color-accent);
-    --bg-button-hover: #0056b3;
-    --bg-button-active: #004094;
+    --bg-button-hover: var(--color-accent-light);
+    --bg-button-active: var(--color-active);
     --bg-duplicate: var(--color-warning);
+    --bg-table-header: var(--color-accent);
 
     /* Sizes */
     --font-size-base: 14px;
     --font-size-large: 1.2em;
     --font-size-xlarge: 2.0em;
-    --font-size-small: 0.6em;
-    --font-size-header-label: 1em;
-    --font-size-controls: 0.8em;
+    --font-size-small: 0.9em;
+    --font-size-table: 1em;
+    --font-size-header-label: 0.95em;
+    --font-size-controls: 0.9em;
+    --font-size-subtitle: 0.9em;
     --responsive-image-height: 60px;
     --tab-icon-size: 28px;
 
     /* Spacing */
+    --spacing-xs: 3px;
     --spacing-small: 5px;
     --spacing-medium: 10px;
     --spacing-large: 20px;
 
     /* Other */
-    --border-radius: 5px;
+    --border-radius: 0px;
+    --border-radius-controls: 16px;
+    --border-radius-pill: 999px;
     --transition-speed: 0.3s;
+    --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --box-shadow-elevated: 0 4px 8px rgba(0, 0, 0, 0.12);
 }
 
 /* =========================== Base Styles */
 html, body {
     margin: 0;
     padding: 0;
-    overflow-x: hidden; /* Prevent horizontal scrolling */
+    overflow-x: hidden;
     font-size: var(--font-size-base);
-    font-family: Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.5;
 }
 
 h1, h2, h3 {
-    font-family: Arial, sans-serif;
-    background-color: var(--bg-secondary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: var(--text-secondary);
     margin: 0;
     width: 100%;
@@ -62,20 +88,24 @@ h1, h2, h3 {
 
 h1 {
     font-size: var(--font-size-xlarge);
-    font-weight: 800;
+    font-weight: 700;
     padding: 0.5em;
+    background-color: var(--bg-header);
 }
 
 h2 {
     font-size: var(--font-size-large);
     font-weight: 600;
-    padding: 0.2em 0;
+    padding: 0.5em;
+    background-color: var(--color-subtitle-bg);
 }
 
 h3 {
-    font-size: 1.0em;
-    font-weight: 400;
-    padding: 0.2em;
+    font-size: var(--font-size-subtitle);
+    font-weight: 500;
+    padding: 0.3em 0.5em;
+    background-color: var(--color-subtitle-bg);
+    color: var(--color-black);
 }
 
 .descriptionHeading {
@@ -88,7 +118,7 @@ li {
     margin: 15px 0 15px -20px;
 }
 
-/* =========================== Box Sizing */
+/* Box Sizing for all elements */
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -97,15 +127,17 @@ li {
 .mainHeaderContainer {
     width: 100%;
     overflow-x: hidden;
+    background-color: var(--color-header-bg);
+    color: var(--color-white);
 }
 
 .headerLogoBarContainer {
-    background-color: var(--bg-primary);
+    background-color: var(--color-header-bg);
     display: flex;
-    justify-content: flex-start; /* Ensure items start from the left */
+    justify-content: flex-start;
     align-items: center;
     position: relative;
-    padding: 0; /* Maintain any necessary padding */
+    padding: 0;
 }
 
 .responsive-image {
@@ -114,196 +146,506 @@ li {
     object-fit: contain;
 }
 
+/* Status display containers */
 .status-container, .battery-info-container {
-    color: var(--text-primary);
-        display: flex;
+    color: var(--color-white);
+    display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: flex-end;
 }
 
 .status-container {
-    margin-left: auto; /* This pushes the status-container to the right */
+    margin-left: auto;
     margin-right: var(--spacing-medium);
 }
 
 .status-container > div, .battery-info-container > div {
-    text-align: right; /* Ensures text within each div is right-aligned */
-    width: 100%; /* Ensures divs take full width of the status-container for proper text alignment */
+    text-align: right;
+    width: 100%;
 }
 
 .battery-info-container {
     padding-right: var(--spacing-small);
 }
 
+.icon {
+    margin-left: 2px;
+    font-size: 1.1em;
+}
+
+/* SOTAMAT Launch Button */
 .sotamatLaunchButtonContainer {
     display: flex;
     justify-content: center;
     align-items: center;
+    margin: var(--spacing-medium) 0;
+    background-color: var(--color-header-bg);
+    padding: var(--spacing-medium) 0;
 }
 
 .sotamatLaunchButton {
-    font-size: 1.1em;
+    font-size: 1.0em;
     font-weight: bold;
-    color: var(--bg-button);
-    padding: 1px var(--spacing-medium);
+    background-color: var(--bg-button);
+    color: var(--text-button);
+    padding: 3px 10px;
     display: flex;
     align-items: center;
+    justify-content: center;
     cursor: pointer;
-    border-radius: 999px;
+    border-radius: var(--border-radius-pill);
+    border: none;
+    box-shadow: var(--box-shadow);
+    transition: background-color var(--transition-speed) ease;
+}
+
+.sotamatLaunchButton:hover {
+    background-color: var(--bg-button-hover);
+}
+
+.sotamatLaunchButton:active {
+    background-color: var(--bg-button-active);
+    transform: translateY(1px);
 }
 
 .sotamatLaunchButtonIcon {
-    font-size: 1.5em;
+    font-size: 1.2em;
+    margin-left: var(--spacing-small);
 }
 
 /* =========================== Content Area */
+#contentArea {
+    padding-bottom: 70px; /* Space for tabBar */
+}
+
+/* =========================== Table Styles */
+#tableContainer {
+    overflow-x: auto;
+    box-shadow: var(--box-shadow);
+    background-color: var(--bg-primary);
+    margin: 4px 0 var(--spacing-medium) 0;
+}
+
 #sotaTable, #potaTable {
     width: 100%;
-    overflow-x: auto; /* Allows horizontal scrolling within the content area if needed */
-    display: block; /* This ensures the table takes up the full width and scrolls horizontally if needed */
-    padding-bottom: 60px; /* Space for tabBar, adjust based on actual tabBar height */
-    border: none; /* Remove the outer border */
+    border-collapse: collapse;
+    border: none;
+    overflow-x: auto;
+    display: block;
 }
 
-table, th, td {
-    border: 1px solid var(--color-primary);
+table {
+    width: 100%;
     border-collapse: collapse;
-    padding: var(--spacing-small);
+    font-size: var(--font-size-table);
+    background-color: var(--bg-primary);
+}
+
+th {
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-table-header);
+    color: var(--text-secondary);
+    font-weight: 700;
+    text-align: left;
+    padding: 8px 4px;
+    white-space: nowrap;
+    border: 1px solid var(--color-gray-300);
+    z-index: 1;
+}
+
+td {
+    padding: 8px 4px;
     text-align: left;
     white-space: nowrap;
+    border: 1px solid var(--color-gray-300);
 }
 
+/* Alternating row background color */
+#sotaTable tr:nth-child(even) {
+    background-color: var(--color-table-row-alt);
+}
+
+tr:hover {
+    background-color: var(--color-gray-200);
+}
+
+/* Table Sorting Styles */
+table.table-sortable th {
+    cursor: pointer;
+}
+
+table.table-sortable th span {
+    display: inline-flex;
+    align-items: center;
+}
+
+table.table-sortable th span::after {
+    content: "";
+    margin-left: 5px;
+}
+
+/* Sort direction indicators */
+table.table-sortable th span[data-sort-dir="asc"]::after {
+    content: "\25B2"; /* BLACK UP-POINTING TRIANGLE */
+    font-size: 0.8em;
+    line-height: 1;
+}
+
+table.table-sortable th span[data-sort-dir="desc"]::after {
+    content: "\25BC"; /* BLACK DOWN-POINTING TRIANGLE */
+    font-size: 0.8em;
+    line-height: 1;
+}
+
+/* Links in tables */
+table a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+table a:hover {
+    text-decoration: underline;
+}
+
+/* =========================== Header Components & Layout */
 .contentPageHeaderContainer {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     width: 100%;
-    padding: 0.2em 1em;
+    padding: 0.3em 0.5em;
+    background-color: var(--color-subtitle-bg);
+    color: var(--color-black);
 }
 
 /* Common style for all header labels */
 .header-label {
     font-size: var(--font-size-header-label);
-    font-family: Arial, sans-serif;
-    font-weight: 400;  /* Set your desired weight here */
-    color: var(--text-secondary);
+    font-weight: 500;
+    color: var(--color-black);
+    display: block;
+    margin-bottom: 5px;
 }
 
 .spotsTableTitle {
-    composes: header-label;  /* Inherit common styles */
-    background-color: var(--bg-secondary);
     flex: 1;
-    width: 100%;
     display: flex;
     justify-content: flex-start;
-}
-
-/* Table Sorting Styles, Hide arrows by default */
-table.table-sortable th span::after {
-    content: "";
-}
-
-/* Arrow for ascending sort */
-table.table-sortable th span[data-sort-dir="asc"]::after {
-    content: "\25b2"; /* Up-pointing triangle */
-}
-
-/* Arrow for descending sort */
-table.table-sortable th span[data-sort-dir="desc"]::after {
-    content: "\25bc"; /* Down-pointing triangle */
-}
-
-
-/* =========================== SOTA and POTA Specific Styles */
-.spotsTableTitle {
-    /* Vertically center the select element */
-    display: flex;
     align-items: center;
 }
 
-.historyDurationDropdown {
+/* Header layout with three equal columns */
+.header-group {
+    width: 33.33%;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+    padding: 0 5px;
+}
+
+/* First column - left aligned content */
+.header-group:first-child {
+    text-align: left;
+    align-items: flex-start;
+}
+
+/* Middle column - centered content */
+.header-group:nth-child(2) {
+    justify-content: center;
+}
+
+/* Last column - centered content */
+.header-group:last-child {
+    justify-content: center;
+}
+
+/* Auto label needs to stay with checkbox */
+.header-group label[for="autoRefreshSelector"] {
+    margin: 0 0 0 5px;
+    display: inline-block;
+}
+
+/* =========================== SOTA and POTA Control Styles */
+/* SOTA Controls Layouts */
+.sotamat-button-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.5em 0.1em 0.4em 0.1em;
+    background-color: var(--color-header-bg);
+    color: var(--color-secondary);
+    margin-bottom: 0px;
+}
+
+.sota-controls-row, .pota-controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.1em;
+    background-color: var(--color-header-bg);
+    color: var(--color-secondary);
+}
+
+.sota-controls-left, .sota-controls-right,
+.pota-controls-left, .pota-controls-right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-small);
+}
+
+.sota-controls-left, .pota-controls-left {
+    align-items: flex-start;
+}
+
+.sota-controls-right, .pota-controls-right {
+    align-items: flex-start;
+}
+
+/* Control containers */
+.sotamat-button-container-sota,
+.qrt-qsy-container,
+.auto-refresh-container,
+.show-past-container,
+.mode-filter-container {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+}
+
+/* Center the SOTAMAT button */
+.sotamat-button-container-sota {
+    justify-content: center;
+}
+
+/* Control layout elements */
+.control-prefix {
+    min-width: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.control-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+}
+
+/* Style for table header Mode column */
+.flex-column-align-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+/* Styles for SOTA/POTA controls */
+.qrt-qsy-container label,
+.auto-refresh-container label,
+.show-past-container label,
+.mode-filter-container label {
     font-size: var(--font-size-controls);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.auto-refresh-container button {
+    background-color: var(--color-white);
+    color: var(--color-primary);
+    border: none;
+    border-radius: var(--border-radius-controls);
+    padding: 3px 6px;
+    font-size: var(--font-size-controls);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--transition-speed) ease;
+    box-shadow: var(--box-shadow);
+    order: 2;
     margin-left: var(--spacing-small);
 }
 
-.autoRefreshContainer {
+.auto-refresh-container button:hover {
+    background-color: var(--color-gray-100);
+}
+
+.auto-refresh-container button:active {
+    background-color: var(--color-gray-200);
+}
+
+.auto-refresh-container input[type="checkbox"] {
+    order: 0;
+}
+
+.auto-refresh-container label {
+    order: 1;
+    margin: 0;
+}
+
+/* Control selectors for consistent sizing and alignment */
+.sota-control-selector {
+    padding: 4px 8px;
+    border: 1px solid var(--color-gray-400);
+    border-radius: var(--border-radius-controls);
+    background-color: var(--bg-primary);
+    font-size: var(--font-size-controls);
+    width: 80px;
+    max-width: 100px;
+    box-sizing: border-box;
+    height: 24px;
+    vertical-align: middle;
+    margin-left: auto;
+}
+
+/* Add styles for the right-justified controls in SOTA page */
+.sota-controls-right .control-main {
     display: flex;
-    align-items: center; /* This will ensure vertical alignment */
+    justify-content: space-between;
+    width: 100%;
+    padding-right: 8px; /* Small right margin */
 }
 
-.autoRefresh {
-    margin-right: var(--spacing-small); /* Adds a small gap between the checkbox and the label */
+.sota-controls-right .sota-control-selector {
+    width: 90px; /* Fixed width for both selectors */
 }
 
-.autoRefreshLabel {
-    composes: header-label;  /* Inherit common styles */
-    margin-right: var(--spacing-small);
-}
-
-.showDupsContainer {
+/* Apply the same margin and width to POTA page controls */
+.pota-controls-right .control-main {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    white-space: nowrap;
+    justify-content: space-between;
+    width: 100%;
+    padding-right: 8px; /* Small right margin to match SOTA page */
 }
 
-.showDups {
-    margin-right: var(--spacing-small); /* Adds a small gap between the checkbox and the label */
+.pota-controls-right .sota-control-selector {
+    width: 90px; /* Fixed width to match SOTA page */
 }
-
-.showDupsLabel {
-    composes: header-label;  /* Inherit common styles */
-    margin: 0 var(--spacing-small);
-    white-space: nowrap;
-    text-align: center;
-}
-
-.duplicate-row {
-    background-color: var(--bg-duplicate);
-}
-
-.qrt-row {
-    text-decoration: line-through;
-}
-
-/* Mode-specific styles Note that each is defined separately, rather than having
- * them share a common definition. This is intentional, so that each mode may be
- * further manipulated separately,
- */
-.mode-CW {}
-.mode-SSB {}
-.mode-FM {}
-.mode-FT8 {}
-.mode-DATA {}
-.mode-OTHER {}
 
 /* Alignment for specific columns */
 #sotaTable th:nth-child(3), #sotaTable td:nth-child(3),
 #sotaTable th:nth-child(5), #sotaTable td:nth-child(5),
+#sotaTable th:nth-child(6), #sotaTable td:nth-child(6),
 #potaTable th:nth-child(3), #potaTable td:nth-child(3),
-#potaTable th:nth-child(5), #potaTable td:nth-child(5) {
+#potaTable th:nth-child(6), #potaTable td:nth-child(6) {
     text-align: right;
+}
+
+/* Mode cell styling */
+.mode-cell {
+    color: var(--color-white);
+    border-radius: 0px;
+    padding: 0px 0px;
+    text-align: center;
+    font-weight: bold;
+    margin: 0px;
+}
+
+/* Mode background colors */
+.mode-cell-CW {
+    background-color: var(--color-cyan);
+}
+.mode-cell-QRT {
+    background-color: var(--color-danger);
+}
+.mode-cell-FT8,
+.mode-cell-FT4,
+.mode-cell-DATA {
+    background-color: var(--color-green);
+}
+.mode-cell-AM,
+.mode-cell-OTHER {
+    background-color: var(--color-gray-800);
+}
+.mode-cell-SSB,
+.mode-cell-FM {
+    background-color: var(--color-accent);
+}
+
+/* Reduce padding for Mode column cells */
+#sotaTable td:nth-child(4) {
+    padding-left: 0px;
+    padding-right: 0px;
+}
+
+/* Strikethrough for special rows */
+.special-row td:nth-child(2),
+.special-row td:nth-child(3) {
+    text-decoration: line-through;
+}
+
+/* Reduce padding for Mode column header */
+#sotaTable th:nth-child(4) {
+    padding-left: 1px;
+    padding-right: 1px;
 }
 
 /* =========================== CAT and Settings Page Styles */
 .cat-container, .settings-container {
     padding: var(--spacing-medium);
+    margin: var(--spacing-small);
+    background-color: var(--bg-primary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
 }
 
 .msg-section, .keyer-section, .power-section, .wifi-client {
-    background-color: #f0f0f0;
+    background-color: var(--color-gray-100);
     padding: var(--spacing-medium);
     border-radius: var(--border-radius);
-    margin-bottom: var(--spacing-medium);
+    margin-bottom: var(--spacing-large);
+    box-shadow: var(--box-shadow);
 }
 
 .cat-container h2, .settings-container h2 {
-    font-size: 1.0em;
+    font-size: 1.1em;
+    margin-top: 0;
+    margin-bottom: var(--spacing-medium);
+    background-color: var(--color-header-bg);
+    color: var(--text-secondary);
+    padding: var(--spacing-medium);
+    border-radius: var(--border-radius);
+}
+
+/* Inline header with buttons */
+.inline-header {
+    display: flex;
+    align-items: center;
+    background-color: var(--color-header-bg);
+    color: var(--text-secondary);
+    padding: var(--spacing-medium);
+    border-radius: var(--border-radius);
     margin-top: 0;
     margin-bottom: var(--spacing-medium);
 }
 
+.inline-header h2 {
+    margin: 0;
+    padding: 0;
+    background: none;
+    flex-grow: 0;
+    margin-right: var(--spacing-large);
+    font-size: 1.1em;
+    width: auto;
+}
+
+.inline-header .button-row {
+    display: flex;
+    margin: 0;
+    flex-grow: 1;
+}
+
+.inline-header button.bigthumb {
+    margin: 0 var(--spacing-small);
+    padding: var(--spacing-small) var(--spacing-medium);
+}
+
+/* Button styles */
 .button-row {
     display: flex;
     justify-content: space-around;
@@ -314,29 +656,84 @@ button.bigthumb, .sync-button, .save-button, .reset-button {
     font-size: 16px;
     padding: var(--spacing-medium) var(--spacing-large);
     margin: var(--spacing-small);
-    border-radius: var(--border-radius);
+    border-radius: 30px;
     background-color: var(--bg-button);
     color: var(--text-button);
     border: none;
     cursor: pointer;
-    transition: background-color var(--transition-speed) ease;
+    transition: all var(--transition-speed) ease;
+    box-shadow: var(--box-shadow);
+}
+
+button.bigthumb:hover, .sync-button:hover, .save-button:hover, .reset-button:hover {
+    background-color: var(--bg-button-hover);
 }
 
 button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:active {
     background-color: var(--bg-button-active);
+    transform: translateY(1px);
+}
+
+/* Firmware update styles */
+.firmware-step {
+    margin-bottom: var(--spacing-medium);
+}
+
+.firmware-text {
+    margin-bottom: var(--spacing-small);
+}
+
+.firmware-button-container {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: var(--spacing-small);
+    margin-bottom: var(--spacing-medium);
+}
+
+.firmware-button {
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 30px;
+    background-color: var(--bg-button);
+    color: var(--text-button);
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    box-shadow: var(--box-shadow);
+}
+
+.firmware-button:hover {
+    background-color: var(--bg-button-hover);
+}
+
+.firmware-button:active {
+    background-color: var(--bg-button-active);
+    transform: translateY(1px);
+}
+
+.firmware-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 #xmitButton {
-    background-color: var(--bg-button); /* Default background */
-    width: 100%; /* Make the button take the full width of its container */
-    max-width: 300px; /* Set a maximum width for the button (adjust as needed) */
-    padding: 15px; /* Increase the padding to make it look larger */
+    background-color: var(--bg-button);
+    width: 100%;
+    max-width: 200px;
+    padding: 10px;
+    margin: 0 auto;
+    display: block;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: 1px;
+    box-shadow: var(--box-shadow-elevated);
 }
 
 #xmitButton.active {
-    background-color: var(--color-danger); /* Red when active */
+    background-color: var(--color-danger);
 }
 
+/* Input group styling */
 .input-group {
     display: flex;
     justify-content: space-between;
@@ -347,9 +744,9 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
 .input-group input[type="text"] {
     flex-grow: 1;
     font-size: 16px;
-    padding: 8px;
+    padding: 8px 12px;
     margin-right: var(--spacing-medium);
-    border: 1px solid #ccc;
+    border: 1px solid var(--color-gray-300);
     border-radius: var(--border-radius);
 }
 
@@ -361,46 +758,58 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
     color: var(--text-button);
     border: none;
     cursor: pointer;
+    box-shadow: var(--box-shadow);
+}
+
+.input-group button:hover {
+    background-color: var(--bg-button-hover);
+}
+
+.input-group button:active {
+    background-color: var(--bg-button-active);
 }
 
 hr {
-    border-color: var(--bg-secondary);
-    margin-top: var(--spacing-large);
-    margin-bottom: var(--spacing-large);
+    border: none;
+    height: 1px;
+    background-color: var(--color-gray-300);
+    margin: var(--spacing-large) 0;
 }
 
 /* WiFi Settings Specific Styles */
 .wifi-instructions {
-    font-size: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-medium);
 }
 
 .wifi-row {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    margin-bottom: 3.5px;
+    margin-bottom: 8px;
 }
 
 .wifi-label, .wifi-client input[type="text"], .wifi-client input[type="password"] {
     margin-right: var(--spacing-medium);
     width: calc(50% - var(--spacing-medium));
     font-size: 16px;
-    padding: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--border-radius);
 }
 
 .show-password-row {
     display: flex;
+    align-items: center;
     justify-content: flex-start;
     padding-left: calc(50% + 5px);
-    margin-top: 2.5px;
-    margin-bottom: 0;
+    margin-top: 2px;
+    margin-bottom: 10px;
 }
 
-.show-password {
-    margin-left: 0;
-    font-size: 16px;
-}
-
+/* Form validation styling */
 .wifi-client input[type="text"]:valid,
 .wifi-client input[type="password"]:valid,
 .keyer-section input[type="text"]:valid {
@@ -421,167 +830,113 @@ hr {
     align-items: center;
 }
 
-/* Firmware Update Specific Styles */
-.firmware-update-form {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.firmware-client {
-    background-color: #f0f0f0;
-    padding: var(--spacing-medium);
-    border-radius: var(--border-radius);
-    margin-bottom: var(--spacing-medium);
-}
-
-.firmware-row {
-    display: flex;
-    justify-content: center;  /* Center the buttons horizontally */
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.firmware-label, .firmware-client input[type="file"] {
-    margin-right: var(--spacing-medium);
-    width: calc(50% - var(--spacing-medium));
-    font-size: 16px;
-    padding: 8px;
-}
-
-.file-label {
-    font-size: 16px;
-    padding: var(--spacing-medium) var(--spacing-large);
-    background-color: var(--bg-button);
-    color: var(--text-button);
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    text-align: center;
-    transition: background-color var(--transition-speed) ease;
-    white-space: nowrap;
-    min-width: 250px;
-    width: auto;
-    box-sizing: border-box;
-    overflow: hidden;
-    vertical-align: middle;
-}
-
-/* Styling the upload button consistently with others */
-.upload-button {
-    font-size: 16px;
-    padding: var(--spacing-medium) var(--spacing-large);
-    margin: var(--spacing-small);
-    border-radius: var(--border-radius);
-    background-color: var(--bg-button);
-    color: var(--text-button);
-    border: none;
-    cursor: pointer;
-    transition: background-color var(--transition-speed) ease;
-}
-
-.upload-button:active {
-    background-color: var(--bg-button-active);
-}
-
-.upload-button:disabled {
-    background-color: #cccccc; /* Grey background */
-    color: #666666; /* Grey text */
-    cursor: not-allowed; /* Changes the cursor to indicate the button is not clickable */
-}
-
 /* =========================== About Page */
 .aboutParagraph {
     padding: 1.5em;
     margin: 0.5em;
+    line-height: 1.6;
+    background-color: var(--bg-primary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
 }
 
 /* =========================== Footer Navigation Bar */
 .tabBar {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
     position: fixed;
-    left: 0;
-    right: 0;
     bottom: 0;
+    left: 0;
     width: 100%;
-    background: var(--bg-primary);
-    height: 56px;
+    display: flex;
+    justify-content: space-between;
+    background-color: var(--color-primary);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
     z-index: 1000;
 }
 
 .tabBar button {
     flex: 1;
-    font-size: normal;
-    font-weight: bolder;
-    text-align: center;
-    padding: var(--spacing-medium) 2px;
+    background-color: transparent;
+    color: var(--color-gray-400);
     border: none;
-    background: none;
-    color: var(--text-primary);
-    outline: none;
+    padding: var(--spacing-medium) 0;
+    cursor: pointer;
+    font-size: var(--font-size-small);
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.tabBar button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .tabBar button.tabActive {
-    font-size: large;
-    color: var(--color-active);
+    color: var(--color-accent-light);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-top: 7px solid var(--color-accent-light);
+    font-weight: bold;
 }
 
 .tabIcons {
     font-size: var(--tab-icon-size);
+    margin-bottom: 3px;
 }
 
-/* =========================== Media Queries */
-@media (min-width: 600px) {
-    .cat-container {
-        max-width: 600px;
-        margin: 0 auto;
+/* =========================== Responsive Design */
+/* Desktop */
+@media (min-width: 1024px) {
+    body {
+        max-width: 1200px;
+    }
+    
+    .cat-container, .settings-container {
+        max-width: 1000px;
+    }
+    
+    #tableContainer {
+        max-width: 1200px;
+    }
+    
+    .tabBar {
+        max-width: 1200px;
+        left: 50%;
+        transform: translateX(-50%);
     }
 }
 
-/* Add styles for the download button */
-.download-button {
-    font-size: 16px;
-    padding: var(--spacing-medium) var(--spacing-large);
-    margin: var(--spacing-small);
-    border-radius: var(--border-radius);
-    background-color: var(--bg-button);
-    color: var(--text-button);
-    border: none;
-    cursor: pointer;
-    transition: background-color var(--transition-speed) ease;
-    min-width: 250px; /* Match the width of other firmware buttons */
+/* Tablet */
+@media (min-width: 600px) {
+    body {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .cat-container, .settings-container {
+        max-width: 800px;
+        margin: var(--spacing-medium) auto;
+    }
+    
+    #tableContainer {
+        max-width: 800px;
+        margin: 4px auto var(--spacing-large);
+    }
 }
 
-.download-button:active {
-    background-color: var(--bg-button-active);
-}
-
-/* Add styles for the three column groups */
-.header-group {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-width: fit-content;
-    padding: 0 var(--spacing-medium);
-}
-
-.header-group:first-child {
-    align-items: flex-start;
-}
-
-.header-group:last-child {
-    align-items: flex-end;
-}
-
-/* Style for the history duration dropdown */
-.historyDurationDropdown {
-    font-size: var(--font-size-controls);
-    margin-left: var(--spacing-small);
-}
-
-/* Style for the refresh buttons */
-.contentPageHeaderContainer button {
-    font-size: var(--font-size-controls);
+/* Small mobile devices */
+@media (max-width: 400px) {
+    .tabBar button {
+        padding: var(--spacing-small) 0;
+    }
+    
+    .tabIcons {
+        font-size: calc(var(--tab-icon-size) * 0.8);
+    }
+    
+    th, td {
+        padding: 8px 4px;
+        font-size: calc(var(--font-size-small) * 0.95);
+    }
 }

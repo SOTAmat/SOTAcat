@@ -1,4 +1,18 @@
 // ----------------------------------------------------------------------------
+// Global variables used across tabs
+// ----------------------------------------------------------------------------
+// Sort state variables
+let gSortField = "timestamp";
+let gLastSortField = gSortField;
+let gDescending = true;
+// Refresh interval timer
+let gRefreshInterval = null;
+// Data caches
+let gLatestSotaJson = null;
+let gSotaEpoch = null;
+let gLatestPotaJson = null;
+
+// ----------------------------------------------------------------------------
 // Launch SOTAmat application
 // ----------------------------------------------------------------------------
 function launchSOTAmat()
@@ -125,20 +139,25 @@ let currentTabName = null;
 // It calls the onLeaving function of the current tab if it exists.
 function cleanupCurrentTab() {
     if (currentTabName) {
-        // Assuming global functions named after tabs with 'OnLeaving' suffix
+        // Call onLeaving function if it exists for the current tab
         const onLeavingFunctionName = `${currentTabName}OnLeaving`;
         if (typeof window[onLeavingFunctionName] === 'function')
         {
+            console.log(`Calling ${onLeavingFunctionName} function`);
             window[onLeavingFunctionName]();
         }
-
-        // De-highlight the tab by removing the "tabActive" class from the button with the ID of currentTabName + 'TabButton'
-        const tabButton = document.getElementById(currentTabName + 'TabButton');
-        if (tabButton)
-        {
-            tabButton.classList.remove('tabActive');
-        }
     }
+}
+
+// Save the currently active tab to localStorage
+function saveActiveTab(tabName) {
+    localStorage.setItem('activeTab', tabName.toLowerCase());
+}
+
+// Load the previously active tab from localStorage
+function loadActiveTab() {
+    const activeTab = localStorage.getItem('activeTab');
+    return activeTab ? activeTab : 'sota'; // Default to 'sota' if no tab is saved
 }
 
 // Keep track of loaded scripts
@@ -147,68 +166,185 @@ const loadedTabScripts = new Set();
 // Check if the script for a given Tab has already been loaded to avoid duplicates
 function loadTabScriptIfNeeded(tabName)
 {
+    // Skip script loading for tabs known not to have JS files
+    if (tabName === 'about') {
+        console.log(`Tab ${tabName} doesn't need a script, skipping`);
+        return Promise.resolve();
+    }
+
     const scriptPath = `${tabName}.js`;
+    console.log(`Checking if script needs to be loaded: ${scriptPath}`);
 
     return new Promise((resolve, reject) =>
     {
         if (loadedTabScripts.has(scriptPath))
         {
             // Script already loaded, resolve immediately
+            console.log(`Script ${scriptPath} already loaded, skipping`);
             resolve();
             return;
         }
 
+        console.log(`Loading script: ${scriptPath}`);
         fetch(scriptPath)
             .then(response =>
             {
                 if (!response.ok)
                 {
+                    console.warn(`Script ${scriptPath} fetch failed with status: ${response.status}`);
                     // If the script doesn't need to be loaded (e.g., not found), resolve the promise
                     resolve();
                     return;
                 }
+                
+                // Create script tag and add to document
                 const scriptTag = document.createElement('script');
                 scriptTag.src = scriptPath;
                 scriptTag.onload = () =>
                 {
+                    console.log(`Script ${scriptPath} loaded successfully`);
                     loadedTabScripts.add(scriptPath);
                     resolve(); // Resolve the promise once the script is loaded
                 };
-                scriptTag.onerror = reject; // Reject the promise on error
+                scriptTag.onerror = (error) => {
+                    console.error(`Error loading script ${scriptPath}:`, error);
+                    reject(error);
+                };
+                
+                // Add the script to the page
                 document.body.appendChild(scriptTag);
             })
-            .catch(reject);
+            .catch(error => {
+                console.error(`Error fetching script ${scriptPath}:`, error);
+                reject(error);
+            });
     });
 }
 
 function openTab(tabName)
 {
-    cleanupCurrentTab();
+    console.log(`Switching to tab: ${tabName}`);
+    
+    try {
+        // Clean up current tab logic
+        cleanupCurrentTab();
 
-    // Highlight the new current tab by adding the "tabActive" class to the button with the ID of currentTabName + 'TabButton'
-    currentTabName = tabName.toLowerCase();
-    const tabButton = document.getElementById(currentTabName + 'TabButton');
-    if (tabButton)
-    {
-        tabButton.classList.add('tabActive');
+        // Explicitly remove 'tabActive' class from ALL tab buttons first
+        document.querySelectorAll('.tabBar button').forEach(button => {
+            button.classList.remove('tabActive');
+        });
+
+        // Set the new current tab name
+        currentTabName = tabName.toLowerCase();
+        console.log(`Current tab set to: ${currentTabName}`);
+        
+        // Find and highlight the active tab
+        const tabButton = document.getElementById(currentTabName + 'TabButton');
+        if (tabButton) {
+            tabButton.classList.add('tabActive');
+        } else {
+            console.error(`Tab button for ${currentTabName} not found`);
+        }
+
+        // Save the active tab to localStorage
+        saveActiveTab(currentTabName);
+
+        const contentPath = `${currentTabName}.html`;
+        console.log(`Fetching content from: ${contentPath}`);
+        
+        fetch(contentPath)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch ${contentPath}: ${response.status} ${response.statusText}`);
+                }
+                return response.text();
+            })
+            .then(text => {
+                document.getElementById('contentArea').innerHTML = text;
+                console.log(`Content for ${currentTabName} loaded`);
+                
+                // The About tab doesn't need script loading
+                if (currentTabName === 'about') {
+                    // Call the placeholder function directly
+                    aboutOnAppearing();
+                    console.log(`Tab switch to ${currentTabName} complete`);
+                    return Promise.resolve();
+                }
+                
+                return loadTabScriptIfNeeded(currentTabName);
+            })
+            .then(() => {
+                // Skip for the About tab as we've already handled it
+                if (currentTabName === 'about') {
+                    return;
+                }
+                
+                // Once the script is loaded, call the onAppearing function
+                const onAppearingFunctionName = `${currentTabName}OnAppearing`;
+                console.log(`Calling ${onAppearingFunctionName} function`);
+                
+                // Ensure all required global variables are initialized
+                if (typeof gRefreshInterval === 'undefined') {
+                    console.warn('gRefreshInterval was undefined, initializing to null');
+                    window.gRefreshInterval = null;
+                }
+                
+                if (typeof window[onAppearingFunctionName] === 'function') {
+                    try {
+                        window[onAppearingFunctionName]();
+                    } catch (error) {
+                        console.error(`Error in ${onAppearingFunctionName}:`, error);
+                        // Try to recover from common errors
+                        if (error.message.includes('gRefreshInterval')) {
+                            alert(`Error initializing tab: A refresh variable was not properly initialized.\nThe issue has been fixed. Please try again.`);
+                        } else {
+                            throw error; // Re-throw other errors
+                        }
+                    }
+                } else {
+                    console.warn(`Function ${onAppearingFunctionName} not found`);
+                }
+                console.log(`Tab switch to ${currentTabName} complete`);
+            })
+            .catch(error => {
+                console.error(`Error during tab switch to ${currentTabName}:`, error);
+                // Attempt recovery by reloading the current tab
+                alert(`Error switching tabs: ${error.message}\nPlease try once more, or reload the page if the issue persists.`);
+            });
+    } catch (error) {
+        console.error(`Unexpected error in openTab(${tabName}):`, error);
     }
-
-    const contentPath = `${currentTabName}.html`;
-    fetch(contentPath)
-        .then(response => response.text())
-        .then(text => {
-            document.getElementById('contentArea').innerHTML = text;
-            return loadTabScriptIfNeeded(currentTabName);
-        })
-        .then(() => {
-            // Once the script is loaded, call the onAppearing function
-            const onAppearingFunctionName = `${currentTabName}OnAppearing`;
-            if (typeof window[onAppearingFunctionName] === 'function') {
-                window[onAppearingFunctionName]();
-            }
-        })
-        .catch(error => console.error('Error loading tab content:', error));
 }
+
+// Add to the DOMContentLoaded event listener in main.js
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded event fired');
+    
+    // Ensure all tab buttons use the same click handler
+    document.querySelectorAll('.tabBar button').forEach(button => {
+        button.addEventListener('click', function(event) {
+            event.preventDefault();
+            const tabName = this.getAttribute('data-tab');
+            console.log(`Tab button clicked: ${tabName}`);
+            openTab(tabName);
+        });
+    });
+    
+    // Get the active tab from localStorage
+    const activeTab = loadActiveTab();
+    console.log('Active tab from localStorage:', activeTab);
+    
+    // Initialize or open any tab in the UI
+    openTab(activeTab);
+    
+    // Schedule version check after page loads
+    setTimeout(() => {
+        console.log('[Version Check] Executing initial version check');
+        checkFirmwareVersion().catch(error => {
+            console.log('[Version Check] Error during version check:', error);
+        });
+    }, 1000);
+});
 
 // ----------------------------------------------------------------------------
 // Get SOTA/POTA data
@@ -270,12 +406,12 @@ async function getLocation() {
 const distanceCache = {};
 
 // Further enrich base spot details with:
-// - point = spot location (like Wc/NC-417)
+// - locationID = spot location (like W6/NC-417 or US-0041)
 // - hertz = frequency of transmission
 // - timestamp = time of spot, in seconds since epoch UTC
 // - baseCallsign = call sign omitting suffixes
 // - mode = upcased mode as reported
-// - modeType = one of CW, SSB, FT8, DATA, or OTHER (which is a catch-all)
+// - modeType = one of CW, SSB, FT8, FT4, DATA, or OTHER (which is a catch-all)
 // - duplicate = whether the spot is a duplicate of a prior spot (boolean)
 // Return an array sorted by descending timestamp
 async function enrichSpots(spots,
@@ -283,15 +419,16 @@ async function enrichSpots(spots,
                            getTimeFunc,
                            getActivationLocationFunc,
                            getActivatorFunc,
-                           getLocationDetailsFunc) {
+                           getLocationDetailsFunc,
+                           getFrequencyHzFunc) {
     spots.forEach(spot => {
-        spot.point = getActivationLocationFunc(spot);
-        spot.hertz = spot.frequency * 1000 * 1000;
+        spot.locationID = getActivationLocationFunc(spot);
+        spot.hertz = getFrequencyHzFunc(spot);
         spot.timestamp = getTimeFunc(spot);
         spot.baseCallsign = getActivatorFunc(spot).split("/")[0];
         spot.mode = spot.mode.toUpperCase();
         spot.modeType = spot.mode;
-        if (!["CW", "SSB", "FM", "FT8", "DATA"].includes(spot.modeType))
+        if (!["CW", "SSB", "FM", "FT8", "FT4", "DATA", "OTHER"].includes(spot.modeType))
             spot.modeType = "OTHER";
         spot.details = getLocationDetailsFunc(spot);
         spot.type = ("type" in spot) ? spot.type : null;
@@ -300,17 +437,18 @@ async function enrichSpots(spots,
     // find duplicates
     // first we must sport by time
     // then we keep track of which baseCallsigns we've already seen
-    // and mark the spot as a duplicate if we see it again
-    spots.sort((a, b) => b.timestamp - a.timestamp);
+    // and mark the spot as a duplicate if we see it again, unless it's a QRT spot.
+    spots.sort((a, b) => b.timestamp - a.timestamp); // Sort descending (newest first)
     const seenCallsigns = new Set(); // Set to track seen activatorCallsigns
     spots.forEach(spot => {
-        spot.duplicate = seenCallsigns.hasOwnProperty(spot.baseCallsign); // Check if the callsign has already been seen
-        seenCallsigns[spot.baseCallsign] = true; // Mark this callsign as seen
+        // Only mark as duplicate if the callsign was seen AND it's not a QRT spot.
+        spot.duplicate = seenCallsigns.hasOwnProperty(spot.baseCallsign) && spot.type?.toUpperCase() !== 'QRT';
+        seenCallsigns[spot.baseCallsign] = true; // Mark this callsign as seen regardless
     });
 
     const { latitude: currentLat, longitude: currentLon } = await getLocation();
     const spotsWithDistance = await Promise.all(spots.map(async (spot) => {
-        const summitCode = spot.point;
+        const summitCode = spot.locationID;
 
         // Check if the summit's distance calculation is already in progress or done
         if (!distanceCache[summitCode]) {
@@ -343,10 +481,6 @@ async function enrichSpots(spots,
     return spotsWithDistance;
 }
 
-gLatestSotaJson = null;
-gSotaEpoch = null;
-gLatestPotaJson = null;
-
 async function shouldCheckNewSpots(epoch) {
     if (!document.getElementById('autoRefreshSelector').checked) return false;
     if (epoch === null) return true;
@@ -369,52 +503,89 @@ async function shouldCheckNewSpots(epoch) {
 
 async function refreshSotaPotaJson(force) {
     if (currentTabName === 'sota') {
-        if (!force && gLatestSotaJson != null && !await shouldCheckNewSpots(gSotaEpoch)) {
-            console.info('no new spots');
-            return;
+        // Always fetch data when switching to SOTA tab or when forced
+        if (force || gLatestSotaJson == null || !await shouldCheckNewSpots(gSotaEpoch)) {
+            const limit = document.getElementById("historyDurationSelector").value;
+            try {
+                console.log('Fetching SOTA data with limit:', limit);
+                const result = await fetch(`https://api-db2.sota.org.uk/api/spots/${limit}/all/all/`,
+                                         { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } });
+                const data = await result.json();
+                gSotaEpoch = data[0]?.epoch ?? null; // assume first spot's epoch is the one
+
+                // Store the promise
+                const enrichmentPromise = enrichSpots(data,
+                                                  'https://api-db2.sota.org.uk/api/summits',
+                                                  function(spot){return new Date(`${spot.timeStamp}`);}, // getTimeFunc
+                                                  function(spot){return spot.summitCode;},               // getCodeFunc
+                                                  function(spot){return spot.activatorCallsign;},        // getActivatorFunc
+                                                  function(spot){return `${spot.summitName}, ${spot.AltM}m, ${spot.points} points`;}, // getLocationDetailsFunc
+                                                  function(spot){ return (spot.frequency || 0) * 1000 * 1000; }); // getFrequencyHzFunc (SOTA: MHz -> Hz)
+
+                // Wait for enrichment and then update the table
+                gLatestSotaJson = await enrichmentPromise;
+                console.info('SOTA Json updated and enriched');
+                // Call the renamed function
+                if (typeof sota_updateSotaTable === 'function') {
+                    sota_updateSotaTable(); // Call updateSotaTable *after* enrichment is complete
+                } else {
+                    console.error('sota_updateSotaTable function not found when trying to update SOTA table');
+                }
+
+            } catch (error) {
+                console.error('Error fetching or processing SOTA data:', error);
+                // Handle error appropriately, maybe clear the table or show an error message
+            }
+        } else {
+            console.info('Using cached SOTA data');
+            // Make sure to update the table with cached data using the renamed function
+            if (typeof sota_updateSotaTable === 'function') {
+                sota_updateSotaTable();
+            } else {
+                console.error('sota_updateSotaTable function not found when trying to update SOTA table from cache');
+            }
         }
-        const limit = document.getElementById("historyDurationSelector").value;
-        fetch(`https://api-db2.sota.org.uk/api/spots/${limit}/all/all/`,
-              { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } })
-            .then(result => result.json()) // Resolve the promise to get the JSON data
-            .then(data => {
-                gSotaEpoch = data[0]?.epoch ?? null;  // assume first spot's epoch is the one
-
-                gLatestSotaJson = enrichSpots(data,
-                                              'https://api-db2.sota.org.uk/api/summits',
-                                              function(spot){return new Date(`${spot.timeStamp}`);}, // getTimeFunc
-                                              function(spot){return spot.summitCode;},               // getCodeFunc
-                                              function(spot){return spot.activatorCallsign;},        // getActivatorFunc
-                                              function(spot){return `${spot.summitName}, ${spot.AltM}m, ${spot.points} points`;}); // getLocationDetailsFunc
-
-                gLatestSotaJson.then(() => {
-                    console.info('SOTA Json updated');
-                    updateSotaTable();
-                });
-            })
-            .catch(error => ({ error }));
     }
     else if (currentTabName === 'pota') {
-        if (!force && gLatestPotaJson != null && !await shouldCheckNewSpots(null)) {
-            console.info('no new spots');
-            return;
+        // Always fetch data when switching to POTA tab or when forced
+        if (force || gLatestPotaJson == null /* || !await shouldCheckNewSpots(null) */) { // POTA API doesn't have epoch - simplified condition
+            try {
+                console.log('Fetching POTA data');
+                const result = await fetch('https://api.pota.app/spot/activator',
+                                         { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } });
+                const data = await result.json();
+
+                const enrichmentPromise = enrichSpots(data,
+                                                  'https://api.pota.app/park',
+                                                  function(spot){return new Date(`${spot.spotTime}Z`);}, // getTimeFunc
+                                                  function(spot){return spot.reference;},                // getCodeFunc
+                                                  function(spot){return spot.activator;},                // getActivatorFunc
+                                                  function(spot){return spot.details;},                 // getLocationDetailsFunc
+                                                  function(spot){ return (spot.frequency || 0) * 1000; }); // getFrequencyHzFunc (POTA: KHz -> Hz)
+
+                // Wait for enrichment and then update the table
+                gLatestPotaJson = await enrichmentPromise;
+                console.info('POTA Json updated and enriched');
+                // Call the renamed function
+                if (typeof pota_updatePotaTable === 'function') {
+                    pota_updatePotaTable(); // Call updatePotaTable *after* enrichment is complete
+                } else {
+                     console.error('pota_updatePotaTable function not found when trying to update POTA table');
+                }
+
+            } catch (error) {
+                console.error('Error fetching or processing POTA data:', error);
+                // Handle error appropriately
+            }
+        } else {
+            console.info('Using cached POTA data');
+            // Make sure to update the table with cached data using the renamed function
+            if (typeof pota_updatePotaTable === 'function') {
+                pota_updatePotaTable();
+            } else {
+                console.error('pota_updatePotaTable function not found when trying to update POTA table from cache');
+            }
         }
-        fetch('https://api.pota.app/spot/activator',
-              { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } })
-            .then(result => result.json()) // Resolve the promise to get the JSON data
-            .then(data => {
-                gLatestPotaJson = enrichSpots(data,
-                                              'https://api.pota.app/park',
-                                              function(spot){return new Date(`${spot.spotTime}Z`);}, // getTimeFunc
-                                              function(spot){return spot.reference;},                // getCodeFunc
-                                              function(spot){return spot.activator;},                // getActivatorFunc
-                                              function(spot){return spot.details;});                 // getLocationDetailsFunc
-                gLatestPotaJson.then(() => {
-                    console.info('POTA Json updated');
-                    updatePotaTable();
-                });
-            })
-            .catch(error => ({ error }));
     }
 }
 
@@ -600,17 +771,17 @@ async function checkFirmwareVersion() {
     }
 }
 
-// Add to the DOMContentLoaded event listener in main.js
-document.addEventListener('DOMContentLoaded', function() {
-    openTab('sota');
-    
-    // Schedule version check after page loads
-    setTimeout(() => {
-        console.log('[Version Check] Executing initial version check');
-        checkFirmwareVersion().catch(error => {
-            console.log('[Version Check] Error during version check:', error);
-        });
-    }, 1000);
-});
+// ----------------------------------------------------------------------------
+// Placeholder functions for tabs without dedicated JS files
+// ----------------------------------------------------------------------------
+function aboutOnAppearing() {
+    console.log('About tab appearing');
+    // No special initialization needed for the About tab
+}
+
+function aboutOnLeaving() {
+    console.log('About tab leaving');
+    // No special cleanup needed for the About tab
+}
 
 

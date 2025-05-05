@@ -1,52 +1,61 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>SOTAcat KX SOTAmat CAT Control</title>
-        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-        <link rel="stylesheet" type="text/css" href="style.css">
-    </head>
-    <body>
-        <div class="mainHeaderContainer">
-            <div class="headerLogoBarContainer">
-                <img src='sclogo.png' alt='SOTAcat Logo' class="responsive-image">
-                <div class="status-container">
-                    <div><span id='currentUTCTime'></span>z</div>
-                    <div><span id='connectionStatus'>&#x26AA;</span></div>  <!-- here, the icon is the message -->
-                </div>
-                <div class="battery-info-container">
-                    <div><span id='batteryPercent'></span>%&#x1F50B;</div>
-                    <div><span id='batteryVoltage'></span>v&#x26A1;</div>
-                </div>
-            </div>
-
-            <h3 class="descriptionHeading">
-                <span>SOTAMAT wireless CAT control</span>
-                <span>
-                    V <span id='buildVersion'></span>
-                </span>
-            </h3></br>
-
-            <div class='sotamatLaunchButtonContainer'>
-                <button type='button' class='sotamatLaunchButton' onclick='launchSOTAmat()'>
-                    <span>SOTAMAT </span>  
-                    <span class="sotamatLaunchButtonIcon">&#128225;&#65039;</span>
-                </button>
-            </div>
-
-        </br></br>
+  <head>
+    <title>SOTAcat KX SOTAmat CAT Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+  </head>
+  <body>
+    <div class="mainHeaderContainer">
+      <div class="headerLogoBarContainer">
+        <img src="sclogo.png" alt="SOTAcat Logo" class="responsive-image" />
+        <div class="status-container">
+          <div><span id="currentUTCTime"></span>z</div>
+          <div><span id="connectionStatus">&#x26AA;</span></div>
         </div>
-
-        <div class="contentSpace" id="contentArea">
+        <div class="battery-info-container">
+          <div>
+            <span id="batteryPercent"></span>%<span class="icon">
+              &#x1F50B;
+            </span>
+          </div>
+          <div>
+            <span id="batteryVoltage"></span>v<span class="icon">&#x26A1;</span>
+          </div>
         </div>
+      </div>
 
-        <div class="tabBar">
-            <button onclick="openTab('SOTA')"       id="sotaTabButton" class="tabActive"> <div class="tabIcons">&#x1F3D4;&#xFE0F;</div>SOTA</button>
-            <button onclick="openTab('POTA')"       id="potaTabButton" >                  <div class="tabIcons">&#x1F3DE;&#xFE0F;</div>POTA</button>
-            <button onclick="openTab('CAT')"        id="catTabButton" >                   <div class="tabIcons">&#x1F431;&#xFE0F;</div>CAT</button>
-            <button onclick="openTab('Settings')"   id="settingsTabButton" >              <div class="tabIcons">&#x2699;&#xFE0F;</div>Settings</button>
-            <button onclick="openTab('About')"      id="aboutTabButton" >                 <div class="tabIcons">&#x2754;</div>About</button>
-        </div>
+      <h3 class="descriptionHeading">
+        <span>SOTAMAT wireless CAT control</span>
+        <span>V <span id="buildVersion"></span></span>
+      </h3>
+    </div>
 
-        <script src="main.js"></script>
-    </body>
+    <div class="contentSpace" id="contentArea"></div>
+
+    <div class="tabBar">
+      <button id="sotaTabButton" class="tabActive" data-tab="sota">
+        <div class="tabIcons">&#x1F3D4;&#xFE0F;</div>
+        SOTA
+      </button>
+      <button id="potaTabButton" data-tab="pota">
+        <div class="tabIcons">&#x1F3DE;&#xFE0F;</div>
+        POTA
+      </button>
+      <button id="catTabButton" data-tab="cat">
+        <div class="tabIcons">&#x1F431;&#xFE0F;</div>
+        CAT
+      </button>
+      <button id="settingsTabButton" data-tab="settings">
+        <div class="tabIcons">&#x2699;&#xFE0F;</div>
+        Settings
+      </button>
+      <button id="aboutTabButton" data-tab="about">
+        <div class="tabIcons">&#x2754;</div>
+        About
+      </button>
+    </div>
+
+    <script src="main.js"></script>
+  </body>
 </html>
