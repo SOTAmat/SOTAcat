@@ -21,8 +21,8 @@
     --color-table-row-alt: #f5f5f5;
     
     /* Logo Colors */
-    --color-header-bg: #222222; /* Original header background color */
-    --color-subtitle-bg: #A7A7A7; /* Original subtitle background color */
+    --color-header-bg: #222222;
+    --color-subtitle-bg: #A7A7A7;
     
     /* Text Colors */
     --text-primary: var(--color-black);
@@ -44,11 +44,11 @@
     --font-size-base: 14px;
     --font-size-large: 1.2em;
     --font-size-xlarge: 2.0em;
-    --font-size-small: 0.9em; /* Slightly reduced from 0.95em */
-    --font-size-table: 1em; /* Increased font size for table content */
-    --font-size-header-label: 0.95em; /* Slightly reduced header label size */
+    --font-size-small: 0.9em;
+    --font-size-table: 1em;
+    --font-size-header-label: 0.95em;
     --font-size-controls: 0.9em;
-    --font-size-subtitle: 0.9em; /* For the subtitle bar */
+    --font-size-subtitle: 0.9em;
     --responsive-image-height: 60px;
     --tab-icon-size: 28px;
 
@@ -59,8 +59,8 @@
     --spacing-large: 20px;
 
     /* Other */
-    --border-radius: 0px; /* Removed rounded corners */
-    --border-radius-controls: 16px; /* Border radius for buttons and selectors */
+    --border-radius: 0px;
+    --border-radius-controls: 16px;
     --border-radius-pill: 999px;
     --transition-speed: 0.3s;
     --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -71,7 +71,7 @@
 html, body {
     margin: 0;
     padding: 0;
-    overflow-x: hidden; /* Prevent horizontal scrolling */
+    overflow-x: hidden;
     font-size: var(--font-size-base);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--bg-primary);
@@ -97,7 +97,7 @@ h2 {
     font-size: var(--font-size-large);
     font-weight: 600;
     padding: 0.5em;
-    background-color: var(--color-subtitle-bg); /* Changed to match subtitle background */
+    background-color: var(--color-subtitle-bg);
 }
 
 h3 {
@@ -118,7 +118,7 @@ li {
     margin: 15px 0 15px -20px;
 }
 
-/* =========================== Box Sizing */
+/* Box Sizing for all elements */
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -146,6 +146,7 @@ li {
     object-fit: contain;
 }
 
+/* Status display containers */
 .status-container, .battery-info-container {
     color: var(--color-white);
     display: flex;
@@ -173,13 +174,14 @@ li {
     font-size: 1.1em;
 }
 
+/* SOTAMAT Launch Button */
 .sotamatLaunchButtonContainer {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: var(--spacing-medium) 0; /* Increased spacing above and below */
-    background-color: var(--color-header-bg); /* Changed from --color-black */
-    padding: var(--spacing-medium) 0; /* Added padding for more space */
+    margin: var(--spacing-medium) 0;
+    background-color: var(--color-header-bg);
+    padding: var(--spacing-medium) 0;
 }
 
 .sotamatLaunchButton {
@@ -217,11 +219,12 @@ li {
     padding-bottom: 70px; /* Space for tabBar */
 }
 
+/* =========================== Table Styles */
 #tableContainer {
     overflow-x: auto;
     box-shadow: var(--box-shadow);
     background-color: var(--bg-primary);
-    margin: 4px 0 var(--spacing-medium) 0; /* Added gap between header and table */
+    margin: 4px 0 var(--spacing-medium) 0;
 }
 
 #sotaTable, #potaTable {
@@ -235,7 +238,7 @@ li {
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: var(--font-size-table); /* Increased font size */
+    font-size: var(--font-size-table);
     background-color: var(--bg-primary);
 }
 
@@ -244,7 +247,7 @@ th {
     top: 0;
     background-color: var(--bg-table-header);
     color: var(--text-secondary);
-    font-weight: 700; /* Increased to bold */
+    font-weight: 700;
     text-align: left;
     padding: 8px 4px;
     white-space: nowrap;
@@ -259,7 +262,7 @@ td {
     border: 1px solid var(--color-gray-300);
 }
 
-/* Restore alternating row background color */
+/* Alternating row background color */
 #sotaTable tr:nth-child(even) {
     background-color: var(--color-table-row-alt);
 }
@@ -268,14 +271,54 @@ tr:hover {
     background-color: var(--color-gray-200);
 }
 
+/* Table Sorting Styles */
+table.table-sortable th {
+    cursor: pointer;
+}
+
+table.table-sortable th span {
+    display: inline-flex;
+    align-items: center;
+}
+
+table.table-sortable th span::after {
+    content: "";
+    margin-left: 5px;
+}
+
+/* Sort direction indicators */
+table.table-sortable th span[data-sort-dir="asc"]::after {
+    content: "\25B2"; /* BLACK UP-POINTING TRIANGLE */
+    font-size: 0.8em;
+    line-height: 1;
+}
+
+table.table-sortable th span[data-sort-dir="desc"]::after {
+    content: "\25BC"; /* BLACK DOWN-POINTING TRIANGLE */
+    font-size: 0.8em;
+    line-height: 1;
+}
+
+/* Links in tables */
+table a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+table a:hover {
+    text-decoration: underline;
+}
+
+/* =========================== Header Components & Layout */
 .contentPageHeaderContainer {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     width: 100%;
-    padding: 0.3em 0.5em; /* Reduced padding top/bottom from 0.5em to 0.3em */
-    background-color: var(--color-subtitle-bg); /* Changed to match subtitle background */
-    color: var(--color-black); /* Changed text color for contrast */
+    padding: 0.3em 0.5em;
+    background-color: var(--color-subtitle-bg);
+    color: var(--color-black);
 }
 
 /* Common style for all header labels */
@@ -294,14 +337,14 @@ tr:hover {
     align-items: center;
 }
 
-/* New fixed-width approach for header groups */
+/* Header layout with three equal columns */
 .header-group {
-    width: 33.33%; /* Equal width for all columns */
+    width: 33.33%;
     display: flex;
     flex-direction: column;
-    text-align: center; /* Center all content by default */
-    align-items: center; /* Center items horizontally */
-    padding: 0 5px; /* Small padding for spacing */
+    text-align: center;
+    align-items: center;
+    padding: 0 5px;
 }
 
 /* First column - left aligned content */
@@ -326,129 +369,45 @@ tr:hover {
     display: inline-block;
 }
 
-/* Table Sorting Styles */
-table.table-sortable th {
-    cursor: pointer;
-}
-
-table.table-sortable th span {
-    display: inline-flex;
-    align-items: center;
-}
-
-table.table-sortable th span::after {
-    content: "";
-    margin-left: 5px;
-}
-
-/* Arrow for ascending sort - using HTML entities that work in more fonts */
-table.table-sortable th span[data-sort-dir="asc"]::after {
-    content: "\25B2"; /* BLACK UP-POINTING TRIANGLE */
-    font-size: 0.8em;
-    line-height: 1;
-}
-
-/* Arrow for descending sort */
-table.table-sortable th span[data-sort-dir="desc"]::after {
-    content: "\25BC"; /* BLACK DOWN-POINTING TRIANGLE */
-    font-size: 0.8em;
-    line-height: 1;
-}
-
-/* Links in tables */
-table a {
-    color: var(--color-accent);
-    text-decoration: none;
-    font-weight: 500;
-}
-
-table a:hover {
-    text-decoration: underline;
-}
-
-/* =========================== SOTA and POTA Specific Styles */
-
-/* Remove or comment out obsolete header-group styles */
-/*
-.header-group {
-    display: flex;
-    flex-direction: column; 
-    align-items: center; 
-    justify-content: center; 
-    margin: 0;
-    text-align: center; 
-    width: 33.33%; 
-    padding: 0 5px; 
-}
-
-.header-group:first-child {
-    margin-left: 0;
-}
-
-.header-group:nth-child(2) {
-}
-
-.header-group:last-child {
-    margin-right: 0;
-}
-
-.contentPageHeaderContainer {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    width: 100%;
-    padding: 0.3em 0.5em;
-    background-color: var(--color-subtitle-bg);
-    color: var(--color-black);
-}
-
-.header-label {
-    font-size: var(--font-size-header-label);
-    font-weight: 500;
-    color: var(--color-black);
-    display: block;
-    margin-bottom: 5px;
-}
-*/
-
+/* =========================== SOTA and POTA Control Styles */
+/* SOTA Controls Layouts */
 .sotamat-button-row {
     display: flex;
     justify-content: space-between;
-    align-items: center; /* Align items vertically center - changed from flex-start */
+    align-items: center;
     width: 100%;
-    padding: 0.5em 0.1em 0.1em 0.1em; /* Add some padding */
+    padding: 0.5em 0.1em 0.4em 0.1em;
     background-color: var(--color-header-bg);
     color: var(--color-secondary);
+    margin-bottom: 0px;
 }
 
-
-/* New styles for the 2-column layout */
-.sota-controls-row {
+.sota-controls-row, .pota-controls-row {
     display: flex;
     justify-content: space-between;
-    align-items: center; /* Align items vertically center - changed from flex-start */
+    align-items: center;
     width: 100%;
-    padding: 0.1em; /* Add some padding */
+    padding: 0.1em;
     background-color: var(--color-header-bg);
     color: var(--color-secondary);
 }
 
-.sota-controls-left,
-.sota-controls-right {
+.sota-controls-left, .sota-controls-right,
+.pota-controls-left, .pota-controls-right {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-small); /* Space between lines within a column */
+    gap: var(--spacing-small);
 }
 
-.sota-controls-left {
-    align-items: flex-start; /* Left align content */
+.sota-controls-left, .pota-controls-left {
+    align-items: flex-start;
 }
 
-.sota-controls-right {
-    align-items: flex-start; /* Right align content - changed from flex-end */
+.sota-controls-right, .pota-controls-right {
+    align-items: flex-start;
 }
 
-/* Styles for the content within each line */
+/* Control containers */
 .sotamat-button-container-sota,
 .qrt-qsy-container,
 .auto-refresh-container,
@@ -456,66 +415,59 @@ table a:hover {
 .mode-filter-container {
     display: flex;
     align-items: center;
-    gap: 0; /* Remove gap here, handle spacing within prefix/main */
-    width: 100%; /* Make containers take full width */
+    gap: 0;
+    width: 100%;
 }
 
-/* Add specific style for the SOTAMAT button container to center it */
+/* Center the SOTAMAT button */
 .sotamat-button-container-sota {
-    justify-content: center; /* Center the SOTAMAT button */
+    justify-content: center;
 }
 
-/* New styles for prefix and main content alignment */
+/* Control layout elements */
 .control-prefix {
-    min-width: 30px; /* Adjust as needed for checkbox + spacing */
+    min-width: 30px;
     display: flex;
-    justify-content: center; /* Center checkbox within the prefix area */
+    justify-content: center;
     align-items: center;
 }
 
 .control-main {
     display: flex;
     align-items: center;
-    gap: var(--spacing-small); /* Apply gap to main content items */
+    gap: var(--spacing-small);
 }
 
 /* Style for table header Mode column */
 .flex-column-align-center {
     display: flex;
     flex-direction: column;
-    align-items: center; /* Center items horizontally */
-    gap: var(--spacing-xs); /* Add small gap between label and select */
+    align-items: center;
+    gap: var(--spacing-xs);
 }
 
-/* Style the copied SOTAMAT button container */
-.sotamat-button-container-sota .sotamatLaunchButton {
-    /* Keep original button styles, maybe adjust margin if needed */
-    margin: 0; /* Reset margin if necessary */
-}
-
-/* Style the labels and controls */
+/* Styles for SOTA/POTA controls */
 .qrt-qsy-container label,
 .auto-refresh-container label,
 .show-past-container label,
 .mode-filter-container label {
     font-size: var(--font-size-controls);
     font-weight: 500;
-    white-space: nowrap; /* Prevent labels from wrapping */
+    white-space: nowrap;
 }
 
 .auto-refresh-container button {
-    /* Use existing button styles from .contentPageHeaderContainer if desired */
     background-color: var(--color-white);
     color: var(--color-primary);
     border: none;
     border-radius: var(--border-radius-controls);
-    padding: 3px 6px; /* Slightly smaller padding */
+    padding: 3px 6px;
     font-size: var(--font-size-controls);
     font-weight: 500;
     cursor: pointer;
     transition: background-color var(--transition-speed) ease;
     box-shadow: var(--box-shadow);
-    order: 2; /* Place button after the label */
+    order: 2;
     margin-left: var(--spacing-small);
 }
 
@@ -533,37 +485,80 @@ table a:hover {
 
 .auto-refresh-container label {
     order: 1;
-    margin: 0; /* Reset margin */
+    margin: 0;
 }
 
-.show-past-container select {
-    /* Ensure the select dropdown uses the desired styles */
-    margin-left: 0; /* Reset default margin if needed */
+/* Control selectors for consistent sizing and alignment */
+.sota-control-selector {
+    padding: 4px 8px;
+    border: 1px solid var(--color-gray-400);
+    border-radius: var(--border-radius-controls);
+    background-color: var(--bg-primary);
+    font-size: var(--font-size-controls);
+    width: 80px;
+    max-width: 100px;
+    box-sizing: border-box;
+    height: 24px;
+    vertical-align: middle;
+    margin-left: auto;
 }
-
-/* Mode-specific styles */
-.mode-CW {}
-.mode-SSB {}
-.mode-FM {}
-.mode-FT8 {}
-.mode-FT4 {}
-.mode-DATA {}
-.mode-OTHER {}
 
 /* Alignment for specific columns */
-/* SOTA MHz column, SOTA Summit column, SOTA Dist column */
 #sotaTable th:nth-child(3), #sotaTable td:nth-child(3),
 #sotaTable th:nth-child(5), #sotaTable td:nth-child(5),
 #sotaTable th:nth-child(6), #sotaTable td:nth-child(6),
-/* POTA KHz column (now 3rd), POTA Miles column (now 6th) */
 #potaTable th:nth-child(3), #potaTable td:nth-child(3),
 #potaTable th:nth-child(6), #potaTable td:nth-child(6) {
     text-align: right;
 }
 
-/* Ensure consistent font size in POTA table cells */
-#potaTable td {
-    font-size: var(--font-size-table);
+/* Mode cell styling */
+.mode-cell {
+    color: var(--color-white);
+    border-radius: 0px;
+    padding: 0px 0px;
+    text-align: center;
+    font-weight: bold;
+    margin: 0px;
+}
+
+/* Mode background colors */
+.mode-cell-CW {
+    background-color: var(--color-cyan);
+}
+.mode-cell-QRT {
+    background-color: var(--color-danger);
+}
+.mode-cell-FT8,
+.mode-cell-FT4,
+.mode-cell-DATA {
+    background-color: var(--color-green);
+}
+.mode-cell-AM,
+.mode-cell-OTHER {
+    background-color: var(--color-gray-800);
+}
+.mode-cell-SSB,
+.mode-cell-FM {
+    background-color: var(--color-accent);
+}
+
+/* Reduce padding for Mode column cells */
+#sotaTable td:nth-child(4) {
+    padding-left: 0px;
+    padding-right: 0px;
+}
+
+/* Strikethrough for special rows */
+.special-row td:nth-child(2),
+.special-row td:nth-child(3) {
+    text-decoration: line-through;
+}
+
+/* Reduce padding for Mode column header */
+#sotaTable th:nth-child(4) {
+    padding-left: 1px;
+    padding-right: 1px;
 }
 
 /* =========================== CAT and Settings Page Styles */
@@ -593,7 +588,7 @@ table a:hover {
     border-radius: var(--border-radius);
 }
 
-/* New inline header with buttons class */
+/* Inline header with buttons */
 .inline-header {
     display: flex;
     align-items: center;
@@ -626,6 +621,7 @@ table a:hover {
     padding: var(--spacing-small) var(--spacing-medium);
 }
 
+/* Button styles */
 .button-row {
     display: flex;
     justify-content: space-around;
@@ -654,6 +650,48 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
     transform: translateY(1px);
 }
 
+/* Firmware update styles */
+.firmware-step {
+    margin-bottom: var(--spacing-medium);
+}
+
+.firmware-text {
+    margin-bottom: var(--spacing-small);
+}
+
+.firmware-button-container {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: var(--spacing-small);
+    margin-bottom: var(--spacing-medium);
+}
+
+.firmware-button {
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 30px;
+    background-color: var(--bg-button);
+    color: var(--text-button);
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    box-shadow: var(--box-shadow);
+}
+
+.firmware-button:hover {
+    background-color: var(--bg-button-hover);
+}
+
+.firmware-button:active {
+    background-color: var(--bg-button-active);
+    transform: translateY(1px);
+}
+
+.firmware-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 #xmitButton {
     background-color: var(--bg-button);
     width: 100%;
@@ -671,6 +709,7 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
     background-color: var(--color-danger);
 }
 
+/* Input group styling */
 .input-group {
     display: flex;
     justify-content: space-between;
@@ -746,6 +785,7 @@ hr {
     margin-bottom: 10px;
 }
 
+/* Form validation styling */
 .wifi-client input[type="text"]:valid,
 .wifi-client input[type="password"]:valid,
 .keyer-section input[type="text"]:valid {
@@ -821,39 +861,8 @@ hr {
     margin-bottom: 3px;
 }
 
-/* Responsive adjustments */
-@media (min-width: 600px) {
-    body {
-        max-width: 800px;
-        margin: 0 auto;
-    }
-    
-    .cat-container, .settings-container {
-        max-width: 800px;
-        margin: var(--spacing-medium) auto;
-    }
-    
-    #tableContainer {
-        max-width: 800px;
-        margin: 4px auto var(--spacing-large);
-    }
-}
-
-@media (max-width: 400px) {
-    .tabBar button {
-        padding: var(--spacing-small) 0;
-    }
-    
-    .tabIcons {
-        font-size: calc(var(--tab-icon-size) * 0.8);
-    }
-    
-    th, td {
-        padding: 8px 4px;
-        font-size: calc(var(--font-size-small) * 0.95);
-    }
-}
-
+/* =========================== Responsive Design */
+/* Desktop */
 @media (min-width: 1024px) {
     body {
         max-width: 1200px;
@@ -874,187 +883,36 @@ hr {
     }
 }
 
-/* Firmware Update Specific Styles (remaining the same) */
-.firmware-update-form, .firmware-client, .firmware-row, .firmware-label, .file-label, .upload-button {
-    /* Keep existing styles */
+/* Tablet */
+@media (min-width: 600px) {
+    body {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .cat-container, .settings-container {
+        max-width: 800px;
+        margin: var(--spacing-medium) auto;
+    }
+    
+    #tableContainer {
+        max-width: 800px;
+        margin: 4px auto var(--spacing-large);
+    }
 }
 
-/* Style for the mode cells */
-.mode-cell {
-    color: var(--color-white);
-    border-radius: 0px;
-    padding: 0px 0px; /* Adjusted padding */
-    text-align: center;
-    font-weight: bold;
-    margin: 0px; /* Added margin around the box */
-}
-
-/* Specific background colors for modes */
-.mode-cell-CW {
-    background-color: var(--color-cyan);
-}
-.mode-cell-QRT {
-    background-color: var(--color-danger);
-}
-.mode-cell-FT8,
-.mode-cell-FT4,
-.mode-cell-DATA {
-    background-color: var(--color-green);
-}
-.mode-cell-AM,
-.mode-cell-OTHER {
-    background-color: var(--color-gray-800);
-}
-.mode-cell-SSB,
-.mode-cell-FM {
-    background-color: var(--color-accent);
-}
-
-/* Reduce padding specifically for the Mode column cells */
-#sotaTable td:nth-child(4) {
-    padding-left: 0px;  /* Reduce left padding */
-    padding-right: 0px; /* Reduce right padding */
-}
-
-/* Apply strikethrough to MHz column in special rows */
-.special-row td:nth-child(2),
-.special-row td:nth-child(3) {
-    text-decoration: line-through;
-}
-
-/* Reduce padding specifically for the Mode column header */
-#sotaTable th:nth-child(4) {
-    padding-left: 1px;  /* Reduce left padding slightly for header */
-    padding-right: 1px; /* Reduce right padding slightly for header */
-}
-
-/* === New POTA Control Styles (Mirrored from SOTA) === */
-.pota-controls-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding: 0.6em;
-    background-color: var(--color-header-bg);
-    color: var(--color-secondary);
-}
-
-.pota-controls-left,
-.pota-controls-right {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-small);
-}
-
-.pota-controls-left {
-    align-items: flex-start;
-}
-
-.pota-controls-right {
-    align-items: flex-start;
-}
-
-/* Ensure POTA containers within controls also have necessary styles */
-/* Reuse SOTA's container styles if applicable, or create POTA-specific if needed */
-.pota-controls-row .qrt-qsy-container,
-.pota-controls-row .auto-refresh-container,
-.pota-controls-row .show-past-container,
-.pota-controls-row .mode-filter-container {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    width: 100%;
-}
-
-/* Reuse SOTA's prefix/main alignment styles */
-.pota-controls-row .control-prefix {
-    min-width: 30px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.pota-controls-row .control-main {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-small);
-}
-
-/* Ensure POTA controls (inputs, selects, buttons) look consistent */
-.pota-controls-row input[type="checkbox"] {
-    margin: 0; /* Reset margin */
-    transform: scale(1.2); /* Slightly larger checkboxes */
-}
-
-.pota-controls-row label {
-    margin: 0; /* Reset margin */
-    white-space: nowrap;
-}
-
-.pota-controls-row button {
-    font-size: var(--font-size-controls);
-    padding: 3px 8px;
-    border-radius: var(--border-radius-controls);
-    border: none;
-    background-color: var(--bg-button);
-    color: var(--text-button);
-    cursor: pointer;
-    transition: background-color var(--transition-speed) ease;
-}
-
-.pota-controls-row button:hover {
-    background-color: var(--bg-button-hover);
-}
-
-.pota-controls-row button:active {
-    background-color: var(--bg-button-active);
-    transform: translateY(1px);
-}
-
-.pota-controls-row select {
-    font-size: var(--font-size-controls);
-    padding: 3px;
-    border-radius: var(--border-radius-controls);
-    border: 1px solid var(--color-gray-400);
-}
-
-/* === End New POTA Control Styles === */
-
-/* Styles for SOTA control selectors for consistent sizing and alignment */
-.sota-control-selector {
-    padding: 4px 8px; /* Adjust padding as needed */
-    border: 1px solid var(--color-gray-400);
-    border-radius: var(--border-radius-controls); /* Use consistent border radius */
-    background-color: var(--bg-primary);
-    font-size: var(--font-size-controls);
-    width: 80px; /* Explicit width for alignment */
-    max-width: 100px; /* Prevent growing */
-    box-sizing: border-box;
-    height: 24px; /* Explicit height for alignment */
-    vertical-align: middle; /* Align vertically with label */
-    margin-left: auto; /* Push selector to the right */
-}
-
-/* Ensure the container for label + selector uses flex */
-.sota-controls-right .control-main {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start; /* Align items to the start */
-    width: 100%; /* Allow container to manage space */
-}
-
-/* Optional: Give labels a consistent minimum width if needed for better alignment */
-/*
-.sota-controls-right .control-main label {
-    min-width: 70px; 
-    display: inline-block;
-    text-align: right; 
-    margin-right: var(--spacing-small);
-}
-*/
-
-/* Style the copied SOTAMAT button container */
-.sotamat-button-container-sota .sotamatLaunchButton {
-    /* Keep original button styles, maybe adjust margin if needed */
-    margin: 0; /* Reset margin if necessary */
+/* Small mobile devices */
+@media (max-width: 400px) {
+    .tabBar button {
+        padding: var(--spacing-small) 0;
+    }
+    
+    .tabIcons {
+        font-size: calc(var(--tab-icon-size) * 0.8);
+    }
+    
+    th, td {
+        padding: 8px 4px;
+        font-size: calc(var(--font-size-small) * 0.95);
+    }
 }
