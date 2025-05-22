@@ -23,6 +23,7 @@ function togglePasswordVisibility(inputId) {
 }
 
 async function fetchSettings() {
+    if (gLocalhost) return;
     try {
         const response = await fetch('/api/v1/settings', { method: 'GET' });
         const data = await response.json();
@@ -42,6 +43,7 @@ async function fetchSettings() {
 
 function saveSettings() {
     console.log("Saving settings...");
+    if (gLocalhost) return;
 
     const settings = {
         sta1_ssid: document.getElementById('sta1-ssid').value,
