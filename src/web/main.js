@@ -11,6 +11,10 @@ let gRefreshInterval = null;
 let gLatestSotaJson = null;
 let gSotaEpoch = null;
 let gLatestPotaJson = null;
+// Check if the page is being served from localhost
+let gLocalhost = (window.location.hostname === 'localhost' ||
+                  window.location.hostname === '127.0.0.1' ||
+                  window.location.hostname === '[::1]'); // IPv6 loopback
 
 // ----------------------------------------------------------------------------
 // Launch SOTAmat application
@@ -89,6 +93,7 @@ function fetchAndUpdateElement(url, elementId) {
 // ----------------------------------------------------------------------------
 function refreshVersion()
 {
+    if (gLocalhost) return;
     fetchAndUpdateElement('/api/v1/version', 'buildVersion');
 }
 
@@ -111,6 +116,7 @@ setInterval(refreshUTCClock, 10000); // Refresh every 10 seconds
 // Status:Battery
 // ----------------------------------------------------------------------------
 function updateBatteryInfo() {
+    if (gLocalhost) return;
     fetchAndUpdateElement('/api/v1/batteryPercent', 'batteryPercent');
     fetchAndUpdateElement('/api/v1/batteryVoltage', 'batteryVoltage');
 }
@@ -122,6 +128,7 @@ setInterval(updateBatteryInfo, 60000); // Then refresh it every 1 minute
 // Status:Connection
 // ----------------------------------------------------------------------------
 function updateConnectionStatus() {
+    if (gLocalhost) return;
     fetchAndUpdateElement('/api/v1/connectionStatus', 'connectionStatus');
 }
 
@@ -783,5 +790,3 @@ function aboutOnLeaving() {
     console.log('About tab leaving');
     // No special cleanup needed for the About tab
 }
-
-
