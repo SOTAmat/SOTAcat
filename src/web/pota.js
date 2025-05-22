@@ -78,6 +78,7 @@ async function pota_updatePotaTable()
         const callsignCell = row.insertCell();
         const callsignLink = document.createElement('a');
         callsignLink.href = `https://qrz.com/db/${spot.baseCallsign}`; // QRZ.com doesn't support callsign suffixes
+        callsignLink.target = '_blank'; // opens the link in a new tab
         callsignLink.textContent = spot.activator;
         callsignCell.appendChild(callsignLink);
 
@@ -110,6 +111,7 @@ async function pota_updatePotaTable()
         const parkCell = row.insertCell();
         const parkLink = document.createElement('a');
         parkLink.href = `https://pota.app/#/park/${spot.locationID}`;
+        parkLink.target = '_blank'; // opens the link in a new tab
         parkLink.textContent = `${spot.locationID}`;
         parkCell.appendChild(parkLink);
 

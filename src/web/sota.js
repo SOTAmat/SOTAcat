@@ -84,6 +84,7 @@ async function sota_updateSotaTable()
         const callsignCell = row.insertCell();
         const callsignLink = document.createElement('a');
         callsignLink.href = `https://qrz.com/db/${spot.baseCallsign}`; // QRZ.com doesn't support callsign suffixes
+        callsignLink.target = '_blank'; // opens the link in a new tab
         callsignLink.textContent = spot.activatorCallsign;
         callsignCell.appendChild(callsignLink);
 
@@ -112,6 +113,7 @@ async function sota_updateSotaTable()
         const summitCell = row.insertCell();
         const summitLink = document.createElement('a');
         summitLink.href = `https://sotl.as/summits/${spot.locationID}`;
+        summitLink.target = '_blank'; // opens the link in a new tab
         summitLink.textContent = spot.locationID;
         summitCell.appendChild(summitLink);
 
