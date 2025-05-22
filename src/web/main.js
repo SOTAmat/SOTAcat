@@ -374,6 +374,15 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 async function getLocation() {
+    // First check if there's a GPS location override in localStorage
+    const savedLocation = localStorage.getItem('gpsLocationOverride');
+    if (savedLocation) {
+        // Use the override location if it exists
+        console.log('Using GPS location override from localStorage');
+        return JSON.parse(savedLocation);
+    }
+
+    // Otherwise, use IP-based geolocation
     // Unfortunately, the geolocation API is only available in HTTPS
     //
     //  return new Promise((resolve, reject) => {
@@ -411,6 +420,15 @@ async function getLocation() {
 // across function calls, but it's not really meant to be used outside
 // of the conjunction of the function.
 const distanceCache = {};
+
+// used when GPS location changes
+function clearDistanceCache() {
+    // Clear the distance cache to force recalculation with new location
+    for (const key in distanceCache) {
+        delete distanceCache[key];
+    }
+    console.log('Distance cache cleared for location change');
+}
 
 // Further enrich base spot details with:
 // - locationID = spot location (like W6/NC-417 or US-0041)

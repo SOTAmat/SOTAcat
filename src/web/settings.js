@@ -17,6 +17,70 @@ function syncTime() {
     .catch(error => console.error('Time sync failed:', error.message));
 }
 
+function saveGpsLocation() {
+    const gpsLocationInput = document.getElementById('gps-location');
+
+    // Validate the input using regex
+    const gpsPattern = /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/;
+    if (!gpsPattern.test(gpsLocationInput.value) && gpsLocationInput.value.trim() !== '') {
+        alert('Please enter a valid GPS location in the format: latitude, longitude (e.g. 37.93389, -122.01136)');
+        return;
+    }
+
+    // Parse the input to get clean latitude and longitude values
+    if (gpsLocationInput.value.trim() !== '') {
+        const [latitude, longitude] = gpsLocationInput.value.split(',').map(coord => parseFloat(coord.trim()));
+
+        // Store the values in localStorage
+        localStorage.setItem('gpsLocationOverride', JSON.stringify({ latitude, longitude }));
+
+        // Clear the distance cache to force recalculation with new location
+        clearDistanceCache();
+
+        // Force refresh of spots data with new location
+        gLatestSotaJson = null;
+        gLatestPotaJson = null;
+
+        alert('GPS location override saved. The new location will be used for distance calculations.');
+    } else {
+        alert('Please enter a valid GPS location or use the Clear Override button to remove the override.');
+    }
+}
+
+async function clearGpsLocation() {
+    // Remove the GPS location override from localStorage
+    localStorage.removeItem('gpsLocationOverride');
+
+    // Clear the input field
+    loadGpsLocation();
+
+    // Clear the distance cache to force recalculation with default location
+    clearDistanceCache();
+
+    // Force refresh of spots data with new location
+    gLatestSotaJson = null;
+    gLatestPotaJson = null;
+
+    alert('GPS location override cleared. Automatic location detection will be used.');
+}
+
+async function loadGpsLocation() {
+    // Check if there's a saved GPS location
+    const savedLocation = localStorage.getItem('gpsLocationOverride');
+    if (savedLocation) {
+        const { latitude, longitude } = JSON.parse(savedLocation);
+
+        // Set the input value
+        const gpsLocationInput = document.getElementById('gps-location');
+        gpsLocationInput.value = `${latitude}, ${longitude}`;
+    }
+    else {
+        const { latitude, longitude } = await getLocation();
+        const gpsLocationInput = document.getElementById('gps-location');
+        gpsLocationInput.value = `e.g. ${latitude}, ${longitude}`;
+    }
+}
+
 function togglePasswordVisibility(inputId) {
     var passwordInput = document.getElementById(inputId);
     passwordInput.type = (passwordInput.type === "password") ? "text" : "password";
@@ -222,4 +286,5 @@ function settingsOnAppearing() {
     fetchSettings();
     if (!gSubmitSettingsAttached)
         attachSubmitSettings();
+    loadGpsLocation();
 }

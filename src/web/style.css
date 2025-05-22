@@ -830,6 +830,65 @@ hr {
     align-items: center;
 }
 
+/* GPS Location Override Styles */
+.gps-instructions {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-medium);
+}
+
+.gps-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+.gps-input-container label {
+    font-weight: 500;
+}
+
+.gps-input-container input[type="text"] {
+    width: 100%;
+    font-size: 16px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--border-radius);
+}
+
+.gps-input-container input[type="text"]:valid {
+    color: var(--color-success);
+    border: 2px solid var(--color-success);
+}
+
+.gps-input-container input[type="text"]:invalid:not(:placeholder-shown) {
+    color: var(--color-danger);
+    border: 2px solid var(--color-danger);
+}
+
+.gps-button {
+    font-size: 14px;
+    padding: 8px 16px;
+    margin-top: var(--spacing-small);
+    border-radius: 30px;
+    background-color: var(--bg-button);
+    color: var(--text-button);
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    box-shadow: var(--box-shadow);
+    align-self: flex-start;
+}
+
+.gps-button:hover {
+    background-color: var(--bg-button-hover);
+}
+
+.gps-button:active {
+    background-color: var(--bg-button-active);
+    transform: translateY(1px);
+}
+
 /* =========================== About Page */
 .aboutParagraph {
     padding: 1.5em;

@@ -5,6 +5,36 @@
     <button class="sync-button" onclick="syncTime()">Sync Clock</button>
   </div>
   <hr />
+
+  <div class="gps-location-section">
+    <h2>GPS Location Override</h2>
+    <div class="gps-instructions">
+      <br />
+      By default, SOTACAT attempts to determine your location based on your IP address.
+      If you want to override this with a specific GPS location, enter it below.
+      Leave blank to use the automatic location detection.
+      <br /><br />
+    </div>
+    <div class="gps-input-container">
+      <label for="gps-location">Location (latitude, longitude):</label>
+      <input
+        type="text"
+        id="gps-location"
+        name="GPS Location"
+        placeholder="e.g. 37.93389, -122.01136"
+        pattern="^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$"
+        title="Enter as latitude, longitude (e.g. 37.93389, -122.01136)"
+      />
+      <button type="button" id="save-gps-button" class="gps-button" onclick="saveGpsLocation()">
+        Save Location
+      </button>
+      <button type="button" id="clear-gps-button" class="gps-button" onclick="clearGpsLocation()">
+        Clear Override
+      </button>
+    </div>
+  </div>
+  <hr />
+
   <h2>WiFi Settings</h2>
   <form id="wifi-settings" class="wifi-settings-form">
     <div class="wifi-instructions">
