@@ -999,3 +999,288 @@ hr {
         font-size: calc(var(--font-size-small) * 0.95);
     }
 }
+
+/* =========================== VFO Control Styles */
+.vfo-section {
+  background-color: var(--color-gray-100);
+  padding: var(--spacing-medium);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-large);
+  box-shadow: var(--box-shadow);
+}
+
+.vfo-section h2 {
+  font-size: 1.1em;
+  margin-top: 0;
+  margin-bottom: var(--spacing-medium);
+  background-color: var(--color-header-bg);
+  color: var(--text-secondary);
+  padding: var(--spacing-medium);
+  border-radius: var(--border-radius);
+}
+
+/* Frequency Display Section */
+.vfo-frequency-section {
+  margin-bottom: var(--spacing-large);
+}
+
+.frequency-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--spacing-medium);
+  padding: var(--spacing-medium);
+  background-color: var(--color-black);
+  color: var(--color-cyan);
+  border-radius: var(--border-radius);
+  font-family: 'Courier New', monospace;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.frequency-label {
+  font-size: 16px;
+  margin-right: var(--spacing-medium);
+  color: var(--color-white);
+}
+
+.frequency-value {
+  font-size: 24px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-right: var(--spacing-small);
+  min-width: 140px;
+  text-align: center;
+  transition: background-color 0.3s ease;
+}
+
+.frequency-unit {
+  font-size: 16px;
+  color: var(--color-white);
+}
+
+/* Frequency Control Buttons */
+.frequency-controls {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-medium);
+}
+
+.freq-adjust-row {
+  display: flex;
+  gap: var(--spacing-small);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Add touch-friendly button states */
+.freq-btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  box-shadow: var(--box-shadow);
+  min-width: 50px;
+  /* Prevent text selection on touch */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Improve touch targets */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.freq-btn.freq-down {
+  background-color: var(--color-danger);
+  color: var(--text-secondary);
+}
+
+.freq-btn.freq-down:active {
+  background-color: #b71c1c;
+}
+
+.freq-btn.freq-up {
+  background-color: var(--color-success);
+  color: var(--text-secondary);
+}
+
+.freq-btn.freq-up:active {
+  background-color: #1b5e20;
+}
+
+.freq-btn:active {
+  transform: translateY(1px);
+}
+
+/* Band Selection */
+.band-section {
+  margin-bottom: var(--spacing-large);
+  text-align: center;
+}
+
+.band-label {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-medium);
+  color: var(--text-primary);
+}
+
+.band-buttons {
+  display: flex;
+  gap: var(--spacing-small);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.band-btn {
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: var(--border-radius-pill);
+  background-color: var(--color-accent);
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  box-shadow: var(--box-shadow);
+  min-width: 60px;
+  /* Touch-friendly improvements */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.band-btn:active {
+  background-color: var(--color-active);
+  transform: translateY(1px);
+}
+
+/* Mode Selection */
+.mode-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-medium);
+  flex-wrap: wrap;
+}
+
+.mode-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mode-display {
+  background-color: var(--color-black);
+  color: var(--color-cyan);
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: bold;
+  min-width: 60px;
+  text-align: center;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: background-color 0.3s ease;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: var(--spacing-small);
+  flex-wrap: wrap;
+}
+
+.mode-btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--border-radius-pill);
+  background-color: var(--color-gray-400);
+  color: var(--text-primary);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  box-shadow: var(--box-shadow);
+  min-width: 60px;
+  /* Touch-friendly improvements */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mode-btn:active {
+  background-color: var(--color-gray-300);
+}
+
+.mode-btn.active {
+  background-color: var(--color-accent);
+  color: var(--text-secondary);
+}
+
+.mode-btn.active:active {
+  background-color: var(--color-accent-light);
+}
+
+/* Responsive adjustments for VFO controls */
+@media (max-width: 600px) {
+  .frequency-display {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .frequency-label {
+    margin-right: 0;
+    margin-bottom: var(--spacing-small);
+  }
+
+  .frequency-value {
+    font-size: 20px;
+    margin-right: 0;
+    margin-bottom: var(--spacing-small);
+  }
+
+  .freq-adjust-row {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-xs);
+  }
+
+  .freq-btn {
+    font-size: 12px;
+    padding: 6px 8px;
+    min-width: 45px;
+  }
+
+  .band-buttons {
+    gap: var(--spacing-xs);
+  }
+
+  .band-btn {
+    font-size: 14px;
+    padding: 8px 12px;
+    min-width: 50px;
+  }
+
+  .mode-section {
+    flex-direction: column;
+    gap: var(--spacing-small);
+  }
+
+  .mode-buttons {
+    justify-content: center;
+  }
+}
