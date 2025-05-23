@@ -53,16 +53,19 @@ function sendKeys(message) {
 
 // VFO Control Functions
 
-// Band frequencies in Hz (lowest frequency in extra-class SSB range)
+// Band frequencies in Hz
+// Even though lower frequencies are available to Extra-class, we chose starts a
+// bit higher, at lower license levels, to increase odds of contacts
 const BAND_FREQUENCIES = {
-  '40m': 7175000,   // 40m: 7.175 MHz (Extra SSB starts at 7.175)
-  '20m': 14150000,  // 20m: 14.150 MHz (Extra SSB starts at 14.150)
-  '15m': 21200000,  // 15m: 21.200 MHz (Extra SSB starts at 21.200)
-  '12m': 24890000,  // 12m: 24.890 MHz (General SSB starts at 24.890)
-  '10m': 28300000   // 10m: 28.300 MHz (Extra SSB starts at 28.300)
+  '40m':  7175000,
+  '20m': 14225000,
+  '17m': 18110000,
+  '15m': 21275000,
+  '12m': 24930000,
+  '10m': 28300000
 };
 
-let currentFrequencyHz = 14205000; // Default to 20m
+let currentFrequencyHz = 14225000; // Default to 20m
 let currentMode = 'USB';
 let vfoUpdateInterval = null;
 let lastUserAction = 0; // Timestamp of last user VFO action
