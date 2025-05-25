@@ -16,6 +16,10 @@ let gLocalhost = (window.location.hostname === 'localhost' ||
                   window.location.hostname === '127.0.0.1' ||
                   window.location.hostname === '[::1]'); // IPv6 loopback
 
+// Add rate limiting for SOTA API
+let gLastSotaFetchTime = 0;
+const SOTA_MIN_FETCH_INTERVAL_MS = 60 * 1000; // 1 minute
+
 // ----------------------------------------------------------------------------
 // Launch SOTAmat application
 // ----------------------------------------------------------------------------
@@ -507,8 +511,23 @@ async function enrichSpots(spots,
 }
 
 async function shouldCheckNewSpots(epoch) {
-    if (!document.getElementById('autoRefreshSelector').checked) return false;
-    if (epoch === null) return true;
+    const autoRefreshCheckbox = document.getElementById('autoRefreshSelector');
+    const autoRefreshEnabled = autoRefreshCheckbox ? autoRefreshCheckbox.checked : false;
+    
+    if (!autoRefreshEnabled) {
+        return false;
+    }
+    if (epoch === null) {
+        return true;
+    }
+    
+    // Check rate limit before making epoch API call
+    const now = Date.now();
+    const timeSinceLastFetch = now - gLastSotaFetchTime;
+    if (timeSinceLastFetch < SOTA_MIN_FETCH_INTERVAL_MS) {
+        return false; // Don't even check epoch if we're rate limited
+    }
+    
     try {
         // Fetch the latest epoch from the API
         const response = await fetch('https://api-db2.sota.org.uk/api/spots/epoch');
@@ -528,11 +547,35 @@ async function shouldCheckNewSpots(epoch) {
 
 async function refreshSotaPotaJson(force) {
     if (currentTabName === 'sota') {
+        // Check rate limit for SOTA API
+        const now = Date.now();
+        const timeSinceLastFetch = now - gLastSotaFetchTime;
+        
+        if (!force && timeSinceLastFetch < SOTA_MIN_FETCH_INTERVAL_MS) {
+            console.info(`SOTA rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`);
+            // Still update the table with cached data
+            if (typeof sota_updateSotaTable === 'function') {
+                sota_updateSotaTable();
+            }
+            return;
+        }
+        
+        // Check if we should fetch new data
+        const shouldCheck = await shouldCheckNewSpots(gSotaEpoch);
+        
         // Always fetch data when switching to SOTA tab or when forced
-        if (force || gLatestSotaJson == null || !await shouldCheckNewSpots(gSotaEpoch)) {
+        if (force || gLatestSotaJson == null || shouldCheck) {
+            // Additional rate limit check for forced refreshes
+            if (force && timeSinceLastFetch < SOTA_MIN_FETCH_INTERVAL_MS) {
+                const remainingSeconds = Math.ceil((SOTA_MIN_FETCH_INTERVAL_MS - timeSinceLastFetch) / 1000);
+                alert(`Please wait ${remainingSeconds} more seconds before refreshing. The SOTA API limits requests to once per minute.`);
+                return;
+            }
+            
             const limit = document.getElementById("historyDurationSelector").value;
             try {
                 console.log('Fetching SOTA data with limit:', limit);
+                gLastSotaFetchTime = Date.now(); // Update last fetch time
                 const result = await fetch(`https://api-db2.sota.org.uk/api/spots/${limit}/all/all/`,
                                          { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } });
                 const data = await result.json();
@@ -572,8 +615,12 @@ async function refreshSotaPotaJson(force) {
         }
     }
     else if (currentTabName === 'pota') {
-        // Always fetch data when switching to POTA tab or when forced
-        if (force || gLatestPotaJson == null /* || !await shouldCheckNewSpots(null) */) { // POTA API doesn't have epoch - simplified condition
+        // Check if auto-refresh is enabled for POTA (since POTA doesn't have epoch checking)
+        const autoRefreshCheckbox = document.getElementById('autoRefreshSelector');
+        const autoRefreshEnabled = autoRefreshCheckbox ? autoRefreshCheckbox.checked : false;
+        
+        // Always fetch data when switching to POTA tab or when forced, or when auto-refresh is enabled
+        if (force || gLatestPotaJson == null || autoRefreshEnabled) {
             try {
                 console.log('Fetching POTA data');
                 const result = await fetch('https://api.pota.app/spot/activator',
