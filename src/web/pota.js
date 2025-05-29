@@ -195,9 +195,12 @@ function potaOnAppearing() {
         refreshSotaPotaJson(true); // Force refresh to ensure we have fresh data
     }
 
-    // Set up refresh interval if needed
-    if (gRefreshInterval == null) {
-        gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
+    // Set up refresh interval only if auto-refresh is enabled (reuse the autoRefreshCheckbox variable from above)
+    if (autoRefreshCheckbox && autoRefreshCheckbox.checked && gRefreshInterval == null) {
+        gRefreshInterval = setInterval(() => {
+            refreshSotaPotaJson(false); // Explicitly pass false for non-forced refresh
+        }, 60 * 1000); // one minute
+        console.log('POTA auto-refresh interval started on tab appearing');
     }
 
     const headers = document.querySelectorAll('#potaTable th'); 
@@ -255,7 +258,22 @@ function pota_saveAutoRefreshCheckboxState()
 }
 
 function pota_changeAutoRefreshCheckboxState(autoRefresh) {
-    // Currently no specific action needed when checkbox changes, besides saving state
+    if (autoRefresh) {
+        // Start the interval if not already running
+        if (gRefreshInterval == null) {
+            gRefreshInterval = setInterval(() => {
+                refreshSotaPotaJson(false); // Explicitly pass false for non-forced refresh
+            }, 60 * 1000); // one minute
+            console.log('POTA auto-refresh interval started');
+        }
+    } else {
+        // Stop the interval
+        if (gRefreshInterval != null) {
+            clearInterval(gRefreshInterval);
+            gRefreshInterval = null;
+            console.log('POTA auto-refresh interval stopped');
+        }
+    }
 }
 
 function pota_loadAutoRefreshCheckboxState()
@@ -431,4 +449,10 @@ function potaOnLeaving() {
     
     // Don't save historyDurationState because it's shared with SOTA
     // and is not effectively used in POTA yet
+    
+    // Stop the auto-refresh interval when leaving the tab
+    if (gRefreshInterval != null) {
+        clearInterval(gRefreshInterval);
+        gRefreshInterval = null;
+    }
 }

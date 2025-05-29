@@ -162,6 +162,22 @@ function sota_saveAutoRefreshCheckboxState()
 }
 
 function sota_changeAutoRefreshCheckboxState(autoRefresh) {
+    if (autoRefresh) {
+        // Start the interval if not already running
+        if (gRefreshInterval == null) {
+            gRefreshInterval = setInterval(() => {
+                refreshSotaPotaJson(false); // Explicitly pass false for non-forced refresh
+            }, 60 * 1000); // one minute
+            console.log('SOTA auto-refresh interval started');
+        }
+    } else {
+        // Stop the interval
+        if (gRefreshInterval != null) {
+            clearInterval(gRefreshInterval);
+            gRefreshInterval = null;
+            console.log('SOTA auto-refresh interval stopped');
+        }
+    }
 }
 
 function sota_loadAutoRefreshCheckboxState()
@@ -375,9 +391,12 @@ function sotaOnAppearing() {
         refreshSotaPotaJson(true); // Force refresh to ensure we have fresh data (This calls sota_updateSotaTable after enrichment)
     }
 
-    // Set up refresh interval if needed
-    if (gRefreshInterval == null) {
-        gRefreshInterval = setInterval(refreshSotaPotaJson, 60 * 1000); // one minute
+    // Set up refresh interval only if auto-refresh is enabled (reuse the autoRefreshCheckbox variable from above)
+    if (autoRefreshCheckbox && autoRefreshCheckbox.checked && gRefreshInterval == null) {
+        gRefreshInterval = setInterval(() => {
+            refreshSotaPotaJson(false); // Explicitly pass false for non-forced refresh
+        }, 60 * 1000); // one minute
+        console.log('SOTA auto-refresh interval started on tab appearing');
     }
 
     // Get TH elements instead of SPANs
@@ -421,4 +440,10 @@ function sotaOnLeaving() {
     sota_saveShowSpecialRowsState();
     sota_saveModeFilterState();
     sota_saveHistoryDurationState();
+    
+    // Stop the auto-refresh interval when leaving the tab
+    if (gRefreshInterval != null) {
+        clearInterval(gRefreshInterval);
+        gRefreshInterval = null;
+    }
 }
