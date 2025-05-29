@@ -329,6 +329,29 @@ function stopVfoUpdates() {
   lastUserAction = 0;
 }
 
+function tuneAtu() {
+  const url = "/api/v1/atu";
+  fetch(url, { method: "PUT" })
+    .then(response => {
+      if (response.ok) {
+        console.log('ATU tune initiated successfully');
+        // Optionally add visual feedback
+        const atuBtn = document.querySelector('.atu-btn');
+        if (atuBtn) {
+          atuBtn.style.backgroundColor = 'var(--color-success)';
+          setTimeout(() => {
+            atuBtn.style.backgroundColor = '';
+          }, 1000);
+        }
+      } else {
+        console.error('Error initiating ATU tune');
+      }
+    })
+    .catch(error => {
+      console.error('Fetch error:', error);
+    });
+}
+
 function loadInputValues() {
   document.getElementById("message1").value =
     localStorage.getItem("message1") || "";

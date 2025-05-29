@@ -67,7 +67,7 @@ static bool uart_get_command (const char * cmd, int cmd_length, char * out_buff,
 
     if (returned_chars != expected_chars || out_buff[0] != cmd[0] || out_buff[1] != cmd[1] ||
         (cmd_length == 3 && out_buff[2] != cmd[2]) || out_buff[expected_chars - 1] != ';') {
-        ESP_LOGE (TAG8, "bad result from command '%s' after %.3f ms, returned bytes=%d, out_buff=%c%c%c%c%c%c...", cmd, elapsed_ms, returned_chars, out_buff[0], out_buff[1], out_buff[2], out_buff[3], out_buff[4], out_buff[5]);
+        ESP_LOGE (TAG8, "bad result from command '%s' after %.3f ms, expected %d bytes, received %d bytes, out_buff=%c%c%c%c%c%c...", cmd, elapsed_ms, expected_chars, returned_chars, out_buff[0], out_buff[1], out_buff[2], out_buff[3], out_buff[4], out_buff[5]);
         if (--tries > 0) {
             ESP_LOGI (TAG8, "Retrying...");
             kxRadio.empty_kx_input_buffer (wait_ms);
@@ -187,6 +187,7 @@ int KXRadio::connect() {
                     }
                     m_is_connected = true;
                     empty_kx_input_buffer (600);
+                    detect_radio_type();
                     return baud_rates[i];
                 }
             }
@@ -493,4 +494,49 @@ void KXRadio::restore_kx_state (const kx_state_t * in_state, int tries) {
     put_to_kx_menu_item (58, in_state->tun_pwr, SC_KX_COMMUNICATION_RETRIES);
 
     ESP_LOGI (TAG8, "restore done");
+}
+
+/**
+ * Detects the type of radio (KX2 or KX3) by using the OM command.
+ * According to the programmer's reference, the OM response format differs:
+ * - KX3: "OM APF---TBXI0n;" where n=2 for KX3
+ * - KX2: "OM APF---TBXI0n;" where n=1 for KX2
+ */
+void KXRadio::detect_radio_type() {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    if (!locked())
+        ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
+
+    char response[17] = {0};
+
+    // Send OM command to get option module information
+    if (get_from_kx_string ("OM", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response) - 1)) {
+        // Check the product identifier in the response
+        // Format: "OM APF---TBXI0n;" where n is the product ID
+        int len = strlen (response);
+        if (len == 16 && response[len - 3] == '0') {
+            char product_id = response[len - 2];
+            if (product_id == '1') {
+                m_radio_type = RadioType::KX2;
+                ESP_LOGI (TAG8, "detected KX2 radio");
+            }
+            else if (product_id == '2') {
+                m_radio_type = RadioType::KX3;
+                ESP_LOGI (TAG8, "detected KX3 radio");
+            }
+            else {
+                m_radio_type = RadioType::UNKNOWN;
+                ESP_LOGW (TAG8, "unknown radio product id: %c", product_id);
+            }
+        }
+        else {
+            m_radio_type = RadioType::UNKNOWN;
+            ESP_LOGW (TAG8, "unexpected OM response format: '%s'", response);
+        }
+    }
+    else {
+        m_radio_type = RadioType::UNKNOWN;
+        ESP_LOGE (TAG8, "failed to get OM response for radio type detection");
+    }
 }

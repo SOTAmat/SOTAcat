@@ -22,6 +22,12 @@ typedef enum {
     MODE_LAST    = 9
 } radio_mode_t;
 
+enum class RadioType {
+    UNKNOWN,
+    KX2,
+    KX3
+};
+
 typedef struct {
     radio_mode_t mode;
     uint8_t      active_vfo;
@@ -46,8 +52,10 @@ typedef struct {
 
 class KXRadio : public Lockable {
   private:
-    bool m_is_connected;
+    bool      m_is_connected;
+    RadioType m_radio_type;
     KXRadio();
+    void detect_radio_type ();
 
   public:
     static KXRadio & getInstance ();
@@ -66,6 +74,16 @@ class KXRadio : public Lockable {
     bool put_to_kx_command_string (const char * command, int tries);
     void get_kx_state (kx_state_t * in_state);
     void restore_kx_state (const kx_state_t * in_state, int tries);
+
+    RadioType get_radio_type () const { return m_radio_type; }
+
+    const char * get_radio_type_string () const {
+        switch (m_radio_type) {
+        case RadioType::KX2: return "KX2";
+        case RadioType::KX3: return "KX3";
+        default: return "Unknown";
+        }
+    }
 };
 
 extern KXRadio & kxRadio;  // global singleton

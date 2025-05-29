@@ -27,6 +27,7 @@ extern esp_err_t handler_settings_get (httpd_req_t *);
 extern esp_err_t handler_settings_post (httpd_req_t *);
 extern esp_err_t handler_version_get (httpd_req_t *);
 extern esp_err_t handler_xmit_put (httpd_req_t *);
+extern esp_err_t handler_atu_put (httpd_req_t * req);
 
 /**
  * Helper definition, to be used within a function body.
