@@ -90,18 +90,14 @@ static long parse_response (const char * out_buff, int num_digits) {
     switch (num_digits) {
     case 1:  // Handling n-type response
         return out_buff[2] - '0';
-        break;
     case 3:  // Handling nnn-type response
         return strtol (out_buff + 2, NULL, 10);
-        break;
     case 11:  // Handling long-type response
         return strtol (out_buff + 2, NULL, 10);
-        break;
     default:
         // Invalid response size
         break;
     }
-
     return -1;  // Invalid response size
 }
 
