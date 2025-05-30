@@ -35,43 +35,43 @@ KXRadio & kxRadio = KXRadio::getInstance();
  * Sends a command via UART, reads the response, checks for validity, and retries if necessary.
  * Handles errors like the device being busy and logs detailed communication status.
  *
- * @param cmd Command to be sent to UART.
- * @param cmd_length Length of the command.
- * @param out_buff Buffer to store the response.
+ * @param command Command to be sent to UART.
+ * @param command_length Length of the command.
+ * @param response Buffer to store the response.
  * @param expected_chars Expected number of characters in the response.
  * @param tries Number of retries for the command.
  * @param wait_ms Milliseconds to wait for a response.
  * @return bool True if successful, false otherwise.
  */
-static bool uart_get_command (const char * cmd, int cmd_length, char * out_buff, int expected_chars, int tries, int wait_ms) {
-    ESP_LOGV (TAG8, "trace: %s(cmd='%s', cmd_length=%d, expect=%d)", __func__, cmd, cmd_length, expected_chars);
+static bool uart_get_command (const char * command, int command_length, char * response, int expected_chars, int tries, int wait_ms) {
+    ESP_LOGV (TAG8, "trace: %s(command='%s', command_length=%d, expect=%d)", __func__, command, command_length, expected_chars);
 
     uart_flush (UART_NUM);
-    uart_write_bytes (UART_NUM, cmd, strlen (cmd));
+    uart_write_bytes (UART_NUM, command, strlen (command));
 
     int64_t start_time     = esp_timer_get_time();
-    int     returned_chars = uart_read_bytes (UART_NUM, out_buff, expected_chars, pdMS_TO_TICKS (wait_ms));
+    int     returned_chars = uart_read_bytes (UART_NUM, response, expected_chars, pdMS_TO_TICKS (wait_ms));
     int64_t end_time       = esp_timer_get_time();
     float   elapsed_ms     = (end_time - start_time) / 1000.0;
 
-    out_buff[returned_chars] = '\0';
-    ESP_LOGD (TAG8, "command '%s' returned %d chars, '%s', after %.3f ms", cmd, returned_chars, out_buff, elapsed_ms);
+    response[returned_chars] = '\0';
+    ESP_LOGD (TAG8, "command '%s' returned %d chars, '%s', after %.3f ms", command, returned_chars, response, elapsed_ms);
 
-    if (returned_chars == 2 && out_buff[0] == '?' && out_buff[1] == ';') {
+    if (returned_chars == 2 && response[0] == '?' && response[1] == ';') {
         // The radio is saying it was busy and unable to respond to the command yet.
         // We need to pause a bit and try again.  We don't count this as a "retry" since it wasn't an error.
         ESP_LOGW (TAG8, "radio busy, retrying...");
         vTaskDelay (pdMS_TO_TICKS (30));
-        return uart_get_command (cmd, cmd_length, out_buff, expected_chars, tries, wait_ms);
+        return uart_get_command (command, command_length, response, expected_chars, tries, wait_ms);
     }
 
-    if (returned_chars != expected_chars || out_buff[0] != cmd[0] || out_buff[1] != cmd[1] ||
-        (cmd_length == 3 && out_buff[2] != cmd[2]) || out_buff[expected_chars - 1] != ';') {
-        ESP_LOGE (TAG8, "bad result from command '%s' after %.3f ms, expected %d bytes, received %d bytes, out_buff=%c%c%c%c%c%c...", cmd, elapsed_ms, expected_chars, returned_chars, out_buff[0], out_buff[1], out_buff[2], out_buff[3], out_buff[4], out_buff[5]);
+    if (returned_chars != expected_chars || response[0] != command[0] || response[1] != command[1] ||
+        (command_length == 3 && response[2] != command[2]) || response[expected_chars - 1] != ';') {
+        ESP_LOGE (TAG8, "bad result from command '%s' after %.3f ms, expected %d bytes, received %d bytes, response=%c%c%c%c%c%c...", command, elapsed_ms, expected_chars, returned_chars, response[0], response[1], response[2], response[3], response[4], response[5]);
         if (--tries > 0) {
             ESP_LOGI (TAG8, "Retrying...");
             kxRadio.empty_kx_input_buffer (wait_ms);
-            return uart_get_command (cmd, cmd_length, out_buff, expected_chars, tries - 1, wait_ms);
+            return uart_get_command (command, command_length, response, expected_chars, tries - 1, wait_ms);
         }
         return false;
     }
@@ -82,18 +82,18 @@ static bool uart_get_command (const char * cmd, int cmd_length, char * out_buff,
 /**
  * Parses a numeric response based on the expected format and number of digits.
  *
- * @param out_buff Buffer containing the response.
+ * @param response Buffer containing the response.
  * @param num_digits Number of digits expected in the response.
  * @return long Parsed numeric value from the response.
  */
-static long parse_response (const char * out_buff, int num_digits) {
+static long parse_response (const char * response, int num_digits) {
     switch (num_digits) {
     case 1:  // Handling n-type response
-        return out_buff[2] - '0';
+        return response[2] - '0';
     case 3:  // Handling nnn-type response
-        return strtol (out_buff + 2, NULL, 10);
+        return strtol (response + 2, NULL, 10);
     case 11:  // Handling long-type response
-        return strtol (out_buff + 2, NULL, 10);
+        return strtol (response + 2, NULL, 10);
     default:
         // Invalid response size
         break;
@@ -230,8 +230,8 @@ long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
     if (!locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    char cmd_buff[8]  = {0};
-    char out_buff[16] = {0};
+    char command_buff[8] = {0};
+    char response[16]    = {0};
 
     int command_size = strlen (command);
     if ((command_size != 2 && command_size != 3) || num_digits < 1 || num_digits > 11) {
@@ -245,12 +245,12 @@ long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
     if (command != NULL && strstr (long_command_prefixes, command) != NULL)
         wait_time = KX_TIMEOUT_MS_LONG_COMMANDS;
 
-    snprintf (cmd_buff, sizeof (cmd_buff), "%s;", command);
+    snprintf (command_buff, sizeof (command_buff), "%s;", command);
     int response_size = num_digits + command_size + 1;
-    if (!uart_get_command (cmd_buff, command_size, out_buff, response_size, tries, wait_time))
+    if (!uart_get_command (command_buff, command_size, response, response_size, tries, wait_time))
         return -1;  // Error was already logged
 
-    long result = parse_response (out_buff, num_digits);
+    long result = parse_response (response, num_digits);
     ESP_LOGD (TAG8, "kx command '%s' returns %ld", command, result);
     return result;
 }
@@ -274,13 +274,13 @@ bool KXRadio::get_from_kx_string (const char * command, int tries, char * respon
     if (!locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    char cmd_buff[8] = {0};
-    snprintf (cmd_buff, sizeof (cmd_buff), "%s;", command);
+    char command_buff[8] = {0};
+    snprintf (command_buff, sizeof (command_buff), "%s;", command);
 
     int command_size = strlen (command);
     int wait_time    = KX_TIMEOUT_MS_SHORT_COMMANDS;
 
-    return uart_get_command (cmd_buff, command_size, response, response_size, tries, wait_time);
+    return uart_get_command (command_buff, command_size, response, response_size, tries, wait_time);
 }
 
 /**
@@ -332,24 +332,24 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
         return false;
     }
 
-    char out_buff[16];
+    char response[16];
     switch (num_digits) {
     case 1:  // Handling n-type response
         if (value > 9) {
             ESP_LOGE (TAG8, "invalid value %u for command '%s'", (unsigned int)value, command);
             return false;
         }
-        snprintf (out_buff, sizeof (out_buff), "%s%u;", command, (unsigned int)value);
+        snprintf (response, sizeof (response), "%s%u;", command, (unsigned int)value);
         break;
     case 3:  // Handling nnn-type response
         if (value > 999) {
             ESP_LOGE (TAG8, "invalid value %u for command '%s'", (unsigned int)value, command);
             return false;
         }
-        snprintf (out_buff, sizeof (out_buff), "%s%03u;", command, (unsigned int)value);
+        snprintf (response, sizeof (response), "%s%03u;", command, (unsigned int)value);
         break;
     case 11:  // Handling long-type response
-        snprintf (out_buff, sizeof (out_buff), "%s%011ld;", command, value);
+        snprintf (response, sizeof (response), "%s%011ld;", command, value);
         break;
     default:
         ESP_LOGE (TAG8, "invalid num_digits and command '%s' with value %ld", command, value);
@@ -365,14 +365,14 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
     if (tries <= 0) {
         // simply write the command to the radio
         uart_flush (UART_NUM);
-        uart_write_bytes (UART_NUM, out_buff, num_digits + 3);
+        uart_write_bytes (UART_NUM, response, num_digits + 3);
         return true;
     }
 
     // validate the write was successful
     for (int attempt = 0; attempt < tries; attempt++) {
         uart_flush (UART_NUM);
-        uart_write_bytes (UART_NUM, out_buff, num_digits + 3);
+        uart_write_bytes (UART_NUM, response, num_digits + 3);
 
         // Now read-back the value to verify it was set correctly
         long out_value = get_from_kx (command, 2, num_digits);
@@ -421,21 +421,21 @@ bool KXRadio::put_to_kx_menu_item (uint8_t menu_item, long value, int tries) {
  * Sends a custom command string to the radio via UART. This function is typically used for
  * commands that do not require a response to be checked.
  *
- * @param cmd The command string to be sent to the radio.
+ * @param command The command string to be sent to the radio.
  * @param tries The number of attempts to send the command.
  * @return bool Always returns true, indicating the command was sent.
  *
  * Preconditions:
  *   The radio must be locked before calling this function. If not, an error is logged.
  */
-bool KXRadio::put_to_kx_command_string (const char * cmd, int tries) {
-    ESP_LOGV (TAG8, "trace: %s(cmd = '%s')", __func__, cmd);
+bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
+    ESP_LOGV (TAG8, "trace: %s(command = '%s')", __func__, command);
 
     if (!locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     uart_flush (UART_NUM);
-    uart_write_bytes (UART_NUM, cmd, strlen (cmd));
+    uart_write_bytes (UART_NUM, command, strlen (command));
 
     return true;
 }
