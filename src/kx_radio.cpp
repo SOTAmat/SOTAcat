@@ -144,7 +144,7 @@ int KXRadio::connect() {
         .parity              = UART_PARITY_DISABLE,
         .stop_bits           = UART_STOP_BITS_1,
         .flow_ctrl           = UART_HW_FLOWCTRL_DISABLE,
-        .rx_flow_ctrl_thresh = 0,  // not used since flow_ctrl disabled
+        .rx_flow_ctrl_thresh = 0,  // not used since flow_ctrl is disabled
         .source_clk          = UART_SCLK_APB,
     };
     uart_param_config (UART_NUM, &uart_config);
@@ -261,7 +261,7 @@ long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
  * @param command Command to send.
  * @param num_digits Expected number of digits in the command.
  * @param value Value to be set by the command.
- * @param tries Number of attempts to successfully execute the command.
+ * @param tries Number of attempts to successfully execute the command.  If non-positive, send once without verification.
  * @return bool True if successful, false otherwise.
  *
  * Preconditions:
@@ -278,24 +278,24 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
         return false;
     }
 
-    char response[16];
+    char request[16];
     switch (num_digits) {
-    case 1:  // Handling n-type response
+    case 1:  // Handling n-type request
         if (value > 9) {
             ESP_LOGE (TAG8, "invalid value %u for command '%s'", (unsigned int)value, command);
             return false;
         }
-        snprintf (response, sizeof (response), "%s%u;", command, (unsigned int)value);
+        snprintf (request, sizeof (request), "%s%u;", command, (unsigned int)value);
         break;
-    case 3:  // Handling nnn-type response
+    case 3:  // Handling nnn-type request
         if (value > 999) {
             ESP_LOGE (TAG8, "invalid value %u for command '%s'", (unsigned int)value, command);
             return false;
         }
-        snprintf (response, sizeof (response), "%s%03u;", command, (unsigned int)value);
+        snprintf (request, sizeof (request), "%s%03u;", command, (unsigned int)value);
         break;
-    case 11:  // Handling long-type response
-        snprintf (response, sizeof (response), "%s%011ld;", command, value);
+    case 11:  // Handling long-type request
+        snprintf (request, sizeof (request), "%s%011ld;", command, value);
         break;
     default:
         ESP_LOGE (TAG8, "invalid num_digits and command '%s' with value %ld", command, value);
@@ -311,14 +311,14 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
     if (tries <= 0) {
         // simply write the command to the radio
         uart_flush (UART_NUM);
-        uart_write_bytes (UART_NUM, response, num_digits + 3);
+        uart_write_bytes (UART_NUM, request, num_digits + 3);
         return true;
     }
 
     // validate the write was successful
     for (int attempt = 0; attempt < tries; attempt++) {
         uart_flush (UART_NUM);
-        uart_write_bytes (UART_NUM, response, num_digits + 3);
+        uart_write_bytes (UART_NUM, request, num_digits + 3);
 
         // Now read-back the value to verify it was set correctly
         long out_value = get_from_kx (command, 2, num_digits);
@@ -408,6 +408,7 @@ bool KXRadio::get_from_kx_string (const char * command, int tries, char * respon
     if (!locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
+    // add trailing semi-colon
     char command_buff[8] = {0};
     snprintf (command_buff, sizeof (command_buff), "%s;", command);
 
