@@ -35,48 +35,52 @@ KXRadio & kxRadio = KXRadio::getInstance();
  * Sends a command via UART, reads the response, checks for validity, and retries if necessary.
  * Handles errors like the device being busy and logs detailed communication status.
  *
- * @param command Command to be sent to UART.
- * @param command_length Length of the command.
+ * @param cmd Command to be sent to UART, expressed as a null-terminated string.
  * @param response Buffer to store the response.
  * @param expected_chars Expected number of characters in the response.
  * @param tries Number of retries for the command.
  * @param wait_ms Milliseconds to wait for a response.
  * @return bool True if successful, false otherwise.
  */
-static bool uart_get_command (const char * command, int command_length, char * response, int expected_chars, int tries, int wait_ms) {
-    ESP_LOGV (TAG8, "trace: %s(command='%s', command_length=%d, expect=%d)", __func__, command, command_length, expected_chars);
+static bool uart_get_command (const char * command, char * response, int expected_chars, int tries, int wait_ms) {
+    ESP_LOGV (TAG8, "trace: %s(command='%s', expect=%d)", __func__, command, expected_chars);
 
     uart_flush (UART_NUM);
-    uart_write_bytes (UART_NUM, command, strlen (command));
+    int command_length = strlen (command);
+    uart_write_bytes (UART_NUM, command, command_length);  // Send command
 
     int64_t start_time     = esp_timer_get_time();
     int     returned_chars = uart_read_bytes (UART_NUM, response, expected_chars, pdMS_TO_TICKS (wait_ms));
     int64_t end_time       = esp_timer_get_time();
     float   elapsed_ms     = (end_time - start_time) / 1000.0;
 
-    response[returned_chars] = '\0';
+    // Null-terminate the response buffer safely
+    if (returned_chars > 0)
+        if (returned_chars < expected_chars)
+            response[returned_chars] = '\0';  // Normally, terminate after the last character in the response
+        else
+            response[expected_chars] = '\0';  // When we exceed expecations, terminate at the expected size
+    else
+        response[0] = '\0';  // No characters received, so ensure it's an empty string
+
     ESP_LOGD (TAG8, "command '%s' returned %d chars, '%s', after %.3f ms", command, returned_chars, response, elapsed_ms);
 
-    if (returned_chars == 2 && response[0] == '?' && response[1] == ';') {
-        // The radio is saying it was busy and unable to respond to the command yet.
-        // We need to pause a bit and try again.  We don't count this as a "retry" since it wasn't an error.
-        ESP_LOGW (TAG8, "radio busy, retrying...");
-        vTaskDelay (pdMS_TO_TICKS (30));
-        return uart_get_command (command, command_length, response, expected_chars, tries, wait_ms);
-    }
+    // Return if valid response achieved
+    if (response[0] == command[0] && response[1] == command[1] &&  // got what we asked for
+        returned_chars == expected_chars &&                        // as much as we wanted
+        response[expected_chars - 1] == ';')                       // well-terminated
+        return true;                                               // success
 
-    if (returned_chars != expected_chars || response[0] != command[0] || response[1] != command[1] ||
-        (command_length == 3 && response[2] != command[2]) || response[expected_chars - 1] != ';') {
-        ESP_LOGE (TAG8, "bad result from command '%s' after %.3f ms, expected %d bytes, received %d bytes, response=%c%c%c%c%c%c...", command, elapsed_ms, expected_chars, returned_chars, response[0], response[1], response[2], response[3], response[4], response[5]);
-        if (--tries > 0) {
-            ESP_LOGI (TAG8, "Retrying...");
-            kxRadio.empty_kx_input_buffer (wait_ms);
-            return uart_get_command (command, command_length, response, expected_chars, tries - 1, wait_ms);
-        }
-        return false;
+    // Invalid response, retry
+    ESP_LOGE (TAG8, "bad response from command '%s' after %.3f ms, expected %d bytes, received %d bytes, response=%c%c%c%c%c%c...", command, elapsed_ms, expected_chars, returned_chars, response[0], response[1], response[2], response[3], response[4], response[5]);
+    if ((returned_chars == 2 && response[0] == '?' && response[1] == ';') ||  // radio busy, don't count as retry
+        --tries > 0) {
+        ESP_LOGI (TAG8, "Retrying...");
+        kxRadio.empty_kx_input_buffer (wait_ms);
+        vTaskDelay (pdMS_TO_TICKS (30));  // Delay before retrying
+        return uart_get_command (command, response, expected_chars, tries - 1, wait_ms);
     }
-
-    return true;
+    return false;
 }
 
 /**
@@ -247,7 +251,7 @@ long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
 
     snprintf (command_buff, sizeof (command_buff), "%s;", command);
     int response_size = num_digits + command_size + 1;
-    if (!uart_get_command (command_buff, command_size, response, response_size, tries, wait_time))
+    if (!uart_get_command (command_buff, response, response_size, tries, wait_time))
         return -1;  // Error was already logged
 
     long result = parse_response (response, num_digits);
@@ -412,10 +416,7 @@ bool KXRadio::get_from_kx_string (const char * command, int tries, char * respon
     char command_buff[8] = {0};
     snprintf (command_buff, sizeof (command_buff), "%s;", command);
 
-    int command_size = strlen (command);
-    int wait_time    = KX_TIMEOUT_MS_SHORT_COMMANDS;
-
-    return uart_get_command (command_buff, command_size, response, response_size, tries, wait_time);
+    return uart_get_command (command_buff, response, response_size, tries, KX_TIMEOUT_MS_SHORT_COMMANDS);
 }
 
 /**
