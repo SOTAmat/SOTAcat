@@ -256,60 +256,6 @@ long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
 }
 
 /**
- * Sends a string command to the radio and retrieves a string response. It handles retries
- * and uses specific timeout settings for communication.
- *
- * @param command The command string to be sent to the radio.
- * @param tries The number of attempts to execute the command successfully.
- * @param response Buffer to store the received response.
- * @param response_size The size of the response buffer.
- * @return bool True if the command was executed and a response was received successfully, false otherwise.
- *
- * Preconditions:
- *   The radio must be locked before calling this function. If not, an error is logged.
- */
-bool KXRadio::get_from_kx_string (const char * command, int tries, char * response, int response_size) {
-    ESP_LOGV (TAG8, "trace: %s(command = '%s')", __func__, command);
-
-    if (!locked())
-        ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
-
-    char command_buff[8] = {0};
-    snprintf (command_buff, sizeof (command_buff), "%s;", command);
-
-    int command_size = strlen (command);
-    int wait_time    = KX_TIMEOUT_MS_SHORT_COMMANDS;
-
-    return uart_get_command (command_buff, command_size, response, response_size, tries, wait_time);
-}
-
-/**
- * Retrieves a specific menu item's value from the radio. It involves switching to the
- * menu mode, retrieving the value, and then exiting the menu mode.
- *
- * @param menu_item The menu item number to query.
- * @param tries The number of attempts to execute the command and retrieve the value.
- * @return long The retrieved value of the menu item.
- *
- * Preconditions:
- *   The radio must be locked before calling this function. If not, an error is logged.
- */
-long KXRadio::get_from_kx_menu_item (uint8_t menu_item, int tries) {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    if (!locked())
-        ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
-
-    put_to_kx ("MN", 3, menu_item, SC_KX_COMMUNICATION_RETRIES);  // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
-
-    long value = get_from_kx ("MP", tries, 3);  // Get the menu item value
-
-    put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // Switch out of Menu mode
-
-    return value;
-}
-
-/**
  * Sends a command to set a value on the radio, verifies the set operation, and retries if necessary.
  *
  * @param command Command to send.
@@ -389,6 +335,32 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
 }
 
 /**
+ * Retrieves a specific menu item's value from the radio. It involves switching to the
+ * menu mode, retrieving the value, and then exiting the menu mode.
+ *
+ * @param menu_item The menu item number to query.
+ * @param tries The number of attempts to execute the command and retrieve the value.
+ * @return long The retrieved value of the menu item.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
+long KXRadio::get_from_kx_menu_item (uint8_t menu_item, int tries) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    if (!locked())
+        ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
+
+    put_to_kx ("MN", 3, menu_item, SC_KX_COMMUNICATION_RETRIES);  // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
+
+    long value = get_from_kx ("MP", tries, 3);  // Get the menu item value
+
+    put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // Switch out of Menu mode
+
+    return value;
+}
+
+/**
  * Sets a specific menu item's value on the radio. This function includes steps to switch
  * into menu mode, set the menu item value, and then exit menu mode.
  *
@@ -415,6 +387,34 @@ bool KXRadio::put_to_kx_menu_item (uint8_t menu_item, long value, int tries) {
     put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // Switch out of Menu mode
 
     return value;
+}
+
+/**
+ * Sends a string command to the radio and retrieves a string response. It handles retries
+ * and uses specific timeout settings for communication.
+ *
+ * @param command The command string to be sent to the radio.
+ * @param tries The number of attempts to execute the command successfully.
+ * @param response Buffer to store the received response.
+ * @param response_size The size of the response buffer.
+ * @return bool True if the command was executed and a response was received successfully, false otherwise.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
+ */
+bool KXRadio::get_from_kx_string (const char * command, int tries, char * response, int response_size) {
+    ESP_LOGV (TAG8, "trace: %s(command = '%s')", __func__, command);
+
+    if (!locked())
+        ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
+
+    char command_buff[8] = {0};
+    snprintf (command_buff, sizeof (command_buff), "%s;", command);
+
+    int command_size = strlen (command);
+    int wait_time    = KX_TIMEOUT_MS_SHORT_COMMANDS;
+
+    return uart_get_command (command_buff, command_size, response, response_size, tries, wait_time);
 }
 
 /**
