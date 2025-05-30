@@ -497,6 +497,10 @@ void KXRadio::restore_kx_state (const kx_state_t * in_state, int tries) {
  * According to the programmer's reference, the OM response format differs:
  * - KX3: "OM APF---TBXI0n;" where n=2 for KX3
  * - KX2: "OM APF---TBXI0n;" where n=1 for KX2
+ * Stores detected type in m_radio_type.
+ *
+ * Preconditions:
+ *   The radio must be locked before calling this function. If not, an error is logged.
  */
 void KXRadio::detect_radio_type() {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
