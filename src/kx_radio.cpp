@@ -461,7 +461,7 @@ void KXRadio::get_kx_state (kx_state_t * in_state) {
 
     in_state->mode = (radio_mode_t)get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);        // MDn; - Get current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
     put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);                                // To get the peaking filter mode we have to be in CW mode: MD3;
-    in_state->audio_peaking = get_from_kx ("AP", SC_KX_COMMUNICATION_RETRIES, 1);             //   APn; - Get Audio Peaking CW filter: 0 for APF OFF and 1 for APF ON
+    in_state->audio_peaking = get_from_kx ("AP", SC_KX_COMMUNICATION_RETRIES, 1);             // APn; - Get Audio Peaking CW filter: 0 for APF OFF and 1 for APF ON
     put_to_kx ("MD", 1, in_state->mode, SC_KX_COMMUNICATION_RETRIES);                         // Now return to the prior mode
     in_state->vfo_a_freq = get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);               // FAnnnnnnnnnnn; - Get the current frequency A
     in_state->active_vfo = (uint8_t)get_from_kx ("FT", SC_KX_COMMUNICATION_RETRIES, 1);       // FTn; - Get current VFO:  0 for VFO A, 1 for VFO B
@@ -484,12 +484,12 @@ void KXRadio::restore_kx_state (const kx_state_t * in_state, int tries) {
     if (!locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
+    put_to_kx_menu_item (58, in_state->tun_pwr, SC_KX_COMMUNICATION_RETRIES);   // TUN PWR setting
+    put_to_kx ("FT", 1, in_state->active_vfo, SC_KX_COMMUNICATION_RETRIES);     // Current VFO
+    put_to_kx ("FA", 11, in_state->vfo_a_freq, SC_KX_COMMUNICATION_RETRIES);    // VFO A Frequency
     put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);                  // To reset the Peaking Filter mode we have to be in CW mode: MD3;
     put_to_kx ("AP", 1, in_state->audio_peaking, SC_KX_COMMUNICATION_RETRIES);  // APn;
-    put_to_kx ("MD", 1, in_state->mode, SC_KX_COMMUNICATION_RETRIES);
-    put_to_kx ("FA", 11, in_state->vfo_a_freq, SC_KX_COMMUNICATION_RETRIES);
-    put_to_kx ("FT", 1, in_state->active_vfo, SC_KX_COMMUNICATION_RETRIES);
-    put_to_kx_menu_item (58, in_state->tun_pwr, SC_KX_COMMUNICATION_RETRIES);
+    put_to_kx ("MD", 1, in_state->mode, SC_KX_COMMUNICATION_RETRIES);           // Mode
 
     ESP_LOGI (TAG8, "restore done");
 }
