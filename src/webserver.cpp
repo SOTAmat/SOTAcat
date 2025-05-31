@@ -34,11 +34,11 @@ DECLARE_ASSET (style_css)
  */
 typedef struct
 {
-    const char * uri;
-    const void * asset_start;
-    const void * asset_end;
-    const char * asset_type;
-    long         cache_time;  // Cache time in seconds
+    const char *    uri;
+    const uint8_t * asset_start;
+    const uint8_t * asset_end;
+    const char *    asset_type;
+    long            cache_time;  // Cache time in seconds
 } asset_entry_t;
 
 /**
@@ -136,6 +136,40 @@ static int find_and_execute_api_handler (int method, const char * api_name, cons
 }
 
 /**
+ * Sends a memory region as an HTTP chunked response.
+ * @param req Pointer to the HTTP request.
+ * @param start Pointer to the beginning of the data buffer.
+ * @param end Pointer to one past the last byte of the data buffer.
+ * @return ESP_OK on successful transmission, or an error code if the send fails.
+ */
+static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, const uint8_t * end) {
+    const size_t CHUNK_SIZE = 1024;  // Send in 1KB chunks
+    size_t       total_size = end - start - 1;
+    size_t       sent       = 0;
+
+    while (sent < total_size) {
+        size_t to_send = MIN (CHUNK_SIZE, total_size - sent);
+        int    ret     = httpd_resp_send_chunk (req, (const char *)(start + sent), to_send);
+
+        if (ret != ESP_OK) {
+            // Connection closed by client
+            httpd_resp_send_chunk (req, NULL, 0);  // Terminate chunked response
+            return ret;
+        }
+
+        sent += to_send;
+
+        // Give other tasks a chance to run
+        if (sent < total_size) {
+            vTaskDelay (1);  // 1 tick delay
+        }
+    }
+
+    // Send final chunk
+    return httpd_resp_send_chunk (req, NULL, 0);
+}
+
+/**
  * Serves dynamic file content based on the URI in the HTTP request.
  * @param req Pointer to the HTTP request.
  * @return ESP_OK if the file is found and sent, ESP_FAIL otherwise.
@@ -155,22 +189,29 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
     if (!found_file)
         return ESP_FAIL;
 
+    // Set headers
     httpd_resp_set_type (req, asset_ptr->asset_type);
 
+    // Add cache headers
     char cache_header[64];
     if (asset_ptr->cache_time > 0)
         snprintf (cache_header, sizeof (cache_header), "max-age=%ld", asset_ptr->cache_time);
-    else                                                                     // cache forever
-        snprintf (cache_header, sizeof (cache_header), "max-age=31536000");  // 1 year
+    else
+        snprintf (cache_header, sizeof (cache_header), "max-age=31536000");  // 1 year (cache forever)
     httpd_resp_set_hdr (req, "Cache-Control", cache_header);
-    httpd_resp_set_hdr (req, "Connection", "close");
 
-    httpd_resp_send (
-        req,
-        (const char *)asset_ptr->asset_start,
-        (const char *)asset_ptr->asset_end - (const char *)asset_ptr->asset_start - 1);  // -1 to exclude the NULL terminator
-
-    return ESP_OK;
+    // Use chunked transfer for large files
+    size_t file_size = asset_ptr->asset_end - asset_ptr->asset_start - 1;
+    if (file_size > 4096) {  // Chunk files larger than 4KB
+        ESP_LOGI (TAG8, "sending chunked asset");
+        return send_file_chunked (req,
+                                  asset_ptr->asset_start,
+                                  asset_ptr->asset_end);
+    }
+    else {  // Small files can be sent in one go
+        ESP_LOGI (TAG8, "sending bulk (unchunked) asset");
+        return httpd_resp_send (req, (const char *)asset_ptr->asset_start, file_size);
+    }
 }
 
 /**
@@ -179,7 +220,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
  * @return ESP_OK on successful handling, ESP_FAIL on error or if no handler is found.
  */
 static esp_err_t my_http_request_handler (httpd_req_t * req) {
-    ESP_LOGI (TAG8, "trace: %s() with URI: %s", __func__, req->uri);
+    ESP_LOGI (TAG8, "Request: %s from %s sesion", req->uri, req->sess_ctx ? "existing" : "new");
     const char * requested_uri = req->uri;
 
     // 1. Check for REST API calls
@@ -214,15 +255,19 @@ static bool custom_uri_matcher (const char * _uri1, const char * _uri2, unsigned
 void start_webserver () {
     ESP_LOGV (TAG8, "trace: %s", __func__);
 
-    httpd_config_t config    = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers  = 6;
-    config.uri_match_fn      = custom_uri_matcher;
-    config.keep_alive_enable = false;
-    config.lru_purge_enable  = true;
-    config.max_open_sockets  = 7;  // Increase from default of 4
-    config.recv_wait_timeout = 5;  // Timeout in seconds for receiving data
-    config.send_wait_timeout = 5;  // Timeout in seconds for sending data
-
+    httpd_config_t config      = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers    = 6;
+    config.uri_match_fn        = custom_uri_matcher;
+    config.keep_alive_enable   = false;
+    config.lru_purge_enable    = true;
+    config.max_open_sockets    = 7;     // Increase from default of 4
+    config.recv_wait_timeout   = 30;    // seconds
+    config.send_wait_timeout   = 30;    // seconds
+    config.stack_size          = 8192;  // bytes
+    config.keep_alive_enable   = true;
+    config.keep_alive_idle     = 5;  // 5 seconds
+    config.keep_alive_interval = 5;  // 5 seconds
+    config.keep_alive_count    = 3;  // 3 probes
 
     httpd_handle_t server = NULL;
     if (httpd_start (&server, &config) != ESP_OK)
