@@ -10,6 +10,7 @@
 
 #include <driver/gpio.h>
 #include <driver/uart.h>
+#include <esp_task_wdt.h>
 #include <esp_timer.h>
 #include <math.h>
 #include <memory>
@@ -139,13 +140,18 @@ static void sendFT8Tone (long prior_frequency, long frequency, TickType_t * last
 static void xmit_ft8_task (void * pvParameter) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
+    // Register with watchdog timer
+    ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
+
     if (ft8TaskInProgress) {
         ESP_LOGE (TAG8, "%s called while another FT8 task is in progress.", __func__);
+        esp_task_wdt_delete (NULL);  // Unregister before deletion
         vTaskDelete (NULL);
         return;
     }
     if (ft8ConfigInfo == NULL) {
         ESP_LOGE (TAG8, "%s called with ft8ConfigInfo == NULL", __func__);
+        esp_task_wdt_delete (NULL);  // Unregister before deletion
         vTaskDelete (NULL);
         return;
     }
@@ -179,6 +185,11 @@ static void xmit_ft8_task (void * pvParameter) {
         // Now tell the radio to play the array of 79 tones
         // Note that the Elecraft KX2/KX3 radios do not allow fractional Hz, so we round to the nearest Hz.
         for (int j = 0; j < FT8_NN; ++j) {
+            // Reset watchdog during long operation
+            if (j % 10 == 0) {
+                ESP_ERROR_CHECK (esp_task_wdt_reset());
+            }
+
             long next_frequency = info->baseFreq + (long)round (info->tones[j] * 6.25);
 
             sendFT8Tone (prior_frequency,
@@ -205,6 +216,7 @@ static void xmit_ft8_task (void * pvParameter) {
     // Note that the cleanup will happen in the watchdog 'cleanup_ft8_task' function
     ft8TaskInProgress = false;
     ESP_LOGI (TAG8, "--ft8 transmission completed.");
+    esp_task_wdt_delete (NULL);  // Unregister before deletion
     vTaskDelete (NULL);
 }
 
@@ -219,7 +231,11 @@ static void xmit_ft8_task (void * pvParameter) {
 static void cleanup_ft8_task (void * pvParameter) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
+    // Register with watchdog timer
+    ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
+
     while (esp_timer_get_time() < CancelRadioFT8ModeTime || ft8TaskInProgress) {
+        ESP_ERROR_CHECK (esp_task_wdt_reset());  // Reset watchdog during wait
         vTaskDelay (pdMS_TO_TICKS (250));
     }
 
@@ -229,6 +245,7 @@ static void cleanup_ft8_task (void * pvParameter) {
         // This should never happen, but just in case...
         ESP_LOGE (TAG8, "cleanup_ft8_task called with ft8ConfigInfo == NULL");
         CommandInProgress = false;
+        esp_task_wdt_delete (NULL);  // Unregister before deletion
         vTaskDelete (NULL);
         return;
     }
@@ -247,6 +264,7 @@ static void cleanup_ft8_task (void * pvParameter) {
 
     CommandInProgress = false;
     ESP_LOGI (TAG8, "cleanup_ft8_task() completed.");
+    esp_task_wdt_delete (NULL);  // Unregister before deletion
     vTaskDelete (NULL);
 }
 
@@ -318,15 +336,13 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
 
     // Reseting the system clock to the time received from the phone can cause the
     // inactivity idle watchdog to trigger (which would put the device to sleep),
-    // so we need to stop the watchdog, then set the system clock, then restart the watchdog.
+    // so we need to reset the activity timer after changing the system clock.
 
-    // Shut down the inactivity watchdog timer task
-    vTaskDelete (xInactivityWatchdogHandle);
     // Set the system's clock to the time received from the cell phone
     settimeofday (&nowTimeUTC, NULL);
-    // Restart the inactivity watchdog timer task noting the current activity time first.
-    time (&LastUserActivityUnixTime);
-    xTaskCreate (&idle_status_task, "sleep_status_task", 2048, NULL, SC_TASK_PRIORITY_IDLE, &xInactivityWatchdogHandle);
+
+    // Reset the activity timer to prevent idle watchdog from triggering
+    resetActivityTimer();
 
     // First, pack the text data into an FT8 binary message
     uint8_t packed[FTX_LDPC_K_BYTES];

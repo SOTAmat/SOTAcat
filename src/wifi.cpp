@@ -25,21 +25,24 @@
 #include "lwip/sockets.h"
 #include "lwip/tcp.h"
 
+// Add watchdog timer header
+#include "esp_task_wdt.h"
+#include <atomic>
+
 static const char * TAG8 = "sc:wifi....";
 
-// Shared variables accessed from multiple contexts
-static volatile bool s_sta_connected       = false;
-static volatile bool s_ap_client_connected = false;
-static volatile bool wifi_connected        = false;
+// Shared variables accessed from multiple contexts - now using atomic for thread safety
+static std::atomic<bool> s_sta_connected{false};
+static std::atomic<bool> s_ap_client_connected{false};
+static std::atomic<bool> wifi_connected{false};
 
-static bool          s_wifi_sta_started = false;
-static bool          s_wifi_ap_started  = false;
-static bool          s_dhcp_configured  = false;
-static int           retry_count        = 0;
-static esp_netif_t * sta_netif;
-static esp_netif_t * ap_netif;
-// Add this line:
-static bool mdns_started = false;
+static bool              s_wifi_sta_started = false;
+static bool              s_wifi_ap_started  = false;
+static bool              s_dhcp_configured  = false;
+static int               retry_count        = 0;
+static esp_netif_t *     sta_netif;
+static esp_netif_t *     ap_netif;
+static std::atomic<bool> mdns_started{false};
 
 // Add these at the top of wifi.cpp
 #define WIFI_CONNECT_TIMEOUT_MS          5000
@@ -62,21 +65,21 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
         case WIFI_EVENT_STA_STOP:
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_STOP");
             s_wifi_sta_started = false;
-            wifi_connected     = false;
+            wifi_connected.store (false);
             break;
         case WIFI_EVENT_STA_CONNECTED:
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_CONNECTED");
-            s_sta_connected = true;
-            wifi_connected  = true;
+            s_sta_connected.store (true);
+            wifi_connected.store (true);
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
             ESP_LOGI (TAG8, "WIFI_EVENT_STA_DISCONNECTED");
-            s_sta_connected = false;
-            wifi_connected  = s_ap_client_connected;
+            s_sta_connected.store (false);
+            wifi_connected.store (s_ap_client_connected.load());
 
-            if (!s_sta_connected && !s_ap_client_connected && mdns_started) {
+            if (!s_sta_connected.load() && !s_ap_client_connected.load() && mdns_started.load()) {
                 mdns_free();
-                mdns_started = false;
+                mdns_started.store (false);
                 ESP_LOGI (TAG8, "mDNS stopped due to all connections lost");
             }
             break;
@@ -93,30 +96,19 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
         case WIFI_EVENT_AP_STACONNECTED: {
             wifi_event_ap_staconnected_t * event = (wifi_event_ap_staconnected_t *)event_data;
             ESP_LOGI (TAG8, "Station " MACSTR " connected, aid=%d", MAC2STR (event->mac), event->aid);
-            s_ap_client_connected = true;
-            wifi_connected        = true;
+            s_ap_client_connected.store (true);
+            wifi_connected.store (true);
 
             // Start mDNS if not already running
-            if (!mdns_started) {
+            if (!mdns_started.load()) {
                 if (start_mdns_service()) {
                     ESP_LOGI (TAG8, "mDNS started after AP client connection");
                 }
             }
 
-            // Check current settings before reapplying AP settings
-            esp_netif_ip_info_t current_ip_info;
-            esp_netif_get_ip_info (ap_netif, &current_ip_info);
-
-            esp_netif_ip_info_t desired_ip_info;
-            IP4_ADDR (&desired_ip_info.ip, 192, 168, 4, 1);
-            IP4_ADDR (&desired_ip_info.gw, 0, 0, 0, 0);  // Non-routable gateway
-            IP4_ADDR (&desired_ip_info.netmask, 255, 255, 255, 0);
+            // IMPORTANT: Don't touch the DHCP server after initial configuration
+            // Just mark it as configured
             s_dhcp_configured = true;
-
-            if (memcmp (&current_ip_info, &desired_ip_info, sizeof (esp_netif_ip_info_t)) != 0) {
-                // Only reapply if the configuration has changed
-                esp_netif_set_ip_info (ap_netif, &desired_ip_info);
-            }
             break;
         }
 
@@ -128,9 +120,9 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             wifi_sta_list_t sta_list;
             esp_err_t       err = esp_wifi_ap_get_sta_list (&sta_list);
             if (err == ESP_OK && sta_list.num == 0) {
-                s_ap_client_connected = false;
-                wifi_connected        = s_sta_connected;
-                s_dhcp_configured     = false;
+                s_ap_client_connected.store (false);
+                wifi_connected.store (s_sta_connected.load());
+                // Don't clear s_dhcp_configured - leave DHCP server running
             }
             break;
         }
@@ -143,9 +135,9 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
         case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t * event = (ip_event_got_ip_t *)event_data;
             ESP_LOGI (TAG8, "Got IP: " IPSTR, IP2STR (&event->ip_info.ip));
-            wifi_connected = true;
+            wifi_connected.store (true);
 
-            if (!mdns_started) {
+            if (!mdns_started.load()) {
                 if (start_mdns_service()) {
                     ESP_LOGI (TAG8, "mDNS started after IP acquisition");
                 }
@@ -154,7 +146,7 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
         }
         case IP_EVENT_STA_LOST_IP:
             ESP_LOGI (TAG8, "Lost IP address.");
-            wifi_connected = false;
+            wifi_connected.store (false);
             break;
         default:
             break;
@@ -195,15 +187,20 @@ static void wifi_init_softap () {
 
     ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_AP, &wifi_config));
 
+    // Configure DHCP server ONCE during initialization
     esp_netif_ip_info_t ip_info;
     IP4_ADDR (&ip_info.ip, 192, 168, 4, 1);
     IP4_ADDR (&ip_info.gw, 0, 0, 0, 0);  // Set gateway to 0.0.0.0 to indicate no internet route
     IP4_ADDR (&ip_info.netmask, 255, 255, 255, 0);
+
+    // Always stop DHCP server first - ESP-IDF starts it automatically when creating default AP netif
     ESP_ERROR_CHECK (esp_netif_dhcps_stop (ap_netif));
+
     ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
     ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
+    s_dhcp_configured = true;
 
-    ESP_LOGI (TAG8, "Soft AP setup complete. SSID:%s", g_ap_ssid);
+    ESP_LOGI (TAG8, "Soft AP setup complete. SSID:%s, IP:192.168.4.1, Gateway:0.0.0.0", g_ap_ssid);
 }
 
 static void wifi_init_sta (const char * ssid, const char * password) {
@@ -235,7 +232,7 @@ static void wifi_attenuate_power () {
      * | [68, 73]  | level3            | 17   dBm |
      * | [60, 67]  | level4            | 15   dBm |
      * | [52, 59]  | level5            | 13   dBm |
-     * | [44, 51]  | level5 -  2.0 dBm | 11   dBm |  <-- we'll use this
+     * | [44, 51]  | level5 -  2.0 dBm | 11   dBm |  <-- currently using this
      * | [34, 43]  | level5 -  4.5 dBm |  8.5 dBm |
      * | [28, 33]  | level5 -  6.0 dBm |  7   dBm |
      * | [20, 27]  | level5 -  8.0 dBm |  5   dBm |
@@ -247,8 +244,9 @@ static void wifi_attenuate_power () {
     ESP_ERROR_CHECK (esp_wifi_get_max_tx_power (&curr_wifi_power));
     ESP_LOGI (TAG8, "default max tx power: %d", curr_wifi_power);
 
-    const int8_t MAX_TX_PWR = 44;  // level 5 - 2dBm = 11dBm
-    ESP_LOGI (TAG8, "setting wifi max power to %d", MAX_TX_PWR);
+    // Slightly increase power to 13dBm for more reliable initial connections
+    const int8_t MAX_TX_PWR = 52;  // level 5 = 13dBm
+    ESP_LOGI (TAG8, "setting wifi max power to %d (13dBm)", MAX_TX_PWR);
     ESP_ERROR_CHECK (esp_wifi_set_max_tx_power (MAX_TX_PWR));
 
     ESP_ERROR_CHECK (esp_wifi_get_max_tx_power (&curr_wifi_power));
@@ -259,10 +257,10 @@ static void wifi_attenuate_power () {
 void wifi_init () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    s_sta_connected       = false;
-    s_ap_client_connected = false;
-    wifi_connected        = false;
-    s_wifi_ap_started     = false;
+    s_sta_connected.store (false);
+    s_ap_client_connected.store (false);
+    wifi_connected.store (false);
+    s_wifi_ap_started = false;
 
     ESP_ERROR_CHECK (esp_netif_init());
     ESP_ERROR_CHECK (esp_event_loop_create_default());
@@ -291,6 +289,11 @@ void wifi_init () {
     ap_config.ap.max_connection  = 4;
     ap_config.ap.beacon_interval = 100;
     ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_AP, &ap_config));
+
+    // Start WiFi before configuring the soft AP
+    ESP_ERROR_CHECK (esp_wifi_start());
+
+    // Now configure the soft AP after WiFi has started
     wifi_init_softap();
 
     // Disconnect if we're connected to any AP
@@ -298,8 +301,6 @@ void wifi_init () {
     if (err != ESP_OK && err != ESP_ERR_WIFI_NOT_STARTED) {
         ESP_LOGE (TAG8, "Error disconnecting Wi-Fi: %s", esp_err_to_name (err));
     }
-
-    ESP_ERROR_CHECK (esp_wifi_start());
 
     wifi_attenuate_power();
 
@@ -368,21 +369,26 @@ bool start_mdns_service () {
     }
 
     ESP_LOGI (TAG8, "mDNS service started successfully");
-    mdns_started = true;
+    mdns_started.store (true);
     return true;
 }
 
 void wifi_task (void * pvParameters) {
     TaskNotifyConfig * config = (TaskNotifyConfig *)pvParameters;
 
+    // Register this task with the watchdog timer
+    ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
+
     wifi_init();
 
     const int  CONNECT_ATTEMPT_TIME_MS      = 5000;   // 5 seconds timeout
     const int  CONNECTION_CHECK_INTERVAL_MS = 10000;  // Check connection every 10 seconds
+    const int  AP_CLIENT_SCAN_DELAY_MS      = 30000;  // Wait 30s after AP client disconnect before scanning
     int        current_ssid                 = 1;
     TickType_t attempt_start_time           = -CONNECT_ATTEMPT_TIME_MS;
     TickType_t last_connection_check_time   = 0;
-    bool       mdns_started                 = false;
+    TickType_t last_ap_disconnect_time      = 0;
+    bool       local_mdns_started           = false;  // Renamed to avoid shadowing global variable
     bool       previously_connected         = false;
     bool       sta_mode_aborted             = false;
 
@@ -393,17 +399,28 @@ void wifi_task (void * pvParameters) {
     } wifi_state = NO_CONNECTION;
 
     while (true) {
+        // Reset the watchdog timer at the beginning of each loop iteration
+        ESP_ERROR_CHECK (esp_task_wdt_reset());
+
         TickType_t current_time = xTaskGetTickCount();
 
         switch (wifi_state) {
         case NO_CONNECTION:
-            if (wifi_connected) {
+            if (wifi_connected.load()) {
                 wifi_state = CONNECTED;
                 break;
             }
 
             // Don't attempt STA connections if AP client is connected
-            if (s_ap_client_connected) {
+            // or if we recently had an AP client (grace period)
+            if (s_ap_client_connected.load()) {
+                vTaskDelay (pdMS_TO_TICKS (1000));
+                break;
+            }
+
+            // Add grace period after AP client disconnects before attempting STA scan
+            if (last_ap_disconnect_time > 0 &&
+                (current_time - last_ap_disconnect_time) * portTICK_PERIOD_MS < AP_CLIENT_SCAN_DELAY_MS) {
                 vTaskDelay (pdMS_TO_TICKS (1000));
                 break;
             }
@@ -414,9 +431,9 @@ void wifi_task (void * pvParameters) {
                 break;
             }
 
-            if (mdns_started) {
+            if (local_mdns_started) {
                 mdns_free();
-                mdns_started = false;
+                local_mdns_started = false;
                 ESP_LOGI (TAG8, "mDNS stopped due to lost connection");
             }
 
@@ -472,7 +489,7 @@ void wifi_task (void * pvParameters) {
             break;
 
         case CONNECTING:
-            if (wifi_connected) {
+            if (wifi_connected.load()) {
                 wifi_state = CONNECTED;
                 ESP_LOGI (TAG8, "Connection established");
             }
@@ -483,10 +500,15 @@ void wifi_task (void * pvParameters) {
             break;
 
         case CONNECTED:
-            if (!wifi_connected) {
+            if (!wifi_connected.load()) {
                 wifi_state = NO_CONNECTION;
                 ESP_LOGI (TAG8, "All connections lost");
                 attempt_start_time = current_time;  // Reset the timer for immediate attempt
+
+                // Track when AP client disconnected
+                if (!s_ap_client_connected.load() && previously_connected) {
+                    last_ap_disconnect_time = current_time;
+                }
                 break;
             }
 
@@ -495,7 +517,7 @@ void wifi_task (void * pvParameters) {
                 last_connection_check_time = current_time;
 
                 // Only check STA connection if we're not in AP mode with clients
-                if (s_sta_connected && !s_ap_client_connected) {
+                if (s_sta_connected.load() && !s_ap_client_connected.load()) {
                     wifi_ap_record_t ap_info;
                     esp_err_t        err = esp_wifi_sta_get_ap_info (&ap_info);
 
@@ -506,7 +528,7 @@ void wifi_task (void * pvParameters) {
                         ESP_LOGW (TAG8, "Failed to get AP info, error: %s", esp_err_to_name (err));
 
                         // Only attempt reconnection if we're not in AP mode with clients
-                        if (!s_ap_client_connected) {
+                        if (!s_ap_client_connected.load()) {
                             err = esp_wifi_connect();
                             if (err != ESP_OK) {
                                 ESP_LOGE (TAG8, "Failed to initiate reconnection: %s", esp_err_to_name (err));
@@ -521,12 +543,18 @@ void wifi_task (void * pvParameters) {
                 }
             }
 
-            if (!mdns_started) {
+            if (!local_mdns_started) {
                 // Start mDNS in either AP or STA mode when connected
                 static int mdns_retry_count = 0;
+
+                // Add delay between retries to prevent stack buildup
+                if (mdns_retry_count > 0) {
+                    vTaskDelay (pdMS_TO_TICKS (5000));
+                }
+
                 if (start_mdns_service()) {
-                    mdns_started     = true;
-                    mdns_retry_count = 0;
+                    local_mdns_started = true;
+                    mdns_retry_count   = 0;
                     ESP_LOGI (TAG8, "mDNS service started");
                 }
                 else {
@@ -537,7 +565,7 @@ void wifi_task (void * pvParameters) {
                         wifi_state       = NO_CONNECTION;  // Force reconnection
                         mdns_retry_count = 0;
                     }
-                    vTaskDelay (pdMS_TO_TICKS (5000));
+                    // Delay moved above to prevent recursive stack buildup
                 }
             }
             else {
@@ -551,7 +579,7 @@ void wifi_task (void * pvParameters) {
                     if (err != ESP_OK) {
                         ESP_LOGW (TAG8, "mDNS service check failed, restarting service");
                         mdns_free();
-                        mdns_started = false;
+                        local_mdns_started = false;
                     }
                 }
             }
@@ -562,38 +590,31 @@ void wifi_task (void * pvParameters) {
                 ESP_LOGI (TAG8, "Initial connection established, setup task notified");
             }
 
-            // Re-add the DHCP server reconfiguration logic
-            if (s_ap_client_connected && !s_dhcp_configured) {
-                esp_netif_ip_info_t ip_info;
-                IP4_ADDR (&ip_info.ip, 192, 168, 4, 1);
-                IP4_ADDR (&ip_info.gw, 0, 0, 0, 0);  // Set gateway to 0.0.0.0 to indicate no internet route
-                IP4_ADDR (&ip_info.netmask, 255, 255, 255, 0);
-                ESP_ERROR_CHECK (esp_netif_dhcps_stop (ap_netif));
-                ESP_ERROR_CHECK (esp_netif_set_ip_info (ap_netif, &ip_info));
-                ESP_ERROR_CHECK (esp_netif_dhcps_start (ap_netif));
-                s_dhcp_configured = true;
-                ESP_LOGI (TAG8, "AP mode: DHCP server reconfigured with non-routable gateway");
-            }
-
             // Configure TCP keepalive
-            if (s_sta_connected) {
-                int sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
-                if (sock >= 0) {
-                    int keepalive = 1;
-                    int keepidle  = 5;  // Idle time before starting keepalive (seconds)
-                    int keepintvl = 3;  // Interval between keepalive probes (seconds)
-                    int keepcnt   = 3;  // Number of keepalive probes before disconnect
+            if (s_sta_connected.load()) {
+                static uint32_t last_keepalive_config = 0;
+                uint32_t        now                   = xTaskGetTickCount();
+                // Only configure keepalive once per connection
+                if ((now - last_keepalive_config) * portTICK_PERIOD_MS >= 60000) {  // Every 60 seconds
+                    last_keepalive_config = now;
+                    int sock              = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                    if (sock >= 0) {
+                        int keepalive = 1;
+                        int keepidle  = 5;  // Idle time before starting keepalive (seconds)
+                        int keepintvl = 3;  // Interval between keepalive probes (seconds)
+                        int keepcnt   = 3;  // Number of keepalive probes before disconnect
 
-                    setsockopt (sock, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof (keepalive));
-                    setsockopt (sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof (keepidle));
-                    setsockopt (sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof (keepintvl));
-                    setsockopt (sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof (keepcnt));
+                        setsockopt (sock, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof (keepalive));
+                        setsockopt (sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof (keepidle));
+                        setsockopt (sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof (keepintvl));
+                        setsockopt (sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof (keepcnt));
 
-                    close (sock);
-                    ESP_LOGV (TAG8, "TCP keepalive configured");
-                }
-                else {
-                    ESP_LOGW (TAG8, "Failed to create socket for keepalive configuration");
+                        close (sock);
+                        ESP_LOGV (TAG8, "TCP keepalive configured");
+                    }
+                    else {
+                        ESP_LOGW (TAG8, "Failed to create socket for keepalive configuration");
+                    }
                 }
             }
 
@@ -607,9 +628,9 @@ void wifi_task (void * pvParameters) {
 void start_wifi_task (TaskNotifyConfig * config) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    xTaskCreate (&wifi_task, "wifi_task", 4096, (void *)config, SC_TASK_PRIORITY_NORMAL, NULL);
+    xTaskCreate (&wifi_task, "wifi_task", 6144, (void *)config, SC_TASK_PRIORITY_NORMAL, NULL);
 }
 
 bool is_wifi_connected () {
-    return wifi_connected;
+    return wifi_connected.load();
 }

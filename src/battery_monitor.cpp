@@ -3,6 +3,7 @@
 #include "hardware_specific.h"
 #include "max17260.h"
 #include "settings.h"
+#include <esp_task_wdt.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:batmon..";
@@ -115,6 +116,9 @@ static void i2c_teardown (void) {
 }
 
 void battery_monitor_task (void * _pvParameter) {
+    // Register with watchdog timer
+    ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
+
     Max17620 dig_bat_mon;
 
     if (HW_TYPE == SOTAcat_HW_Type::K5EM_1) {
@@ -144,11 +148,16 @@ void battery_monitor_task (void * _pvParameter) {
 
     uint32_t cnt = 0;
     while (true) {
+        // Reset watchdog timer
+        ESP_ERROR_CHECK (esp_task_wdt_reset());
+
         vbat_analog = get_analog_battery_voltage();
         vpct_analog = get_analog_battery_percentage (vbat_analog);
         if (max17260_detected) {
             max17260_info_t bat_info;
             dig_bat_mon.poll (&bat_info);
+            // Reset watchdog again after I2C operations
+            ESP_ERROR_CHECK (esp_task_wdt_reset());
             vbat_digital = bat_info.voltage_average;
             vpct_digital = bat_info.reported_state_of_charge;
             if (!(cnt % REPORTING_TIME_SEC)) {

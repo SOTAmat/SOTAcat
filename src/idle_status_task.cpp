@@ -13,9 +13,20 @@
 #include "max17260.h"
 #include "smbus.h"
 #include <driver/i2c.h>
+#include <esp_task_wdt.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:idletask";
+
+/**
+ * Resets the last user activity time to the current time.
+ * This is used when the system time is changed (e.g., during FT8 preparation)
+ * to prevent the idle watchdog from triggering incorrectly.
+ */
+void resetActivityTimer () {
+    time (&LastUserActivityUnixTime);
+    ESP_LOGI (TAG8, "Activity timer reset");
+}
 
 /**
  * Task that continuously monitors and manages the system status based on battery level, heap usage,
@@ -26,7 +37,13 @@ static const char * TAG8 = "sc:idletask";
  * @param _pvParameter Unused parameter
  */
 void idle_status_task (void * _pvParameter) {
+    // Register with watchdog timer
+    ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
+
     while (1) {
+        // Reset watchdog timer
+        ESP_ERROR_CHECK (esp_task_wdt_reset());
+
         size_t _free  = 0;
         size_t _alloc = 0;
 
