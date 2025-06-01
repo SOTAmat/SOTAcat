@@ -10,7 +10,15 @@ class Lockable {
     char const *      m_name;
 
   public:
-    Lockable (char const * name);
+    explicit Lockable (char const * name);
+    ~Lockable();
+
+    // Disable all copying and moving
+    Lockable (const Lockable &)             = delete;
+    Lockable & operator= (const Lockable &) = delete;
+    Lockable (Lockable &&)                  = delete;
+    Lockable & operator= (Lockable &&)      = delete;
+
     void lock ();
     void unlock ();
 

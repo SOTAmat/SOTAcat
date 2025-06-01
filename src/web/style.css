@@ -1284,3 +1284,42 @@ hr {
     justify-content: center;
   }
 }
+
+/* ATU Tune Button */
+.atu-section {
+  text-align: center;
+  margin-top: var(--spacing-large);
+}
+
+.atu-btn {
+  font-size: 18px;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: var(--border-radius-pill);
+  background-color: var(--color-warning);
+  color: var(--text-primary);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  box-shadow: var(--box-shadow-elevated);
+  min-width: 100px;
+  /* Touch-friendly improvements */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.atu-btn:hover {
+  background-color: #fff3cd;
+  transform: translateY(-1px);
+}
+
+.atu-btn:active {
+  background-color: #ffeaa7;
+  transform: translateY(1px);
+}
