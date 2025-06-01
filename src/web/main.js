@@ -565,13 +565,6 @@ async function refreshSotaPotaJson(force) {
         
         // Always fetch data when switching to SOTA tab or when forced
         if (force || gLatestSotaJson == null || shouldCheck) {
-            // Additional rate limit check for forced refreshes
-            if (force && timeSinceLastFetch < SOTA_MIN_FETCH_INTERVAL_MS) {
-                const remainingSeconds = Math.ceil((SOTA_MIN_FETCH_INTERVAL_MS - timeSinceLastFetch) / 1000);
-                alert(`Please wait ${remainingSeconds} more seconds before refreshing. The SOTA API limits requests to once per minute.`);
-                return;
-            }
-            
             const limit = document.getElementById("historyDurationSelector").value;
             try {
                 console.log('Fetching SOTA data with limit:', limit);
