@@ -207,18 +207,28 @@ static void wifi_init_softap () {
 }
 
 static void wifi_init_sta (const char * ssid, const char * password) {
-    ESP_LOGI (TAG8, "Attempting SSID:%s", ssid);
+    ESP_LOGI (TAG8, "STA init for SSID:%s", ssid);
     wifi_config_t wifi_config = {};
 
     strlcpy ((char *)wifi_config.sta.ssid, ssid, sizeof (wifi_config.sta.ssid));
     strlcpy ((char *)wifi_config.sta.password, password, sizeof (wifi_config.sta.password));
-    wifi_config.sta.scan_method        = WIFI_FAST_SCAN;
+
+    // Enhanced settings for Android hotspot compatibility
+    wifi_config.sta.scan_method        = WIFI_ALL_CHANNEL_SCAN;  // More thorough scanning
     wifi_config.sta.sort_method        = WIFI_CONNECT_AP_BY_SIGNAL;
     wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    wifi_config.sta.threshold.rssi     = -127;   // Accept weaker signals
+    wifi_config.sta.pmf_cfg.capable    = true;   // Can handle 802.11w security,
+    wifi_config.sta.pmf_cfg.required   = false;  // ... but it's not necessary
+    wifi_config.sta.bssid_set          = false;  // Don't lock to specific BSSID
+    wifi_config.sta.channel            = 0;      // Auto-select channel
 
     ESP_ERROR_CHECK (esp_wifi_set_config (WIFI_IF_STA, &wifi_config));
 
-    ESP_LOGI (TAG8, "Station configuration set to access AP SSID:%s", ssid);
+    // Set aggressive connection parameters for mobile hotspots
+    esp_wifi_set_inactive_time (WIFI_IF_STA, 60);  // 60 seconds before considering AP inactive
+
+    ESP_LOGI (TAG8, "STA initialized for AP SSID:%s", ssid);
 }
 
 // Function to reduce Wi-Fi transmit power
@@ -247,7 +257,7 @@ static void wifi_attenuate_power () {
     ESP_ERROR_CHECK (esp_wifi_get_max_tx_power (&curr_wifi_power));
     ESP_LOGI (TAG8, "default max tx power: %d", curr_wifi_power);
 
-    const int8_t MAX_TX_PWR = 44;  // level 5 - 2dBm = 11dBm
+    const int8_t MAX_TX_PWR = 52;  // level 5 = 13dBm
     ESP_LOGI (TAG8, "setting wifi max power to %d", MAX_TX_PWR);
     ESP_ERROR_CHECK (esp_wifi_set_max_tx_power (MAX_TX_PWR));
 
@@ -315,22 +325,30 @@ bool start_mdns_service () {
     // Stop any existing mDNS service first
     mdns_free();
 
-    ESP_LOGI (TAG8, "starting mdns service");
+    ESP_LOGI (TAG8, "starting mDNS service");
     esp_err_t err = mdns_init();
     if (err) {
         ESP_LOGE (TAG8, "mDNS Init failed: %d", err);
         return false;
     }
 
-    // Set the hostname
-    err = mdns_hostname_set ("sotacat");
+    // Set the hostname with retry logic
+    int hostname_retries = 3;
+    while (hostname_retries-- > 0) {
+        err = mdns_hostname_set ("sotacat");
+        if (err == ESP_OK)
+            break;
+        ESP_LOGW (TAG8, "mDNS hostname set attempt failed, retrying...");
+        vTaskDelay (pdMS_TO_TICKS (1000));
+    }
+
     if (err != ESP_OK) {
-        ESP_LOGE (TAG8, "mDNS hostname set failed: %s", esp_err_to_name (err));
+        ESP_LOGE (TAG8, "mDNS hostname set failed after retries: %s", esp_err_to_name (err));
         mdns_free();
         return false;
     }
 
-    // Set the default instance
+    // Set the default instance with timeout
     err = mdns_instance_name_set (MDNS_SERVICE_NAME);
     if (err != ESP_OK) {
         ESP_LOGE (TAG8, "mDNS instance name set failed: %s", esp_err_to_name (err));
@@ -338,10 +356,12 @@ bool start_mdns_service () {
         return false;
     }
 
-    // Add HTTP service with TXT records
+    // Add HTTP service with enhanced TXT records for mobile discovery
     mdns_txt_item_t http_txt[] = {
-        {"path", "/"   },
-        {"type", "http"}
+        {"path",   "/"      },
+        {"type",   "http"   },
+        {"mobile", "true"   },
+        {"device", "sotacat"}
     };
     err = mdns_service_add (NULL, "_http", "_tcp", 80, http_txt, sizeof (http_txt) / sizeof (http_txt[0]));
     if (err != ESP_OK) {
