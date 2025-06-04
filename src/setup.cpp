@@ -11,6 +11,7 @@
 #include "wifi.h"
 
 #include <driver/gpio.h>
+#include <esp_task_wdt.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -41,6 +42,10 @@ void startup_watchdog_timer (void * _) {
 // ====================================================================================================
 void radio_connection_task (void * pvParameters) {
     TaskNotifyConfig * config = (TaskNotifyConfig *)pvParameters;
+
+    // Register with watchdog timer
+    ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
+
     ESP_LOGI (TAG8, "Attempting to connect to radio...");
     // kxRadio is statically initialized as a singleton, but we
     // do need to connect SOTACAT to its ACC port
@@ -50,6 +55,9 @@ void radio_connection_task (void * pvParameters) {
     }
     ESP_LOGI (TAG8, "Radio connected, exiting search task.");
     xTaskNotify (config->setup_task_handle, config->notification_bit, eSetBits);
+
+    // Unregister from watchdog before deletion
+    esp_task_wdt_delete (NULL);
     vTaskDelete (NULL);
 }
 
