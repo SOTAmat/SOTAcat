@@ -362,17 +362,6 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
 
     ft8_encode (packed, tones);
 
-    // char *tonesString = malloc(FT8_NN * 8 + 1);
-    // tonesString[0] = '\0';
-    // for (int i = 0; i < FT8_NN; ++i)
-    // {
-    //     char toneString[8];
-    //     snprintf(toneString, sizeof(toneString), "%d,", tones[i]);
-    //     strcat(tonesString, toneString);
-    // }
-    // ESP_LOGI(TAG8, "FT8 Tones: %s", tonesString);
-    // free(tonesString);
-
     // this block encapsulates our exclusive access to the radio port
     {
         const std::lock_guard<Lockable> lock (kxRadio);
