@@ -179,17 +179,15 @@ static void xmit_ft8_task (void * pvParameter) {
         struct timeval startTime;
         gettimeofday (&startTime, NULL);  // Capture the current time to calculate the total time
 
+        // Reset watchdog before starting time-critical FT8 transmission
+        ESP_ERROR_CHECK (esp_task_wdt_reset());
+
         uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));  // Tell the radio to turn on the CW tone
         TickType_t lastWakeTime = xTaskGetTickCount();             // Initialize lastWakeTime
 
         // Now tell the radio to play the array of 79 tones
         // Note that the Elecraft KX2/KX3 radios do not allow fractional Hz, so we round to the nearest Hz.
         for (int j = 0; j < FT8_NN; ++j) {
-            // Reset watchdog during long operation
-            if (j % 10 == 0) {
-                ESP_ERROR_CHECK (esp_task_wdt_reset());
-            }
-
             long next_frequency = info->baseFreq + (long)round (info->tones[j] * 6.25);
 
             sendFT8Tone (prior_frequency,
@@ -205,6 +203,9 @@ static void xmit_ft8_task (void * pvParameter) {
 
         // Tell the radio to turn off the CW tone
         uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));
+
+        // Reset watchdog after completing time-critical FT8 transmission
+        ESP_ERROR_CHECK (esp_task_wdt_reset());
 
         // Stop the timer and calculate the total time
         struct timeval endTime;
