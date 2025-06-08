@@ -254,7 +254,9 @@ function pota_loadHistoryDurationState() {
 function pota_saveAutoRefreshCheckboxState()
 {
     const checkbox = document.getElementById('autoRefreshSelector');
-    if (checkbox) localStorage.setItem('autoRefresh', checkbox.checked);
+    if (checkbox) {
+        syncAutoRefreshState(checkbox.checked);
+    }
 }
 
 function pota_changeAutoRefreshCheckboxState(autoRefresh) {
@@ -279,11 +281,17 @@ function pota_changeAutoRefreshCheckboxState(autoRefresh) {
 function pota_loadAutoRefreshCheckboxState()
 {
     const savedState = localStorage.getItem('autoRefresh');
-    if (savedState !== null) {
-        const checkbox = document.getElementById('autoRefreshSelector');
-        if (checkbox) {
-            checkbox.checked = (savedState === 'true');
-            pota_changeAutoRefreshCheckboxState(checkbox.checked);
+    const checkbox = document.getElementById('autoRefreshSelector');
+    
+    if (checkbox) {
+        // If there's a saved state, use it; otherwise default to true (matching HTML default)
+        const isChecked = savedState !== null ? (savedState === 'true') : true;
+        checkbox.checked = isChecked;
+        pota_changeAutoRefreshCheckboxState(isChecked);
+        
+        // If no saved state exists, save the default state
+        if (savedState === null) {
+            localStorage.setItem('autoRefresh', isChecked);
         }
     }
 }

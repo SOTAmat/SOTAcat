@@ -16,6 +16,22 @@ let gLocalhost = (window.location.hostname === 'localhost' ||
                   window.location.hostname === '127.0.0.1' ||
                   window.location.hostname === '[::1]'); // IPv6 loopback
 
+// ----------------------------------------------------------------------------
+// Auto-refresh synchronization between SOTA and POTA tabs
+// ----------------------------------------------------------------------------
+function syncAutoRefreshState(newState) {
+    // Save to localStorage
+    localStorage.setItem('autoRefresh', newState);
+    
+    // Find the checkbox in the current tab and sync its state
+    const checkbox = document.getElementById('autoRefreshSelector');
+    if (checkbox) {
+        checkbox.checked = newState;
+    }
+    
+    console.log(`Auto-refresh state synchronized: ${newState}`);
+}
+
 // Add rate limiting for SOTA API
 let gLastSotaFetchTime = 0;
 const SOTA_MIN_FETCH_INTERVAL_MS = 60 * 1000; // 1 minute

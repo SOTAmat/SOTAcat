@@ -157,8 +157,10 @@ function sota_loadHistoryDurationState() {
 
 function sota_saveAutoRefreshCheckboxState()
 {
-    const isChecked = document.getElementById('autoRefreshSelector').checked;
-    localStorage.setItem('autoRefresh', isChecked);
+    const checkbox = document.getElementById('autoRefreshSelector');
+    if (checkbox) {
+        syncAutoRefreshState(checkbox.checked);
+    }
 }
 
 function sota_changeAutoRefreshCheckboxState(autoRefresh) {
@@ -183,10 +185,18 @@ function sota_changeAutoRefreshCheckboxState(autoRefresh) {
 function sota_loadAutoRefreshCheckboxState()
 {
     const savedState = localStorage.getItem('autoRefresh');
-    // If there's a saved state, convert it to Boolean and set the checkbox
-    if (savedState !== null) {
-        document.getElementById('autoRefreshSelector').checked = (savedState === 'true');
-        sota_changeAutoRefreshCheckboxState(document.getElementById('autoRefreshSelector').checked);
+    const checkbox = document.getElementById('autoRefreshSelector');
+    
+    if (checkbox) {
+        // If there's a saved state, use it; otherwise default to true (matching HTML default)
+        const isChecked = savedState !== null ? (savedState === 'true') : true;
+        checkbox.checked = isChecked;
+        sota_changeAutoRefreshCheckboxState(isChecked);
+        
+        // If no saved state exists, save the default state
+        if (savedState === null) {
+            localStorage.setItem('autoRefresh', isChecked);
+        }
     }
 }
 
