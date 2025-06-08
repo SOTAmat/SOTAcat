@@ -660,11 +660,11 @@ table a:hover {
     box-shadow: var(--box-shadow);
 }
 
-.msg-section, .keyer-section, .power-section, .wifi-client {
-    background-color: var(--color-gray-100);
-    padding: var(--spacing-medium);
+.msg-section, .keyer-section, .wifi-client, .vfo-section  {
+    background-color: var(--color-gray-200);
+    padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-small) var(--spacing-medium);
     border-radius: var(--border-radius);
-    margin-bottom: var(--spacing-large);
+    margin-bottom: var(--spacing-medium);
     box-shadow: var(--box-shadow);
 }
 
@@ -783,12 +783,11 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
 }
 
 #xmitButton {
-    background-color: var(--bg-button);
-    width: 100%;
-    max-width: 200px;
-    padding: 10px;
-    margin: 0 auto;
-    display: block;
+    width: auto;
+    max-width: none;
+    padding: var(--spacing-small) var(--spacing-medium);
+    margin: 0 var(--spacing-small);
+    display: inline-block;
     font-weight: 600;
     font-size: 18px;
     letter-spacing: 1px;
@@ -1052,28 +1051,36 @@ hr {
 
 /* Small mobile devices */
 @media (max-width: 400px) {
-    .tabBar button {
-        padding: var(--spacing-small) 0;
-    }
-    
-    .tabIcons {
-        font-size: calc(var(--tab-icon-size) * 0.8);
-    }
-    
-    th, td {
-        padding: 8px 4px;
-        font-size: calc(var(--font-size-small) * 0.95);
-    }
+  .tabBar button {
+    padding: var(--spacing-small) 0;
+  }
+  
+  .tabIcons {
+    font-size: calc(var(--tab-icon-size) * 0.8);
+  }
+  
+  th, td {
+    padding: 8px 4px;
+    font-size: calc(var(--font-size-small) * 0.95);
+  }
+
+  .frequency-display-row {
+    gap: var(--spacing-xs);
+  }
+
+  .frequency-value {
+    font-size: 18px;
+    min-width: 90px;
+    letter-spacing: 0px;
+  }
+
+  .frequency-mode {
+    font-size: 14px;
+    min-width: 20px;
+  }
 }
 
 /* =========================== VFO Control Styles */
-.vfo-section {
-  background-color: var(--color-gray-100);
-  padding: var(--spacing-medium);
-  border-radius: var(--border-radius);
-  margin-bottom: var(--spacing-large);
-  box-shadow: var(--box-shadow);
-}
 
 .vfo-section h2 {
   font-size: 1.1em;
@@ -1085,43 +1092,55 @@ hr {
   border-radius: var(--border-radius);
 }
 
+/* Override for VFO section when using inline-header */
+.vfo-section .inline-header h2 {
+  margin: 0;
+  padding: 0;
+  background: none;
+  flex-grow: 0;
+  margin-right: var(--spacing-large);
+  font-size: 1.1em;
+  width: auto;
+}
+
 /* Frequency Display Section */
 .vfo-frequency-section {
   margin-bottom: var(--spacing-large);
 }
 
-.frequency-display {
+.frequency-display-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: var(--spacing-medium);
-  padding: var(--spacing-medium);
-  background-color: var(--color-black);
-  color: var(--color-cyan);
-  border-radius: var(--border-radius);
-  font-family: 'Courier New', monospace;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.frequency-label {
-  font-size: 16px;
-  margin-right: var(--spacing-medium);
-  color: var(--color-white);
+  flex-grow: 1;
+  gap: var(--spacing-medium);
 }
 
 .frequency-value {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: bold;
   letter-spacing: 1px;
-  margin-right: var(--spacing-small);
-  min-width: 140px;
-  text-align: center;
+  color: var(--color-cyan);
+  text-align: right;
   transition: background-color 0.3s ease;
+  flex-shrink: 1;
+  min-width: 120px;
+  font-family: 'Courier New', monospace;
 }
 
 .frequency-unit {
   font-size: 16px;
   color: var(--color-white);
+}
+
+.frequency-mode {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--color-cyan);
+  text-align: center;
+  flex-shrink: 0;
+  min-width: 30px;
+  font-family: 'Courier New', monospace;
 }
 
 /* Frequency Control Buttons */
@@ -1236,8 +1255,7 @@ hr {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-medium);
-  flex-wrap: wrap;
+  margin-bottom: var(--spacing-large);
 }
 
 .mode-label {
@@ -1246,24 +1264,12 @@ hr {
   color: var(--text-primary);
 }
 
-.mode-display {
-  background-color: var(--color-black);
-  color: var(--color-cyan);
-  padding: 8px 16px;
-  border-radius: var(--border-radius);
-  font-family: 'Courier New', monospace;
-  font-size: 18px;
-  font-weight: bold;
-  min-width: 60px;
-  text-align: center;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-  transition: background-color 0.3s ease;
-}
-
 .mode-buttons {
   display: flex;
   gap: var(--spacing-small);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
 }
 
 .mode-btn {
@@ -1304,20 +1310,20 @@ hr {
 
 /* Responsive adjustments for VFO controls */
 @media (max-width: 600px) {
-  .frequency-display {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .frequency-label {
-    margin-right: 0;
-    margin-bottom: var(--spacing-small);
+  .frequency-display-row {
+    gap: var(--spacing-small);
+    justify-content: center;
   }
 
   .frequency-value {
-    font-size: 20px;
-    margin-right: 0;
-    margin-bottom: var(--spacing-small);
+    font-size: 22px;
+    min-width: 100px;
+    letter-spacing: 0.5px;
+  }
+
+  .frequency-mode {
+    font-size: 16px;
+    min-width: 25px;
   }
 
   .freq-adjust-row {
@@ -1337,17 +1343,18 @@ hr {
 
   .band-btn {
     font-size: 14px;
-    padding: 8px 12px;
-    min-width: 50px;
+    padding: 8px 8px;
+    min-width: 45px;
   }
 
   .mode-section {
-    flex-direction: column;
-    gap: var(--spacing-small);
+    margin-bottom: var(--spacing-medium);
   }
 
   .mode-buttons {
     justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
   }
 }
 
@@ -1358,9 +1365,9 @@ hr {
 }
 
 .atu-btn {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  padding: 12px 24px;
+  padding: 10px 10px;
   border-radius: var(--border-radius-pill);
   background-color: var(--color-warning);
   color: var(--text-primary);
@@ -1368,7 +1375,7 @@ hr {
   cursor: pointer;
   transition: all var(--transition-speed) ease;
   box-shadow: var(--box-shadow-elevated);
-  min-width: 100px;
+  min-width: 60px;
   /* Touch-friendly improvements */
   -webkit-user-select: none;
   -moz-user-select: none;

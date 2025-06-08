@@ -10,9 +10,9 @@
     <h2>GPS Location Override</h2>
     <div class="gps-instructions">
       <br />
-      By default, SOTACAT attempts to determine your location based on your IP address.
-      If you want to override this with a specific GPS location, enter it below.
-      Leave blank to use the automatic location detection.
+      By default, SOTACAT attempts to determine your location based on your IP
+      address. If you want to override this with a specific GPS location, enter
+      it below. Leave blank to use the automatic location detection.
       <br /><br />
     </div>
     <div class="gps-input-container">
@@ -25,10 +25,20 @@
         pattern="^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$"
         title="Enter as latitude, longitude (e.g. 37.93389, -122.01136)"
       />
-      <button type="button" id="save-gps-button" class="gps-button" onclick="saveGpsLocation()">
+      <button
+        type="button"
+        id="save-gps-button"
+        class="gps-button"
+        onclick="saveGpsLocation()"
+      >
         Save Location
       </button>
-      <button type="button" id="clear-gps-button" class="gps-button" onclick="clearGpsLocation()">
+      <button
+        type="button"
+        id="clear-gps-button"
+        class="gps-button"
+        onclick="clearGpsLocation()"
+      >
         Clear Override
       </button>
     </div>
@@ -247,7 +257,8 @@
 
       <div class="firmware-step">
         <div class="firmware-text">
-          2. <b>Select</b> the downloaded firmware .bin file from step 1.
+          2. <b>Select</b> the firmware .bin file downloaded to your phone's
+          local storage from step 1.
         </div>
         <div class="firmware-button-container">
           <button
@@ -271,7 +282,8 @@
 
       <div class="firmware-step">
         <div class="firmware-text">
-          3. <b>Upload</b> to send the .bin file to the SOTACAT and install it.
+          3. <b>Upload</b> the .bin file selected in step 2 to the SOTACAT and
+          install it.
         </div>
         <div class="firmware-button-container">
           <button

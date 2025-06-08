@@ -1,20 +1,15 @@
 <script src="cat.js"></script>
 <div class="cat-container">
-  <div class="msg-section">
-    <div class="inline-header">
-      <h2>Xmit message:</h2>
-      <div class="button-row">
-        <button class="bigthumb" onclick="playMsg(1)">Bank 1</button>
-        <button class="bigthumb" onclick="playMsg(2)">Bank 2</button>
-      </div>
-    </div>
-  </div>
-
   <div class="xmit-section">
-    <div class="button-row">
-      <button id="xmitButton" class="bigthumb" onclick="toggleXmit()">
-        Toggle XMIT
-      </button>
+    <div class="inline-header">
+      <h2>Xmit:</h2>
+      <div class="button-row">
+        <button class="bigthumb" onclick="playMsg(1)">Msg 1</button>
+        <button class="bigthumb" onclick="playMsg(2)">Msg 2</button>
+        <button id="xmitButton" class="bigthumb" onclick="toggleXmit()">
+          Toggle
+        </button>
+      </div>
     </div>
   </div>
 
@@ -59,31 +54,42 @@
   </div>
 
   <div class="vfo-section">
-    <h2>VFO Controls</h2>
-
     <!-- Frequency Display and Controls -->
     <div class="vfo-frequency-section">
-      <div class="frequency-display">
-        <div class="frequency-label">Frequency:</div>
-        <div class="frequency-value" id="currentFrequency">14.225.000</div>
-        <div class="frequency-unit">MHz</div>
+      <div class="inline-header">
+        <h2>VFO:</h2>
+        <div class="frequency-display-row">
+          <div class="frequency-value" id="currentFrequency">14.225.000</div>
+          <div class="frequency-mode" id="currentMode">USB</div>
+        </div>
       </div>
 
       <div class="frequency-controls">
         <div class="freq-adjust-row">
-          <button class="freq-btn freq-down" onclick="adjustFrequency(-5000)">-5k</button>
-          <button class="freq-btn freq-down" onclick="adjustFrequency(-2000)">-2k</button>
-          <button class="freq-btn freq-down" onclick="adjustFrequency(-1000)">-1k</button>
-          <button class="freq-btn freq-up" onclick="adjustFrequency(1000)">+1k</button>
-          <button class="freq-btn freq-up" onclick="adjustFrequency(2000)">+2k</button>
-          <button class="freq-btn freq-up" onclick="adjustFrequency(5000)">+5k</button>
+          <button class="freq-btn freq-down" onclick="adjustFrequency(-5000)">
+            -5k
+          </button>
+          <button class="freq-btn freq-down" onclick="adjustFrequency(-2000)">
+            -2k
+          </button>
+          <button class="freq-btn freq-down" onclick="adjustFrequency(-1000)">
+            -1k
+          </button>
+          <button class="freq-btn freq-up" onclick="adjustFrequency(1000)">
+            +1k
+          </button>
+          <button class="freq-btn freq-up" onclick="adjustFrequency(2000)">
+            +2k
+          </button>
+          <button class="freq-btn freq-up" onclick="adjustFrequency(5000)">
+            +5k
+          </button>
         </div>
       </div>
     </div>
 
     <!-- Band Selection -->
     <div class="band-section">
-      <div class="band-label">Quick Band Select:</div>
       <div class="band-buttons">
         <button class="band-btn" onclick="selectBand('40m')">40m</button>
         <button class="band-btn" onclick="selectBand('20m')">20m</button>
@@ -96,28 +102,25 @@
 
     <!-- Mode Selection -->
     <div class="mode-section">
-      <div class="mode-label">Mode:</div>
-      <div class="mode-display">
-        <span id="currentMode">USB</span>
-      </div>
       <div class="mode-buttons">
-        <button class="mode-btn" id="cwModeBtn" onclick="setMode('CW')">CW</button>
-        <button class="mode-btn" id="ssbModeBtn" onclick="setMode('SSB')">SSB</button>
-        <button class="mode-btn" id="dataModeBtn" onclick="setMode('DATA')">DATA</button>
+        <button class="mode-btn" id="cwModeBtn" onclick="setMode('CW')">
+          CW
+        </button>
+        <button class="mode-btn" id="ssbModeBtn" onclick="setMode('SSB')">
+          SSB
+        </button>
+        <button class="mode-btn" id="dataModeBtn" onclick="setMode('DATA')">
+          DATA
+        </button>
       </div>
-    </div>
-
-    <!-- ATU Tune -->
-    <div class="atu-section">
-      <button class="atu-btn" onclick="tuneAtu()">Tune</button>
     </div>
   </div>
-
   <div class="power-section">
     <div class="inline-header">
-      <h2>Adjust Power:</h2>
+      <h2>Power:</h2>
       <div class="button-row">
         <button class="bigthumb" onclick="setPowerMinMax(false)">Min</button>
+        <button class="atu-btn" onclick="tuneAtu()">Tune</button>
         <button class="bigthumb" onclick="setPowerMinMax(true)">Max</button>
       </div>
     </div>
