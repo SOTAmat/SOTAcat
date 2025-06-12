@@ -169,8 +169,6 @@ void battery_monitor_task (void * _pvParameter) {
                 ESP_LOGI (TAG8, "battery: %4.2fV %4.2f%%", get_battery_voltage(), get_battery_percentage());
         }
 
-        ESP_LOGI (TAG8, "Free heap: %" PRIu32, esp_get_free_heap_size());
-
         // Reset watchdog timer before sleeping to ensure we don't timeout during the delay
         ESP_ERROR_CHECK (esp_task_wdt_reset());
         vTaskDelay (BATTERY_POLL_TIME_MS / portTICK_PERIOD_MS);
