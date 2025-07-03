@@ -472,13 +472,14 @@ void wifi_task (void * pvParameters) {
                         password     = g_sta2_pass;
                         current_ssid = 3;
                     }
-                    else if (strlen (g_sta3_ssid) > 0) {
+                    else if (current_ssid == 3 && strlen (g_sta3_ssid) > 0) {
                         ssid         = g_sta3_ssid;
                         password     = g_sta3_pass;
                         current_ssid = 1;
                     }
                     else {
-                        current_ssid = (current_ssid == 1) ? 2 : 1;
+                        // Advance to next SSID when current one is not available
+                        current_ssid = (current_ssid % 3) + 1;
                     }
                 }
 

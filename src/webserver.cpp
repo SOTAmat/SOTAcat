@@ -340,19 +340,21 @@ bool url_decode_in_place (char * str) {
  *   - ESP_ERR_* code on failure, indicating the specific error that occurred.
  */
 esp_err_t schedule_deferred_reboot (httpd_req_t * req) {
-    const uint64_t REBOOT_DELAY_US = 2000000;  // 1.5 seconds in microseconds
+    const uint64_t REBOOT_DELAY_US = 2000000;  // 2.0 seconds in microseconds
 
-    // use a unique_ptr with a custom deleter for proper resource management
-    auto deleter = [] (esp_timer_handle_t * t) {
-        if (t && *t) {
-            esp_timer_delete (*t);
-            delete t;
-        }
-    };
-    std::unique_ptr<esp_timer_handle_t, decltype (deleter)> timer (new esp_timer_handle_t (nullptr), deleter);
+    // Static timer handle to avoid memory management issues during reboot
+    static esp_timer_handle_t reboot_timer = nullptr;
+    
+    // Clean up any existing timer first
+    if (reboot_timer != nullptr) {
+        esp_timer_stop(reboot_timer);
+        esp_timer_delete(reboot_timer);
+        reboot_timer = nullptr;
+    }
 
     const esp_timer_create_args_t timer_args = {
         .callback = [] (void * arg) {
+            ESP_LOGI(TAG8, "Reboot timer triggered, restarting system...");
             esp_restart();
         },
         .arg                   = nullptr,
@@ -360,17 +362,21 @@ esp_err_t schedule_deferred_reboot (httpd_req_t * req) {
         .name                  = "reboot_timer",
         .skip_unhandled_events = false};
 
-    esp_err_t timer_create_result = esp_timer_create (&timer_args, timer.get());
+    esp_err_t timer_create_result = esp_timer_create (&timer_args, &reboot_timer);
     if (timer_create_result != ESP_OK) {
         ESP_LOGE (TAG8, "Failed to create timer: %s", esp_err_to_name (timer_create_result));
+        reboot_timer = nullptr;
         return timer_create_result;
     }
 
-    esp_err_t timer_start_result = esp_timer_start_once (*timer, REBOOT_DELAY_US);
+    esp_err_t timer_start_result = esp_timer_start_once (reboot_timer, REBOOT_DELAY_US);
     if (timer_start_result != ESP_OK) {
         ESP_LOGE (TAG8, "Failed to start timer: %s", esp_err_to_name (timer_start_result));
+        esp_timer_delete(reboot_timer);
+        reboot_timer = nullptr;
         return timer_start_result;
     }
 
+    ESP_LOGI(TAG8, "Reboot timer scheduled for 2.0 seconds");
     return ESP_OK;
 }

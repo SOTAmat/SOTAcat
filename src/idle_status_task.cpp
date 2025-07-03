@@ -89,10 +89,10 @@ void idle_status_task (void * _pvParameter) {
         }
 
         for (int i = 1; i <= blinks; i++) {
-            gpio_set_level (LED_BLUE, CommandInProgress ? LED_OFF : LED_ON);  // LED on
+            gpio_set_level (LED_BLUE, CommandInProgress.load() ? LED_OFF : LED_ON);  // LED on
             vTaskDelay (LED_FLASH_MSEC / portTICK_PERIOD_MS);
 
-            gpio_set_level (LED_BLUE, CommandInProgress ? LED_ON : LED_OFF);  // LED off
+            gpio_set_level (LED_BLUE, CommandInProgress.load() ? LED_ON : LED_OFF);  // LED off
             vTaskDelay ((4 * LED_FLASH_MSEC) / portTICK_PERIOD_MS);
         }
 

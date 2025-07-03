@@ -245,7 +245,7 @@ static void cleanup_ft8_task (void * pvParameter) {
     if (ft8ConfigInfo == NULL) {
         // This should never happen, but just in case...
         ESP_LOGE (TAG8, "cleanup_ft8_task called with ft8ConfigInfo == NULL");
-        CommandInProgress = false;
+        CommandInProgress.store(false);
         esp_task_wdt_delete (NULL);  // Unregister before deletion
         vTaskDelete (NULL);
         return;
@@ -263,7 +263,7 @@ static void cleanup_ft8_task (void * pvParameter) {
     delete ft8ConfigInfo;
     ft8ConfigInfo = NULL;
 
-    CommandInProgress = false;
+    CommandInProgress.store(false);
     ESP_LOGI (TAG8, "cleanup_ft8_task() completed.");
     esp_task_wdt_delete (NULL);  // Unregister before deletion
     vTaskDelete (NULL);
@@ -290,21 +290,33 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (CommandInProgress || ft8ConfigInfo != NULL) {
+    // Atomically check and set CommandInProgress to prevent race conditions
+    bool expected = false;
+    if (!CommandInProgress.compare_exchange_strong(expected, true) || ft8ConfigInfo != NULL) {
         CancelRadioFT8ModeTime = 1;
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "prepare called while another command already in progress");
     }
 
     /**
-     * In this short window of time between the check of CommandInProgress above,
-     * and the setting of the same to "true" below, we could have a race condition.
-     * But we'll assume it's rare, while we quickly decode the request.
-     * Otherwise, setting CommandInProgress to "true" beforehand would mean we would
-     * need to unwind the decoding macro to insert code setting it to "false" on error.
+     * Now safely decode the request knowing we have exclusive access.
+     * If decoding fails, we need to reset CommandInProgress.
      */
-    STANDARD_DECODE_QUERY (req, unsafe_buf);
-
-    CommandInProgress = true;
+    size_t buf_len = httpd_req_get_url_query_len (req) + 1;
+    if (buf_len <= 1) {
+        CommandInProgress.store(false);
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "missing query string");
+    }
+    std::unique_ptr<char[]> buf (new char[buf_len]);
+    if (!buf) {
+        CommandInProgress.store(false);
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+    }
+    char * unsafe_buf = buf.get();
+    if (httpd_req_get_url_query_str (req, unsafe_buf, buf_len) != ESP_OK) {
+        CommandInProgress.store(false);
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "query parsing error");
+    }
+    ESP_LOGV (TAG8, "request buffer[%d] = \"%s\"", buf_len, unsafe_buf);
     gpio_set_level (LED_BLUE, LED_ON);  // LED on
 
     char    ft8_msg[64];
@@ -349,14 +361,14 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     uint8_t packed[FTX_LDPC_K_BYTES];
     int     rc = pack77 (ft8_msg, packed);
     if (rc < 0) {
-        CommandInProgress = false;
+        CommandInProgress.store(false);
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "can't parse FT8 message");
     }
 
     // Second, encode the binary message as a sequence of FSK tones
     uint8_t * tones = new uint8_t[FT8_NN];  // Array of 79 tones (symbols)
     if (tones == NULL) {
-        CommandInProgress = false;
+        CommandInProgress.store(false);
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "can't allocate memory for FT8 tones");
     }
 
@@ -399,7 +411,7 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     xTaskCreate (&cleanup_ft8_task, "cleanup_ft8_task", 5120, NULL, SC_TASK_PRIORITY_NORMAL, NULL);
 
     // Send a response back
-    CommandInProgress = false;
+    CommandInProgress.store(false);
     REPLY_WITH_SUCCESS();
 }
 
@@ -421,14 +433,14 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
 
     STANDARD_DECODE_QUERY (req, unsafe_buf);
 
-    CommandInProgress = true;
+    CommandInProgress.store(true);
 
     if (CancelRadioFT8ModeTime <= 0 && ft8ConfigInfo == NULL) {
         // Nobody has called the 'handler_prepareft8_post' command yet, so we need to compute the FT8 tones
         // and prepare the radio, by calling the 'handler_prepareft8_post' command.
         esp_err_t rslt = handler_prepareft8_post (req);
         if (rslt != ESP_OK) {
-            CommandInProgress = false;
+            CommandInProgress.store(false);
             return rslt;
         }
     }
@@ -443,7 +455,7 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
           (rfFreq = atol (rfFreq_str)) > 0 &&
           httpd_query_key_value (unsafe_buf, "audioFrequency", audioFreq_str, sizeof (audioFreq_str)) == ESP_OK &&
           (audioFreq = atoi (audioFreq_str)) > 0)) {
-        CommandInProgress = false;
+        CommandInProgress.store(false);
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
     }
 

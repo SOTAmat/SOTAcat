@@ -20,7 +20,7 @@
 static const char * TAG8 = "sc:setup...";
 
 time_t       LastUserActivityUnixTime;
-bool         CommandInProgress         = false;
+std::atomic<bool> CommandInProgress{false};
 TaskHandle_t xInactivityWatchdogHandle = NULL;
 
 /**
