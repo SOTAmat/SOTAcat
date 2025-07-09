@@ -127,8 +127,8 @@ function updateModeDisplay() {
 function getCurrentFrequency() {
   if (isUpdatingVfo) return; // Avoid concurrent updates
 
-  // Don't poll if user made a change in the last 2 seconds
-  if (Date.now() - lastUserAction < 2000) return;
+  // Reduce delay from 2 seconds to 1 second for more responsive updates
+  if (Date.now() - lastUserAction < 1000) return;
 
   isUpdatingVfo = true;
   fetch('/api/v1/frequency', { method: 'GET' })
@@ -155,11 +155,35 @@ function getCurrentFrequency() {
     });
 }
 
+// Add a more aggressive mode check that bypasses user action restrictions
+// This helps catch manual radio mode changes more quickly
+function forceGetCurrentMode() {
+  fetch('/api/v1/mode', { method: 'GET' })
+    .then(response => {
+      if (response.ok) {
+        return response.text();
+      }
+      throw new Error('Failed to get mode');
+    })
+    .then(mode => {
+      const newMode = mode.toUpperCase();
+      // Only update if mode has actually changed
+      if (newMode !== currentMode) {
+        currentMode = newMode;
+        updateModeDisplay();
+        console.log('Mode updated from radio (forced check):', currentMode);
+      }
+    })
+    .catch(error => {
+      console.error('Error getting mode (forced check):', error);
+    });
+}
+
 function getCurrentMode() {
   if (isUpdatingVfo) return; // Avoid concurrent updates
 
-  // Don't poll if user made a change in the last 2 seconds
-  if (Date.now() - lastUserAction < 2000) return;
+  // Reduce delay from 2 seconds to 1 second for more responsive updates
+  if (Date.now() - lastUserAction < 1000) return;
 
   fetch('/api/v1/mode', { method: 'GET' })
     .then(response => {
@@ -190,6 +214,9 @@ function setFrequency(frequencyHz) {
     clearTimeout(pendingFrequencyUpdate);
   }
 
+  // Store the previous frequency to detect band changes
+  const previousFreq = currentFrequencyHz;
+
   // Debounce frequency updates to avoid flooding the radio
   pendingFrequencyUpdate = setTimeout(() => {
     const url = `/api/v1/frequency?frequency=${frequencyHz}`;
@@ -199,6 +226,17 @@ function setFrequency(frequencyHz) {
           currentFrequencyHz = frequencyHz;
           updateFrequencyDisplay();
           console.log('Frequency updated successfully:', frequencyHz);
+          
+          // Check if this frequency change crosses the 10MHz LSB/USB boundary
+          const crossedBoundary = (previousFreq < 10000000 && frequencyHz >= 10000000) || 
+                                  (previousFreq >= 10000000 && frequencyHz < 10000000);
+          
+          if (crossedBoundary) {
+            // Force a mode check after frequency boundary crossing
+            setTimeout(() => {
+              forceGetCurrentMode();
+            }, 1000);
+          }
         } else {
           console.error('Error updating frequency');
           // Revert display on error
@@ -241,9 +279,10 @@ function selectBand(band) {
       mode = 'LSB'; // 40m typically uses LSB
     }
 
+    // Increase delay to ensure frequency is fully set before mode change
     setTimeout(() => {
       setMode(mode);
-    }, 100); // Small delay to ensure frequency is set first
+    }, 250); // Increased from 100ms to 250ms for better synchronization
   }
 }
 
@@ -264,6 +303,11 @@ function setMode(mode) {
         currentMode = actualMode;
         updateModeDisplay();
         console.log('Mode updated successfully:', actualMode);
+        
+        // Force a mode verification after setting
+        setTimeout(() => {
+          getCurrentMode();
+        }, 500);
       } else {
         console.error('Error updating mode');
         // Revert display on error
@@ -304,11 +348,16 @@ function startVfoUpdates() {
   }).finally(() => {
     isUpdatingVfo = false;
 
-    // Start periodic updates (every 3 seconds, respecting user actions)
+    // Start periodic updates (every 1.5 seconds instead of 3 seconds for better responsiveness)
     vfoUpdateInterval = setInterval(() => {
       getCurrentFrequency();
       getCurrentMode();
-    }, 3000);
+      
+      // Also do a forced mode check every 3rd poll (4.5 seconds) to catch manual radio changes
+      if (Math.floor(Date.now() / 1500) % 3 === 0) {
+        forceGetCurrentMode();
+      }
+    }, 1500);
   });
 }
 

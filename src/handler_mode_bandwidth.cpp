@@ -96,8 +96,11 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         if (!strcmp (bw, "SSB")) {
             // Get the current frequency and set the mode to LSB or USB based on the frequency
             long frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
-            if (frequency > 0)
+            if (frequency > 0) {
                 mode = (frequency < 10000000) ? MODE_LSB : MODE_USB;
+                ESP_LOGI (TAG8, "SSB mode selected based on frequency %ld Hz: %s", frequency, 
+                         mode == MODE_LSB ? "LSB" : "USB");
+            }
         }
         else
 #define COUNTOF(array) (sizeof (array) / sizeof (array[0]))
@@ -113,8 +116,25 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         if (mode == MODE_UNKNOWN)
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid bw");
 
-        // Set the radio mode
-        kxRadio.put_to_kx ("MD", 1, mode, SC_KX_COMMUNICATION_RETRIES);
+        // Set the radio mode with retries
+        bool success = kxRadio.put_to_kx ("MD", 1, mode, SC_KX_COMMUNICATION_RETRIES);
+        
+        if (success) {
+            // Verify the mode was actually set by reading it back
+            vTaskDelay (pdMS_TO_TICKS (100)); // Small delay to ensure command is processed
+            radio_mode_t verified_mode = (radio_mode_t)kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
+            
+            if (verified_mode != mode) {
+                ESP_LOGW (TAG8, "Mode verification failed: requested %d, actual %d", mode, verified_mode);
+                // Try setting once more
+                kxRadio.put_to_kx ("MD", 1, mode, SC_KX_COMMUNICATION_RETRIES);
+            } else {
+                ESP_LOGI (TAG8, "Mode successfully set and verified: %d", mode);
+            }
+        } else {
+            ESP_LOGE (TAG8, "Failed to set mode %d", mode);
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set mode");
+        }
     }
 
     REPLY_WITH_SUCCESS();
