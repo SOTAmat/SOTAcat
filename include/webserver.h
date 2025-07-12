@@ -50,6 +50,35 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "query parsing error");                \
     ESP_LOGV (TAG8, "request buffer[%d] = \"%s\"", buf_len, unsafe_buf);
 
+/**
+ * Helper definition, to be used within a function body.
+ * Retrieves a URL query from an httpd request with atomic cleanup on failure.
+ * This is specifically designed for handlers that use atomic operations to prevent
+ * race conditions and need to reset the atomic flag on any decoding failure.
+ *
+ * @param req the httpd_req_t object containing the request
+ * @param unsafe_buf a pointer to a newly allocated object containing the query
+ * @param atomic_flag the atomic<bool> flag that should be reset to false on any error
+ */
+#define ATOMIC_DECODE_QUERY_WITH_CLEANUP(req, unsafe_buf, atomic_flag)                       \
+    /* Get the length of the URL query */                                                    \
+    size_t buf_len = httpd_req_get_url_query_len (req) + 1;                                  \
+    if (buf_len <= 1) {                                                                      \
+        atomic_flag.store (false);                                                           \
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "missing query string");               \
+    }                                                                                        \
+    std::unique_ptr<char[]> buf (new char[buf_len]);                                         \
+    if (!buf) {                                                                              \
+        atomic_flag.store (false);                                                           \
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed"); \
+    }                                                                                        \
+    char * unsafe_buf = buf.get(); /* reference to an ephemeral buffer */                    \
+    /* Get the URL query */                                                                  \
+    if (httpd_req_get_url_query_str (req, unsafe_buf, buf_len) != ESP_OK) {                  \
+        atomic_flag.store (false);                                                           \
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "query parsing error");                \
+    }                                                                                        \
+    ESP_LOGV (TAG8, "request buffer[%d] = \"%s\"", buf_len, unsafe_buf);
 
 /**
  * Helper definition, to be used within a function body.
