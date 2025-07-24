@@ -128,6 +128,9 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             ESP_LOGI (TAG8, "Got IP: " IPSTR, IP2STR (&event->ip_info.ip));
             wifi_connected.store (true);
 
+            // Announce mDNS now that the STA interface has a valid IPv4 address
+            mdns_netif_action (sta_netif, MDNS_EVENT_ANNOUNCE_IP4);
+
             if (!mdns_started.load()) {
                 if (start_mdns_service()) {
                     ESP_LOGI (TAG8, "mDNS started after IP acquisition");
@@ -324,6 +327,14 @@ bool start_mdns_service () {
         return false;
     }
 
+    // Attach network interfaces to the default mDNS server (required for ESP-IDF >= 5.0)
+    mdns_register_netif (sta_netif);
+    mdns_register_netif (ap_netif);
+
+    // Enable mDNS on both interfaces immediately for IPv4
+    mdns_netif_action (sta_netif, MDNS_EVENT_ENABLE_IP4);
+    mdns_netif_action (ap_netif, MDNS_EVENT_ENABLE_IP4);
+
     // Set the hostname with retry logic
     int hostname_retries = 3;
     while (hostname_retries-- > 0) {
@@ -399,9 +410,9 @@ void wifi_task (void * pvParameters) {
     TickType_t attempt_start_time           = -CONNECT_ATTEMPT_TIME_MS;
     TickType_t last_connection_check_time   = 0;
     TickType_t last_ap_disconnect_time      = 0;
-    bool       local_mdns_started           = false;  // Renamed to avoid shadowing global variable
-    bool       previously_connected         = false;
-    bool       sta_mode_aborted             = false;
+    // Use the global atomic mdns_started flag for consistent state across tasks and event handlers
+    bool previously_connected = false;
+    bool sta_mode_aborted     = false;
 
     enum WifiState {
         NO_CONNECTION,
@@ -442,9 +453,9 @@ void wifi_task (void * pvParameters) {
                 break;
             }
 
-            if (local_mdns_started) {
+            if (mdns_started.load()) {
                 mdns_free();
-                local_mdns_started = false;
+                mdns_started.store (false);
                 ESP_LOGI (TAG8, "mDNS stopped due to lost connection");
             }
 
@@ -554,7 +565,7 @@ void wifi_task (void * pvParameters) {
                 }
             }
 
-            if (!local_mdns_started) {
+            if (!mdns_started.load()) {
                 // Start mDNS in either AP or STA mode when connected
                 static int mdns_retry_count = 0;
 
@@ -564,8 +575,7 @@ void wifi_task (void * pvParameters) {
                 }
 
                 if (start_mdns_service()) {
-                    local_mdns_started = true;
-                    mdns_retry_count   = 0;
+                    mdns_retry_count = 0;
                     ESP_LOGI (TAG8, "mDNS service started");
                 }
                 else {
@@ -590,7 +600,7 @@ void wifi_task (void * pvParameters) {
                     if (err != ESP_OK) {
                         ESP_LOGW (TAG8, "mDNS service check failed, restarting service");
                         mdns_free();
-                        local_mdns_started = false;
+                        mdns_started.store (false);
                     }
                 }
             }
