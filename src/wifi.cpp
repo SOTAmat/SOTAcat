@@ -129,7 +129,12 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             wifi_connected.store (true);
 
             // Announce mDNS now that the STA interface has a valid IPv4 address
-            mdns_netif_action (sta_netif, MDNS_EVENT_ANNOUNCE_IP4);
+            if (sta_netif && mdns_started.load()) {
+                esp_err_t err = mdns_netif_action (sta_netif, MDNS_EVENT_ANNOUNCE_IP4);
+                if (err != ESP_OK) {
+                    ESP_LOGW (TAG8, "Failed to announce mDNS on STA interface: %s", esp_err_to_name (err));
+                }
+            }
 
             if (!mdns_started.load()) {
                 if (start_mdns_service()) {
@@ -328,12 +333,40 @@ bool start_mdns_service () {
     }
 
     // Attach network interfaces to the default mDNS server (required for ESP-IDF >= 5.0)
-    mdns_register_netif (sta_netif);
-    mdns_register_netif (ap_netif);
+    if (sta_netif) {
+        err = mdns_register_netif (sta_netif);
+        if (err != ESP_OK) {
+            ESP_LOGW (TAG8, "Failed to register STA interface with mDNS: %s", esp_err_to_name (err));
+        }
+    }
+    else {
+        ESP_LOGW (TAG8, "STA interface not initialized, skipping mDNS registration");
+    }
+
+    if (ap_netif) {
+        err = mdns_register_netif (ap_netif);
+        if (err != ESP_OK) {
+            ESP_LOGW (TAG8, "Failed to register AP interface with mDNS: %s", esp_err_to_name (err));
+        }
+    }
+    else {
+        ESP_LOGW (TAG8, "AP interface not initialized, skipping mDNS registration");
+    }
 
     // Enable mDNS on both interfaces immediately for IPv4
-    mdns_netif_action (sta_netif, MDNS_EVENT_ENABLE_IP4);
-    mdns_netif_action (ap_netif, MDNS_EVENT_ENABLE_IP4);
+    if (sta_netif) {
+        err = mdns_netif_action (sta_netif, MDNS_EVENT_ENABLE_IP4);
+        if (err != ESP_OK) {
+            ESP_LOGW (TAG8, "Failed to enable mDNS on STA interface: %s", esp_err_to_name (err));
+        }
+    }
+
+    if (ap_netif) {
+        err = mdns_netif_action (ap_netif, MDNS_EVENT_ENABLE_IP4);
+        if (err != ESP_OK) {
+            ESP_LOGW (TAG8, "Failed to enable mDNS on AP interface: %s", esp_err_to_name (err));
+        }
+    }
 
     // Set the hostname with retry logic
     int hostname_retries = 3;
