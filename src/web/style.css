@@ -909,6 +909,13 @@ hr {
     gap: var(--spacing-medium);
 }
 
+.gps-button-container {
+    display: flex;
+    flex-direction: row;
+    gap: var(--spacing-medium);
+    align-items: center;
+}
+
 .gps-input-container label {
     font-weight: 500;
 }

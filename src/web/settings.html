@@ -25,22 +25,24 @@
         pattern="^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$"
         title="Enter as latitude, longitude (e.g. 37.93389, -122.01136)"
       />
-      <button
-        type="button"
-        id="save-gps-button"
-        class="gps-button"
-        onclick="saveGpsLocation()"
-      >
-        Save Location
-      </button>
-      <button
-        type="button"
-        id="clear-gps-button"
-        class="gps-button"
-        onclick="clearGpsLocation()"
-      >
-        Clear Override
-      </button>
+      <div class="gps-button-container">
+        <button
+          type="button"
+          id="save-gps-button"
+          class="gps-button"
+          onclick="saveGpsLocation()"
+        >
+          Save Location
+        </button>
+        <button
+          type="button"
+          id="clear-gps-button"
+          class="gps-button"
+          onclick="clearGpsLocation()"
+        >
+          Clear Override
+        </button>
+      </div>
     </div>
   </div>
   <hr />
@@ -82,13 +84,18 @@
       hostspot settings. <br /><br />
       Once connected to a network, you open your phone's browser and navigate to
       either
-      <a href="http://sotacat.local" target="_blank">http://sotacat.local</a>
+      <a href="http://sotacat.local" target="_blank" rel="noopener"
+        >http://sotacat.local</a
+      >
       (iPhone, MacOS, Windows) or to
-      <a href="http://192.168.4.1" target="_blank">http://192.168.4.1</a> or
-      when using an Android hotspot, install the
+      <a href="http://192.168.4.1" target="_blank" rel="noopener"
+        >http://192.168.4.1</a
+      >
+      or when using an Android hotspot, install the
       <a
         href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser"
         target="_blank"
+        rel="noopener"
         >Bonjour Browser</a
       >
       app from the Google Play store and use that app to navigate to the
@@ -230,19 +237,32 @@
     <div class="firmware-instructions">
       <br />
       SOTACAT automatically checks for firmware updates daily when connected to
-      the internet. To update your firmware:
+      the internet and will notify you if a newer version is found. To update
+      your firmware:
     </div>
+    <br />
 
     <div class="firmware-client">
       <div class="firmware-step">
         <div class="firmware-text">
-          1. <b>Download</b> the firmware .bin from the cloud to your phone's
-          local storage. The button below downloads the default firmware for the
-          default SOTACAT hardware. To see if there are other firmwares
-          available, visit
-          <a href="https://sotamat.com/sotacat" target="_blank" rel="noopener"
-            >https://sotamat.com/sotacat</a
-          >.
+          1. <b>Check</b> the server to see if a new version of the firmware is
+          available.
+        </div>
+        <div class="firmware-button-container">
+          <button
+            type="button"
+            class="firmware-button"
+            onclick="manualCheckFirmwareVersion()"
+          >
+            Check for updates
+          </button>
+        </div>
+      </div>
+
+      <div class="firmware-step">
+        <div class="firmware-text">
+          2. <b>Download</b> the firmware .bin file from the cloud to your
+          phone's local storage.
         </div>
         <div class="firmware-button-container">
           <button
@@ -257,8 +277,8 @@
 
       <div class="firmware-step">
         <div class="firmware-text">
-          2. <b>Select</b> the firmware .bin file downloaded to your phone's
-          local storage from step 1.
+          3. <b>Select</b> the firmware .bin file downloaded to your phone's
+          local storage from step 2.
         </div>
         <div class="firmware-button-container">
           <button
@@ -282,8 +302,7 @@
 
       <div class="firmware-step">
         <div class="firmware-text">
-          3. <b>Upload</b> the .bin file selected in step 2 to the SOTACAT and
-          install it.
+          4. <b>Install</b> the .bin file selected in step 3 into the SOTACAT.
         </div>
         <div class="firmware-button-container">
           <button
@@ -293,7 +312,7 @@
             onclick="uploadFirmware()"
             disabled
           >
-            Upload Firmware
+            Install Firmware
           </button>
         </div>
       </div>

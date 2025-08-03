@@ -368,7 +368,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         console.log('[Version Check] Executing initial version check');
         checkFirmwareVersion().catch(error => {
-            console.log('[Version Check] Error during version check:', error);
+            console.log('[Version Check] Initial version check failed:', error);
+            // Retry timer will be started automatically by checkFirmwareVersion
         });
     }, 1000);
 });
@@ -672,8 +673,43 @@ async function refreshSotaPotaJson(force) {
 
 const VERSION_CHECK_INTERVAL_DAYS = 1.0;
 const VERSION_CHECK_STORAGE_KEY = 'sotacat_version_check';
+const VERSION_CHECK_SUCCESS_KEY = 'sotacat_version_check_success';
 const MANIFEST_URL = 'https://sotamat.com/wp-content/uploads/manifest.json';
 const VERSION_CHECK_TIMEOUT_MS = 5000;
+const VERSION_CHECK_RETRY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+
+// Global variable to track retry timer
+let gVersionCheckRetryTimer = null;
+
+// Start retry timer for failed version checks
+function startVersionCheckRetryTimer() {
+    // Clear any existing timer
+    if (gVersionCheckRetryTimer) {
+        clearInterval(gVersionCheckRetryTimer);
+    }
+    
+    console.log('[Version Check] Starting retry timer (will retry every 15 minutes)');
+    gVersionCheckRetryTimer = setInterval(async () => {
+        console.log('[Version Check] Retry timer triggered - attempting version check');
+        try {
+            await checkFirmwareVersion(false); // false = automatic check
+            // If we get here, the check succeeded, so stop retrying
+            stopVersionCheckRetryTimer();
+        } catch (error) {
+            console.log('[Version Check] Retry failed:', error.message);
+            // Keep retrying
+        }
+    }, VERSION_CHECK_RETRY_INTERVAL_MS);
+}
+
+// Stop retry timer
+function stopVersionCheckRetryTimer() {
+    if (gVersionCheckRetryTimer) {
+        console.log('[Version Check] Stopping retry timer');
+        clearInterval(gVersionCheckRetryTimer);
+        gVersionCheckRetryTimer = null;
+    }
+}
 
 // Add the version check functions
 function normalizeVersion(versionString) {
@@ -758,9 +794,9 @@ function shouldCheckVersion() {
 }
 
 // Perform version check
-async function checkFirmwareVersion() {
+async function checkFirmwareVersion(manualCheck = false) {
     console.log('[Version Check] Starting version check');
-    if (!shouldCheckVersion()) {
+    if (!manualCheck && !shouldCheckVersion()) {
         console.log('[Version Check] Skipping check due to interval');
         return;
     }
@@ -775,36 +811,53 @@ async function checkFirmwareVersion() {
             signal: controller.signal
         });
         if (!response.ok) {
-            console.log('[Version Check] Failed to get current version, status:', response.status);
+            const error = `Failed to get current version from device (HTTP ${response.status})`;
+            console.warn('[Version Check]', error);
+            if (manualCheck) {
+                throw new Error(error);
+            }
             return;
         }
         const currentVersion = await response.text();
         console.log('[Version Check] Current device version:', currentVersion);
         const currentBuildTime = normalizeVersion(currentVersion);
         if (!currentBuildTime) {
-            console.error('[Version Check] Failed to parse current version');
+            const error = `Failed to parse current version format: ${currentVersion}`;
+            console.error('[Version Check]', error);
+            if (manualCheck) {
+                throw new Error(error);
+            }
             return;
         }
 
-        // Modify manifest fetch to handle CORS
-        console.log('[Version Check] Fetching manifest from:', MANIFEST_URL);
-        const manifestResponse = await fetch(MANIFEST_URL, {
-            signal: controller.signal,
-            mode: 'cors',  // Try CORS first
-            headers: {
-                'Accept': 'application/json'
-            }
-        }).catch(async () => {
-            console.log('[Version Check] CORS failed, trying no-cors mode');
-            // If CORS fails, try no-cors mode
-            return fetch(MANIFEST_URL, {
+        // Fetch manifest (CORS required to read response body)
+        // Add timestamp to URL to bypass cache
+        const cacheBustUrl = `${MANIFEST_URL}?t=${Date.now()}`;
+        console.log('[Version Check] Fetching manifest from:', cacheBustUrl);
+        let manifestResponse;
+        try {
+            manifestResponse = await fetch(cacheBustUrl, {
                 signal: controller.signal,
-                mode: 'no-cors'  // Fallback to no-cors
+                mode: 'cors',
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
-        });
+        } catch (fetchError) {
+            const error = `Failed to fetch manifest from server: ${fetchError.message}`;
+            console.warn('[Version Check]', error);
+            if (manualCheck) {
+                throw new Error(error);
+            }
+            return;
+        }
 
         if (!manifestResponse.ok) {
-            console.log('[Version Check] Failed to fetch manifest, status:', manifestResponse.status);
+            const error = `Failed to fetch manifest from server (HTTP ${manifestResponse.status})`;
+            console.warn('[Version Check]', error);
+            if (manualCheck) {
+                throw new Error(error);
+            }
             return;
         }
         
@@ -812,7 +865,11 @@ async function checkFirmwareVersion() {
         try {
             manifest = await manifestResponse.json();
         } catch (e) {
-            console.info('Version check skipped: Invalid manifest JSON');
+            const error = `Invalid JSON in manifest: ${e.message}`;
+            console.warn('[Version Check]', error);
+            if (manualCheck) {
+                throw new Error(error);
+            }
             return;
         }
         
@@ -821,7 +878,11 @@ async function checkFirmwareVersion() {
         
         const latestVersion = normalizeVersion(manifest.version);
         if (!latestVersion) {
-            console.info('Version check skipped: Invalid version format in manifest');
+            const error = `Invalid version format in manifest: ${manifest.version}`;
+            console.warn('[Version Check]', error);
+            if (manualCheck) {
+                throw new Error(error);
+            }
             return;
         }
 
@@ -829,26 +890,82 @@ async function checkFirmwareVersion() {
         console.info('[Version Check] Latest version timestamp:', new Date(latestVersion * 1000).toISOString());
         console.info('[Version Check] Current version timestamp:', new Date(currentBuildTime * 1000).toISOString());
 
-        // Inform the user there is new firmware, and show them the datetime of the new version.
-        if (latestVersion > currentBuildTime) {
-            const userResponse = confirm(
-                'A new firmware version is available for your SOTAcat device.\n\n' +
-                'Would you like to go to the Settings page to update your firmware?\n\n' +
-                `Your version: ${new Date(currentBuildTime * 1000).toISOString()}\n` +
-                `New version: ${new Date(latestVersion    * 1000).toISOString()}`
-            );
+        // Handle different cases for manual vs automatic checks
+        let shouldUpdateTimestamp = false;
+        
+        if (manualCheck) {
+            // Manual check - always show popup with version strings and update timestamp
+            shouldUpdateTimestamp = true;
+            const currentVersionString = currentVersion;
+            const serverVersionString = manifest.version;
             
-            if (userResponse) {
-                openTab('Settings');
+            if (latestVersion > currentBuildTime) {
+                return `A new firmware is available: please update using instructions on the Settings page.\n\nYour version: ${new Date(currentBuildTime * 1000).toISOString()}\nServer version: ${new Date(latestVersion * 1000).toISOString()}`;
+            } else if (latestVersion < currentBuildTime) {
+                return `Your firmware is newer than the official version on the server.\n\nYour version: ${new Date(currentBuildTime * 1000).toISOString()}\nServer version: ${new Date(latestVersion * 1000).toISOString()}`;
+            } else {
+                return `You already have the current firmware. No update needed.\n\nYour version: ${new Date(currentBuildTime * 1000).toISOString()}\nServer version: ${new Date(latestVersion * 1000).toISOString()}`;
+            }
+        } else {
+            // Automatic check - only show popup if firmware is different
+            if (latestVersion > currentBuildTime) {
+                // Newer firmware available - show dialog
+                const userResponse = confirm(
+                    'A new firmware version is available for your SOTAcat device.\n\n' +
+                    'Would you like to go to the Settings page to update your firmware?\n\n' +
+                    `Your version: ${new Date(currentBuildTime * 1000).toISOString()}\n` +
+                    `New version: ${new Date(latestVersion * 1000).toISOString()}`
+                );
+                
+                if (userResponse) {
+                    openTab('Settings');
+                    // User accepted - update timestamp so we don't bug them again today
+                    shouldUpdateTimestamp = true;
+                } else {
+                    // User dismissed - don't update timestamp so we'll notify again tomorrow
+                    console.log('[Version Check] User dismissed update notification - will retry tomorrow');
+                }
+            } else {
+                // No update needed - update timestamp
+                shouldUpdateTimestamp = true;
             }
         }
         
-        // Update last check timestamp
-        localStorage.setItem(VERSION_CHECK_STORAGE_KEY, Date.now().toString());
+        // Only update timestamp if appropriate
+        if (shouldUpdateTimestamp) {
+            localStorage.setItem(VERSION_CHECK_STORAGE_KEY, Date.now().toString());
+            console.log('[Version Check] Updated last check timestamp');
+        }
+        
+        // Always track successful completion (even if we don't update the check timestamp)
+        localStorage.setItem(VERSION_CHECK_SUCCESS_KEY, Date.now().toString());
+        console.log('[Version Check] Version check completed successfully');
+        
+        // Stop retry timer on successful check
+        stopVersionCheckRetryTimer();
         
     } catch (error) {
         console.log('[Version Check] Error during version check:', error.message);
+        
+        // Start retry timer for failed automatic checks
+        if (!manualCheck) {
+            startVersionCheckRetryTimer();
+        }
+        
         throw error;  // Re-throw to be caught by the caller
+    }
+}
+
+// Manual firmware version check function
+async function manualCheckFirmwareVersion() {
+    try {
+        const result = await checkFirmwareVersion(true);
+        if (result) {
+            alert(result);
+        }
+    } catch (error) {
+        console.error('[Manual Version Check] Error:', error);
+        alert('Error checking for firmware updates. Please try again later.');
     }
 }
 
