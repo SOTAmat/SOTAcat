@@ -36,11 +36,11 @@ static esp_netif_t *     sta_netif;
 static esp_netif_t *     ap_netif;
 static std::atomic<bool> mdns_started{false};
 
-#define WIFI_CONNECT_TIMEOUT_MS          5000
+#define WIFI_CONNECT_TIMEOUT_MS          6000  // Slightly increased for mobile hotspots
 #define WIFI_STATE_TRANSITION_TIMEOUT_MS 3000
 #define WIFI_RECONNECT_BACKOFF_BASE_MS   500
-#define WIFI_MAX_BACKOFF_MS              8000
-#define RECONNECT_TIMEOUT_MS             2000
+#define WIFI_MAX_BACKOFF_MS              10000  // Slightly increased for mobile
+#define RECONNECT_TIMEOUT_MS             3000   // Slightly increased for mobile
 #define MDNS_SERVICE_NAME                "SOTAcat SOTAmat Service"
 
 // Function to handle Wi-Fi events
@@ -63,8 +63,26 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
             s_sta_connected.store (true);
             wifi_connected.store (true);
             break;
-        case WIFI_EVENT_STA_DISCONNECTED:
-            ESP_LOGI (TAG8, "WIFI_EVENT_STA_DISCONNECTED");
+        case WIFI_EVENT_STA_DISCONNECTED: {
+            wifi_event_sta_disconnected_t * disconnected = (wifi_event_sta_disconnected_t *)event_data;
+            ESP_LOGI (TAG8, "WIFI_EVENT_STA_DISCONNECTED (reason: %d)", disconnected->reason);
+
+            // Log specific disconnect reasons for Android hotspot troubleshooting
+            switch (disconnected->reason) {
+            case WIFI_REASON_AUTH_EXPIRE:
+                ESP_LOGW (TAG8, "Authentication expired - Android hotspot may have strict timeout");
+                break;
+            case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+                ESP_LOGW (TAG8, "4-way handshake timeout - Check Android hotspot security settings");
+                break;
+            case WIFI_REASON_BEACON_TIMEOUT:
+                ESP_LOGW (TAG8, "Beacon timeout - Android hotspot may be power saving");
+                break;
+            case WIFI_REASON_NO_AP_FOUND:
+                ESP_LOGW (TAG8, "No AP found - Android hotspot may be hidden or turned off");
+                break;
+            }
+
             s_sta_connected.store (false);
             wifi_connected.store (s_ap_client_connected.load());
 
@@ -74,6 +92,7 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
                 ESP_LOGI (TAG8, "mDNS stopped due to all connections lost");
             }
             break;
+        }
 
         case WIFI_EVENT_AP_START:
             ESP_LOGI (TAG8, "WIFI_EVENT_AP_START");

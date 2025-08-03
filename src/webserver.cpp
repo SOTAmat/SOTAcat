@@ -220,7 +220,10 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
  * @return ESP_OK on successful handling, ESP_FAIL on error or if no handler is found.
  */
 static esp_err_t my_http_request_handler (httpd_req_t * req) {
-    ESP_LOGI (TAG8, "Request: %s from %s sesion", req->uri, req->sess_ctx ? "existing" : "new");
+    ESP_LOGI (TAG8, "HTTP Request received: %s %s from %s session", req->method == HTTP_GET ? "GET" : req->method == HTTP_POST ? "POST"
+                                                                                                                               : "OTHER",
+              req->uri,
+              req->sess_ctx ? "existing" : "new");
     const char * requested_uri = req->uri;
 
     // 1. Check for REST API calls
@@ -258,7 +261,7 @@ void start_webserver () {
     httpd_config_t config      = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers    = 6;
     config.uri_match_fn        = custom_uri_matcher;
-    config.keep_alive_enable   = false;
+    config.server_port         = 80;    // Explicitly set port 80 for mobile compatibility
     config.lru_purge_enable    = true;
     config.max_open_sockets    = 7;     // Increase from default of 4
     config.recv_wait_timeout   = 30;    // seconds
@@ -270,9 +273,12 @@ void start_webserver () {
     config.keep_alive_count    = 3;  // 3 probes
 
     httpd_handle_t server = NULL;
-    if (httpd_start (&server, &config) != ESP_OK)
-        ESP_LOGE (TAG8, "failed to start webserver.");
+    esp_err_t      ret    = httpd_start (&server, &config);
+    if (ret != ESP_OK) {
+        ESP_LOGE (TAG8, "Failed to start webserver: %s", esp_err_to_name (ret));
+    }
     else {
+        ESP_LOGI (TAG8, "Webserver started successfully on port %d", config.server_port);
         httpd_uri_t uri_api = {
             .uri      = "/",  // Not used: we match all URIs based on the custom_uri_matcher
             .method   = HTTP_GET,
