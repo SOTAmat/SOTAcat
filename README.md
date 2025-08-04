@@ -63,6 +63,18 @@ Step-by-step instructions are found in the "Installing Firmware" section of the 
 4. Select a build target (at the bottom of the VScode screen on the task bar)
 5. Select the right-arrow icon "PlatformIO: Upload" (at the bottom of the screen)
 
+### Troubleshooting Build Issues
+
+**If you get a build error like "smbus.h: No such file or directory":**
+
+This means you cloned the repository without initializing the Git submodules. The project depends on external libraries (like `esp32-smbus`) that are included as Git submodules. To fix this:
+
+```bash
+git submodule update --init --recursive
+```
+
+**Alternative:** If you haven't cloned yet, use the clone command with submodules from step 1 above.
+
 ## Initial Setup of SOTACAT Network connection
 
 Once the SOTACAT firmware is installed and running, you should:
