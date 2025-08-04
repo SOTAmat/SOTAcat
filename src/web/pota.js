@@ -119,7 +119,9 @@ async function pota_updatePotaTable()
         row.insertCell().textContent = spot.distance.toLocaleString();
 
         // 7. Location Description (assuming maps to Locator)
-        row.insertCell().textContent = spot.locationDesc || ''; // Handle potential undefined
+        const locatorCell = row.insertCell();
+        locatorCell.textContent = spot.locationDesc || ''; // Handle potential undefined
+        locatorCell.classList.add('locator-cell');
 
         // 8. Name (assuming maps to Details)
         row.insertCell().textContent = spot.name || ''; // Handle potential undefined

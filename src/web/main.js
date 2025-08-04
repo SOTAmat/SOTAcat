@@ -394,14 +394,27 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+let gGpsOverride = null;
+
 async function getLocation() {
-    // First check if there's a GPS location override in localStorage
-    const savedLocation = localStorage.getItem('gpsLocationOverride');
-    if (savedLocation) {
-        // Use the override location if it exists
-        console.log('Using GPS location override from localStorage');
-        return JSON.parse(savedLocation);
+    // First check if there's a GPS location override from the backend
+    if (gGpsOverride) {
+        console.log('Using cached GPS location override');
+        return gGpsOverride;
     }
+
+    try {
+        const response = await fetch('/api/v1/gps');
+        const data = await response.json();
+        if (data.gps_lat && data.gps_lon) {
+            console.log('Using GPS location override from NVRAM');
+            gGpsOverride = { latitude: parseFloat(data.gps_lat), longitude: parseFloat(data.gps_lon) };
+            return gGpsOverride;
+        }
+    } catch (error) {
+        console.error('Failed to fetch GPS override:', error);
+    }
+
 
     // Otherwise, use IP-based geolocation
     // Unfortunately, the geolocation API is only available in HTTPS
@@ -900,11 +913,11 @@ async function checkFirmwareVersion(manualCheck = false) {
             const serverVersionString = manifest.version;
             
             if (latestVersion > currentBuildTime) {
-                return `A new firmware is available: please update using instructions on the Settings page.\n\nYour version: ${new Date(currentBuildTime * 1000).toISOString()}\nServer version: ${new Date(latestVersion * 1000).toISOString()}`;
+                return `A new firmware is available: please update using instructions on the Settings page.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
             } else if (latestVersion < currentBuildTime) {
-                return `Your firmware is newer than the official version on the server.\n\nYour version: ${new Date(currentBuildTime * 1000).toISOString()}\nServer version: ${new Date(latestVersion * 1000).toISOString()}`;
+                return `Your firmware is newer than the official version on the server.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
             } else {
-                return `You already have the current firmware. No update needed.\n\nYour version: ${new Date(currentBuildTime * 1000).toISOString()}\nServer version: ${new Date(latestVersion * 1000).toISOString()}`;
+                return `You already have the current firmware. No update needed.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
             }
         } else {
             // Automatic check - only show popup if firmware is different

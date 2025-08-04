@@ -31,53 +31,94 @@ function saveGpsLocation() {
     if (gpsLocationInput.value.trim() !== '') {
         const [latitude, longitude] = gpsLocationInput.value.split(',').map(coord => parseFloat(coord.trim()));
 
-        // Store the values in localStorage
-        localStorage.setItem('gpsLocationOverride', JSON.stringify({ latitude, longitude }));
+        const settings = {
+            gps_lat: latitude.toString(),
+            gps_lon: longitude.toString(),
+        };
 
-        // Clear the distance cache to force recalculation with new location
-        clearDistanceCache();
+        fetch('/api/v1/gps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings),
+        })
+        .then(response => {
+            if (response.ok) {
+                // Invalidate the cache in main.js
+                gGpsOverride = null;
+                // Clear the distance cache to force recalculation with new location
+                clearDistanceCache();
+                // Force refresh of spots data with new location
+                gLatestSotaJson = null;
+                gLatestPotaJson = null;
 
-        // Force refresh of spots data with new location
-        gLatestSotaJson = null;
-        gLatestPotaJson = null;
-
-        alert('GPS location override saved. The new location will be used for distance calculations.');
+                alert('GPS location override saved. The new location will be used for distance calculations.');
+            } else {
+                response.json().then(data => {
+                    throw new Error(data.error || 'Unknown error');
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to save GPS location.');
+        });
     } else {
         alert('Please enter a valid GPS location or use the Clear Override button to remove the override.');
     }
 }
 
 async function clearGpsLocation() {
-    // Remove the GPS location override from localStorage
-    localStorage.removeItem('gpsLocationOverride');
+    const settings = {
+        gps_lat: "",
+        gps_lon: "",
+    };
 
-    // Clear the input field
-    loadGpsLocation();
+    fetch('/api/v1/gps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+    })
+    .then(response => {
+        if (response.ok) {
+            // Invalidate the cache in main.js
+            gGpsOverride = null;
+            // Clear the input field
+            loadGpsLocation();
+            // Clear the distance cache to force recalculation with default location
+            clearDistanceCache();
+            // Force refresh of spots data with new location
+            gLatestSotaJson = null;
+            gLatestPotaJson = null;
 
-    // Clear the distance cache to force recalculation with default location
-    clearDistanceCache();
-
-    // Force refresh of spots data with new location
-    gLatestSotaJson = null;
-    gLatestPotaJson = null;
-
-    alert('GPS location override cleared. Automatic location detection will be used.');
+            alert('GPS location override cleared. Automatic location detection will be used.');
+        } else {
+            response.json().then(data => {
+                throw new Error(data.error || 'Unknown error');
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to clear GPS location.');
+    });
 }
 
 async function loadGpsLocation() {
-    // Check if there's a saved GPS location
-    const savedLocation = localStorage.getItem('gpsLocationOverride');
-    if (savedLocation) {
-        const { latitude, longitude } = JSON.parse(savedLocation);
+    try {
+        const response = await fetch('/api/v1/gps');
+        const data = await response.json();
+        const gpsLocationInput = document.getElementById('gps-location');
 
-        // Set the input value
+        if (data.gps_lat && data.gps_lon) {
+            gpsLocationInput.value = `${data.gps_lat}, ${data.gps_lon}`;
+        } else {
+            const { latitude, longitude } = await getLocation();
+            gpsLocationInput.placeholder = `e.g. ${latitude}, ${longitude}`;
+        }
+    } catch (error) {
+        console.error('Failed to load GPS location:', error);
         const gpsLocationInput = document.getElementById('gps-location');
-        gpsLocationInput.value = `${latitude}, ${longitude}`;
-    }
-    else {
-        const { latitude, longitude } = await getLocation();
-        const gpsLocationInput = document.getElementById('gps-location');
-        gpsLocationInput.value = `e.g. ${latitude}, ${longitude}`;
+        gpsLocationInput.placeholder = 'Could not fetch location';
     }
 }
 

@@ -35,6 +35,10 @@ static const char s_ap_ssid_key[] = "ap_ssid";
 char              g_ap_ssid[MAX_WIFI_SSID_SIZE];
 static const char s_ap_pass_key[] = "ap_pass";
 char              g_ap_pass[MAX_WIFI_PASS_SIZE];
+static const char s_gps_lat_key[] = "gps_lat";
+char              g_gps_lat[MAX_GPS_LAT_SIZE];
+static const char s_gps_lon_key[] = "gps_lon";
+char              g_gps_lon[MAX_GPS_LON_SIZE];
 
 /**
  * Handle to our Non-Volatile Storage while we're in communication with it.
@@ -95,6 +99,8 @@ static void populate_settings () {
     GET_NV_STRING (sta3_pass, "");
     GET_NV_STRING (ap_ssid, default_ap_ssid);
     GET_NV_STRING (ap_pass, "12345678");
+    GET_NV_STRING (gps_lat, "");
+    GET_NV_STRING (gps_lon, "");
 }
 
 /**
@@ -219,7 +225,7 @@ static void parse_and_process_json (char * json) {
  * Retrieve settings from NVS, expressed as JSON structure,
  * and respond to the http request
  */
-static esp_err_t retrieve_and_send_settings (httpd_req_t * req) {
+esp_err_t retrieve_and_send_settings (httpd_req_t * req) {
     std::shared_ptr<char[]> buf = get_settings_json();
     if (!buf)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
@@ -283,4 +289,66 @@ esp_err_t handler_settings_post (httpd_req_t * req) {
     }
 
     return result;
+}
+
+static std::shared_ptr<char[]> get_gps_settings_json () {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    size_t required_size = 1 +
+                           sizeof (s_gps_lat_key) + sizeof (g_gps_lat) + 6 +
+                           sizeof (s_gps_lon_key) + sizeof (g_gps_lon) + 6 +
+                           1;
+    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\"}";
+
+    std::shared_ptr<char[]> buf (new char[required_size]);
+    snprintf (buf.get(), required_size, format, s_gps_lat_key, g_gps_lat, s_gps_lon_key, g_gps_lon);
+
+    return buf;
+}
+
+static esp_err_t retrieve_and_send_gps_settings (httpd_req_t * req) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    httpd_resp_set_type (req, "application/json");
+    auto settings_json = get_gps_settings_json();
+    return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t handler_gps_settings_get (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    return retrieve_and_send_gps_settings (req);
+}
+
+esp_err_t handler_gps_settings_post (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    if (!buf)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+
+    char * unsafe_buf = buf.get();
+
+    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
+    if (ret <= 0) {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408 (req);
+        }
+        return ESP_FAIL;
+    }
+
+    unsafe_buf[req->content_len] = '\0';
+
+    parse_and_process_json (unsafe_buf);
+
+    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
+
+    populate_settings();
+
+    return retrieve_and_send_gps_settings (req);
 }

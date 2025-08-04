@@ -263,8 +263,7 @@ li {
     width: 100%;
     border-collapse: collapse;
     border: none;
-    overflow-x: auto;
-    display: block;
+    table-layout: auto;
 }
 
 table {
@@ -643,6 +642,13 @@ table a:hover {
 .special-row td:nth-child(2),
 .special-row td:nth-child(3) {
     text-decoration: line-through;
+}
+
+/* Allow text wrapping and set max width for locator cell */
+.locator-cell {
+    white-space: normal !important;
+    max-width: 100px;
+    word-wrap: break-word;
 }
 
 /* Reduce padding for Mode column header */

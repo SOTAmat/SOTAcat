@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include "globals.h"
 #include "kx_radio.h"
+#include "settings.h"
 
 #include <ctype.h>
 #include <memory>
@@ -106,6 +107,8 @@ static const api_handler_t api_handlers[] = {
     {HTTP_POST, "cancelft8",        handler_cancelft8_post,       true },
     {HTTP_POST, "settings",         handler_settings_post,        false},
     {HTTP_POST, "ota",              handler_ota_post,             false},
+    {HTTP_GET,  "gps",              handler_gps_settings_get,     false},
+    {HTTP_POST, "gps",              handler_gps_settings_post,    false},
     {0,         NULL,               NULL,                         false}  // Sentinel to mark end of array
 };
 
@@ -261,7 +264,7 @@ void start_webserver () {
     httpd_config_t config      = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers    = 6;
     config.uri_match_fn        = custom_uri_matcher;
-    config.server_port         = 80;    // Explicitly set port 80 for mobile compatibility
+    config.server_port         = 80;  // Explicitly set port 80 for mobile compatibility
     config.lru_purge_enable    = true;
     config.max_open_sockets    = 7;     // Increase from default of 4
     config.recv_wait_timeout   = 30;    // seconds

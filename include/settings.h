@@ -1,5 +1,8 @@
 #pragma once
 
+#include "esp_err.h"    // For esp_err_t
+#include "webserver.h"  // For httpd_req_t
+
 // ADC Battery measurement
 #define BATTERY_SAMPLES_TO_AVERAGE 16
 #define BATTERY_CALIBRATION_VALUE  1.006879
@@ -27,4 +30,14 @@ extern char g_sta3_pass[MAX_WIFI_PASS_SIZE];
 extern char g_ap_ssid[MAX_WIFI_SSID_SIZE];
 extern char g_ap_pass[MAX_WIFI_PASS_SIZE];
 
-extern void init_settings ();
+#define MAX_GPS_LAT_SIZE 32
+#define MAX_GPS_LON_SIZE 32
+extern char g_gps_lat[MAX_GPS_LAT_SIZE];
+extern char g_gps_lon[MAX_GPS_LON_SIZE];
+
+void      init_settings ();
+esp_err_t retrieve_and_send_settings (httpd_req_t * req);
+esp_err_t handler_settings_get (httpd_req_t * req);
+esp_err_t handler_settings_post (httpd_req_t * req);
+esp_err_t handler_gps_settings_get (httpd_req_t * req);
+esp_err_t handler_gps_settings_post (httpd_req_t * req);
