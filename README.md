@@ -55,13 +55,19 @@ Step-by-step instructions are found in the "Installing Firmware" section of the 
 
 ## Software Developer Instructions to Build the Firmware:
 
-#### THIS IS A "PRE-RELEASE" WORK IN PROGRESS
+### For VScode users:
+1. Install VScode (visual studio code)
+2. Install PlatformIO into VScode
+3. Select a build target (at the bottom of the VScode screen on the task bar)
+4. Select the right-arrow icon "PlatformIO: Upload" (at the bottom of the screen)
 
-1. git clone --recurse-submodules https://github.com/SOTAmat/SOTAcat.git
-2. Install VScode (visual studio code)
-3. Install PlatformIO into VScode
-4. Select a build target (at the bottom of the VScode screen on the task bar)
-5. Select the right-arrow icon "PlatformIO: Upload" (at the bottom of the screen)
+### For plain PlatformIO users:
+``` bash
+rm -rf SOTAcat
+git clone git@github.com:SOTAmat/SOTAcat.git
+cd SOTAcat
+pio run --target upload
+```
 
 ## Initial Setup of SOTACAT Network connection
 
