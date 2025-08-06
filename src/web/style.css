@@ -19,11 +19,11 @@
     --color-gray-800: #343a40;
     --color-black: #000000;
     --color-table-row-alt: #f5f5f5;
-    
+
     /* Logo Colors */
     --color-header-bg: #222222;
     --color-subtitle-bg: #A7A7A7;
-    
+
     /* Text Colors */
     --text-primary: var(--color-black);
     --text-secondary: var(--color-white);
@@ -666,6 +666,84 @@ table a:hover {
     box-shadow: var(--box-shadow);
 }
 
+/* =========================== Static Section Styles */
+.static-section {
+    margin-bottom: var(--spacing-medium);
+    background-color: var(--bg-primary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+}
+
+.static-header {
+    background-color: var(--color-header-bg);
+    color: var(--text-secondary);
+    padding: var(--spacing-medium);
+    margin: 0;
+}
+
+.static-header h2 {
+    margin: 0;
+    padding: 0;
+    background: none;
+    color: var(--text-secondary);
+    font-size: var(--font-size-large);
+    font-weight: 600;
+}
+
+.static-content {
+    padding: var(--spacing-medium);
+    background-color: var(--bg-primary);
+}
+
+/* =========================== Collapsible Section Styles */
+.collapsible-section {
+    margin-bottom: var(--spacing-medium);
+    background-color: var(--bg-primary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+}
+
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    background-color: var(--color-header-bg);
+    color: var(--text-secondary);
+    padding: var(--spacing-medium);
+    margin: 0;
+    transition: background-color var(--transition-speed) ease;
+    user-select: none;
+}
+
+.collapsible-header:hover {
+    background-color: var(--color-active);
+}
+
+.collapsible-header h2 {
+    margin: 0;
+    padding: 0;
+    background: none;
+    color: var(--text-secondary);
+    font-size: var(--font-size-large);
+    font-weight: 600;
+}
+
+.collapse-icon {
+    font-size: 1.2em;
+    transition: transform var(--transition-speed) ease;
+    font-weight: bold;
+    color: var(--text-secondary);
+}
+
+.collapsible-content {
+    padding: var(--spacing-medium);
+    background-color: var(--bg-primary);
+    display: block;
+}
+
 .msg-section, .keyer-section, .wifi-client, .vfo-section  {
     background-color: var(--color-gray-200);
     padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-small) var(--spacing-medium);
@@ -1031,12 +1109,12 @@ hr {
         max-width: 1200px;
         margin: 0 auto;
     }
-    
+
     .cat-container, .settings-container {
         max-width: 1200px;
         margin: var(--spacing-medium) auto;
     }
-    
+
     #tableContainer {
         max-width: 1200px;
         margin: 4px auto var(--spacing-medium);
@@ -1050,12 +1128,12 @@ hr {
     .tabBar {
         max-width: 800px;
     }
-    
+
     .cat-container, .settings-container {
         max-width: 800px;
         margin: var(--spacing-medium) auto;
     }
-    
+
     #tableContainer {
         max-width: 800px;
         margin: 4px auto var(--spacing-large);
@@ -1067,11 +1145,11 @@ hr {
   .tabBar button {
     padding: var(--spacing-small) 0;
   }
-  
+
   .tabIcons {
     font-size: calc(var(--tab-icon-size) * 0.8);
   }
-  
+
   th, td {
     padding: 8px 4px;
     font-size: calc(var(--font-size-small) * 0.95);

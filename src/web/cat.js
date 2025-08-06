@@ -367,11 +367,51 @@ function saveInputValues() {
   localStorage.setItem("message3", document.getElementById("message3").value);
 }
 
+// Collapsible section functionality
+function toggleSection(sectionId) {
+  const content = document.getElementById(sectionId);
+  const iconId = sectionId.replace('-section', '-icon');
+  const icon = document.getElementById(iconId);
+
+  if (content.style.display === 'none') {
+    content.style.display = 'block';
+    icon.innerHTML = '&#9650;'; // Up arrow
+    // Save expanded state
+    localStorage.setItem(sectionId + '_expanded', 'true');
+  } else {
+    content.style.display = 'none';
+    icon.innerHTML = '&#9660;'; // Down arrow
+    // Save collapsed state
+    localStorage.setItem(sectionId + '_expanded', 'false');
+  }
+}
+
+function loadCollapsibleStates() {
+  // Load saved states for collapsible sections
+  const sections = ['tune-section', 'transmit-section'];
+  sections.forEach(sectionId => {
+    const savedState = localStorage.getItem(sectionId + '_expanded');
+    const content = document.getElementById(sectionId);
+    const iconId = sectionId.replace('-section', '-icon');
+    const icon = document.getElementById(iconId);
+
+    if (savedState === 'false') {
+      content.style.display = 'none';
+      icon.innerHTML = '&#9660;'; // Down arrow
+    } else {
+      // Default to expanded or if saved as true
+      content.style.display = 'block';
+      icon.innerHTML = '&#9650;'; // Up arrow
+    }
+  });
+}
+
 gMessageInputListenersAttached = false;
 
 function catOnAppearing() {
   console.info("CAT tab appearing");
   loadInputValues();
+  loadCollapsibleStates();
 
   if (!gMessageInputListenersAttached) {
     gMessageInputListenersAttached = true;

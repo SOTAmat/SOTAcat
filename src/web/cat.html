@@ -1,137 +1,162 @@
 <script src="cat.js"></script>
 
-<div class="sotamat-button-row">
-  <div class="sotamat-button-container-sota">
-    <button type="button" class="sotamatLaunchButton" onclick="launchSOTAmat()">
-      <span>SOTAMAT</span>
-      <span class="sotamatLaunchButtonIcon">&#128225;&#65039;</span>
-    </button>
-  </div>
-</div>
-
 <div class="cat-container">
-  <div class="xmit-section">
-    <div class="inline-header">
-      <h2>Xmit:</h2>
-      <div class="button-row">
-        <button class="bigthumb" onclick="playMsg(1)">Msg 1</button>
-        <button class="bigthumb" onclick="playMsg(2)">Msg 2</button>
-        <button id="xmitButton" class="bigthumb" onclick="toggleXmit()">
-          Toggle
-        </button>
-      </div>
+  <!-- Tune Section -->
+  <div class="collapsible-section">
+    <div class="collapsible-header" onclick="toggleSection('tune-section')">
+      <h2>Tune</h2>
+      <span class="collapse-icon" id="tune-icon">&#9650;</span>
     </div>
-  </div>
+    <div class="collapsible-content" id="tune-section">
+      <div class="vfo-section">
+        <!-- Frequency Display and Controls -->
+        <div class="vfo-frequency-section">
+          <div class="inline-header">
+            <h2>VFO:</h2>
+            <div class="frequency-display-row">
+              <div class="frequency-value" id="currentFrequency">14.225.000</div>
+              <div class="frequency-mode" id="currentMode">USB</div>
+            </div>
+          </div>
 
-  <div class="keyer-section">
-    <h2>Send Text as CW</h2>
-    <div class="input-group">
-      <input
-        type="text"
-        id="message1"
-        pattern=".{0}|.{1,24}"
-        placeholder="Type up to 24 chars"
-        aria-label="CW message 1"
-      />
-      <button onclick="sendKeys(document.getElementById('message1').value)">
-        Send
-      </button>
-    </div>
-    <div class="input-group">
-      <input
-        type="text"
-        id="message2"
-        pattern=".{0}|.{1,24}"
-        placeholder="Type up to 24 chars"
-        aria-label="CW message 2"
-      />
-      <button onclick="sendKeys(document.getElementById('message2').value)">
-        Send
-      </button>
-    </div>
-    <div class="input-group">
-      <input
-        type="text"
-        id="message3"
-        pattern=".{0}|.{1,24}"
-        placeholder="Type up to 24 chars"
-        aria-label="CW message 3"
-      />
-      <button onclick="sendKeys(document.getElementById('message3').value)">
-        Send
-      </button>
-    </div>
-  </div>
+          <div class="frequency-controls">
+            <div class="freq-adjust-row">
+              <button class="freq-btn freq-down" onclick="adjustFrequency(-5000)">
+                -5k
+              </button>
+              <button class="freq-btn freq-down" onclick="adjustFrequency(-2000)">
+                -2k
+              </button>
+              <button class="freq-btn freq-down" onclick="adjustFrequency(-1000)">
+                -1k
+              </button>
+              <button class="freq-btn freq-up" onclick="adjustFrequency(1000)">
+                +1k
+              </button>
+              <button class="freq-btn freq-up" onclick="adjustFrequency(2000)">
+                +2k
+              </button>
+              <button class="freq-btn freq-up" onclick="adjustFrequency(5000)">
+                +5k
+              </button>
+            </div>
+          </div>
+        </div>
 
-  <div class="vfo-section">
-    <!-- Frequency Display and Controls -->
-    <div class="vfo-frequency-section">
-      <div class="inline-header">
-        <h2>VFO:</h2>
-        <div class="frequency-display-row">
-          <div class="frequency-value" id="currentFrequency">14.225.000</div>
-          <div class="frequency-mode" id="currentMode">USB</div>
+        <!-- Band Selection -->
+        <div class="band-section">
+          <div class="band-buttons">
+            <button class="band-btn" onclick="selectBand('40m')">40m</button>
+            <button class="band-btn" onclick="selectBand('20m')">20m</button>
+            <button class="band-btn" onclick="selectBand('17m')">17m</button>
+            <button class="band-btn" onclick="selectBand('15m')">15m</button>
+            <button class="band-btn" onclick="selectBand('12m')">12m</button>
+            <button class="band-btn" onclick="selectBand('10m')">10m</button>
+          </div>
+        </div>
+
+        <!-- Mode Selection -->
+        <div class="mode-section">
+          <div class="mode-buttons">
+            <button class="mode-btn" id="cwModeBtn" onclick="setMode('CW')">
+              CW
+            </button>
+            <button class="mode-btn" id="ssbModeBtn" onclick="setMode('SSB')">
+              SSB
+            </button>
+            <button class="mode-btn" id="dataModeBtn" onclick="setMode('DATA')">
+              DATA
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="frequency-controls">
-        <div class="freq-adjust-row">
-          <button class="freq-btn freq-down" onclick="adjustFrequency(-5000)">
-            -5k
-          </button>
-          <button class="freq-btn freq-down" onclick="adjustFrequency(-2000)">
-            -2k
-          </button>
-          <button class="freq-btn freq-down" onclick="adjustFrequency(-1000)">
-            -1k
-          </button>
-          <button class="freq-btn freq-up" onclick="adjustFrequency(1000)">
-            +1k
-          </button>
-          <button class="freq-btn freq-up" onclick="adjustFrequency(2000)">
-            +2k
-          </button>
-          <button class="freq-btn freq-up" onclick="adjustFrequency(5000)">
-            +5k
-          </button>
+      <div class="power-section">
+        <div class="inline-header">
+          <h2>Power:</h2>
+          <div class="button-row">
+            <button class="bigthumb" onclick="setPowerMinMax(false)">Min</button>
+            <button class="atu-btn" onclick="tuneAtu()">Tune</button>
+            <button class="bigthumb" onclick="setPowerMinMax(true)">Max</button>
+          </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Band Selection -->
-    <div class="band-section">
-      <div class="band-buttons">
-        <button class="band-btn" onclick="selectBand('40m')">40m</button>
-        <button class="band-btn" onclick="selectBand('20m')">20m</button>
-        <button class="band-btn" onclick="selectBand('17m')">17m</button>
-        <button class="band-btn" onclick="selectBand('15m')">15m</button>
-        <button class="band-btn" onclick="selectBand('12m')">12m</button>
-        <button class="band-btn" onclick="selectBand('10m')">10m</button>
-      </div>
+  <!-- Spot Section (Non-collapsible) -->
+  <div class="static-section">
+    <div class="static-header">
+      <h2>Spot</h2>
     </div>
-
-    <!-- Mode Selection -->
-    <div class="mode-section">
-      <div class="mode-buttons">
-        <button class="mode-btn" id="cwModeBtn" onclick="setMode('CW')">
-          CW
-        </button>
-        <button class="mode-btn" id="ssbModeBtn" onclick="setMode('SSB')">
-          SSB
-        </button>
-        <button class="mode-btn" id="dataModeBtn" onclick="setMode('DATA')">
-          DATA
+    <div class="static-content">
+      <div class="sotamat-button-container-sota">
+        <button type="button" class="sotamatLaunchButton" onclick="launchSOTAmat()">
+          <span>SOTAMAT</span>
+          <span class="sotamatLaunchButtonIcon">&#128225;&#65039;</span>
         </button>
       </div>
     </div>
   </div>
-  <div class="power-section">
-    <div class="inline-header">
-      <h2>Power:</h2>
-      <div class="button-row">
-        <button class="bigthumb" onclick="setPowerMinMax(false)">Min</button>
-        <button class="atu-btn" onclick="tuneAtu()">Tune</button>
-        <button class="bigthumb" onclick="setPowerMinMax(true)">Max</button>
+
+  <!-- Transmit Section -->
+  <div class="collapsible-section">
+    <div class="collapsible-header" onclick="toggleSection('transmit-section')">
+      <h2>Transmit</h2>
+      <span class="collapse-icon" id="transmit-icon">&#9650;</span>
+    </div>
+    <div class="collapsible-content" id="transmit-section">
+      <div class="xmit-section">
+        <div class="inline-header">
+          <h2>Xmit:</h2>
+          <div class="button-row">
+            <button class="bigthumb" onclick="playMsg(1)">Msg 1</button>
+            <button class="bigthumb" onclick="playMsg(2)">Msg 2</button>
+            <button id="xmitButton" class="bigthumb" onclick="toggleXmit()">
+              Toggle
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="keyer-section">
+        <h2>Send Text as CW</h2>
+        <div class="input-group">
+          <input
+            type="text"
+            id="message1"
+            pattern=".{0}|.{1,24}"
+            placeholder="Type up to 24 chars"
+            aria-label="CW message 1"
+          />
+          <button onclick="sendKeys(document.getElementById('message1').value)">
+            Send
+          </button>
+        </div>
+        <div class="input-group">
+          <input
+            type="text"
+            id="message2"
+            pattern=".{0}|.{1,24}"
+            placeholder="Type up to 24 chars"
+            aria-label="CW message 2"
+          />
+          <button onclick="sendKeys(document.getElementById('message2').value)">
+            Send
+          </button>
+        </div>
+        <div class="input-group">
+          <input
+            type="text"
+            id="message3"
+            pattern=".{0}|.{1,24}"
+            placeholder="Type up to 24 chars"
+            aria-label="CW message 3"
+          />
+          <button onclick="sendKeys(document.getElementById('message3').value)">
+            Send
+          </button>
+        </div>
       </div>
     </div>
   </div>
