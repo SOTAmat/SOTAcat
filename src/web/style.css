@@ -251,6 +251,103 @@ li {
     padding-bottom: 70px; /* Space for tabBar */
 }
 
+/* =========================== Consolidated Button System */
+
+/* Base button styles - applies to ALL buttons with btn- classes */
+[class*="btn-"] {
+  border: none;
+  border-radius: var(--border-radius-controls);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 44px;
+  font-size: var(--font-size-base);
+  padding: 0 var(--spacing-large);
+}
+
+/* Active state for all buttons */
+[class*="btn-"]:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Disabled state for all buttons */
+[class*="btn-"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Button color variants */
+.btn-primary {
+  background: var(--bg-button);
+  color: var(--text-button);
+}
+.btn-primary:active:not(:disabled) {
+  background: var(--bg-button-active);
+}
+
+.btn-secondary {
+  background: var(--color-gray-200);
+  color: var(--text-primary);
+}
+.btn-secondary:active:not(:disabled) {
+  background: var(--color-gray-300);
+}
+
+.btn-refresh {
+  background: var(--bg-button);
+  color: var(--text-button);
+  min-height: 36px;
+  font-size: var(--font-size-small);
+}
+.btn-refresh:active:not(:disabled) {
+  background: var(--bg-button-active);
+}
+
+.btn-info {
+  background: var(--color-accent);
+  border: 2px solid var(--color-accent);
+  color: var(--color-white);
+  font-size: var(--font-size-large);
+  padding: var(--spacing-xs);
+  margin-left: var(--spacing-small);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+.btn-info:hover {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent-light);
+  transform: scale(1.1);
+}
+
+.btn-close {
+  background: none;
+  color: var(--color-gray-400);
+  font-size: 24px;
+  padding: var(--spacing-xs);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.btn-close:hover {
+  background: var(--color-gray-200);
+  color: var(--text-primary);
+}
+
+/* Button size variants */
+.btn-large {
+  width: 100%;
+  min-height: 52px;
+  font-size: var(--font-size-large);
+  margin-top: var(--spacing-large);
+}
+
 /* =========================== Table Styles */
 #tableContainer {
     overflow-x: auto;
@@ -762,31 +859,7 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
     margin-bottom: var(--spacing-medium);
 }
 
-/* Info button for Wifi help */
-.btn-info {
-  background: var(--color-accent);
-  border: 2px solid var(--color-accent);
-  color: var(--color-white);
-  font-size: var(--font-size-large);
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  margin-left: var(--spacing-small);
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  box-shadow: var(--box-shadow);
-}
-
-.btn-info:hover {
-  background: var(--color-accent-light);
-  border-color: var(--color-accent-light);
-  transform: scale(1.1);
-}
-
+/* Info button for Wifi help - now handled by consolidated button system */
 .info-icon {
   font-weight: 900;
   font-size: 20px;
@@ -832,26 +905,7 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
   color: var(--text-primary);
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: var(--color-gray-400);
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-close:hover {
-  background: var(--color-gray-200);
-  color: var(--text-primary);
-}
-
+/* Close button - now handled by consolidated button system */
 .help-popup-body {
   padding: var(--spacing-large);
   line-height: 1.6;
