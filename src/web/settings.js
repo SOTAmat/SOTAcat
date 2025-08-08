@@ -122,6 +122,31 @@ async function loadGpsLocation() {
     }
 }
 
+function toggleWifiHelp() {
+    const popup = document.getElementById('wifi-help-popup');
+    const isVisible = popup.style.display !== 'none';
+
+    if (isVisible) {
+        popup.style.display = 'none';
+        document.body.style.overflow = ''; // Restore scrolling
+    } else {
+        popup.style.display = 'block';
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+}
+
+// Close popup when clicking outside of it
+document.addEventListener('click', function(event) {
+    const popup = document.getElementById('wifi-help-popup');
+    const helpButton = document.querySelector('.btn-info');
+
+    if (popup && popup.style.display === 'block' &&
+        !popup.contains(event.target) &&
+        !helpButton.contains(event.target)) {
+        toggleWifiHelp();
+    }
+});
+
 function togglePasswordVisibility(inputId) {
     var passwordInput = document.getElementById(inputId);
     passwordInput.type = (passwordInput.type === "password") ? "text" : "password";
