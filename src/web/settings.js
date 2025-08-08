@@ -450,31 +450,6 @@ async function saveTuneTargets() {
 }
 
 // ============================================================================
-// UI Compact Mode Functions
-// ============================================================================
-
-// Load UI compact mode setting and update checkbox UI
-function loadUiCompactModeUI() {
-    loadUiCompactMode(); // From main.js - loads into AppState
-    const checkbox = document.getElementById("ui-compact-mode");
-    if (checkbox) {
-        checkbox.checked = AppState.uiCompactMode;
-    }
-}
-
-// Save UI compact mode setting to localStorage when checkbox changes
-function onUiCompactModeChange() {
-    const checkbox = document.getElementById("ui-compact-mode");
-    if (checkbox) {
-        const enabled = checkbox.checked;
-        localStorage.setItem("sotacat_ui_compact", enabled ? "true" : "false");
-        AppState.uiCompactMode = enabled;
-        applyUiCompactMode(); // From main.js - applies class to body
-        Log.info("Settings", `Compact mode: ${enabled ? "enabled" : "disabled"}`);
-    }
-}
-
-// ============================================================================
 // Chase Filters Functions
 // ============================================================================
 
@@ -498,22 +473,49 @@ function onFilterBandsChange() {
     }
 }
 
+// Load UI compact mode setting into checkbox
+function loadUiCompactModeSettingUI() {
+    const checkbox = document.getElementById("ui-compact-mode");
+    if (checkbox) {
+        checkbox.checked = AppState.uiCompactMode;
+    }
+}
+
+// Save UI compact mode setting and apply immediately
+function onUiCompactModeChange() {
+    const checkbox = document.getElementById("ui-compact-mode");
+    if (!checkbox) return;
+    const enabled = checkbox.checked;
+    localStorage.setItem("sotacat_ui_compact", enabled ? "true" : "false");
+    AppState.uiCompactMode = enabled;
+    applyUiCompactMode();
+    Log.info("Settings", `Compact mode: ${enabled ? "enabled" : "disabled"}`);
+}
+
 // ============================================================================
 // Tune Targets Help Popup Functions
 // ============================================================================
 
+function updateBodyOverflowLock() {
+    const wifiPopup = document.getElementById("wifi-help-popup");
+    const tuneTargetsPopup = document.getElementById("tune-targets-help-popup");
+    const anyOpen =
+        (wifiPopup && !wifiPopup.classList.contains("hidden")) ||
+        (tuneTargetsPopup && !tuneTargetsPopup.classList.contains("hidden"));
+    document.body.classList.toggle("overflow-hidden", anyOpen);
+}
+
 // Toggle Tune Targets help popup
 function toggleTuneTargetsHelp() {
     const popup = document.getElementById("tune-targets-help-popup");
-    const isVisible = !popup.classList.contains("hidden");
+    const isVisible = popup && !popup.classList.contains("hidden");
 
     if (isVisible) {
         popup.classList.add("hidden");
-        document.body.classList.remove("overflow-hidden"); // Restore scrolling
     } else {
         popup.classList.remove("hidden");
-        document.body.classList.add("overflow-hidden"); // Prevent background scrolling
     }
+    updateBodyOverflowLock();
 }
 
 // ============================================================================
@@ -523,15 +525,14 @@ function toggleTuneTargetsHelp() {
 // Toggle WiFi configuration help popup
 function toggleWifiHelp() {
     const popup = document.getElementById("wifi-help-popup");
-    const isVisible = !popup.classList.contains("hidden");
+    const isVisible = popup && !popup.classList.contains("hidden");
 
     if (isVisible) {
         popup.classList.add("hidden");
-        document.body.classList.remove("overflow-hidden"); // Restore scrolling
     } else {
         popup.classList.remove("hidden");
-        document.body.classList.add("overflow-hidden"); // Prevent background scrolling
     }
+    updateBodyOverflowLock();
 }
 
 // Close popup when clicking outside of it
@@ -997,10 +998,10 @@ function attachSettingsEventListeners() {
         filterBandsCheckbox.addEventListener("change", onFilterBandsChange);
     }
 
-    // UI compact mode checkbox
-    const uiCompactModeCheckbox = document.getElementById("ui-compact-mode");
-    if (uiCompactModeCheckbox) {
-        uiCompactModeCheckbox.addEventListener("change", onUiCompactModeChange);
+    // Display settings - compact mode checkbox
+    const compactModeCheckbox = document.getElementById("ui-compact-mode");
+    if (compactModeCheckbox) {
+        compactModeCheckbox.addEventListener("change", onUiCompactModeChange);
     }
 }
 
@@ -1015,7 +1016,7 @@ function onSettingsAppearing() {
     loadCallSign();
     loadTuneTargets();
     loadFilterBandsSettingUI();
-    loadUiCompactModeUI();
+    loadUiCompactModeSettingUI();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }
 
