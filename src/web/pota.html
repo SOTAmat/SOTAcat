@@ -1,48 +1,32 @@
-<div class="pota-controls-row">
-  <div class="pota-controls-left">
-    <div class="auto-refresh-container">
-      <div class="control-prefix">
-        <input
-          type="checkbox"
-          id="autoRefreshSelector"
-          class="autoRefresh"
-          checked
-        />
-      </div>
-      <div class="control-main">
-        <label for="autoRefreshSelector">Auto-refresh</label>
-        <button onclick="refreshSotaPotaJson(true)">Refresh</button>
-      </div>
+<div class="controls-card">
+  <div class="controls-grid">
+    <div class="control-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="autoRefreshSelector" checked>
+        <span>Auto-refresh</span>
+      </label>
+      <button class="btn-refresh" onclick="refreshSotaPotaJson(true)">Refresh Now</button>
     </div>
-  </div>
 
-  <div class="pota-controls-right">
-    <div class="mode-filter-container">
-      <div class="control-prefix">&nbsp;</div>
-      <div class="control-main">
-        <label for="modeFilter">Mode:</label>
-        <select
-          id="modeFilter"
-          class="sota-control-selector"
-          aria-label="Filter by mode"
-          onchange="changeModeFilter(this.value); saveModeFilterState();"
-        >
-          <option value="All" selected="true">All</option>
-          <option value="CW">CW</option>
-          <option value="SSB">SSB</option>
-          <option value="FM">FM</option>
-          <option value="FT8">FT8</option>
-          <option value="FT4">FT4</option>
-          <option value="DATA">DATA</option>
-          <option value="OTHER">OTHER</option>
-        </select>
-      </div>
+    <div class="control-group">
+      <label for="modeFilter">Mode:</label>
+      <select id="modeFilter" class="select-control"
+              onchange="changeModeFilter(this.value); saveModeFilterState();">
+        <option value="All" selected>All</option>
+        <option value="CW">CW</option>
+        <option value="SSB">SSB</option>
+        <option value="FM">FM</option>
+        <option value="FT8">FT8</option>
+        <option value="FT4">FT4</option>
+        <option value="DATA">DATA</option>
+        <option value="OTHER">OTHER</option>
+      </select>
     </div>
   </div>
 </div>
 
 <div id="tableContainer">
-  <table id="potaTable" class="table-sortable">
+  <table id="potaTable" class="data-table">
     <thead>
       <tr>
         <th><span data-sort-field="timestamp">UTC</span></th>

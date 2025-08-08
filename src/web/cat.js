@@ -1,5 +1,4 @@
 function playMsg(slot) {
-  // Create the PUT request using Fetch API
   const url = "/api/v1/msg?bank=" + slot;
   fetch(url, { method: "PUT" }).catch((error) =>
     console.error("Fetch error:", error),
@@ -17,17 +16,14 @@ function sendXmitRequest(state) {
 
 function toggleXmit() {
   const xmitButton = document.getElementById("xmitButton");
-
-  // Toggle the state
   isXmitActive = !isXmitActive;
 
-  // Change button appearance
   if (isXmitActive) {
     xmitButton.classList.add("active");
-    sendXmitRequest(1);  // Send "on" signal
+    sendXmitRequest(1);
   } else {
     xmitButton.classList.remove("active");
-    sendXmitRequest(0);  // Send "off" signal
+    sendXmitRequest(0);
   }
 }
 
@@ -41,17 +37,16 @@ function setPowerMinMax(maximum) {
 }
 
 function sendKeys(message) {
-  if (message.length < 1 || message.length > 24)
-    alert("Text length must be [1..24] characters.");
-  else {
-    const url = "/api/v1/keyer?message=" + message;
-    fetch(url, { method: "PUT" }).catch((error) =>
-      console.error("Fetch error:", error),
-    );
+  if (message.length < 1 || message.length > 24) {
+    alert("Text length must be 1-24 characters.");
+    return;
   }
-}
 
-// VFO Control Functions
+  const url = "/api/v1/keyer?message=" + message;
+  fetch(url, { method: "PUT" }).catch((error) =>
+    console.error("Fetch error:", error),
+  );
+}
 
 // Band frequencies in Hz
 // Even though lower frequencies are available to Extra-class, we chose starts a
@@ -91,11 +86,10 @@ function updateFrequencyDisplay() {
   const display = document.getElementById('currentFrequency');
   if (display) {
     display.textContent = formatFrequency(currentFrequencyHz);
-
-    // Add brief visual feedback for updates
-    display.style.backgroundColor = 'var(--color-success)';
+    // Brief visual feedback
+    display.style.color = 'var(--success)';
     setTimeout(() => {
-      display.style.backgroundColor = '';
+      display.style.color = '';
     }, 200);
   }
 }
@@ -104,30 +98,27 @@ function updateModeDisplay() {
   const display = document.getElementById('currentMode');
   if (display) {
     display.textContent = currentMode;
-
-    // Add brief visual feedback for updates
-    display.style.backgroundColor = 'var(--color-success)';
+    // Brief visual feedback
+    display.style.color = 'var(--warning)';
     setTimeout(() => {
-      display.style.backgroundColor = '';
+      display.style.color = '';
     }, 200);
   }
 
   // Update mode button active states
-  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-  const activeBtn = document.getElementById(currentMode.toLowerCase() + 'ModeBtn');
-  if (activeBtn) {
-    activeBtn.classList.add('active');
+  document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
+
+  if (currentMode === 'CW') {
+    document.getElementById('cwModeBtn')?.classList.add('active');
   } else if (currentMode === 'USB' || currentMode === 'LSB') {
-    // Handle SSB modes
-    const ssbBtn = document.getElementById('ssbModeBtn');
-    if (ssbBtn) ssbBtn.classList.add('active');
+    document.getElementById('ssbModeBtn')?.classList.add('active');
+  } else if (currentMode === 'DATA') {
+    document.getElementById('dataModeBtn')?.classList.add('active');
   }
 }
 
 function getCurrentFrequency() {
-  if (isUpdatingVfo) return; // Avoid concurrent updates
-
-  // Don't poll if user made a change in the last 2 seconds
+  if (isUpdatingVfo) return;
   if (Date.now() - lastUserAction < 2000) return;
 
   isUpdatingVfo = true;
@@ -140,7 +131,6 @@ function getCurrentFrequency() {
     })
     .then(frequency => {
       const newFreq = parseInt(frequency);
-      // Only update if frequency has actually changed
       if (newFreq !== currentFrequencyHz) {
         currentFrequencyHz = newFreq;
         updateFrequencyDisplay();
@@ -156,9 +146,7 @@ function getCurrentFrequency() {
 }
 
 function getCurrentMode() {
-  if (isUpdatingVfo) return; // Avoid concurrent updates
-
-  // Don't poll if user made a change in the last 2 seconds
+  if (isUpdatingVfo) return;
   if (Date.now() - lastUserAction < 2000) return;
 
   fetch('/api/v1/mode', { method: 'GET' })
@@ -170,7 +158,6 @@ function getCurrentMode() {
     })
     .then(mode => {
       const newMode = mode.toUpperCase();
-      // Only update if mode has actually changed
       if (newMode !== currentMode) {
         currentMode = newMode;
         updateModeDisplay();
@@ -183,9 +170,8 @@ function getCurrentMode() {
 }
 
 function setFrequency(frequencyHz) {
-  lastUserAction = Date.now(); // Mark user action timestamp
+  lastUserAction = Date.now();
 
-  // Clear any pending frequency update
   if (pendingFrequencyUpdate) {
     clearTimeout(pendingFrequencyUpdate);
   }
@@ -201,13 +187,11 @@ function setFrequency(frequencyHz) {
           console.log('Frequency updated successfully:', frequencyHz);
         } else {
           console.error('Error updating frequency');
-          // Revert display on error
           getCurrentFrequency();
         }
       })
       .catch(error => {
         console.error('Fetch error:', error);
-        // Revert display on error
         getCurrentFrequency();
       })
       .finally(() => {
@@ -266,24 +250,21 @@ function setMode(mode) {
         console.log('Mode updated successfully:', actualMode);
       } else {
         console.error('Error updating mode');
-        // Revert display on error
         getCurrentMode();
       }
     })
     .catch(error => {
       console.error('Fetch error:', error);
-      // Revert display on error
       getCurrentMode();
     });
 }
 
 function startVfoUpdates() {
-  // Clear any existing interval
   if (vfoUpdateInterval) {
     clearInterval(vfoUpdateInterval);
   }
 
-  // Get initial values immediately (force update regardless of user action)
+  // Get initial values
   isUpdatingVfo = true;
   Promise.all([
     fetch('/api/v1/frequency', { method: 'GET' }).then(r => r.ok ? r.text() : null),
@@ -292,19 +273,17 @@ function startVfoUpdates() {
     if (frequency) {
       currentFrequencyHz = parseInt(frequency);
       updateFrequencyDisplay();
-      console.log('Initial frequency loaded:', currentFrequencyHz);
     }
     if (mode) {
       currentMode = mode.toUpperCase();
       updateModeDisplay();
-      console.log('Initial mode loaded:', currentMode);
     }
   }).catch(error => {
     console.error('Error loading initial VFO state:', error);
   }).finally(() => {
     isUpdatingVfo = false;
 
-    // Start periodic updates (every 3 seconds, respecting user actions)
+    // Start periodic updates
     vfoUpdateInterval = setInterval(() => {
       getCurrentFrequency();
       getCurrentMode();
@@ -318,13 +297,11 @@ function stopVfoUpdates() {
     vfoUpdateInterval = null;
   }
 
-  // Clear any pending frequency updates
   if (pendingFrequencyUpdate) {
     clearTimeout(pendingFrequencyUpdate);
     pendingFrequencyUpdate = null;
   }
 
-  // Reset flags
   isUpdatingVfo = false;
   lastUserAction = 0;
 }
@@ -334,13 +311,12 @@ function tuneAtu() {
   fetch(url, { method: "PUT" })
     .then(response => {
       if (response.ok) {
-        console.log('ATU tune initiated successfully');
-        // Optionally add visual feedback
-        const atuBtn = document.querySelector('.atu-btn');
+        // Visual feedback
+        const atuBtn = document.querySelector('.btn-tune');
         if (atuBtn) {
-          atuBtn.style.backgroundColor = 'var(--color-success)';
+          atuBtn.style.background = 'var(--success)';
           setTimeout(() => {
-            atuBtn.style.backgroundColor = '';
+            atuBtn.style.background = '';
           }, 1000);
         }
       } else {
@@ -353,12 +329,9 @@ function tuneAtu() {
 }
 
 function loadInputValues() {
-  document.getElementById("message1").value =
-    localStorage.getItem("message1") || "";
-  document.getElementById("message2").value =
-    localStorage.getItem("message2") || "";
-  document.getElementById("message3").value =
-    localStorage.getItem("message3") || "";
+  document.getElementById("message1").value = localStorage.getItem("message1") || "";
+  document.getElementById("message2").value = localStorage.getItem("message2") || "";
+  document.getElementById("message3").value = localStorage.getItem("message3") || "";
 }
 
 function saveInputValues() {
@@ -375,19 +348,16 @@ function toggleSection(sectionId) {
 
   if (content.style.display === 'none') {
     content.style.display = 'block';
-    icon.innerHTML = '&#9650;'; // Up arrow
-    // Save expanded state
+    icon.innerHTML = '&#9660;'; // Down triangle
     localStorage.setItem(sectionId + '_expanded', 'true');
   } else {
     content.style.display = 'none';
-    icon.innerHTML = '&#9660;'; // Down arrow
-    // Save collapsed state
+    icon.innerHTML = '&#9654;'; // Right triangle
     localStorage.setItem(sectionId + '_expanded', 'false');
   }
 }
 
 function loadCollapsibleStates() {
-  // Load saved states for collapsible sections
   const sections = ['tune-section', 'transmit-section'];
   sections.forEach(sectionId => {
     const savedState = localStorage.getItem(sectionId + '_expanded');
@@ -397,16 +367,15 @@ function loadCollapsibleStates() {
 
     if (savedState === 'false') {
       content.style.display = 'none';
-      icon.innerHTML = '&#9660;'; // Down arrow
+      icon.innerHTML = '&#9654;'; // Right triangle
     } else {
-      // Default to expanded or if saved as true
       content.style.display = 'block';
-      icon.innerHTML = '&#9650;'; // Up arrow
+      icon.innerHTML = '&#9660;'; // Down triangle
     }
   });
 }
 
-gMessageInputListenersAttached = false;
+let gMessageInputListenersAttached = false;
 
 function catOnAppearing() {
   console.info("CAT tab appearing");
@@ -415,24 +384,15 @@ function catOnAppearing() {
 
   if (!gMessageInputListenersAttached) {
     gMessageInputListenersAttached = true;
-    // Add event listeners to save input values when they change
-    document
-      .getElementById("message1")
-      .addEventListener("input", saveInputValues);
-    document
-      .getElementById("message2")
-      .addEventListener("input", saveInputValues);
-    document
-      .getElementById("message3")
-      .addEventListener("input", saveInputValues);
+    document.getElementById("message1").addEventListener("input", saveInputValues);
+    document.getElementById("message2").addEventListener("input", saveInputValues);
+    document.getElementById("message3").addEventListener("input", saveInputValues);
   }
 
-  // Start VFO updates when CAT tab becomes active
   startVfoUpdates();
 }
 
 function catOnLeaving() {
   console.info("CAT tab leaving");
-  // Stop VFO updates when leaving CAT tab
   stopVfoUpdates();
 }

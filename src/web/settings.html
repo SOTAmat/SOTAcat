@@ -1,335 +1,146 @@
 <script src="settings.js"></script>
+
 <div class="settings-container">
-  <div class="time-sync-section">
-    <h2>Set the KX clock to your cellphone time:</h2>
-    <button class="sync-button" onclick="syncTime()">Sync Clock</button>
+  <!-- Time Sync Card -->
+  <div class="settings-card">
+    <h2>Clock Sync</h2>
+    <p class="settings-info">Synchronize your KX radio clock with your phone</p>
+    <button class="btn-primary" onclick="syncTime()">Sync Clock Now</button>
   </div>
-  <hr />
 
-  <div class="gps-location-section">
+  <!-- GPS Location Card -->
+  <div class="settings-card">
     <h2>GPS Location Override</h2>
-    <div class="gps-instructions">
-      <br />
-      By default, SOTACAT attempts to determine your location based on your IP
-      address. If you want to override this with a specific GPS location, enter
-      it below. Leave blank to use the automatic location detection.
-      <br /><br />
-    </div>
-    <div class="gps-input-container">
-      <label for="gps-location">Location (latitude, longitude):</label>
-      <input
-        type="text"
-        id="gps-location"
-        name="GPS Location"
-        placeholder="e.g. 37.93389, -122.01136"
-        pattern="^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$"
-        title="Enter as latitude, longitude (e.g. 37.93389, -122.01136)"
-      />
-      <div class="gps-button-container">
-        <button
-          type="button"
-          id="clear-gps-button"
-          class="gps-button"
-          onclick="clearGpsLocation()"
-        >
-          Clear Override
-        </button>
-        <button
-          type="button"
-          id="save-gps-button"
-          class="gps-button"
-          onclick="saveGpsLocation()"
-        >
-          Save Location
-        </button>
+    <p class="settings-info">Override automatic IP-based location detection for more accurate distance calculations</p>
+    <div class="input-group-vertical">
+      <input type="text" id="gps-location" placeholder="e.g. 37.93389, -122.01136"
+             pattern="^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$">
+      <div class="button-group">
+        <button class="btn-secondary" onclick="clearGpsLocation()">Clear</button>
+        <button class="btn-primary" onclick="saveGpsLocation()">Save Location</button>
       </div>
     </div>
   </div>
-  <hr />
 
-  <h2>WiFi Settings</h2>
-  <form id="wifi-settings" class="wifi-settings-form">
-    <div class="wifi-instructions">
-      <br />
-      When SOTACAT boots, it will try to connect to one of two WiFi networks
-      (Client-1 and Client-2) in order. If those connections fail, it will
-      create its own WiFi hotspot (Server) so that you can connect to the
-      SOTACAT WiFi from your mobile device.
-      <br /><br />
-      <b>Apple iPhone users</b> in the field should connect to the SOTACAT
-      hotspot (Server) since the iPhone supports 'split networking' where the
-      phone is connected to both the SOTACAT via WiFi and the cellular data
-      network (when available) for retrieving current spots. Thus iPhone users,
-      when in the field, don't want a valid Client-1 or Client-2. There are many
-      ways to prevent a connection to Client-1 or Client-2 (be out of range of
-      home WiFi, configure the settings to a blank SSID/password, turn off the
-      iPhone mobile hotspot, etc.). <br /><br />
-      <b>Android phones</b> do not support 'split networking'. You should fill
-      in the "Client-1" or "Client-2" settings with your Android phone's hotspot
-      information and enable the hotspot when operating in the field. SOTACAT
-      will connect to your phone's mobile hotspot using Client-1 or Client-2
-      settings via WiFi while the phone will also be connected to the cellular
-      data network. <br /><br />
-      <b>When you are at home</b>, your phone will likley be connected to your
-      home WiFi network, and thus unavailable for a direct WiFi connection
-      to/from the SOTACAT. The remaining unused Client-1 or Client-2 settings
-      are available for you to add your home WiFi network information into the
-      SOTACAT. This will allow your SOTACAT to be connected to the same network
-      as your phone when at home, so both devices can communicate. It is up to
-      you to decide the priority order of the Client-1 and Client-2 settings as
-      to which is for your phone's hotspot and which is for your home WiFi
-      network. The only difference is how long it will take to connect when
-      booting the SOTACAT, as the SOTACAT will try to connect to Client-1 first,
-      then Client-2. And again, Apple iPhone users won't even use the mobile
-      hostspot settings. <br /><br />
-      Once connected to a network, you open your phone's browser and navigate to
-      either
-      <a href="http://sotacat.local" target="_blank" rel="noopener"
-        >http://sotacat.local</a
-      >
-      (iPhone, MacOS, Windows) or to
-      <a href="http://192.168.4.1" target="_blank" rel="noopener"
-        >http://192.168.4.1</a
-      >
-      or when using an Android hotspot, install the
-      <a
-        href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser"
-        target="_blank"
-        rel="noopener"
-        >Bonjour Browser</a
-      >
-      app from the Google Play store and use that app to navigate to the
-      "sotacat.local" address. <br /><br />
-    </div>
-    <div class="wifi-client">
-      <h3><b>Client 1:</b> ex. SOTACAT connects to Android hotspot</h3>
-      <div class="wifi-row">
-        <div class="wifi-label"><label for="sta1-ssid">SSID:</label></div>
-        <div class="wifi-label"><label for="sta1-pass">Password:</label></div>
-      </div>
-      <div class="wifi-row">
-        <input
-          type="text"
-          id="sta1-ssid"
-          name="Client 1 SSID"
-          pattern=".{0}|.{2,31}"
-          title="empty, or 2 to 31 characters"
-        />
-        <input
-          type="password"
-          id="sta1-pass"
-          name="Client 1 Password"
-          pattern=".{0}|.{8,63}"
-          title="empty, or 8 to 63 characters"
-        />
-      </div>
-      <div class="wifi-row show-password-row">
-        <label class="show-password">
-          <input
-            type="checkbox"
-            onclick="togglePasswordVisibility('sta1-pass')"
-          />Show
-        </label>
-      </div>
-    </div>
-    <div class="wifi-client">
-      <h3><b>Client 2:</b> ex. SOTACAT connects to home network</h3>
-      <div class="wifi-row">
-        <div class="wifi-label"><label for="sta2-ssid">SSID:</label></div>
-        <div class="wifi-label"><label for="sta2-pass">Password:</label></div>
-      </div>
-      <div class="wifi-row">
-        <input
-          type="text"
-          id="sta2-ssid"
-          name="Client 2 SSID"
-          pattern=".{0}|.{2,31}"
-          title="empty, or 2 to 31 characters"
-        />
-        <input
-          type="password"
-          id="sta2-pass"
-          name="Client 2 Password"
-          pattern=".{0}|.{8,63}"
-          title="empty, or 8 to 63 characters"
-        />
-      </div>
-      <div class="wifi-row show-password-row">
-        <label class="show-password">
-          <input
-            type="checkbox"
-            onclick="togglePasswordVisibility('sta2-pass')"
-          />Show
-        </label>
-      </div>
-    </div>
-    <div class="wifi-client">
-      <h3><b>Client 3:</b> ex. Another hotspot / Boat / RV internet</h3>
-      <div class="wifi-row">
-        <div class="wifi-label"><label for="sta3-ssid">SSID:</label></div>
-        <div class="wifi-label"><label for="sta3-pass">Password:</label></div>
-      </div>
-      <div class="wifi-row">
-        <input
-          type="text"
-          id="sta3-ssid"
-          name="Client 3 SSID"
-          pattern=".{0}|.{2,31}"
-          title="empty, or 2 to 31 characters"
-        />
-        <input
-          type="password"
-          id="sta3-pass"
-          name="Client 3 Password"
-          pattern=".{0}|.{8,63}"
-          title="empty, or 8 to 63 characters"
-        />
-      </div>
-      <div class="wifi-row show-password-row">
-        <label class="show-password">
-          <input
-            type="checkbox"
-            onclick="togglePasswordVisibility('sta3-pass')"
-          />Show
-        </label>
-      </div>
-    </div>
-    <div class="wifi-client">
-      <h3><b>Server:</b> iPhone connects to SOTACAT hotspot</h3>
-      <div class="wifi-row">
-        <div class="wifi-label"><label for="ap-ssid">SSID:</label></div>
-        <div class="wifi-label"><label for="ap-pass">Password:</label></div>
-      </div>
-      <div class="wifi-row">
-        <input
-          type="text"
-          id="ap-ssid"
-          name="Server SSID"
-          pattern=".{0}|.{2,31}"
-          title="empty, or 2 to 31 characters"
-        />
-        <input
-          type="password"
-          id="ap-pass"
-          name="Server Password"
-          pattern=".{0}|.{8,63}"
-          title="empty, or 8 to 63 characters"
-        />
-      </div>
-      <div class="wifi-row show-password-row">
-        <label class="show-password">
-          <input
-            type="checkbox"
-            onclick="togglePasswordVisibility('ap-pass')"
-          />Show
-        </label>
-      </div>
-    </div>
-    <input type="submit" class="save-button" value="Save and Reboot" />
-  </form>
-  <hr />
-  <h2>Firmware Update</h2>
-  <form
-    id="ota-update-form"
-    enctype="multipart/form-data"
-    class="firmware-update-form"
-  >
-    <div class="firmware-instructions">
-      <br />
-      SOTACAT automatically checks for firmware updates daily when connected to
-      the internet and will notify you if a newer version is found. To update
-      your firmware:
-    </div>
-    <br />
+  <!-- WiFi Settings Card -->
+  <div class="settings-card">
+    <h2>WiFi Configuration</h2>
+    <p class="settings-info">Configure up to 3 client networks and 1 access point</p>
 
-    <div class="firmware-client">
-      <div class="firmware-step">
-        <div class="firmware-text">
-          1. <b>Check</b> the server to see if a new version of the firmware is
-          available.
+    <form id="wifi-settings">
+      <!-- Client 1 -->
+      <div class="wifi-config">
+        <h3>Client 1 - Primary Network</h3>
+        <div class="input-grid">
+          <input type="text" id="sta1-ssid" placeholder="Network Name (SSID)"
+                 pattern=".{0}|.{2,31}" title="Empty or 2-31 characters">
+          <input type="password" id="sta1-pass" placeholder="Password"
+                 pattern=".{0}|.{8,63}" title="Empty or 8-63 characters">
         </div>
-        <div class="firmware-button-container">
-          <button
-            type="button"
-            class="firmware-button"
-            onclick="manualCheckFirmwareVersion()"
-          >
-            Check for updates
-          </button>
+        <label class="checkbox-label">
+          <input type="checkbox" onclick="togglePasswordVisibility('sta1-pass')">
+          <span>Show password</span>
+        </label>
+      </div>
+
+      <!-- Client 2 -->
+      <div class="wifi-config">
+        <h3>Client 2 - Secondary Network</h3>
+        <div class="input-grid">
+          <input type="text" id="sta2-ssid" placeholder="Network Name (SSID)"
+                 pattern=".{0}|.{2,31}" title="Empty or 2-31 characters">
+          <input type="password" id="sta2-pass" placeholder="Password"
+                 pattern=".{0}|.{8,63}" title="Empty or 8-63 characters">
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" onclick="togglePasswordVisibility('sta2-pass')">
+          <span>Show password</span>
+        </label>
+      </div>
+
+      <!-- Client 3 -->
+      <div class="wifi-config">
+        <h3>Client 3 - Tertiary Network</h3>
+        <div class="input-grid">
+          <input type="text" id="sta3-ssid" placeholder="Network Name (SSID)"
+                 pattern=".{0}|.{2,31}" title="Empty or 2-31 characters">
+          <input type="password" id="sta3-pass" placeholder="Password"
+                 pattern=".{0}|.{8,63}" title="Empty or 8-63 characters">
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" onclick="togglePasswordVisibility('sta3-pass')">
+          <span>Show password</span>
+        </label>
+      </div>
+
+      <!-- Access Point -->
+      <div class="wifi-config">
+        <h3>Access Point - SOTACAT Hotspot</h3>
+        <div class="input-grid">
+          <input type="text" id="ap-ssid" placeholder="Hotspot Name"
+                 pattern=".{0}|.{2,31}" title="Empty or 2-31 characters">
+          <input type="password" id="ap-pass" placeholder="Hotspot Password"
+                 pattern=".{0}|.{8,63}" title="Empty or 8-63 characters">
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" onclick="togglePasswordVisibility('ap-pass')">
+          <span>Show password</span>
+        </label>
+      </div>
+
+      <button type="submit" class="btn-primary btn-large">Save and Reboot</button>
+    </form>
+  </div>
+
+  <!-- Firmware Update Card -->
+  <div class="settings-card">
+    <h2>Firmware Update</h2>
+    <p class="settings-info">Keep your SOTACAT updated with the latest features</p>
+
+    <div class="firmware-steps">
+      <div class="step">
+        <span class="step-number">1</span>
+        <div class="step-content">
+          <p>Check for available updates</p>
+          <button class="btn-secondary" onclick="manualCheckFirmwareVersion()">Check Updates</button>
         </div>
       </div>
 
-      <div class="firmware-step">
-        <div class="firmware-text">
-          2. <b>Download</b> the firmware .bin file from the cloud to your
-          phone's local storage.
-        </div>
-        <div class="firmware-button-container">
-          <button
-            type="button"
-            class="firmware-button"
-            onclick="window.location.href='https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin'"
-          >
+      <div class="step">
+        <span class="step-number">2</span>
+        <div class="step-content">
+          <p>Download firmware to your device</p>
+          <button class="btn-secondary"
+                  onclick="window.location.href='https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin'">
             Download Firmware
           </button>
         </div>
       </div>
 
-      <div class="firmware-step">
-        <div class="firmware-text">
-          3. <b>Select</b> the firmware .bin file downloaded to your phone's
-          local storage from step 2.
-        </div>
-        <div class="firmware-button-container">
-          <button
-            type="button"
-            class="firmware-button"
-            onclick="document.getElementById('ota-file').click()"
-          >
-            Select firmware (.bin) file
+      <div class="step">
+        <span class="step-number">3</span>
+        <div class="step-content">
+          <p>Select downloaded firmware file</p>
+          <button class="btn-secondary" onclick="document.getElementById('ota-file').click()">
+            Select File
           </button>
-          <input
-            type="file"
-            id="ota-file"
-            name="ota-file"
-            accept=".bin"
-            required
-            onchange="updateButtonText()"
-            style="display: none"
-          />
+          <input type="file" id="ota-file" accept=".bin" onchange="updateButtonText()" style="display: none">
         </div>
       </div>
 
-      <div class="firmware-step">
-        <div class="firmware-text">
-          4. <b>Install</b> the .bin file selected in step 3 into the SOTACAT.
-        </div>
-        <div class="firmware-button-container">
-          <button
-            type="button"
-            id="upload-button"
-            class="firmware-button"
-            onclick="uploadFirmware()"
-            disabled
-          >
+      <div class="step">
+        <span class="step-number">4</span>
+        <div class="step-content">
+          <p>Install firmware to SOTACAT</p>
+          <button class="btn-primary" id="upload-button" onclick="uploadFirmware()" disabled>
             Install Firmware
           </button>
         </div>
       </div>
     </div>
-  </form>
-  <div id="ota-status"></div>
-  <hr />
-  <hr />
 
-  <!--
-    <form
-      action="/api/v1/factoryReset"
-      method="get"
-      target="hiddenFrame"
-      class="factory-reset-form">
-      <input type="submit" value="Factory Reset" class="reset-button" />
-    </form>
-  -->
+    <div id="ota-status" class="status-message"></div>
+  </div>
+
   <iframe name="hiddenFrame" style="display: none"></iframe>
 </div>
