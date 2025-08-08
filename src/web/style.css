@@ -199,6 +199,7 @@ a {
   min-height: var(--touch-target);
   font-size: var(--text-md);
   padding: 0 var(--space-lg);
+  user-select: none;
 }
 
 /* Active state for all buttons */
@@ -787,6 +788,10 @@ tbody tr:active {
   justify-content: space-between;
   align-items: center;
   gap: var(--space-md);
+}
+
+.step-content button {
+  min-width: 140px;
 }
 
 .step-content p {
