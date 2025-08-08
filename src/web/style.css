@@ -280,15 +280,18 @@ a {
   padding: var(--space-lg);
   margin-bottom: var(--space-lg);
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
 }
 
 .frequency-display {
   font-family: var(--font-mono);
-  font-size: var(--text-2xl);
+  font-size: 32px;
   font-weight: 700;
   color: var(--primary-light);
   letter-spacing: 2px;
-  margin-bottom: var(--space-sm);
 }
 
 .mode-display {
