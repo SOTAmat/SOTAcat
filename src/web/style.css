@@ -719,6 +719,132 @@ tbody tr:active {
   flex: 1;
 }
 
+/* Info button for Wifi help */
+.btn-info {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  padding: var(--space-xs);
+  margin-left: var(--space-sm);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.btn-info:hover {
+  background: var(--gray-1);
+}
+
+.info-icon {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+/* Help popup styles */
+.help-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  padding: var(--space-md);
+  overflow-y: auto;
+}
+
+.help-popup-content {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  max-width: 600px;
+  margin: var(--space-xl) auto;
+  box-shadow: var(--shadow-lg);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.help-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  background: var(--gray-1);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.help-popup-header h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--gray-6);
+  cursor: pointer;
+  padding: var(--space-xs);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-close:hover {
+  background: var(--gray-2);
+  color: var(--text-primary);
+}
+
+.help-popup-body {
+  padding: var(--space-lg);
+  line-height: 1.6;
+}
+
+.help-popup-body p {
+  margin-bottom: var(--space-md);
+  color: var(--text-primary);
+}
+
+.help-popup-body p:last-child {
+  margin-bottom: 0;
+}
+
+.help-popup-body strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.help-popup-body a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .help-popup {
+    padding: var(--space-sm);
+  }
+
+  .help-popup-content {
+    margin: var(--space-md) auto;
+    max-height: 95vh;
+  }
+
+  .help-popup-header,
+  .help-popup-body {
+    padding: var(--space-md);
+  }
+}
 /* WiFi Configuration */
 .wifi-config {
   background: var(--gray-0);
