@@ -183,7 +183,94 @@ a {
   background: var(--white);
 }
 
-/* =========================== CAT Page Specific */
+/* =========================== Consolidated Button System */
+
+/* Base button styles - applies to ALL buttons with btn- classes */
+[class*="btn-"] {
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: var(--touch-target);
+  font-size: var(--text-md);
+  padding: 0 var(--space-lg);
+}
+
+/* Active state for all buttons */
+[class*="btn-"]:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+/* Disabled state for all buttons */
+[class*="btn-"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Button color variants */
+.btn-primary {
+  background: var(--primary);
+  color: var(--white);
+}
+.btn-primary:active:not(:disabled) {
+  background: var(--primary-dark);
+}
+
+.btn-secondary {
+  background: var(--gray-2);
+  color: var(--text-primary);
+}
+.btn-secondary:active:not(:disabled) {
+  background: var(--gray-3);
+}
+
+.btn-refresh {
+  background: var(--primary);
+  color: var(--white);
+  min-height: var(--touch-target-sm);
+  font-size: var(--text-sm);
+}
+.btn-refresh:active:not(:disabled) {
+  background: var(--primary-dark);
+}
+
+.btn-info {
+  background: none;
+  color: var(--primary);
+  font-size: var(--text-lg);
+  padding: var(--space-xs);
+  margin-left: var(--space-sm);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+.btn-close {
+  background: none;
+  color: var(--gray-6);
+  font-size: 24px;
+  padding: var(--space-xs);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+/* Button size variants */
+.btn-large {
+  width: 100%;
+  min-height: calc(var(--touch-target) * 1.2);
+  font-size: var(--text-lg);
+  margin-top: var(--space-lg);
+}
+
+/* =========================== CAT Page Specific Buttons */
 
 /* VFO Display */
 .vfo-display {
@@ -210,188 +297,94 @@ a {
   font-weight: 600;
 }
 
-/* Frequency Controls - 2x3 Grid */
+/* Grid layouts for CAT controls */
+.freq-controls, .band-grid, .mode-grid, .xmit-controls {
+  display: grid;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
 .freq-controls {
-  display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
 }
 
-.btn-freq {
-  min-height: var(--touch-target);
-  font-size: var(--text-md);
-  font-weight: 600;
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: transform 0.1s ease;
-}
-
-.btn-freq.down {
-  background: var(--danger);
-  color: var(--white);
-}
-
-.btn-freq.up {
-  background: var(--success);
-  color: var(--white);
-}
-
-.btn-freq:active {
-   transform: scale(0.95);
- }
-
-/* Band Grid */
 .band-grid {
-  display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
 }
 
-.btn-band {
-  min-height: var(--touch-target);
-  background: var(--primary);
-  color: var(--white);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s ease;
-}
-
-.btn-band:active {
-  background: var(--primary-dark);
-  transform: scale(0.95);
-}
-
-/* Mode Selection */
 .mode-grid {
-  display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
 }
 
-.btn-mode {
-  min-height: var(--touch-target);
-  background: var(--gray-3);
-  color: var(--text-primary);
-  border: 2px solid transparent;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s ease;
+.xmit-controls {
+  grid-template-columns: repeat(3, 1fr);
 }
 
-.btn-mode.active {
-  background: var(--primary);
-  color: var(--white);
-  border-color: var(--primary-dark);
-}
-
-.btn-mode:active {
-  transform: scale(0.95);
-}
-
-/* Power Controls */
 .power-controls {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-sm);
 }
 
+/* CAT-specific button variants */
+.btn-freq {
+  padding: 0;
+}
+.btn-freq.down {
+  background: var(--danger);
+  color: var(--white);
+}
+.btn-freq.up {
+  background: var(--success);
+  color: var(--white);
+}
+
+.btn-band {
+  background: var(--primary);
+  color: var(--white);
+  padding: 0;
+}
+.btn-band:active {
+  background: var(--primary-dark);
+}
+
+.btn-mode {
+  background: var(--gray-3);
+  color: var(--text-primary);
+  border: 2px solid transparent;
+  padding: 0;
+}
+.btn-mode.active {
+  background: var(--primary);
+  color: var(--white);
+  border-color: var(--primary-dark);
+}
+
 .btn-power {
-  min-height: var(--touch-target);
   background: var(--gray-8);
   color: var(--white);
-  border: none;
-  border-radius: var(--radius-md);
   font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s ease;
+  padding: 0;
 }
 
 .btn-tune {
-  min-height: var(--touch-target);
   background: var(--warning);
   color: var(--gray-9);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s ease;
-}
-
-.btn-power:active, .btn-tune:active {
-  transform: scale(0.95);
-}
-
-/* SOTAMAT Button */
-.btn-sotamat {
-  width: 100%;
-  min-height: calc(var(--touch-target) * 1.2);
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: var(--white);
-  border: none;
-  border-radius: var(--radius-xl);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  cursor: pointer;
-  box-shadow: var(--shadow-md);
-  transition: all 0.1s ease;
-}
-
-.btn-sotamat:active {
-  transform: scale(0.98);
-  box-shadow: var(--shadow-sm);
-}
-
-.icon-sotamat {
-  font-size: var(--text-xl);
-}
-
-/* Transmit Controls */
-.xmit-controls {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
+  padding: 0;
 }
 
 .btn-msg {
-  min-height: var(--touch-target);
   background: var(--gray-7);
   color: var(--white);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s ease;
+  padding: 0;
 }
 
 .btn-xmit {
-  min-height: var(--touch-target);
   background: var(--gray-8);
   color: var(--white);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
   font-weight: 700;
-  cursor: pointer;
-  transition: all 0.1s ease;
+  padding: 0;
 }
-
 .btn-xmit.active {
   background: var(--danger);
   animation: pulse 1.5s infinite;
@@ -402,9 +395,37 @@ a {
   50% { opacity: 0.7; }
 }
 
-:.btn-msg:active, .btn-xmit:active {
-  transform: scale(0.95);
+.btn-send {
+  min-width: 80px;
+  background: var(--primary);
+  color: var(--white);
 }
+.btn-send:active {
+  background: var(--primary-dark);
+}
+
+/* SOTAMAT Button */
+.btn-sotamat {
+  width: 100%;
+  min-height: calc(var(--touch-target) * 1.2);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: var(--white);
+  border-radius: var(--radius-xl);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  gap: var(--space-sm);
+  box-shadow: var(--shadow-md);
+}
+.btn-sotamat:active {
+  transform: scale(0.98);
+  box-shadow: var(--shadow-sm);
+}
+
+.icon-sotamat {
+  font-size: var(--text-xl);
+}
+
+/* =========================== Form Elements */
 
 /* CW Input Section */
 .cw-inputs {
@@ -419,7 +440,9 @@ a {
   align-items: center;
 }
 
-.input-row input {
+.input-row input,
+.input-grid input,
+.input-group-vertical input {
   flex: 1;
   min-height: var(--touch-target);
   padding: 0 var(--space-md);
@@ -430,28 +453,59 @@ a {
   transition: border-color 0.2s ease;
 }
 
-.input-row input:focus {
+.input-row input:focus,
+.input-grid input:focus,
+.input-group-vertical input:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(34, 139, 230, 0.1);
 }
 
-.btn-send {
-  min-height: var(--touch-target);
-  min-width: 80px;
-  background: var(--primary);
-  color: var(--white);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s ease;
+.input-grid input:valid {
+  border-color: var(--success);
 }
 
-.btn-send:active {
-  background: var(--primary-dark);
-  transform: scale(0.95);
+.input-grid input:invalid:not(:placeholder-shown) {
+  border-color: var(--danger);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.select-control {
+  min-height: var(--touch-target-sm);
+  padding: 0 var(--space-md);
+  border: 2px solid var(--gray-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  background: var(--white);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right var(--space-sm) center;
+  background-size: 20px;
+  padding-right: var(--space-xl);
+}
+
+.select-control:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(34, 139, 230, 0.1);
 }
 
 /* =========================== SOTA/POTA Page Controls */
@@ -482,61 +536,19 @@ a {
   color: var(--text-secondary);
 }
 
-.checkbox-label {
+.button-group {
   display: flex;
-  align-items: center;
   gap: var(--space-sm);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-primary);
 }
 
-.checkbox-label input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  accent-color: var(--primary);
+.button-group button {
+  flex: 1;
 }
 
-.btn-refresh {
-  min-height: var(--touch-target-sm);
-  padding: 0 var(--space-lg);
-  background: var(--primary);
-  color: var(--white);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s ease;
-}
-
-.btn-refresh:active {
-  background: var(--primary-dark);
-  transform: scale(0.95);
-}
-
-.select-control {
-  min-height: var(--touch-target-sm);
-  padding: 0 var(--space-md);
-  border: 2px solid var(--gray-3);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  background: var(--white);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right var(--space-sm) center;
-  background-size: 20px;
-  padding-right: var(--space-xl);
-}
-
-.select-control:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(34, 139, 230, 0.1);
+.input-group-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
 }
 
 /* =========================== Tables */
@@ -548,13 +560,7 @@ a {
   box-shadow: var(--shadow-sm);
 }
 
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-}
-
-table {
+.data-table, table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
@@ -656,91 +662,6 @@ tbody tr:active {
   margin-bottom: var(--space-lg);
 }
 
-.btn-primary {
-  min-height: var(--touch-target);
-  padding: 0 var(--space-xl);
-  background: var(--primary);
-  color: var(--white);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s ease;
-}
-
-.btn-primary:active:not(:disabled) {
-  background: var(--primary-dark);
-  transform: scale(0.95);
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  min-height: var(--touch-target);
-  padding: 0 var(--space-xl);
-  background: var(--gray-2);
-  color: var(--text-primary);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.1s ease;
-}
-
-/* .btn-secondary:active { */
-/*   background: var(--gray-3); */
-/*   transform: scale(0.95); */
-/* } */
-
-.btn-large {
-  width: 100%;
-  min-height: calc(var(--touch-target) * 1.2);
-  font-size: var(--text-lg);
-  margin-top: var(--space-lg);
-}
-
-.input-group-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.button-group {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-.button-group button {
-  flex: 1;
-}
-
-/* Info button for Wifi help */
-.btn-info {
-  background: none;
-  border: none;
-  color: var(--primary);
-  font-size: var(--text-lg);
-  cursor: pointer;
-  padding: var(--space-xs);
-  margin-left: var(--space-sm);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s ease;
-}
-
-.btn-info:hover {
-  background: var(--gray-1);
-}
-
 .info-icon {
   font-weight: bold;
   font-size: 18px;
@@ -785,26 +706,6 @@ tbody tr:active {
   color: var(--text-primary);
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: var(--gray-6);
-  cursor: pointer;
-  padding: var(--space-xs);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-close:hover {
-  background: var(--gray-2);
-  color: var(--text-primary);
-}
-
 .help-popup-body {
   padding: var(--space-lg);
   line-height: 1.6;
@@ -829,22 +730,6 @@ tbody tr:active {
   text-decoration: underline;
 }
 
-/* Mobile responsive */
-@media (max-width: 480px) {
-  .help-popup {
-    padding: var(--space-sm);
-  }
-
-  .help-popup-content {
-    margin: var(--space-md) auto;
-    max-height: 95vh;
-  }
-
-  .help-popup-header,
-  .help-popup-body {
-    padding: var(--space-md);
-  }
-}
 /* WiFi Configuration */
 .wifi-config {
   background: var(--gray-0);
@@ -865,31 +750,6 @@ tbody tr:active {
   grid-template-columns: 1fr 1fr;
   gap: var(--space-sm);
   margin-bottom: var(--space-sm);
-}
-
-.input-grid input,
-.input-group-vertical input {
-  min-height: var(--touch-target);
-  padding: 0 var(--space-md);
-  border: 2px solid var(--gray-3);
-  border-radius: var(--radius-md);
-  font-size: var(--text-md);
-  background: var(--white);
-}
-
-.input-grid input:focus,
-.input-group-vertical input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(34, 139, 230, 0.1);
-}
-
-.input-grid input:valid {
-  border-color: var(--success);
-}
-
-.input-grid input:invalid:not(:placeholder-shown) {
-  border-color: var(--danger);
 }
 
 /* Firmware Update Steps */
@@ -1159,7 +1019,7 @@ tbody tr:active {
     color: var(--white);
   }
 
-  .btn-primary {
+  [class*="btn-"].btn-primary {
     border: 2px solid var(--primary-dark);
   }
 }
