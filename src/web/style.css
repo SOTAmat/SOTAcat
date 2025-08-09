@@ -343,21 +343,14 @@ a {
   color: var(--white);
 }
 
-.btn-band {
-  background: var(--primary);
-  color: var(--white);
-  padding: 0;
-}
-.btn-band:active {
-  background: var(--primary-dark);
-}
-
+.btn-band,
 .btn-mode {
   background: var(--gray-3);
   color: var(--text-primary);
   border: 2px solid transparent;
   padding: 0;
 }
+.btn-band.active,
 .btn-mode.active {
   background: var(--primary);
   color: var(--white);

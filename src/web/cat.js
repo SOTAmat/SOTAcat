@@ -48,16 +48,39 @@ function sendKeys(message) {
   );
 }
 
-// Band frequencies in Hz
-// Even though lower frequencies are available to Extra-class, we chose starts a
-// bit higher, at lower license levels, to increase odds of contacts
-const BAND_FREQUENCIES = {
-  '40m':  7175000,
-  '20m': 14225000,
-  '17m': 18110000,
-  '15m': 21275000,
-  '12m': 24930000,
-  '10m': 28300000
+// ARRL Band Plan with frequency ranges in Hz
+// Using conservative band edges to increase compatibility across license classes
+const BAND_PLAN = {
+  '40m': {
+    min: 7000000,    // 7.000 MHz
+    max: 7300000,    // 7.300 MHz
+    initial: 7175000 // 7.175 MHz (existing default)
+  },
+  '20m': {
+    min: 14000000,   // 14.000 MHz
+    max: 14350000,   // 14.350 MHz
+    initial: 14225000 // 14.225 MHz (existing default)
+  },
+  '17m': {
+    min: 18068000,   // 18.068 MHz
+    max: 18168000,   // 18.168 MHz
+    initial: 18110000 // 18.110 MHz (existing default)
+  },
+  '15m': {
+    min: 21000000,   // 21.000 MHz
+    max: 21450000,   // 21.450 MHz
+    initial: 21275000 // 21.275 MHz (existing default)
+  },
+  '12m': {
+    min: 24890000,   // 24.890 MHz
+    max: 24990000,   // 24.990 MHz
+    initial: 24930000 // 24.930 MHz (existing default)
+  },
+  '10m': {
+    min: 28000000,   // 28.000 MHz
+    max: 29700000,   // 29.700 MHz
+    initial: 28300000 // 28.300 MHz (existing default)
+  }
 };
 
 let currentFrequencyHz = 14225000; // Default to 20m
@@ -117,6 +140,34 @@ function updateModeDisplay() {
   }
 }
 
+function getBandFromFrequency(frequencyHz) {
+  for (const [band, plan] of Object.entries(BAND_PLAN)) {
+    if (frequencyHz >= plan.min && frequencyHz <= plan.max) {
+      return band;
+    }
+  }
+  return null; // Frequency doesn't match any of our supported bands
+}
+
+function updateBandDisplay() {
+  // Clear all active states first
+  document.querySelectorAll('.btn-band').forEach(btn => btn.classList.remove('active'));
+
+  // Determine which band the current frequency falls into
+  const currentBand = getBandFromFrequency(currentFrequencyHz);
+
+  if (currentBand) {
+    // Find and activate the corresponding band button
+    const bandButton = document.getElementById(`${currentBand}Btn`);
+    if (bandButton) {
+      bandButton.classList.add('active');
+      console.log(`Band display updated: ${currentBand} active`);
+    }
+  } else {
+    console.log('Current frequency not in any supported band range');
+  }
+}
+
 function getCurrentFrequency() {
   if (isUpdatingVfo) return;
   if (Date.now() - lastUserAction < 2000) return;
@@ -134,6 +185,7 @@ function getCurrentFrequency() {
       if (newFreq !== currentFrequencyHz) {
         currentFrequencyHz = newFreq;
         updateFrequencyDisplay();
+        updateBandDisplay(); // Update band button active state
         console.log('Frequency updated from radio:', currentFrequencyHz);
       }
     })
@@ -184,6 +236,7 @@ function setFrequency(frequencyHz) {
         if (response.ok) {
           currentFrequencyHz = frequencyHz;
           updateFrequencyDisplay();
+          updateBandDisplay(); // Update band button active state
           console.log('Frequency updated successfully:', frequencyHz);
         } else {
           console.error('Error updating frequency');
@@ -202,6 +255,7 @@ function setFrequency(frequencyHz) {
   // Update display immediately for responsive feel
   currentFrequencyHz = frequencyHz;
   updateFrequencyDisplay();
+  updateBandDisplay(); // Update band button active state immediately
 }
 
 function adjustFrequency(deltaHz) {
@@ -216,8 +270,8 @@ function adjustFrequency(deltaHz) {
 }
 
 function selectBand(band) {
-  if (BAND_FREQUENCIES[band]) {
-    setFrequency(BAND_FREQUENCIES[band]);
+  if (BAND_PLAN[band]) {
+    setFrequency(BAND_PLAN[band].initial);
 
     // Set appropriate mode for the band
     let mode = 'USB'; // Default for higher bands
@@ -273,6 +327,7 @@ function startVfoUpdates() {
     if (frequency) {
       currentFrequencyHz = parseInt(frequency);
       updateFrequencyDisplay();
+      updateBandDisplay();
     }
     if (mode) {
       currentMode = mode.toUpperCase();
