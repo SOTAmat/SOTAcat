@@ -109,17 +109,6 @@ function fetchAndUpdateElement(url, elementId) {
 }
 
 // ----------------------------------------------------------------------------
-// Info: Build Version and Type
-// ----------------------------------------------------------------------------
-function refreshVersion()
-{
-    if (gLocalhost) return;
-    fetchAndUpdateElement('/api/v1/version', 'buildVersion');
-}
-
-refreshVersion(); // Initial and only refresh - the UI only needs to know this once
-
-// ----------------------------------------------------------------------------
 // Status:Clock
 // ----------------------------------------------------------------------------
 function refreshUTCClock()
@@ -193,12 +182,6 @@ const loadedTabScripts = new Set();
 // Check if the script for a given Tab has already been loaded to avoid duplicates
 function loadTabScriptIfNeeded(tabName)
 {
-    // Skip script loading for tabs known not to have JS files
-    if (tabName === 'about') {
-        console.log(`Tab ${tabName} doesn't need a script, skipping`);
-        return Promise.resolve();
-    }
-
     const scriptPath = `${tabName}.js`;
     console.log(`Checking if script needs to be loaded: ${scriptPath}`);
 
@@ -289,23 +272,9 @@ function openTab(tabName)
             .then(text => {
                 document.getElementById('contentArea').innerHTML = text;
                 console.log(`Content for ${currentTabName} loaded`);
-                
-                // The About tab doesn't need script loading
-                if (currentTabName === 'about') {
-                    // Call the placeholder function directly
-                    aboutOnAppearing();
-                    console.log(`Tab switch to ${currentTabName} complete`);
-                    return Promise.resolve();
-                }
-                
                 return loadTabScriptIfNeeded(currentTabName);
             })
             .then(() => {
-                // Skip for the About tab as we've already handled it
-                if (currentTabName === 'about') {
-                    return;
-                }
-                
                 // Once the script is loaded, call the onAppearing function
                 const onAppearingFunctionName = `${currentTabName}OnAppearing`;
                 console.log(`Calling ${onAppearingFunctionName} function`);
@@ -980,17 +949,4 @@ async function manualCheckFirmwareVersion() {
         console.error('[Manual Version Check] Error:', error);
         alert('Error checking for firmware updates. Please try again later.');
     }
-}
-
-// ----------------------------------------------------------------------------
-// Placeholder functions for tabs without dedicated JS files
-// ----------------------------------------------------------------------------
-function aboutOnAppearing() {
-    console.log('About tab appearing');
-    // No special initialization needed for the About tab
-}
-
-function aboutOnLeaving() {
-    console.log('About tab leaving');
-    // No special cleanup needed for the About tab
 }

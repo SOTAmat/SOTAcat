@@ -16,6 +16,7 @@ static const char * TAG8 = "sc:webserve";
     extern const uint8_t asset##_srt[] asm ("_binary_" #asset "_start");
 
 DECLARE_ASSET (about_html)
+DECLARE_ASSET (about_js)
 DECLARE_ASSET (cat_html)
 DECLARE_ASSET (cat_js)
 DECLARE_ASSET (favicon_ico)
@@ -63,6 +64,7 @@ static const asset_entry_t asset_map[] = {
     {"/cat.html",      cat_html_srt,      cat_html_end,      "text/html",       60},
     {"/cat.js",        cat_js_srt,        cat_js_end,        "text/javascript", 60},
     {"/about.html",    about_html_srt,    about_html_end,    "text/html",       60},
+    {"/about.js",      about_js_srt,      about_js_end,      "text/javascript", 60},
     {NULL,             NULL,              NULL,              NULL,              0 }  // Sentinel to mark end of array
 };
 
