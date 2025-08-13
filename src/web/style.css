@@ -1162,6 +1162,12 @@ hr {
     box-shadow: var(--box-shadow);
 }
 
+/* About page section titles */
+#contentArea h2 {
+  margin-left: var(--spacing-medium);
+  margin-right: var(--spacing-medium);
+}
+
 /* =========================== Footer Navigation Bar */
 .tabBar {
     position: fixed;
