@@ -619,15 +619,16 @@ tbody tr:active {
 .table-sortable th {
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
 }
 
 .table-sortable th span[data-sort-dir="asc"]::after {
-  content: " ↑";
+  content: " \25B2";
   color: var(--primary);
 }
 
 .table-sortable th span[data-sort-dir="desc"]::after {
-  content: " ↓";
+  content: " \25BC";
   color: var(--primary);
 }
 
