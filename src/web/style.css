@@ -615,6 +615,13 @@ tbody tr:active {
   text-decoration: line-through;
 }
 
+
+/* Numeric "hertz" frequency columns - right aligned */
+#sotaTable td:nth-child(3),
+#potaTable td:nth-child(3) {
+  text-align: right;
+}
+
 /* Sort indicators */
 .table-sortable th {
   cursor: pointer;
