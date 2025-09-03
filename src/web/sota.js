@@ -16,12 +16,12 @@ function sota_saveSortState() {
 function sota_loadSortState() {
     const savedSortField = localStorage.getItem('sotaSortField');
     const savedSortDescending = localStorage.getItem('sotaSortDescending');
-    
+
     if (savedSortField !== null) {
         gSortField = savedSortField;
         gLastSortField = savedSortField;
     }
-    
+
     if (savedSortDescending !== null) {
         gDescending = (savedSortDescending === 'true');
     }
@@ -186,13 +186,13 @@ function sota_loadAutoRefreshCheckboxState()
 {
     const savedState = localStorage.getItem('autoRefresh');
     const checkbox = document.getElementById('autoRefreshSelector');
-    
+
     if (checkbox) {
         // If there's a saved state, use it; otherwise default to true (matching HTML default)
         const isChecked = savedState !== null ? (savedState === 'true') : true;
         checkbox.checked = isChecked;
         sota_changeAutoRefreshCheckboxState(isChecked);
-        
+
         // If no saved state exists, save the default state
         if (savedState === null) {
             localStorage.setItem('autoRefresh', isChecked);
@@ -252,37 +252,6 @@ function sota_updateSortIndicators(headers, sortField, descending) { // Expects 
     });
 }
 
-// Mode filtering
-
-function sota_saveModeFilterState()
-{
-    const value = document.getElementById('modeFilter').value;
-    localStorage.setItem('modeFilter', value);
-}
-
-function sota_loadModeFilterState()
-{
-    const savedState = localStorage.getItem('modeFilter');
-    if (savedState !== null) {
-        const selector = document.getElementById('modeFilter');
-        if (selector) {
-            console.log('Setting SOTA mode filter to:', savedState);
-            // Just set the value without triggering the filter - it will be applied later
-            selector.value = savedState;
-            // Update the onchange handler to call the renamed function
-            selector.onchange = function() {
-                sota_changeModeFilter(this.value);
-                sota_saveModeFilterState();
-            };
-            // Don't call changeModeFilter here - it will be called in applyTableFilters
-        }
-    }
-}
-
-function sota_changeModeFilter(selectedMode) {
-    sota_applyTableFilters(); // Call the central filter function
-}
-
 // Combined filter application logic
 function sota_applyTableFilters() {
     const tableBody = document.querySelector('#sotaTable tbody');
@@ -297,8 +266,8 @@ function sota_applyTableFilters() {
         return;
     }
 
-    // Get current filter settings
-    const selectedMode = document.getElementById('modeFilter')?.value || 'All';
+    // Get current filter settings - use global mode filter
+    const selectedMode = gModeFilter || 'All';
     const showSpecial = document.getElementById('showDupsSelector')?.checked || false;
 
     console.log(`Applying SOTA filters - Mode: ${selectedMode}, ShowSpecial: ${showSpecial}, Rows: ${allRows.length}`);
@@ -322,8 +291,16 @@ function sota_applyTableFilters() {
         let specialAllowed = false;
 
         // Check mode filter
-        if (selectedMode === "All" || row.classList.contains(`row-mode-${selectedMode}`)) {
+        if (selectedMode === "All") {
             modeMatch = true;
+        } else if (selectedMode === "DATA") {
+            // DATA mode includes DATA, FT8, and FT4
+            modeMatch = row.classList.contains('row-mode-DATA') ||
+                       row.classList.contains('row-mode-FT8') ||
+                       row.classList.contains('row-mode-FT4');
+        } else {
+            // CW, SSB, FM match their exact types only
+            modeMatch = row.classList.contains(`row-mode-${selectedMode}`);
         }
 
         // Check special row filter (applies to non-QRT special rows, or QRT rows when checkbox is off)
@@ -353,18 +330,20 @@ function sotaOnAppearing() {
     sota_loadSortState();
     sota_loadAutoRefreshCheckboxState();
     sota_loadShowSpecialRowsState();
-    sota_loadModeFilterState();
     sota_loadHistoryDurationState();
 
-    // Add/update event listeners that might have been cleared or point to old functions
-    // Mode Filter
+    // Load and apply the global mode filter
+    loadGlobalModeFilter();
     const modeSelector = document.getElementById('modeFilter');
     if (modeSelector) {
+        modeSelector.value = gModeFilter;
+        // Set up the event handler for mode changes
         modeSelector.onchange = function() {
-            sota_changeModeFilter(this.value);
-            sota_saveModeFilterState();
+            onModeFilterChange(this.value); // Use global function
         };
     }
+
+    // Add/update event listeners that might have been cleared or point to old functions
     // Show Dups Checkbox
     const dupsCheckbox = document.getElementById('showDupsSelector');
     if (dupsCheckbox) {
@@ -377,7 +356,7 @@ function sotaOnAppearing() {
     const autoRefreshCheckbox = document.getElementById('autoRefreshSelector');
     if (autoRefreshCheckbox) {
         autoRefreshCheckbox.onchange = function() {
-            sota_changeAutoRefreshCheckboxState(this.checked); // Assuming this exists and needs renaming if shared
+            sota_changeAutoRefreshCheckboxState(this.checked);
             sota_saveAutoRefreshCheckboxState();
         };
     }
@@ -385,7 +364,7 @@ function sotaOnAppearing() {
     const historySelector = document.getElementById('historyDurationSelector');
     if (historySelector) {
         historySelector.onchange = function() {
-            refreshSotaPotaJson(true); // This might be global, check definition
+            refreshSotaPotaJson(true);
             sota_saveHistoryDurationState();
         };
     }
@@ -401,7 +380,7 @@ function sotaOnAppearing() {
         refreshSotaPotaJson(true); // Force refresh to ensure we have fresh data (This calls sota_updateSotaTable after enrichment)
     }
 
-    // Set up refresh interval only if auto-refresh is enabled (reuse the autoRefreshCheckbox variable from above)
+    // Set up refresh interval only if auto-refresh is enabled
     if (autoRefreshCheckbox && autoRefreshCheckbox.checked && gRefreshInterval == null) {
         gRefreshInterval = setInterval(() => {
             refreshSotaPotaJson(false); // Explicitly pass false for non-forced refresh
@@ -448,9 +427,9 @@ function sotaOnLeaving() {
     sota_saveSortState();
     sota_saveAutoRefreshCheckboxState();
     sota_saveShowSpecialRowsState();
-    sota_saveModeFilterState();
     sota_saveHistoryDurationState();
-    
+    // Note: Mode filter is now global and saved automatically
+
     // Stop the auto-refresh interval when leaving the tab
     if (gRefreshInterval != null) {
         clearInterval(gRefreshInterval);

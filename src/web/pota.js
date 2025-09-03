@@ -1,7 +1,4 @@
-// We'll keep these global sorting variables here for now,
-// although they apply equally to sota and pota.
-// Soon, we may collapse sota and pota display.
-// NOTE: All global variables (gSortField, gLastSortField, gDescending, gRefreshInterval)
+// NOTE: All global variables (gSortField, gLastSortField, gDescending, gRefreshInterval, gModeFilter)
 // are now declared in main.js for shared access across all tabs
 
 // Add functions to save and load sort state for POTA
@@ -13,7 +10,7 @@ function pota_saveSortState() {
 function pota_loadSortState() {
     const savedSortField = localStorage.getItem('potaSortField');
     const savedSortDescending = localStorage.getItem('potaSortDescending');
-    
+
     if (savedSortField !== null) {
         gSortField = savedSortField;
         gLastSortField = savedSortField;
@@ -22,7 +19,7 @@ function pota_loadSortState() {
         gSortField = "timestamp";
         gLastSortField = "timestamp";
     }
-    
+
     if (savedSortDescending !== null) {
         gDescending = (savedSortDescending === 'true');
     } else {
@@ -144,18 +141,20 @@ function potaOnAppearing() {
     pota_loadSortState();
     pota_loadAutoRefreshCheckboxState();
     pota_loadShowSpecialRowsState(); // Updated function name
-    pota_loadModeFilterState();
     pota_loadHistoryDurationState(); // Added history duration loading
 
-    // Add/update event listeners that might have been cleared or point to old functions
-    // (Similar logic as added to sotaOnAppearing, targeting POTA controls)
+    // Load and apply the global mode filter
+    loadGlobalModeFilter();
     const modeSelector = document.getElementById('modeFilter');
     if (modeSelector) {
+        modeSelector.value = gModeFilter;
+        // Set up the event handler for mode changes
         modeSelector.onchange = function() {
-            pota_changeModeFilter(this.value);
-            pota_saveModeFilterState();
+            onModeFilterChange(this.value); // Use global function
         };
     }
+
+    // Add/update event listeners that might have been cleared or point to old functions
     const specialCheckbox = document.getElementById('showSpecialRowsSelector') || document.getElementById('showDupsSelector');
     if (specialCheckbox) {
         specialCheckbox.onchange = function() {
@@ -183,21 +182,13 @@ function potaOnAppearing() {
         console.log('POTA tab appearing: Using existing data');
         // Ensure table is filled with existing data
         pota_updatePotaTable();
-        
-        // REMOVED: Redundant explicit filter application
-        // console.log('POTA tab appearing: Reapplying filters');
-        // const modeFilter = document.getElementById('modeFilter')?.value || 'All';
-        // const showSpecialCheckbox = document.getElementById('showSpecialRowsSelector') || document.getElementById('showDupsSelector');
-        // const showSpecial = showSpecialCheckbox ? showSpecialCheckbox.checked : true;
-        // console.log(`Explicitly applying filters - Mode: ${modeFilter}, ShowSpecial: ${showSpecial}`);
-        // pota_applyTableFilters();
     } else {
         // Fetch new data
         console.log('POTA tab appearing: Fetching new data');
         refreshSotaPotaJson(true); // Force refresh to ensure we have fresh data
     }
 
-    // Set up refresh interval only if auto-refresh is enabled (reuse the autoRefreshCheckbox variable from above)
+    // Set up refresh interval only if auto-refresh is enabled
     if (autoRefreshCheckbox && autoRefreshCheckbox.checked && gRefreshInterval == null) {
         gRefreshInterval = setInterval(() => {
             refreshSotaPotaJson(false); // Explicitly pass false for non-forced refresh
@@ -205,7 +196,7 @@ function potaOnAppearing() {
         console.log('POTA auto-refresh interval started on tab appearing');
     }
 
-    const headers = document.querySelectorAll('#potaTable th'); 
+    const headers = document.querySelectorAll('#potaTable th');
     headers.forEach(header => {
         const sortSpan = header.querySelector('span[data-sort-field]');
         if (sortSpan) {
@@ -284,13 +275,13 @@ function pota_loadAutoRefreshCheckboxState()
 {
     const savedState = localStorage.getItem('autoRefresh');
     const checkbox = document.getElementById('autoRefreshSelector');
-    
+
     if (checkbox) {
         // If there's a saved state, use it; otherwise default to true (matching HTML default)
         const isChecked = savedState !== null ? (savedState === 'true') : true;
         checkbox.checked = isChecked;
         pota_changeAutoRefreshCheckboxState(isChecked);
-        
+
         // If no saved state exists, save the default state
         if (savedState === null) {
             localStorage.setItem('autoRefresh', isChecked);
@@ -323,7 +314,7 @@ function pota_loadShowSpecialRowsState() // Renamed from loadShowSpotDupsCheckbo
     if (savedState !== null) {
         isChecked = (savedState === 'true');
     }
-    
+
     // Try to find the checkbox with either possible ID
     const checkbox = document.getElementById('showSpecialRowsSelector') || document.getElementById('showDupsSelector');
     if (checkbox) {
@@ -352,37 +343,6 @@ function pota_updateSortIndicators(headers, sortField, descending) {
     });
 }
 
-// Mode filtering
-
-function pota_saveModeFilterState()
-{
-    const selector = document.getElementById('modeFilter');
-    if (selector) localStorage.setItem('modeFilter', selector.value);
-}
-
-function pota_loadModeFilterState()
-{
-    const savedState = localStorage.getItem('modeFilter');
-    if (savedState !== null) {
-        const selector = document.getElementById('modeFilter');
-        if (selector) {
-            console.log('Setting POTA mode filter to:', savedState);
-            // Just set the value without triggering the filter - it will be applied later
-            selector.value = savedState;
-             // Update the onchange handler
-            selector.onchange = function() {
-                pota_changeModeFilter(this.value);
-                pota_saveModeFilterState();
-            };
-            // Don't call changeModeFilter here - it will be called in applyTableFilters
-        }
-    }
-}
-
-function pota_changeModeFilter(selectedMode) {
-    pota_applyTableFilters(); // Call the central filter function
-}
-
 // Combined filter application logic (Adapted from sota.js)
 function pota_applyTableFilters() {
     const tableBody = document.querySelector('#potaTable tbody'); // Target POTA table
@@ -397,9 +357,8 @@ function pota_applyTableFilters() {
         return;
     }
 
-    // Get current filter settings
-    // Try to find the checkbox with either possible ID
-    const selectedMode = document.getElementById('modeFilter')?.value || 'All';
+    // Get current filter settings - use global mode filter
+    const selectedMode = gModeFilter || 'All';
     const showSpecialCheckbox = document.getElementById('showSpecialRowsSelector') || document.getElementById('showDupsSelector');
     const showSpecial = showSpecialCheckbox ? showSpecialCheckbox.checked : true; // Default to true if checkbox not found
 
@@ -426,8 +385,16 @@ function pota_applyTableFilters() {
         let specialAllowed = false;
 
         // Check mode filter
-        if (selectedMode === "All" || row.classList.contains(`row-mode-${selectedMode}`)) {
+        if (selectedMode === "All") {
             modeMatch = true;
+        } else if (selectedMode === "DATA") {
+            // DATA mode includes DATA, FT8, and FT4
+            modeMatch = row.classList.contains('row-mode-DATA') ||
+                       row.classList.contains('row-mode-FT8') ||
+                       row.classList.contains('row-mode-FT4');
+        } else {
+            // CW, SSB, FM match their exact types only
+            modeMatch = row.classList.contains(`row-mode-${selectedMode}`);
         }
 
         // Check special row filter (applies to non-QRT special rows, or QRT rows when checkbox is off)
@@ -455,11 +422,11 @@ function potaOnLeaving() {
     pota_saveSortState();
     pota_saveAutoRefreshCheckboxState();
     pota_saveShowSpecialRowsState();
-    pota_saveModeFilterState();
-    
+    // Note: Mode filter is now global and saved automatically
+
     // Don't save historyDurationState because it's shared with SOTA
     // and is not effectively used in POTA yet
-    
+
     // Stop the auto-refresh interval when leaving the tab
     if (gRefreshInterval != null) {
         clearInterval(gRefreshInterval);

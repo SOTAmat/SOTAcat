@@ -5,8 +5,9 @@
 let gSortField = "timestamp";
 let gLastSortField = gSortField;
 let gDescending = true;
-// Refresh interval timer
 let gRefreshInterval = null;
+// Global mode filter state - shared between SOTA and POTA
+let gModeFilter = null;
 // Data caches
 let gLatestSotaJson = null;
 let gSotaEpoch = null;
@@ -17,18 +18,55 @@ let gLocalhost = (window.location.hostname === 'localhost' ||
                   window.location.hostname === '[::1]'); // IPv6 loopback
 
 // ----------------------------------------------------------------------------
+// Global mode filter functions - shared between SOTA and POTA
+// ----------------------------------------------------------------------------
+function loadGlobalModeFilter() {
+    const savedMode = localStorage.getItem('globalModeFilter');
+    gModeFilter = savedMode !== null ? savedMode : 'All';
+    return gModeFilter;
+}
+
+function saveGlobalModeFilter(mode) {
+    gModeFilter = mode;
+    localStorage.setItem('globalModeFilter', mode);
+}
+
+function applyGlobalModeFilter() {
+    // Get the mode selector element
+    const modeSelector = document.getElementById('modeFilter');
+    if (modeSelector && gModeFilter !== null) {
+        modeSelector.value = gModeFilter;
+    }
+
+    // Apply the filter to the current table
+    if (currentTabName === 'sota' && typeof sota_applyTableFilters === 'function') {
+        sota_applyTableFilters();
+    } else if (currentTabName === 'pota' && typeof pota_applyTableFilters === 'function') {
+        pota_applyTableFilters();
+    }
+}
+
+function onModeFilterChange(mode) {
+    saveGlobalModeFilter(mode);
+    applyGlobalModeFilter();
+}
+
+// Initialize mode filter on page load
+loadGlobalModeFilter();
+
+// ----------------------------------------------------------------------------
 // Auto-refresh synchronization between SOTA and POTA tabs
 // ----------------------------------------------------------------------------
 function syncAutoRefreshState(newState) {
     // Save to localStorage
     localStorage.setItem('autoRefresh', newState);
-    
+
     // Find the checkbox in the current tab and sync its state
     const checkbox = document.getElementById('autoRefreshSelector');
     if (checkbox) {
         checkbox.checked = newState;
     }
-    
+
     console.log(`Auto-refresh state synchronized: ${newState}`);
 }
 
@@ -206,7 +244,7 @@ function loadTabScriptIfNeeded(tabName)
                     resolve();
                     return;
                 }
-                
+
                 // Create script tag and add to document
                 const scriptTag = document.createElement('script');
                 scriptTag.src = scriptPath;
@@ -220,7 +258,7 @@ function loadTabScriptIfNeeded(tabName)
                     console.error(`Error loading script ${scriptPath}:`, error);
                     reject(error);
                 };
-                
+
                 // Add the script to the page
                 document.body.appendChild(scriptTag);
             })
@@ -234,7 +272,7 @@ function loadTabScriptIfNeeded(tabName)
 function openTab(tabName)
 {
     console.log(`Switching to tab: ${tabName}`);
-    
+
     try {
         // Clean up current tab logic
         cleanupCurrentTab();
@@ -247,7 +285,7 @@ function openTab(tabName)
         // Set the new current tab name
         currentTabName = tabName.toLowerCase();
         console.log(`Current tab set to: ${currentTabName}`);
-        
+
         // Find and highlight the active tab
         const tabButton = document.getElementById(currentTabName + 'TabButton');
         if (tabButton) {
@@ -261,7 +299,7 @@ function openTab(tabName)
 
         const contentPath = `${currentTabName}.html`;
         console.log(`Fetching content from: ${contentPath}`);
-        
+
         fetch(contentPath)
             .then(response => {
                 if (!response.ok) {
@@ -278,13 +316,13 @@ function openTab(tabName)
                 // Once the script is loaded, call the onAppearing function
                 const onAppearingFunctionName = `${currentTabName}OnAppearing`;
                 console.log(`Calling ${onAppearingFunctionName} function`);
-                
+
                 // Ensure all required global variables are initialized
                 if (typeof gRefreshInterval === 'undefined') {
                     console.warn('gRefreshInterval was undefined, initializing to null');
                     window.gRefreshInterval = null;
                 }
-                
+
                 if (typeof window[onAppearingFunctionName] === 'function') {
                     try {
                         window[onAppearingFunctionName]();
@@ -315,7 +353,7 @@ function openTab(tabName)
 // Add to the DOMContentLoaded event listener in main.js
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded event fired');
-    
+
     // Ensure all tab buttons use the same click handler
     document.querySelectorAll('.tabBar button').forEach(button => {
         button.addEventListener('click', function(event) {
@@ -325,14 +363,14 @@ document.addEventListener('DOMContentLoaded', function() {
             openTab(tabName);
         });
     });
-    
+
     // Get the active tab from localStorage
     const activeTab = loadActiveTab();
     console.log('Active tab from localStorage:', activeTab);
-    
+
     // Initialize or open any tab in the UI
     openTab(activeTab);
-    
+
     // Schedule version check after page loads
     setTimeout(() => {
         console.log('[Version Check] Executing initial version check');
@@ -383,7 +421,6 @@ async function getLocation() {
     } catch (error) {
         console.error('Failed to fetch GPS override:', error);
     }
-
 
     // Otherwise, use IP-based geolocation
     // Unfortunately, the geolocation API is only available in HTTPS
