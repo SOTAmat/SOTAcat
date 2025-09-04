@@ -615,6 +615,32 @@ tbody tr:active {
   text-decoration: line-through;
 }
 
+/* Band color styling for frequency cells */
+.band-cell {
+  border-radius: var(--radius-sm);
+}
+
+/* Band-specific colors adapted from QRZ.com */
+.band-160m { background-color: rgba(124, 252, 0, 0.25); }
+.band-80m { background-color: rgba(229, 80, 229, 0.25); }
+.band-60m { background-color: rgba(0, 0, 139, 0.25); }
+.band-40m { background-color: rgba(89, 89, 255, 0.25); }
+.band-30m { background-color: rgba(98, 217, 98, 0.25); }
+.band-20m { background-color: rgba(242, 196, 12, 0.25); }
+.band-17m { background-color: rgba(242, 242, 97, 0.3); }
+.band-15m { background-color: rgba(204, 161, 102, 0.25); }
+.band-12m { background-color: rgba(178, 34, 34, 0.25); }
+.band-10m { background-color: rgba(255, 105, 180, 0.25); }
+.band-6m { background-color: rgba(255, 0, 0, 0.25); }
+.band-2m { background-color: rgba(255, 20, 147, 0.25); }
+.band-70cm { background-color: rgba(153, 153, 0, 0.25); }
+.band-23cm { background-color: rgba(90, 184, 199, 0.25); }
+
+/* Ensure link text remains visible with band colors */
+.band-cell a {
+  color: var(--text-primary);
+  font-weight: 600;
+}
 
 /* Numeric "hertz" frequency columns - right aligned */
 #sotaTable td:nth-child(3),

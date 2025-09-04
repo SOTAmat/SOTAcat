@@ -1,3 +1,6 @@
+// We'll keep these global sorting variables here for now,
+// although they apply equally to sota and pota.
+// Soon, we may collapse sota and pota display.
 // NOTE: All global variables (gSortField, gLastSortField, gDescending, gRefreshInterval, gModeFilter)
 // are now declared in main.js for shared access across all tabs
 
@@ -91,7 +94,12 @@ async function pota_updatePotaTable()
               event.preventDefault(); // Prevent default link behavior
               // Use tuneRadioHz function which expects frequency in Hz
               tuneRadioHz(spot.hertz, spot.mode);
-            }
+           }
+           // Add band coloring
+           const band = getFrequencyBand(spot.hertz);
+           if (band) {
+               frequencyCell.classList.add('band-cell', `band-${band}`);
+           }
         } else {
             // Handle cases where frequency is zero or invalid
             frequencyLink.textContent = '-'; // Or some other placeholder

@@ -98,8 +98,13 @@ async function sota_updateSotaTable()
               event.preventDefault(); // Prevent default link behavior
               tuneRadioMHz(spot.frequency, spot.mode);
             }
+            // Add band coloring
+            const band = getFrequencyBand(spot.frequency * 1000000);
+            if (band) {
+                frequencyCell.classList.add('band-cell', `band-${band}`);
+            }
+            frequencyCell.appendChild(frequencyLink);
         }
-        frequencyCell.appendChild(frequencyLink);
 
         // Mode
         const modeCell = row.insertCell(); // Get the cell itself
