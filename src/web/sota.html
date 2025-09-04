@@ -2,28 +2,10 @@
   <div class="controls-grid">
     <div class="control-group">
       <label class="checkbox-label">
-        <input type="checkbox" id="showDupsSelector" checked
-               onchange="changeShowSpecialRowsState(this.checked); saveShowSpecialRowsState();">
-        <span>Show QRT/QSY</span>
-      </label>
-    </div>
-
-    <div class="control-group">
-      <label class="checkbox-label">
         <input type="checkbox" id="autoRefreshSelector" checked>
         <span>Auto-refresh</span>
       </label>
       <button class="btn-refresh" onclick="refreshSotaPotaJson(true)">Refresh Now</button>
-    </div>
-
-    <div class="control-group">
-      <label for="historyDurationSelector">History:</label>
-      <select id="historyDurationSelector" class="select-control"
-              onchange="refreshSotaPotaJson(true); saveHistoryDurationState();">
-        <option value="-1" selected>1 hour</option>
-        <option value="-3">3 hours</option>
-        <option value="-24">24 hours</option>
-      </select>
     </div>
 
     <div class="control-group">
@@ -34,6 +16,24 @@
         <option value="DATA">DATA</option>
         <option value="FM">FM</option>
         <option value="SSB">SSB</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="showDupsSelector" checked
+               onchange="changeShowSpecialRowsState(this.checked); saveShowSpecialRowsState();">
+        <span>Show QRT/QSY</span>
+      </label>
+    </div>
+
+    <div class="control-group">
+      <label for="historyDurationSelector">History:</label>
+      <select id="historyDurationSelector" class="select-control"
+              onchange="refreshSotaPotaJson(true); saveHistoryDurationState();">
+        <option value="-1" selected>1 hour</option>
+        <option value="-3">3 hours</option>
+        <option value="-24">24 hours</option>
       </select>
     </div>
   </div>
