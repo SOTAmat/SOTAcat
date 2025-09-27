@@ -7,7 +7,7 @@
           id="showDupsSelector"
           class="showDups"
           checked
-          onchange="changeShowSpecialRowsState(this.checked); saveShowSpecialRowsState();"
+          onchange="sota_changeShowSpecialRowsState(this.checked); sota_saveShowSpecialRowsState();"
         />
       </div>
       <div class="control-main">
@@ -39,7 +39,7 @@
           id="historyDurationSelector"
           class="historyDurationDropdown sota-control-selector"
           aria-label="History duration"
-          onchange="refreshSotaPotaJson(true); saveHistoryDurationState();"
+          onchange="refreshSotaPotaJson(true); sota_saveHistoryDurationState();"
         >
           <option value="-1" selected>1 hour</option>
           <option value="-3">3 hours</option>
@@ -55,7 +55,7 @@
           id="modeFilter"
           class="sota-control-selector"
           aria-label="Filter by mode"
-          onchange="changeModeFilter(this.value); saveModeFilterState();"
+          onchange="sota_changeModeFilter(this.value); sota_saveModeFilterState();"
         >
           <option value="All" selected="true">All</option>
           <option value="CW">CW</option>

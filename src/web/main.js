@@ -430,22 +430,27 @@ async function getLocation() {
     //  });
     // So, we'll use a less accurate, but more available alternative
     try {
-        // Use fetch API to get location from IP. Note: Ensure CORS policies are handled if calling from the browser.
-        const response = await fetch('http://ip-api.com/json/?fields=status,message,lat,lon', {
-            mode: 'cors' // This might be required for CORS requests if the server supports it.
+        // Use ipinfo.io which supports HTTPS and has a free tier
+        // We used to use the http://ip-api.com/json/?fields=status,message,lat,lon API, but it does not support HTTPS which some browsers require.
+        const response = await fetch('https://ipinfo.io/json', {
+            mode: 'cors'
         });
         const position = await response.json();
-        if (response.ok && position.status === 'success') {
-            // Extract latitude and longitude from the successful response
-            const { lat: latitude, lon: longitude } = position;
+        if (response.ok && position.loc) {
+            // Extract latitude and longitude from the response
+            // ipinfo.io returns location as "lat,lng" in the 'loc' field
+            const [latitude, longitude] = position.loc.split(',').map(coord => parseFloat(coord));
             return { latitude, longitude };
         } else {
             // Handle error status or unsuccessful fetch operation
-            throw new Error(position.message || "Failed to fetch location from IP-API");
+            throw new Error(position.error?.message || "Failed to fetch location from ipinfo.io");
         }
     } catch (error) {
-        console.error("Error retrieving location: ", error);
-        throw error; // Propagate the error to be handled by the caller
+        console.error("Error retrieving location from ipinfo.io: ", error);
+        // Fallback to a default location if geolocation fails
+        // This prevents the entire table loading from failing due to geolocation issues
+        console.warn("Using fallback location due to geolocation failure");
+        return { latitude: 40.7128, longitude: -74.0060 }; // Default to New York City
     }
 }
 
