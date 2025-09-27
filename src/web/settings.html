@@ -55,19 +55,74 @@
   </h2>
 
   <!-- WiFi Help Popup -->
-  <div id="wifi-help-popup" class="help-popup" style="display: none;">
+  <div id="wifi-help-popup" class="help-popup" style="display: none">
     <div class="help-popup-content">
       <div class="help-popup-header">
         <h3>WiFi Configuration Help</h3>
-        <button type="button" class="btn-close" onclick="toggleWifiHelp()">×</button>
+        <button type="button" class="btn-close" onclick="toggleWifiHelp()">
+          ×
+        </button>
       </div>
       <div class="help-popup-body">
-        <p>When SOTACAT boots, it will try to connect to one of two WiFi networks (Client-1 and Client-2) in order. If those connections fail, it will create its own WiFi hotspot (Server) so that you can connect to the SOTACAT WiFi from your mobile device.</p>
-        <p><strong>Apple iPhone users</strong> in the field should connect to the SOTACAT hotspot (Server) since the iPhone supports 'split networking' where the phone is connected to both the SOTACAT via WiFi and the cellular data network (when available) for retrieving current spots. Thus iPhone users, when in the field, don't want a valid Client-1 or Client-2. There are many ways to prevent a connection to Client-1 or Client-2 (be out of range of home WiFi, configure the settings to a blank SSID/password, turn off the iPhone mobile hotspot, etc.).</p>
-        <p><strong>Android phones</strong> do not support 'split networking'. You should fill in the "Client-1" or "Client-2" settings with your Android phone's hotspot information and enable the hotspot when operating in the field. SOTACAT will connect to your phone's mobile hotspot using Client-1 or Client-2 settings via WiFi while the phone will also be connected to the cellular data network.</p>
-        <p><strong>When you are at home</strong>, your phone will likely be connected to your home WiFi network, and thus unavailable for a direct WiFi connection to/from the SOTACAT. The remaining unused Client-1 or Client-2 settings are available for you to add your home WiFi network information into the SOTACAT. This will allow your SOTACAT to be connected to the same network as your phone when at home, so both devices can communicate. It is up to you to decide the priority order of the Client-1 and Client-2 settings as to which is for your phone's hotspot and which is for your home WiFi network. The only difference is how long it will take to connect when booting the SOTACAT, as the SOTACAT will try to connect to Client-1 first, then Client-2. And again, Apple iPhone users won't even use the mobile hotspot settings.</p>
-        <p>Once connected to a network, you open your phone's browser and navigate to either <a href="http://sotacat.local" target="_blank" rel="noopener">http://sotacat.local</a> (iPhone, MacOS, Windows) or to <a href="http://192.168.4.1" target="_blank" rel="noopener">http://192.168.4.1</a> or when using an Android hotspot, install the <a href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser" target="_blank" rel="noopener">Bonjour Browser</a> app from the Google Play store and use that app to navigate to the "sotacat.local" address.</p>
-        <br><br>
+        <p>
+          When SOTACAT boots, it will try to connect to one of two WiFi networks
+          (Client-1 and Client-2) in order. If those connections fail, it will
+          create its own WiFi hotspot (Server) so that you can connect to the
+          SOTACAT WiFi from your mobile device.
+        </p>
+        <p>
+          <strong>Apple iPhone users</strong> in the field should connect to the
+          SOTACAT hotspot (Server) since the iPhone supports 'split networking'
+          where the phone is connected to both the SOTACAT via WiFi and the
+          cellular data network (when available) for retrieving current spots.
+          Thus iPhone users, when in the field, don't want a valid Client-1 or
+          Client-2. There are many ways to prevent a connection to Client-1 or
+          Client-2 (be out of range of home WiFi, configure the settings to a
+          blank SSID/password, turn off the iPhone mobile hotspot, etc.).
+        </p>
+        <p>
+          <strong>Android phones</strong> do not support 'split networking'. You
+          should fill in the "Client-1" or "Client-2" settings with your Android
+          phone's hotspot information and enable the hotspot when operating in
+          the field. SOTACAT will connect to your phone's mobile hotspot using
+          Client-1 or Client-2 settings via WiFi while the phone will also be
+          connected to the cellular data network.
+        </p>
+        <p>
+          <strong>When you are at home</strong>, your phone will likely be
+          connected to your home WiFi network, and thus unavailable for a direct
+          WiFi connection to/from the SOTACAT. The remaining unused Client-1 or
+          Client-2 settings are available for you to add your home WiFi network
+          information into the SOTACAT. This will allow your SOTACAT to be
+          connected to the same network as your phone when at home, so both
+          devices can communicate. It is up to you to decide the priority order
+          of the Client-1 and Client-2 settings as to which is for your phone's
+          hotspot and which is for your home WiFi network. The only difference
+          is how long it will take to connect when booting the SOTACAT, as the
+          SOTACAT will try to connect to Client-1 first, then Client-2. And
+          again, Apple iPhone users won't even use the mobile hotspot settings.
+        </p>
+        <p>
+          Once connected to a network, you open your phone's browser and
+          navigate to either
+          <a href="http://sotacat.local" target="_blank" rel="noopener"
+            >http://sotacat.local</a
+          >
+          (iPhone, MacOS, Windows) or to
+          <a href="http://192.168.4.1" target="_blank" rel="noopener"
+            >http://192.168.4.1</a
+          >
+          or when using an Android hotspot, install the
+          <a
+            href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser"
+            target="_blank"
+            rel="noopener"
+            >Bonjour Browser</a
+          >
+          app from the Google Play store and use that app to navigate to the
+          "sotacat.local" address.
+        </p>
+        <br /><br />
       </div>
     </div>
   </div>

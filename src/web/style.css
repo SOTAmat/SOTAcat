@@ -764,29 +764,33 @@ button.bigthumb:active, .sync-button:active, .save-button:active, .reset-button:
 
 /* Info button for Wifi help */
 .btn-info {
-  background: none;
-  border: none;
-  color: var(--color-accent);
+  background: var(--color-accent);
+  border: 2px solid var(--color-accent);
+  color: var(--color-white);
   font-size: var(--font-size-large);
   cursor: pointer;
   padding: var(--spacing-xs);
   margin-left: var(--spacing-small);
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
+  box-shadow: var(--box-shadow);
 }
 
 .btn-info:hover {
-  background: var(--color-gray-100);
+  background: var(--color-accent-light);
+  border-color: var(--color-accent-light);
+  transform: scale(1.1);
 }
 
 .info-icon {
-  font-weight: bold;
-  font-size: 18px;
+  font-weight: 900;
+  font-size: 20px;
+  line-height: 1;
 }
 
 /* Help popup styles */
