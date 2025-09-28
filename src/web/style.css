@@ -1355,17 +1355,17 @@ hr {
   justify-content: center;
 }
 
-/* Add touch-friendly button states */
+/* Frequency adjustment buttons - modern, distinct styling */
 .freq-btn {
-  font-size: 14px;
-  font-weight: 600;
-  padding: 8px 12px;
-  border-radius: var(--border-radius);
-  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-radius: var(--border-radius-controls);
+  border: 2px solid transparent;
   cursor: pointer;
-  transition: all var(--transition-speed) ease;
-  box-shadow: var(--box-shadow);
-  min-width: 50px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  min-width: 52px;
   /* Prevent text selection on touch */
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -1376,28 +1376,66 @@ hr {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
+/* Frequency down buttons - deep red theme */
 .freq-btn.freq-down {
-  background-color: var(--color-danger);
+  background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
   color: var(--text-secondary);
+  border-color: #b71c1c;
+}
+
+.freq-btn.freq-down:hover {
+  background: linear-gradient(135deg, #b71c1c 0%, #a01515 100%);
+  border-color: #a01515;
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.4);
+  transform: translateY(-1px);
 }
 
 .freq-btn.freq-down:active {
-  background-color: #b71c1c;
+  background: linear-gradient(135deg, #a01515 0%, #8e0e0e 100%);
+  border-color: #8e0e0e;
+  transform: translateY(0px);
+  box-shadow: 0 2px 4px rgba(198, 40, 40, 0.5);
 }
 
+/* Frequency up buttons - deep blue theme */
 .freq-btn.freq-up {
-  background-color: var(--color-success);
+  background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
   color: var(--text-secondary);
+  border-color: #0d47a1;
+}
+
+.freq-btn.freq-up:hover {
+  background: linear-gradient(135deg, #0d47a1 0%, #0a3d91 100%);
+  border-color: #0a3d91;
+  box-shadow: 0 4px 12px rgba(21, 101, 192, 0.4);
+  transform: translateY(-1px);
 }
 
 .freq-btn.freq-up:active {
-  background-color: #1b5e20;
+  background: linear-gradient(135deg, #0a3d91 0%, #083081 100%);
+  border-color: #083081;
+  transform: translateY(0px);
+  box-shadow: 0 2px 4px rgba(21, 101, 192, 0.5);
 }
 
-.freq-btn:active {
-  transform: translateY(1px);
+/* Subtle pulse animation for frequency buttons */
+.freq-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.freq-btn:active::before {
+  left: 100%;
 }
 
 /* Band Selection */
