@@ -1,19 +1,5 @@
 <div class="sota-controls-row">
   <div class="sota-controls-left">
-    <div class="qrt-qsy-container">
-      <div class="control-prefix">
-        <input
-          type="checkbox"
-          id="showDupsSelector"
-          class="showDups"
-          checked
-          onchange="sota_changeShowSpecialRowsState(this.checked); sota_saveShowSpecialRowsState();"
-        />
-      </div>
-      <div class="control-main">
-        <label for="showDupsSelector">Show QRT/QSY</label>
-      </div>
-    </div>
     <div class="auto-refresh-container">
       <div class="control-prefix">
         <input
@@ -28,27 +14,26 @@
         <button onclick="refreshSotaPotaJson(true)">Refresh</button>
       </div>
     </div>
+    <div class="auto-refresh-container">
+      <div class="control-prefix">
+        <input
+          type="checkbox"
+          id="showDupsSelector"
+          class="showDups"
+          checked
+          onchange="sota_changeShowSpecialRowsState(this.checked); sota_saveShowSpecialRowsState();"
+        />
+      </div>
+      <div class="control-main">
+        <label for="showDupsSelector">Show QRT/QSY</label>
+      </div>
+    </div>
   </div>
 
   <div class="sota-controls-right">
     <div class="show-past-container">
       <div class="control-prefix"></div>
-      <div class="control-main">
-        <label>Show past:</label>
-        <select
-          id="historyDurationSelector"
-          class="historyDurationDropdown sota-control-selector"
-          aria-label="History duration"
-          onchange="refreshSotaPotaJson(true); sota_saveHistoryDurationState();"
-        >
-          <option value="-1" selected>1 hour</option>
-          <option value="-3">3 hours</option>
-          <option value="-24">24 hours</option>
-        </select>
-      </div>
-    </div>
-    <div class="mode-filter-container">
-      <div class="control-prefix">&nbsp;</div>
+
       <div class="control-main">
         <label for="modeFilter">Mode:</label>
         <select
@@ -62,6 +47,23 @@
           <option value="SSB">SSB</option>
           <option value="FM">FM</option>
           <option value="DATA">DATA</option>
+        </select>
+      </div>
+    </div>
+    <div class="mode-filter-container">
+      <div class="control-prefix">&nbsp;</div>
+
+      <div class="control-main">
+        <label>Show past:</label>
+        <select
+          id="historyDurationSelector"
+          class="historyDurationDropdown sota-control-selector"
+          aria-label="History duration"
+          onchange="refreshSotaPotaJson(true); sota_saveHistoryDurationState();"
+        >
+          <option value="-1" selected>1 hour</option>
+          <option value="-3">3 hours</option>
+          <option value="-24">24 hours</option>
         </select>
       </div>
     </div>
