@@ -36,28 +36,53 @@ def access_build_flags():
     return "Error"
 
 
+def should_update_version():
+    """
+    Only update version strings during actual build operations, not during
+    other PlatformIO operations like upload, monitor, etc.
+    """
+    # Check if this is a build operation by looking at the command line arguments
+    # or environment variables that indicate a build is happening
+    if "BUILD_DIR" in env:
+        # BUILD_DIR is set during actual build operations
+        return True
+
+    # Alternative check: look for build-related flags in the environment
+    if hasattr(env, "PIOENV") and env.PIOENV:
+        # This is a build environment, so it's likely a build operation
+        return True
+
+    return False
+
+
 manifest_path = "firmware/webtools/manifest.json"
 header_path = "include/build_info.h"
 
-build_type = access_build_flags()
+# Only update version strings during actual builds
+if should_update_version():
+    build_type = access_build_flags()
 
-short_build_datetime_str = datetime.datetime.now().strftime("%y%m%d:%H%M")
-long_build_datetime_str = (
-    datetime.datetime.now().strftime("%Y-%m-%d_%H:%M-") + build_type
-)
+    short_build_datetime_str = datetime.datetime.now().strftime("%y%m%d:%H%M")
+    long_build_datetime_str = (
+        datetime.datetime.now().strftime("%Y-%m-%d_%H:%M-") + build_type
+    )
 
-# Check if manifest.json exists
-if os.path.exists(manifest_path):
-    with open(manifest_path, "r") as f:
-        manifest_data = json.load(f)
-    manifest_data["version"] = long_build_datetime_str
-    with open(manifest_path, "w") as f:
-        json.dump(manifest_data, f, indent=4)  # Indent for readability
-    log_message(f"Updated version in {manifest_path} to {long_build_datetime_str}")
+    # Check if manifest.json exists
+    if os.path.exists(manifest_path):
+        with open(manifest_path, "r") as f:
+            manifest_data = json.load(f)
+        manifest_data["version"] = long_build_datetime_str
+        with open(manifest_path, "w") as f:
+            json.dump(manifest_data, f, indent=4)  # Indent for readability
+        log_message(f"Updated version in {manifest_path} to {long_build_datetime_str}")
+    else:
+        log_message(f"Manifest file not found at {manifest_path}")
+
+    # Update build_info.h
+    with open(header_path, "w") as f:
+        f.write('#define BUILD_DATE_TIME "{}"\n'.format(short_build_datetime_str))
+    log_message(
+        f"Updated {header_path} with build date/time {short_build_datetime_str}"
+    )
 else:
-    log_message(f"Manifest file not found at {manifest_path}")
-
-# Update build_info.h
-with open(header_path, "w") as f:
-    f.write('#define BUILD_DATE_TIME "{}"\n'.format(short_build_datetime_str))
-log_message(f"Updated {header_path} with build date/time {short_build_datetime_str}")
+    log_message("Skipping version update - not a build operation")
