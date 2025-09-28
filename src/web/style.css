@@ -1425,8 +1425,8 @@ hr {
   font-weight: 600;
   padding: 10px 16px;
   border-radius: var(--border-radius-pill);
-  background-color: var(--color-accent);
-  color: var(--text-secondary);
+  background-color: var(--color-gray-400);
+  color: var(--text-primary);
   border: none;
   cursor: pointer;
   transition: all var(--transition-speed) ease;
@@ -1444,8 +1444,16 @@ hr {
 }
 
 .band-btn:active {
-  background-color: var(--color-active);
-  transform: translateY(1px);
+  background-color: var(--color-gray-300);
+}
+
+.band-btn.active {
+  background-color: var(--color-accent);
+  color: var(--text-secondary);
+}
+
+.band-btn.active:active {
+  background-color: var(--color-accent-light);
 }
 
 /* Mode Selection */
