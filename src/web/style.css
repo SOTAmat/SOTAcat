@@ -777,9 +777,6 @@ table a:hover {
 
 /* WiFi Configuration cards */
 .wifi-config {
-    background: var(--color-gray-200);
-    border-radius: var(--border-radius-controls);
-    padding: var(--spacing-medium);
     margin-bottom: var(--spacing-medium);
 }
 
@@ -836,9 +833,6 @@ table a:hover {
     display: flex;
     align-items: center;
     gap: var(--spacing-medium);
-    padding: var(--spacing-medium);
-    background: var(--color-gray-200);
-    border-radius: var(--border-radius-controls);
 }
 
 .step-number {
@@ -1288,6 +1282,93 @@ hr {
     background-color: var(--bg-primary);
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
+}
+
+/* About page specific card content styles */
+.version-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+.version-main {
+    font-size: var(--font-size-large);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.version-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-small);
+    font-size: var(--font-size-small);
+    color: var(--text-muted);
+}
+
+.about-content {
+    line-height: 1.6;
+}
+
+.about-content p {
+    margin-bottom: var(--spacing-medium);
+    color: var(--text-primary);
+}
+
+.about-content p:last-child {
+    margin-bottom: 0;
+}
+
+.about-content a {
+    color: var(--color-accent);
+    text-decoration: underline;
+}
+
+.about-content a:hover {
+    text-decoration: none;
+}
+
+.attribution-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+.license-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-large);
+}
+
+/* Shared sub-card styling for version details, attribution sections, and license sections */
+.sub-card {
+    background: var(--color-gray-200);
+    padding: var(--spacing-medium);
+    border-radius: var(--border-radius-controls);
+    line-height: 1.6;
+}
+
+.sub-card h3 {
+    margin: 0 0 var(--spacing-small) 0;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    background: none;
+    padding: 0;
+}
+
+.sub-card p {
+    margin: 0 0 var(--spacing-small) 0;
+    color: var(--text-primary);
+    font-size: var(--font-size-small);
+}
+
+.sub-card p:last-child {
+    margin-bottom: 0;
+}
+
+.sub-card strong {
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
 /* About page section titles */
