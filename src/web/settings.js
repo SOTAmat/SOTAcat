@@ -82,7 +82,10 @@ async function clearGpsLocation() {
         if (response.ok) {
             // Invalidate the cache in main.js
             gGpsOverride = null;
-            // Clear the input field
+            // Clear the input field immediately
+            const gpsLocationInput = document.getElementById('gps-location');
+            gpsLocationInput.value = '';
+            // Update placeholder with default location
             loadGpsLocation();
             // Clear the distance cache to force recalculation with default location
             clearDistanceCache();

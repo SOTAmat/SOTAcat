@@ -1100,7 +1100,7 @@ hr {
     gap: var(--spacing-medium);
 }
 
-.gps-button-container {
+.gps-input-row {
     display: flex;
     flex-direction: row;
     gap: var(--spacing-medium);
@@ -1111,28 +1111,27 @@ hr {
     font-weight: 500;
 }
 
-.gps-input-container input[type="text"] {
-    width: 100%;
+.gps-input-row input[type="text"] {
+    flex: 1;
     font-size: 16px;
     padding: 8px 12px;
     border: 1px solid var(--color-gray-300);
     border-radius: var(--border-radius);
 }
 
-.gps-input-container input[type="text"]:valid {
+.gps-input-row input[type="text"]:valid {
     color: var(--color-success);
     border: 2px solid var(--color-success);
 }
 
-.gps-input-container input[type="text"]:invalid:not(:placeholder-shown) {
+.gps-input-row input[type="text"]:invalid:not(:placeholder-shown) {
     color: var(--color-danger);
     border: 2px solid var(--color-danger);
 }
 
 .gps-button {
     font-size: 14px;
-    padding: 8px 16px;
-    margin-top: var(--spacing-small);
+    padding: 8px 12px;
     border-radius: 30px;
     background-color: var(--bg-button);
     color: var(--text-button);
@@ -1140,7 +1139,8 @@ hr {
     cursor: pointer;
     transition: all var(--transition-speed) ease;
     box-shadow: var(--box-shadow);
-    align-self: flex-start;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .gps-button:hover {
