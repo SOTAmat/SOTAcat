@@ -166,7 +166,7 @@ li {
     justify-content: flex-start;
     align-items: center;
     position: relative;
-    padding: 0;
+    padding: 0 0 var(--spacing-medium) 0;
 }
 
 .responsive-image {
