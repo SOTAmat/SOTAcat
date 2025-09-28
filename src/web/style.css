@@ -56,7 +56,7 @@
     --spacing-xs: 3px;
     --spacing-small: 5px;
     --spacing-medium: 10px;
-    --spacing-large: 20px;
+    --spacing-large: 15px;
 
     /* Other */
     --border-radius: 0px;
@@ -166,7 +166,7 @@ li {
     justify-content: flex-start;
     align-items: center;
     position: relative;
-    padding: 0 0 var(--spacing-medium) 0;
+    padding: 0 0 var(--spacing-large) 0;
 }
 
 .responsive-image {
@@ -527,21 +527,22 @@ table a:hover {
     z-index: -1;
 }
 
-.sota-controls-row, .pota-controls-row {
+/* Consolidated SOTA/POTA controls */
+[class*="-controls-row"] {
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0.1em;
+    padding: 0.1em 0.1em var(--spacing-small) 0.1em;
     background-color: var(--color-header-bg);
     color: var(--color-secondary);
     position: relative;
 }
 
 /* Extend background full width */
-.sota-controls-row::before, .pota-controls-row::before {
+[class*="-controls-row"]::before {
     content: '';
     position: absolute;
     top: 0;
@@ -554,18 +555,10 @@ table a:hover {
     z-index: -1;
 }
 
-.sota-controls-left, .sota-controls-right,
-.pota-controls-left, .pota-controls-right {
+[class*="-controls-left"], [class*="-controls-right"] {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-small);
-}
-
-.sota-controls-left, .pota-controls-left {
-    align-items: flex-start;
-}
-
-.sota-controls-right, .pota-controls-right {
     align-items: flex-start;
 }
 
@@ -665,28 +658,16 @@ table a:hover {
     margin-left: auto;
 }
 
-/* Add styles for the right-justified controls in SOTA page */
-.sota-controls-right .control-main {
+/* Consolidated right-justified controls */
+[class*="-controls-right"] .control-main {
     display: flex;
     justify-content: space-between;
     width: 100%;
-    padding-right: 8px; /* Small right margin */
+    padding-right: 8px;
 }
 
-.sota-controls-right .sota-control-selector {
-    width: 90px; /* Fixed width for both selectors */
-}
-
-/* Apply the same margin and width to POTA page controls */
-.pota-controls-right .control-main {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    padding-right: 8px; /* Small right margin to match SOTA page */
-}
-
-.pota-controls-right .sota-control-selector {
-    width: 90px; /* Fixed width to match SOTA page */
+[class*="-controls-right"] .sota-control-selector {
+    width: 90px;
 }
 
 /* Alignment for specific columns */
@@ -708,26 +689,16 @@ table a:hover {
     margin: 0px;
 }
 
-/* Mode background colors */
-.mode-cell-CW {
-    background-color: var(--color-cyan);
-}
-.mode-cell-QRT {
-    background-color: var(--color-danger);
-}
+/* Mode background colors - consolidated */
+.mode-cell-CW { background-color: var(--color-cyan); }
+.mode-cell-QRT { background-color: var(--color-danger); }
 .mode-cell-FT8,
 .mode-cell-FT4,
-.mode-cell-DATA {
-    background-color: var(--color-green);
-}
+.mode-cell-DATA { background-color: var(--color-green); }
 .mode-cell-AM,
-.mode-cell-OTHER {
-    background-color: var(--color-gray-800);
-}
+.mode-cell-OTHER { background-color: var(--color-gray-800); }
 .mode-cell-SSB,
-.mode-cell-FM {
-    background-color: var(--color-accent);
-}
+.mode-cell-FM { background-color: var(--color-accent); }
 
 /* Reduce padding for Mode column cells */
 #sotaTable td:nth-child(4) {
@@ -756,7 +727,7 @@ table a:hover {
 
 /* =========================== CAT and Settings Page Styles */
 .cat-container, .settings-container {
-    padding: var(--spacing-medium);
+    padding: var(--spacing-xs);
     margin: var(--spacing-small);
     background-color: var(--bg-primary);
     border-radius: var(--border-radius);
@@ -769,15 +740,17 @@ table a:hover {
     border-radius: var(--border-radius-controls);
     padding: var(--spacing-large);
     margin: var(--spacing-medium);
-    box-shadow: var(--box-shadow);
+    border: 1px solid var(--color-gray-300);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.settings-card h2 {
+.settings-container .settings-card h2 {
     font-size: var(--font-size-large);
-    margin: 0 0 var(--spacing-small) 0;
-    background: none;
-    color: var(--text-primary);
-    padding: 0;
+    margin: 0 0 var(--spacing-medium) 0 !important;
+    background-color: var(--color-header-bg);
+    color: var(--text-secondary);
+    padding: var(--spacing-medium) !important;
+    border-radius: var(--border-radius);
 }
 
 .settings-info {
@@ -889,6 +862,16 @@ table a:hover {
     gap: var(--spacing-medium);
 }
 
+/* Firmware step buttons - equal width */
+.firmware-step-btn {
+    width: 100%;
+    min-width: 200px;
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .step-content p { margin: 0; font-size: var(--font-size-small); }
 
 .status-message {
@@ -913,7 +896,8 @@ table a:hover {
   .button-group button { width: 100%; }
 }
 
-.msg-section, .keyer-section, .wifi-client, .vfo-section  {
+/* Consolidated section styles */
+.msg-section, .keyer-section, .wifi-client, .vfo-section {
     background-color: var(--color-gray-200);
     padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-small) var(--spacing-medium);
     border-radius: var(--border-radius);
@@ -1216,16 +1200,19 @@ hr {
 }
 
 /* Form validation styling */
+/* Consolidated input validation styles */
 .wifi-client input[type="text"]:valid,
 .wifi-client input[type="password"]:valid,
-.keyer-section input[type="text"]:valid {
+.keyer-section input[type="text"]:valid,
+.gps-input-row input[type="text"]:valid {
     color: var(--color-success);
     border: 2px solid var(--color-success);
 }
 
 .wifi-client input[type="text"]:invalid,
 .wifi-client input[type="password"]:invalid,
-.keyer-section input[type="text"]:invalid {
+.keyer-section input[type="text"]:invalid,
+.gps-input-row input[type="text"]:invalid:not(:placeholder-shown) {
     color: var(--color-danger);
     border: 2px solid var(--color-danger);
 }
@@ -1269,15 +1256,6 @@ hr {
     border-radius: var(--border-radius);
 }
 
-.gps-input-row input[type="text"]:valid {
-    color: var(--color-success);
-    border: 2px solid var(--color-success);
-}
-
-.gps-input-row input[type="text"]:invalid:not(:placeholder-shown) {
-    color: var(--color-danger);
-    border: 2px solid var(--color-danger);
-}
 
 .gps-button {
     font-size: 14px;
@@ -1614,7 +1592,8 @@ hr {
   flex-wrap: wrap;
 }
 
-.band-btn {
+/* Consolidated button base styles */
+.band-btn, .mode-btn, .atu-btn {
   font-size: 16px;
   font-weight: 600;
   padding: 10px 16px;
@@ -1637,16 +1616,16 @@ hr {
   justify-content: center;
 }
 
-.band-btn:active {
+.band-btn:active, .mode-btn:active {
   background-color: var(--color-gray-300);
 }
 
-.band-btn.active {
+.band-btn.active, .mode-btn.active {
   background-color: var(--color-accent);
   color: var(--text-secondary);
 }
 
-.band-btn.active:active {
+.band-btn.active:active, .mode-btn.active:active {
   background-color: var(--color-accent-light);
 }
 
@@ -1672,40 +1651,10 @@ hr {
   justify-content: center;
 }
 
+/* Mode button specific overrides */
 .mode-btn {
   font-size: 14px;
-  font-weight: 600;
   padding: 8px 16px;
-  border-radius: var(--border-radius-pill);
-  background-color: var(--color-gray-400);
-  color: var(--text-primary);
-  border: none;
-  cursor: pointer;
-  transition: all var(--transition-speed) ease;
-  box-shadow: var(--box-shadow);
-  min-width: 60px;
-  /* Touch-friendly improvements */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mode-btn:active {
-  background-color: var(--color-gray-300);
-}
-
-.mode-btn.active {
-  background-color: var(--color-accent);
-  color: var(--text-secondary);
-}
-
-.mode-btn.active:active {
-  background-color: var(--color-accent-light);
 }
 
 /* Responsive adjustments for VFO controls */
@@ -1741,7 +1690,8 @@ hr {
     gap: var(--spacing-xs);
   }
 
-  .band-btn {
+  /* Consolidated responsive button styles */
+  .band-btn, .mode-btn {
     font-size: 14px;
     padding: 8px 8px;
     min-width: 45px;
@@ -1764,27 +1714,12 @@ hr {
   margin-top: var(--spacing-large);
 }
 
+/* ATU button specific overrides */
 .atu-btn {
-  font-size: 16px;
-  font-weight: 600;
-  padding: 10px 10px;
-  border-radius: var(--border-radius-pill);
   background-color: var(--color-warning);
-  color: var(--text-primary);
-  border: none;
-  cursor: pointer;
-  transition: all var(--transition-speed) ease;
   box-shadow: var(--box-shadow-elevated);
-  min-width: 60px;
-  /* Touch-friendly improvements */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
   min-height: 48px;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .atu-btn:hover {

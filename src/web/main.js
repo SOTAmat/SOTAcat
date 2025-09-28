@@ -127,7 +127,6 @@ setInterval(refreshUTCClock, 10000); // Refresh every 10 seconds
 function updateBatteryInfo() {
     if (gLocalhost) return;
     fetchAndUpdateElement('/api/v1/batteryPercent', 'batteryPercent');
-    fetchAndUpdateElement('/api/v1/batteryVoltage', 'batteryVoltage');
 }
 
 updateBatteryInfo(); // Call the function immediately

@@ -251,7 +251,10 @@
       <div class="step">
         <span class="step-number">1</span>
         <div class="step-content">
-          <button class="btn-secondary" onclick="manualCheckFirmwareVersion()">
+          <button
+            class="btn-primary firmware-step-btn"
+            onclick="manualCheckFirmwareVersion()"
+          >
             Check for Updates
           </button>
         </div>
@@ -261,7 +264,7 @@
         <span class="step-number">2</span>
         <div class="step-content">
           <button
-            class="btn-secondary"
+            class="btn-primary firmware-step-btn"
             onclick="window.location.href='https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin'"
           >
             Download Firmware to phone
@@ -273,7 +276,7 @@
         <span class="step-number">3</span>
         <div class="step-content">
           <button
-            class="btn-secondary"
+            class="btn-primary firmware-step-btn"
             onclick="document.getElementById('ota-file').click()"
           >
             Select Firmware on phone
@@ -292,7 +295,7 @@
         <span class="step-number">4</span>
         <div class="step-content">
           <button
-            class="btn-primary"
+            class="btn-primary firmware-step-btn"
             id="upload-button"
             onclick="uploadFirmware()"
             disabled
