@@ -23,6 +23,7 @@ idf_component_register(
         "web/settings.html"
         "web/settings.js"
         "web/about.html"
+        "web/about.js"
         )
 
 # Apply compile definitions to this component
