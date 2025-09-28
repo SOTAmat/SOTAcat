@@ -75,8 +75,9 @@ except subprocess.CalledProcessError as e:
     log_message(f"ERROR: Failed to compress web assets: {e}")
     log_message(f"  {e.stderr}")
     sys.exit(1)
-except FileNotFoundError:
-    log_message("WARNING: Compression script not found - skipping asset compression")
+except FileNotFoundError as e:
+    log_message(f"ERROR: Compression script not found - cannot continue: {e}")
+    sys.exit(1)
 
 # Only update version strings during actual builds
 if should_update_version():
