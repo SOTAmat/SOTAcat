@@ -169,7 +169,7 @@ static const size_t CHUNK_SIZE = 8192;  // Increased from 1KB to 8KB for efficie
 static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, const uint8_t * end) {
     const int MAX_RETRIES    = 3;
     const int RETRY_DELAY_MS = 10;
-    size_t    total_size     = end - start - 1;
+    size_t    total_size     = end - start;
     size_t    sent           = 0;
 
     while (sent < total_size) {
@@ -255,7 +255,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
     httpd_resp_set_hdr (req, "Cache-Control", cache_header);
 
     // Use chunked transfer for large files
-    size_t file_size = asset_ptr->asset_end - asset_ptr->asset_start - 1;
+    size_t file_size = asset_ptr->asset_end - asset_ptr->asset_start;
     if (file_size > CHUNK_SIZE) {  // Chunk large files
         ESP_LOGI (TAG8, "sending chunked asset");
         return send_file_chunked (req,

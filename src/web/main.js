@@ -85,7 +85,7 @@ const AppState = {
     currentTabName: null,
 
     // Connection loss detection
-    connectionState: 'connected',  // 'connected' | 'reconnecting' | 'disconnected'
+    connectionState: "connected",  // "connected" | "reconnecting" | "disconnected"
     consecutiveFailures: 0,
     lastSuccessfulPoll: Date.now(),
 
@@ -127,17 +127,26 @@ const AppState = {
 // ============================================================================
 
 // Normalize tune targets from API response (handles both old string[] and new object[] formats)
+function migrateTuneTargetUrl(url) {
+    if (!url || typeof url !== "string") return url;
+    return url
+        .replace(/<FREQ-HZ>/gi, "{FREQ-HZ}")
+        .replace(/<FREQ-KHZ>/gi, "{FREQ-KHZ}")
+        .replace(/<FREQ-MHZ>/gi, "{FREQ-MHZ}")
+        .replace(/<MODE>/gi, "{MODE}");
+}
+
 function normalizeTuneTargets(targets) {
     if (!targets || !Array.isArray(targets)) return [];
 
     return targets.map((item) => {
         if (typeof item === "string") {
             // Old format: convert string to object, default enabled=true
-            return { url: item, enabled: true };
+            return { url: migrateTuneTargetUrl(item), enabled: true };
         } else if (typeof item === "object" && item !== null) {
             // New format: ensure both fields exist
             return {
-                url: item.url || "",
+                url: migrateTuneTargetUrl(item.url || ""),
                 enabled: item.enabled !== false, // default to true if not specified
             };
         }
@@ -232,7 +241,7 @@ function openTuneTargets(frequencyHz, mode) {
             return;
         }
 
-        // Substitute placeholders (using {} delimiters to match N1MM logger)
+        // Substitute placeholders
         let finalUrl = target.url;
         finalUrl = finalUrl.replace(/\{FREQ-HZ\}/gi, frequencyHz);
         finalUrl = finalUrl.replace(/\{FREQ-KHZ\}/gi, frequencyKHz);
@@ -777,13 +786,14 @@ function refreshUTCClock() {
 // Format battery time remaining in a compact format
 function formatBatteryTime(hours, type) {
     if (!hours || hours <= 0) return "";
-    const arrow = type === "charging" ? "\u2191" : "\u2193"; // ↑ or ↓
     const totalMins = Math.round(hours * 60);
-    if (totalMins > 98) {
-        const roundedHours = Math.round(totalMins / 60);
-        return `${arrow}${roundedHours}h`;
+    if (totalMins <= 0) return "";
+    const arrow = type === "charging" ? "\u2191" : "\u2193"; // ↑ or ↓
+    if (totalMins <= 98) {
+        return `${arrow}${totalMins}m`;
     }
-    return `${arrow}${totalMins}m`;
+    const roundedHours = Math.round(totalMins / 60);
+    return `${arrow}${roundedHours}h`;
 }
 
 // Update battery percentage and WiFi signal strength display
@@ -851,8 +861,8 @@ async function updateConnectionStatus() {
             // Success - reset failure tracking
             AppState.consecutiveFailures = 0;
             AppState.lastSuccessfulPoll = Date.now();
-            if (AppState.connectionState !== 'connected') {
-                setConnectionState('connected');
+            if (AppState.connectionState !== "connected") {
+                setConnectionState("connected");
             }
             document.getElementById("connection-status").textContent = await response.text();
         } else {
@@ -874,12 +884,12 @@ async function updateConnectionStatus() {
 function handlePollFailure() {
     AppState.consecutiveFailures++;
     if (AppState.consecutiveFailures >= DISCONNECT_THRESHOLD) {
-        if (AppState.connectionState === 'connected') {
-            setConnectionState('reconnecting');
+        if (AppState.connectionState === "connected") {
+            setConnectionState("reconnecting");
         }
         const elapsed = Date.now() - AppState.lastSuccessfulPoll;
-        if (elapsed > GIVE_UP_THRESHOLD_MS && AppState.connectionState === 'reconnecting') {
-            setConnectionState('disconnected');
+        if (elapsed > GIVE_UP_THRESHOLD_MS && AppState.connectionState === "reconnecting") {
+            setConnectionState("disconnected");
         }
     }
 }
@@ -893,25 +903,25 @@ function setConnectionState(newState) {
 
 // Update the connection overlay based on current connection state
 function updateConnectionOverlay() {
-    const overlay = document.getElementById('connection-overlay');
-    const reconnecting = document.getElementById('overlay-reconnecting');
-    const disconnected = document.getElementById('overlay-disconnected');
+    const overlay = document.getElementById("connection-overlay");
+    const reconnecting = document.getElementById("overlay-reconnecting");
+    const disconnected = document.getElementById("overlay-disconnected");
 
     if (!overlay) return;
 
     switch (AppState.connectionState) {
-        case 'connected':
-            overlay.classList.add('hidden');
+        case "connected":
+            overlay.classList.add("hidden");
             break;
-        case 'reconnecting':
-            overlay.classList.remove('hidden');
-            reconnecting.classList.remove('hidden');
-            disconnected.classList.add('hidden');
+        case "reconnecting":
+            overlay.classList.remove("hidden");
+            reconnecting.classList.remove("hidden");
+            disconnected.classList.add("hidden");
             break;
-        case 'disconnected':
-            overlay.classList.remove('hidden');
-            reconnecting.classList.add('hidden');
-            disconnected.classList.remove('hidden');
+        case "disconnected":
+            overlay.classList.remove("hidden");
+            reconnecting.classList.add("hidden");
+            disconnected.classList.remove("hidden");
             break;
     }
 }
@@ -933,9 +943,10 @@ function cleanupCurrentTab() {
     }
 }
 
-// Load previously active tab from localStorage (returns tab name string, defaults to 'qrx')
+// Load previously active tab from localStorage (returns tab name string, defaults to 'chase')
 function loadActiveTab() {
     const activeTab = localStorage.getItem("activeTab");
+    if (activeTab === "spot") return "run";
     return activeTab ? activeTab : "qrx"; // Default to 'qrx' if no tab is saved
 }
 

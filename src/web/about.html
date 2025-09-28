@@ -7,7 +7,7 @@
         SOTACAT is a hardware module you can build that allows your mobile device to wirelessly control your transceiver
         using its “CAT” (Computer Aided Transceiver) port (also known as an “ACC” or “accessory” serial data port).
         <br /><br />
-        SOTACAT is currently designed to work with Elecraft KX2 and KX3 transceivers.
+        SOTACAT is currently designed to work with Elecraft KX2, KX3 and KH1 transceivers.
         <br /><br />
         The SOTAMĀT app on your mobile device knows how to communicate with SOTACAT to automate functions such as
         sending SOTA and POTA spots, alerts, or sending pre-defined messages (SMS/eMail).
@@ -60,7 +60,12 @@
             </li>
             <li>
                 <strong>Elecraft:</strong> N6KR, Wayne Burdick, and N1AL, Alan, provided guidance on control of Elecraft
-                radios and Mathcad analysis of FT8 FSK harmonics.
+                radios and Mathcad analysis of FT8 FSK harmonics. Also added a special API (FOnn;) to the KH1 to allow
+                1Hz tuning steps needed to transmit FSK (ex. FT8) in response to SOTACAT's needs. (Thank-you N6KR!)
+            </li>
+            <li>
+                <strong>Ken WR7D:</strong> added support for the Elecraft KH1 radio, using the new KH1 "FOnn;"
+                command.
             </li>
             <li>
                 <strong>Justin K5EM and Rex KE6MT:</strong> Created derivative hardware versions, custom SMT PCBs, and
