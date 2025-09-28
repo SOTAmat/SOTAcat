@@ -270,10 +270,10 @@ function updateButtonText() {
 
     if (fileInput.files.length > 0) {
         const fileName = fileInput.files[0].name;
-        uploadButton.textContent = `Upload ${fileName}`;
+        uploadButton.textContent = `Install ${fileName}`;
         uploadButton.disabled = false; // Enable the button once a file is selected
     } else {
-        uploadButton.textContent = 'Upload Firmware';
+        uploadButton.textContent = 'Install Firmware';
         uploadButton.disabled = true; // Keep the button disabled if no file is selected
     }
 }
@@ -356,4 +356,11 @@ function settingsOnAppearing() {
     if (!gSubmitSettingsAttached)
         attachSubmitSettings();
     loadGpsLocation();
+    // Also show the firmware version on the settings page, if present
+    try {
+        const el = document.getElementById('buildVersionSettings');
+        if (el && typeof fetchAndUpdateElement === 'function' && !gLocalhost) {
+            fetchAndUpdateElement('/api/v1/version', 'buildVersionSettings');
+        }
+    } catch (_) {}
 }

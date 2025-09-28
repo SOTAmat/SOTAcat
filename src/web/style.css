@@ -763,6 +763,156 @@ table a:hover {
     box-shadow: var(--box-shadow);
 }
 
+/* =========================== Settings Page (Card layout) */
+.settings-card {
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-controls);
+    padding: var(--spacing-large);
+    margin: var(--spacing-medium);
+    box-shadow: var(--box-shadow);
+}
+
+.settings-card h2 {
+    font-size: var(--font-size-large);
+    margin: 0 0 var(--spacing-small) 0;
+    background: none;
+    color: var(--text-primary);
+    padding: 0;
+}
+
+.settings-info {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-large);
+}
+
+.button-group {
+    display: flex;
+    gap: var(--spacing-small);
+}
+
+.button-group button {
+    flex: 1;
+}
+
+.input-group-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+/* WiFi Configuration cards */
+.wifi-config {
+    background: var(--color-gray-200);
+    border-radius: var(--border-radius-controls);
+    padding: var(--spacing-medium);
+    margin-bottom: var(--spacing-medium);
+}
+
+.wifi-config h3 {
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    color: var(--text-primary);
+    background: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-medium) 0;
+}
+
+.input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-small);
+    margin-bottom: var(--spacing-small);
+}
+
+.input-grid input,
+.input-group-vertical input {
+    min-height: 44px;
+    padding: 0 var(--spacing-medium);
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--border-radius-controls);
+    font-size: var(--font-size-base);
+    background: var(--bg-primary);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    cursor: pointer;
+    font-size: var(--font-size-small);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* Firmware steps */
+.firmware-steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-medium);
+    padding: var(--spacing-medium);
+    background: var(--color-gray-200);
+    border-radius: var(--border-radius-controls);
+}
+
+.step-number {
+    width: 36px;
+    height: 36px;
+    background: var(--bg-button);
+    color: var(--text-button);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.step-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-medium);
+}
+
+.step-content p { margin: 0; font-size: var(--font-size-small); }
+
+.status-message {
+    margin-top: var(--spacing-medium);
+    padding: var(--spacing-medium);
+    background: var(--color-gray-200);
+    border-radius: var(--border-radius-controls);
+    font-size: var(--font-size-small);
+    color: var(--text-muted);
+    text-align: center;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 480px) {
+  .input-grid { grid-template-columns: 1fr; }
+  .step-content { flex-direction: column; align-items: flex-start; }
+  .step-content button { width: 100%; }
+  .button-group { flex-direction: column; }
+  .button-group button { width: 100%; }
+}
+
 .msg-section, .keyer-section, .wifi-client, .vfo-section  {
     background-color: var(--color-gray-200);
     padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-small) var(--spacing-medium);
