@@ -182,8 +182,21 @@ static void xmit_ft8_task (void * pvParameter) {
         // Reset watchdog before starting time-critical FT8 transmission
         ESP_ERROR_CHECK (esp_task_wdt_reset());
 
-        uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));  // Tell the radio to turn on the CW tone
-        TickType_t lastWakeTime = xTaskGetTickCount();             // Initialize lastWakeTime
+        // Enter TUNE to produce a continuous RF carrier using TUN PWR (verify with TQ)
+        kxRadio.put_to_kx_command_string ("SWT13;", 1);  // TUNE toggle ON
+        vTaskDelay (pdMS_TO_TICKS (30));
+        long tq_state = kxRadio.get_from_kx ("TQ", 1, 1);
+        ESP_LOGI (TAG8, "xmit_ft8: TQ after TUNE-on = %ld", tq_state);
+        if (tq_state != 1) {
+            // Fallback: switch to CW and try TUNE again (some rigs only key carrier in CW)
+            kxRadio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);
+            vTaskDelay (pdMS_TO_TICKS (20));
+            kxRadio.put_to_kx_command_string ("SWT13;", 1);
+            vTaskDelay (pdMS_TO_TICKS (30));
+            tq_state = kxRadio.get_from_kx ("TQ", 1, 1);
+            ESP_LOGI (TAG8, "xmit_ft8: TQ after CW+TUNE-on fallback = %ld", tq_state);
+        }
+        TickType_t lastWakeTime = xTaskGetTickCount();  // Initialize lastWakeTime
 
         // Now tell the radio to play the array of 79 tones
         // Note that the Elecraft KX2/KX3 radios do not allow fractional Hz, so we round to the nearest Hz.
@@ -201,8 +214,17 @@ static void xmit_ft8_task (void * pvParameter) {
                 break;
         }
 
-        // Tell the radio to turn off the CW tone
-        uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));
+        // Exit TUNE after tones complete
+        kxRadio.put_to_kx_command_string ("SWT13;", 1);  // TUNE toggle OFF
+        vTaskDelay (pdMS_TO_TICKS (30));
+        tq_state = kxRadio.get_from_kx ("TQ", 1, 1);
+        if (tq_state == 1) {
+            // Ensure unkeyed
+            kxRadio.put_to_kx_command_string ("SWT13;", 1);
+            vTaskDelay (pdMS_TO_TICKS (30));
+            tq_state = kxRadio.get_from_kx ("TQ", 1, 1);
+        }
+        ESP_LOGI (TAG8, "xmit_ft8: TQ after TUNE-off = %ld", tq_state);
 
         // Reset watchdog after completing time-critical FT8 transmission
         ESP_ERROR_CHECK (esp_task_wdt_reset());
@@ -371,15 +393,40 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
         kxRadio.get_kx_state (kx_state);
 
         // Prepare the radio to send the FT8 FSK tones using CW tones.
-        // MN058; - select the TUN PWR menu item
-        // MP010; - set the TUN PWR to 10 watts
         long baseFreq = rfFreq + audioFreq;
 
         kxRadio.put_to_kx ("FR", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FR0; - Cancels split mode
         kxRadio.put_to_kx ("FT", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FT0; - Select VFO A
         kxRadio.put_to_kx ("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
-        kxRadio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);    // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
-        kxRadio.put_to_kx ("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);          // AP1; - Enable Audio Peaking filter
+        kxRadio.put_to_kx ("MD", 1, MODE_USB, SC_KX_COMMUNICATION_RETRIES);   // Use USB for TUNE carrier RF
+
+        // Capture original CW power for this band/mode now that we're on the FT8 freq and CW mode
+        long original_cw_power = kxRadio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
+        ESP_LOGI (TAG8, "prepareft8: captured FT8-band CW power (PC) = %ld", original_cw_power);
+
+        // APF not relevant in USB; no change
+
+        // Set TUNE power to 10 W for FT8 (menu item 58)
+        ESP_LOGI (TAG8, "prepareft8: setting TUN PWR (MN058:MP) to 10W");
+        kxRadio.put_to_kx_menu_item (58, 10, SC_KX_COMMUNICATION_RETRIES);
+
+        // Verify TUN PWR applied; retry briefly if not
+        {
+            int       attempt    = 0;
+            long      read_value = -1;
+            const int max_try    = 3;
+            do {
+                vTaskDelay (pdMS_TO_TICKS (20));
+                read_value = kxRadio.get_from_kx_menu_item (58, 1);
+                ESP_LOGI (TAG8, "prepareft8: TUN PWR read-back attempt %d -> %ld", attempt + 1, read_value);
+                if (read_value == 10)
+                    break;
+                // Re-apply once if not matching
+                kxRadio.put_to_kx_menu_item (58, 10, 1);
+            } while (++attempt < max_try);
+            if (read_value != 10)
+                ESP_LOGW (TAG8, "prepareft8: TUN PWR verify did not match 10 after %d attempts (last=%ld)", attempt, read_value);
+        }
 
         // Offload playing the FT8 audio
         ft8ConfigInfo           = new ft8_task_pack_t;

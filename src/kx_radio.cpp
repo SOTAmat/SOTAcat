@@ -105,11 +105,11 @@ static long parse_response (const char * response, int num_digits) {
     return -1;  // Invalid response size
 }
 
-KXRadio::KXRadio()
+KXRadio::KXRadio ()
     : Lockable ("radio")
     , m_is_connected (false) {}
 
-KXRadio & KXRadio::getInstance() {
+KXRadio & KXRadio::getInstance () {
     static KXRadio instance;  // Static instance
     return instance;
 }
@@ -129,7 +129,7 @@ KXRadio & KXRadio::getInstance() {
  * Preconditions:
  *   The radio must be locked before calling this function. If not, an error is logged.
  */
-int KXRadio::connect() {
+int KXRadio::connect () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     if (!locked())
@@ -465,7 +465,7 @@ void KXRadio::get_kx_state (kx_state_t * in_state) {
     put_to_kx ("MD", 1, in_state->mode, SC_KX_COMMUNICATION_RETRIES);                         // Now return to the prior mode
     in_state->vfo_a_freq = get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);               // FAnnnnnnnnnnn; - Get the current frequency A
     in_state->active_vfo = (uint8_t)get_from_kx ("FT", SC_KX_COMMUNICATION_RETRIES, 1);       // FTn; - Get current VFO:  0 for VFO A, 1 for VFO B
-    in_state->tun_pwr    = (uint8_t)get_from_kx_menu_item (58, SC_KX_COMMUNICATION_RETRIES);  // MN058;MPnnn; - Get the current TUN PWR setting
+    in_state->tun_pwr    = (uint8_t)get_from_kx_menu_item (58, SC_KX_COMMUNICATION_RETRIES);  // TUN PWR menu value
 }
 
 /**
@@ -504,7 +504,7 @@ void KXRadio::restore_kx_state (const kx_state_t * in_state, int tries) {
  * Preconditions:
  *   The radio must be locked before calling this function. If not, an error is logged.
  */
-void KXRadio::detect_radio_type() {
+void KXRadio::detect_radio_type () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     if (!locked())

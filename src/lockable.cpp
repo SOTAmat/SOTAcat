@@ -20,23 +20,23 @@ Lockable::Lockable (char const * name)
     }
 }
 
-Lockable::~Lockable() {
+Lockable::~Lockable () {
     if (m_mutex) {
         vSemaphoreDelete (m_mutex);
         m_mutex = nullptr;
     }
 }
 
-void Lockable::lock() {
+void Lockable::lock () {
     ESP_LOGD (TAG8, "locking %s", m_name);
     if (m_locked)
-        ESP_LOGE (TAG8, "double-lock detected!");
+        ESP_LOGW (TAG8, "double-lock detected! (%s) continuing to block until unlocked", m_name);
     xSemaphoreTake (m_mutex, portMAX_DELAY);
     m_locked = true;
     ESP_LOGD (TAG8, "%s LOCKED --", m_name);
 }
 
-void Lockable::unlock() {
+void Lockable::unlock () {
     xSemaphoreGive (m_mutex);
     m_locked = false;
     ESP_LOGD (TAG8, "-- %s UNLOCKED", m_name);

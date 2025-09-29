@@ -32,7 +32,7 @@ typedef struct {
     radio_mode_t mode;
     uint8_t      active_vfo;
     long int     vfo_a_freq;
-    uint8_t      tun_pwr;
+    uint8_t      tun_pwr;  // Menu TUN PWR (MN058;MPnnn)
     uint8_t      audio_peaking;
 } kx_state_t;
 
@@ -54,7 +54,7 @@ class KXRadio : public Lockable {
   private:
     bool      m_is_connected;
     RadioType m_radio_type;
-    KXRadio();
+    KXRadio ();
     void detect_radio_type ();
 
   public:
