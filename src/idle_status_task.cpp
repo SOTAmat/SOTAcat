@@ -60,13 +60,14 @@ void idle_status_task (void * _pvParameter) {
         int blinks = ceil ((now - LastUserActivityUnixTime) / (AUTO_SHUTDOWN_TIME_SECONDS / 4.0));
         ESP_LOGV (TAG8, "blinks %d", blinks);
 
-        // Count USB detection as a user event
+        // When USB power is detected, we don't shut down due to inactivity
+        // Keep LED flash count at 1 to indicate shutdown countdown is not progressing
         if (gpio_get_level (USB_DET_PIN)) {
-            ESP_LOGV (TAG8, "USB power connected");
+            ESP_LOGV (TAG8, "USB power connected - shutdown disabled");
             blinks = 1;
         }
 
-        if (blinks > 4) {
+        if (blinks > 4 && gpio_get_level (USB_DET_PIN) == 0) {
             if (get_battery_percentage() < BATTERY_SHUTOFF_PERCENTAGE) {
                 gpio_set_level (LED_BLUE, LED_ON);
                 gpio_set_level (LED_RED, LED_ON);
