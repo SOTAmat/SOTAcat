@@ -251,9 +251,10 @@ static void cleanup_ft8_task (void * pvParameter) {
         return;
     }
 
-    // Restore the radio to its prior state
+    // Restore the radio to its prior state (including TUN PWR)
     {
         const std::lock_guard<Lockable> lock (kxRadio);
+        ESP_LOGI (TAG8, "Restoring radio state including TUN PWR to original settings");
         kxRadio.restore_kx_state (ft8ConfigInfo->kx_state, 4);
     }
 
@@ -370,9 +371,7 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
         kx_state_t * kx_state = new kx_state_t;
         kxRadio.get_kx_state (kx_state);
 
-        // Prepare the radio to send the FT8 FSK tones using CW tones.
-        // MN058; - select the TUN PWR menu item
-        // MP010; - set the TUN PWR to 10 watts
+        // Prepare the radio to send the FT8 FSK tones using CW tone with proper power setting.
         long baseFreq = rfFreq + audioFreq;
 
         kxRadio.put_to_kx ("FR", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FR0; - Cancels split mode
@@ -380,6 +379,10 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
         kxRadio.put_to_kx ("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
         kxRadio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);    // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
         kxRadio.put_to_kx ("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);          // AP1; - Enable Audio Peaking filter
+
+        // Set TUN PWR to 10W (100 = 10.0W in 0.1W units) with verification
+        kxRadio.put_to_kx_menu_item (58, 100, SC_KX_COMMUNICATION_RETRIES);  // MN058;MP100; - Set TUN PWR to 10 watts
+        ESP_LOGI (TAG8, "TUN PWR set to 10W for FT8 transmission");
 
         // Offload playing the FT8 audio
         ft8ConfigInfo           = new ft8_task_pack_t;
