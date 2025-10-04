@@ -2,6 +2,8 @@
 
 WiFi CAT control for Elecraft KX2/KX3. Your phone becomes your radio console.
 
+## Highlights
+
 ### Chase contacts with click-to-pounce
 
 Tap a spot, radio tunes. SOTA, POTA, WWFF—all in one list.
@@ -27,11 +29,13 @@ Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
 ## In the Field
 
 ### No Cell Service (Offline)
+
 - **RUN** works fully: tune radio, send CW, toggle TX
 - **CHASE** requires internet (empty when offline)
 - Self-spot via **SOTAmat** FT8 synthesis (requires [SOTAmat app](https://sotamat.com) — [iOS](https://apps.apple.com/us/app/sotam%C4%81t-sota-pota-spotting/id1625530954) · [Android](http://play.google.com/store/apps/details?id=com.sotamat.SOTAmat&hl=en_US))
 
 ### With Cell Service
+
 - **CHASE** live spots with tap-to-tune
 - SMS Spot / SMS QRT buttons
 - Full click-to-pounce workflow
