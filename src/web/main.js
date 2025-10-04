@@ -12,6 +12,7 @@ let gLatestSotaJson = null;
 let gSotaEpoch = null;
 let gLatestPotaJson = null;
 let gSdrUrl = null; // Cache for SDR URL from settings
+let gSdrMobile = null; // Cache for mobile SDR permission setting
 let gSdrWindow = null; // Reference to the SDR window
 // Check if the page is being served from localhost
 let gLocalhost = (window.location.hostname === 'localhost' ||
@@ -55,10 +56,33 @@ function launchSOTAmat()
 // ----------------------------------------------------------------------------
 // Handle clickable frequencies
 // ----------------------------------------------------------------------------
-// Fetch and cache the SDR URL from settings
-async function getSdrUrl() {
-    if (gSdrUrl !== null) {
-        return gSdrUrl; // Return cached value
+
+// Detect if the browser is running on a mobile device
+// Uses a combination of user agent detection and touch capability
+function isMobileBrowser() {
+    // Check user agent for mobile keywords
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i;
+    
+    if (mobileRegex.test(userAgent.toLowerCase())) {
+        return true;
+    }
+    
+    // Secondary check: touch capability + small screen (less reliable but catches some cases)
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const smallScreen = window.innerWidth <= 768; // Typical mobile/tablet breakpoint
+    
+    if (hasTouch && smallScreen) {
+        return true;
+    }
+    
+    return false;
+}
+
+// Fetch and cache the SDR settings from the API
+async function getSdrSettings() {
+    if (gSdrUrl !== null && gSdrMobile !== null) {
+        return { url: gSdrUrl, allowMobile: gSdrMobile }; // Return cached values
     }
     
     try {
@@ -66,27 +90,29 @@ async function getSdrUrl() {
         if (response.ok) {
             const data = await response.json();
             gSdrUrl = data.sdr_url || ''; // Cache the URL (empty string if not set)
-            return gSdrUrl;
+            gSdrMobile = (data.sdr_mobi === 'true'); // Cache mobile permission (default false)
+            return { url: gSdrUrl, allowMobile: gSdrMobile };
         }
     } catch (error) {
-        console.error('Failed to fetch SDR URL:', error);
+        console.error('Failed to fetch SDR settings:', error);
     }
     
-    gSdrUrl = ''; // Cache empty string on failure
-    return gSdrUrl;
+    // Cache defaults on failure
+    gSdrUrl = '';
+    gSdrMobile = false;
+    return { url: gSdrUrl, allowMobile: gSdrMobile };
 }
 
 // Open SDR URL with frequency and mode substitution
-async function openSdrUrl(frequencyHz, mode) {
-    const sdrUrl = await getSdrUrl();
-    
-    if (!sdrUrl || sdrUrl.trim() === '') {
-        return; // No URL configured, do nothing
-    }
+// This function is called synchronously from tuneRadioHz to maintain user gesture context for Safari
+function openSdrUrl(frequencyHz, mode) {
+    // Check if we're on mobile
+    const isMobile = isMobileBrowser();
     
     // Calculate frequency in different units
-    const frequencyKHz = Math.round(frequencyHz / 1000);
-    const frequencyMHz = (frequencyHz / 1000000).toFixed(3);
+    // Use precise division for kHz (don't round if there are sub-kHz components)
+    const frequencyKHz = frequencyHz / 1000;
+    const frequencyMHz = frequencyHz / 1000000;
     
     // Calculate mode variants
     const modeUpper = mode.toUpperCase();
@@ -94,37 +120,110 @@ async function openSdrUrl(frequencyHz, mode) {
     // <MODE-SSB>: Convert USB/LSB/SSB to just "SSB", pass through other modes as-is
     const modeSSB = (modeUpper === 'USB' || modeUpper === 'LSB' || modeUpper === 'SSB') ? 'SSB' : modeUpper;
     
-    // Replace frequency placeholders (case-insensitive)
-    let finalUrl = sdrUrl.replace(/<freq-mhz>/gi, frequencyMHz);
-    finalUrl = finalUrl.replace(/<freq-khz>/gi, frequencyKHz);
-    finalUrl = finalUrl.replace(/<freq-hz>/gi, frequencyHz);
-    
-    // Replace mode placeholders (case-insensitive)
-    // Note: <MODE> outputs USB/LSB/CW/AM/FM/DATA (SSB is already converted to USB/LSB before this function)
-    finalUrl = finalUrl.replace(/<mode-ssb>/gi, modeSSB);
-    finalUrl = finalUrl.replace(/<mode>/gi, modeUpper);
-    
     // Check if we have a valid window reference that's still open
     if (gSdrWindow && !gSdrWindow.closed) {
-        // Navigate existing window (doesn't steal focus)
-        try {
-            gSdrWindow.location.href = finalUrl;
-            console.log('Navigating existing SDR window to:', finalUrl);
-        } catch (e) {
-            // Cross-origin error or window became inaccessible, open new one
-            console.log('Could not navigate existing window, opening new one');
-            gSdrWindow = window.open(finalUrl, 'sotacat-sdr');
-        }
+        // Navigate existing window - get settings asynchronously and then navigate
+        getSdrSettings().then(settings => {
+            if (!settings.url || settings.url.trim() === '') {
+                return; // No URL configured
+            }
+            
+            // Check mobile permission
+            if (isMobile && !settings.allowMobile) {
+                console.log('SDR launch blocked: mobile browser and mobile access not enabled');
+                return;
+            }
+            
+            // Replace placeholders
+            let finalUrl = settings.url.replace(/<freq-mhz>/gi, frequencyMHz);
+            finalUrl = finalUrl.replace(/<freq-khz>/gi, frequencyKHz);
+            finalUrl = finalUrl.replace(/<freq-hz>/gi, frequencyHz);
+            finalUrl = finalUrl.replace(/<mode-ssb>/gi, modeSSB);
+            finalUrl = finalUrl.replace(/<mode>/gi, modeUpper);
+            
+            try {
+                gSdrWindow.location.href = finalUrl;
+                console.log('Navigating existing SDR window to:', finalUrl);
+            } catch (e) {
+                // Cross-origin error or window became inaccessible, open new one
+                console.log('Could not navigate existing window, opening new one');
+                gSdrWindow = window.open(finalUrl, 'sotacat-sdr');
+                try { window.focus(); } catch (e) {}
+            }
+        });
     } else {
-        // Open new window in background
-        gSdrWindow = window.open(finalUrl, 'sotacat-sdr');
-        console.log('Opening new SDR window:', finalUrl);
+        // First click or window was closed
+        // On mobile: Check cached permission BEFORE opening window to avoid flash
+        // On desktop: Open immediately to preserve user gesture
         
-        // Try to refocus the current window (may not work in all browsers)
-        try {
-            window.focus();
-        } catch (e) {
-            // Ignore focus errors
+        if (isMobile) {
+            // For mobile, check permission from cache first
+            if (gSdrMobile === false) {
+                // Cached permission says no - don't open anything
+                console.log('SDR launch blocked: mobile browser and mobile access not enabled (cached)');
+                return;
+            } else if (gSdrMobile === null) {
+                // Not cached yet - fetch and check, but don't open window
+                getSdrSettings().then(settings => {
+                    if (settings.url && settings.url.trim() !== '' && settings.allowMobile) {
+                        console.log('SDR permission granted on mobile, but user gesture lost. Click again to open SDR.');
+                    } else {
+                        console.log('SDR launch blocked: mobile browser and mobile access not enabled');
+                    }
+                });
+                return;
+            }
+            // If gSdrMobile === true, fall through to open window
+        }
+        
+        // Desktop or mobile with permission - open window synchronously
+        gSdrWindow = window.open('about:blank', 'sotacat-sdr');
+        
+        if (gSdrWindow) {
+            console.log('Opened new SDR window, loading URL...');
+            
+            // Try to refocus the current window immediately (Safari)
+            try {
+                window.focus();
+            } catch (e) {}
+            
+            // Now get the settings and navigate
+            getSdrSettings().then(settings => {
+                if (!settings.url || settings.url.trim() === '') {
+                    // No URL configured, close the blank window
+                    if (gSdrWindow && !gSdrWindow.closed) {
+                        gSdrWindow.close();
+                        gSdrWindow = null;
+                    }
+                    return;
+                }
+                
+                // Double-check mobile permission (in case cache was stale)
+                if (isMobile && !settings.allowMobile) {
+                    console.log('SDR launch blocked: mobile browser and mobile access not enabled');
+                    // Close the blank window
+                    if (gSdrWindow && !gSdrWindow.closed) {
+                        gSdrWindow.close();
+                        gSdrWindow = null;
+                    }
+                    return;
+                }
+                
+                // Replace placeholders
+                let finalUrl = settings.url.replace(/<freq-mhz>/gi, frequencyMHz);
+                finalUrl = finalUrl.replace(/<freq-khz>/gi, frequencyKHz);
+                finalUrl = finalUrl.replace(/<freq-hz>/gi, frequencyHz);
+                finalUrl = finalUrl.replace(/<mode-ssb>/gi, modeSSB);
+                finalUrl = finalUrl.replace(/<mode>/gi, modeUpper);
+                
+                // Navigate to the actual URL
+                try {
+                    gSdrWindow.location.href = finalUrl;
+                    console.log('Loaded SDR URL:', finalUrl);
+                } catch (e) {
+                    console.error('Failed to navigate SDR window:', e);
+                }
+            });
         }
     }
 }

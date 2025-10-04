@@ -41,6 +41,8 @@ static const char s_gps_lon_key[] = "gps_lon";
 char              g_gps_lon[MAX_GPS_LON_SIZE];
 static const char s_sdr_url_key[] = "sdr_url";
 char              g_sdr_url[MAX_SDR_URL_SIZE];
+static const char s_sdr_mobile_key[] = "sdr_mobi";  // NVS key max 15 chars
+char              g_sdr_mobile[MAX_SDR_MOBILE_SIZE];
 
 /**
  * Handle to our Non-Volatile Storage while we're in communication with it.
@@ -104,6 +106,7 @@ static void populate_settings () {
     GET_NV_STRING (gps_lat, "");
     GET_NV_STRING (gps_lon, "");
     GET_NV_STRING (sdr_url, "");
+    GET_NV_STRING (sdr_mobile, "false");
 }
 
 /**
@@ -362,11 +365,12 @@ static std::shared_ptr<char[]> get_sdr_settings_json () {
 
     size_t required_size = 1 +
                            sizeof (s_sdr_url_key) + sizeof (g_sdr_url) + 6 +
+                           sizeof (s_sdr_mobile_key) + sizeof (g_sdr_mobile) + 6 +
                            1;
-    const char format[] = "{\"%s\":\"%s\"}";
+    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\"}";
 
     std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_sdr_url_key, g_sdr_url);
+    snprintf (buf.get(), required_size, format, s_sdr_url_key, g_sdr_url, s_sdr_mobile_key, g_sdr_mobile);
 
     return buf;
 }

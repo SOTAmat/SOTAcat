@@ -128,9 +128,12 @@ async function loadGpsLocation() {
 function saveSdrUrl() {
     const sdrUrlInput = document.getElementById('sdr-url');
     const sdrUrl = sdrUrlInput.value.trim();
+    const sdrMobileCheckbox = document.getElementById('sdr-mobile');
+    const sdrMobile = sdrMobileCheckbox.checked ? 'true' : 'false';
 
     const settings = {
         sdr_url: sdrUrl,
+        sdr_mobi: sdrMobile,
     };
 
     fetch('/api/v1/sdr', {
@@ -144,7 +147,10 @@ function saveSdrUrl() {
             if (typeof gSdrUrl !== 'undefined') {
                 gSdrUrl = null;
             }
-            alert('SDR URL saved successfully.');
+            if (typeof gSdrMobile !== 'undefined') {
+                gSdrMobile = null;
+            }
+            alert('SDR settings saved successfully.');
         } else {
             response.json().then(data => {
                 throw new Error(data.error || 'Unknown error');
@@ -153,16 +159,19 @@ function saveSdrUrl() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Failed to save SDR URL.');
+        alert('Failed to save SDR settings.');
     });
 }
 
 function clearSdrUrl() {
     const sdrUrlInput = document.getElementById('sdr-url');
+    const sdrMobileCheckbox = document.getElementById('sdr-mobile');
     sdrUrlInput.value = '';
+    sdrMobileCheckbox.checked = false;
     
     const settings = {
         sdr_url: '',
+        sdr_mobi: 'false',
     };
 
     fetch('/api/v1/sdr', {
@@ -176,7 +185,10 @@ function clearSdrUrl() {
             if (typeof gSdrUrl !== 'undefined') {
                 gSdrUrl = null;
             }
-            alert('SDR URL cleared successfully.');
+            if (typeof gSdrMobile !== 'undefined') {
+                gSdrMobile = null;
+            }
+            alert('SDR settings cleared successfully.');
         } else {
             response.json().then(data => {
                 throw new Error(data.error || 'Unknown error');
@@ -185,7 +197,7 @@ function clearSdrUrl() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Failed to clear SDR URL.');
+        alert('Failed to clear SDR settings.');
     });
 }
 
@@ -194,12 +206,16 @@ async function loadSdrUrl() {
         const response = await fetch('/api/v1/sdr');
         const data = await response.json();
         const sdrUrlInput = document.getElementById('sdr-url');
+        const sdrMobileCheckbox = document.getElementById('sdr-mobile');
 
         if (data.sdr_url) {
             sdrUrlInput.value = data.sdr_url;
         }
+        
+        // Load checkbox state (default to false if not set)
+        sdrMobileCheckbox.checked = (data.sdr_mobi === 'true');
     } catch (error) {
-        console.error('Failed to load SDR URL:', error);
+        console.error('Failed to load SDR settings:', error);
     }
 }
 

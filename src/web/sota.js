@@ -88,15 +88,16 @@ async function sota_updateSotaTable()
         callsignLink.textContent = spot.activatorCallsign;
         callsignCell.appendChild(callsignLink);
 
-        // MHz Frequency
+        // kHz Frequency (displayed like POTA)
         const frequencyCell = row.insertCell();
         const frequencyLink = document.createElement('a');
         frequencyLink.href = '#';  // Placeholder href to ensure link styling
-        if (spot.frequency && typeof spot.frequency === 'number') {
-           frequencyLink.textContent = spot.frequency.toFixed(3);
+        if (spot.hertz && typeof spot.hertz === 'number' && spot.hertz > 0) {
+           // Display frequency in kHz with 1 decimal place (matches POTA display)
+           frequencyLink.textContent = (spot.hertz / 1000).toFixed(1);
            frequencyLink.onclick = function(event) {
               event.preventDefault(); // Prevent default link behavior
-              tuneRadioMHz(spot.frequency, spot.mode);
+              tuneRadioHz(spot.hertz, spot.mode);  // Uses precise Hz value
             }
         }
         frequencyCell.appendChild(frequencyLink);

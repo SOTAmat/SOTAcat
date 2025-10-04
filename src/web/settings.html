@@ -43,14 +43,13 @@
     </p>
     <p class="settings-info">
       <strong>Frequency placeholders:</strong>
-      <code>&lt;FREQ-MHZ&gt;</code>,
-      <code>&lt;FREQ-KHZ&gt;</code>, or
+      <code>&lt;FREQ-MHZ&gt;</code>, <code>&lt;FREQ-KHZ&gt;</code>, or
       <code>&lt;FREQ-HZ&gt;</code>
     </p>
     <p class="settings-info">
-      <strong>Mode placeholders:</strong> <code>&lt;MODE&gt;</code> substitutes the
-      sideband (USB/LSB/CW/AM/FM/DATA). <code>&lt;MODE-SSB&gt;</code> substitutes
-      "SSB" for any sideband mode.
+      <strong>Mode placeholders:</strong> <code>&lt;MODE&gt;</code> substitutes
+      the sideband (USB/LSB/CW/AM/FM/DATA).
+      <code>&lt;MODE-SSB&gt;</code> substitutes "SSB" for any sideband mode.
     </p>
     <p class="settings-info">
       <strong>Example:</strong>
@@ -65,6 +64,10 @@
         placeholder="e.g. http://websdr.example.com/?tune=<FREQ-KHZ><MODE>"
         maxlength="255"
       />
+      <label class="checkbox-label">
+        <input type="checkbox" id="sdr-mobile" />
+        <span>Allow SDR launch from mobile browsers</span>
+      </label>
       <div class="button-group">
         <button class="btn-primary" onclick="saveSdrUrl()">Save</button>
         <button class="btn-secondary" onclick="clearSdrUrl()">Clear</button>

@@ -38,6 +38,9 @@ extern char g_gps_lon[MAX_GPS_LON_SIZE];
 #define MAX_SDR_URL_SIZE 256
 extern char g_sdr_url[MAX_SDR_URL_SIZE];
 
+#define MAX_SDR_MOBILE_SIZE 8
+extern char g_sdr_mobile[MAX_SDR_MOBILE_SIZE];
+
 void      init_settings ();
 esp_err_t retrieve_and_send_settings (httpd_req_t * req);
 esp_err_t handler_settings_get (httpd_req_t * req);
