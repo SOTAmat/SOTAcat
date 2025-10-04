@@ -46,7 +46,7 @@ SOTACAT is a small hardware module that plugs into an Elecraft KX2 or KX3 radioâ
   - **For end-users** (non developers): pre-built firmware and installation instructions with [one-button deploy](https://sotamat.com/sotacat).
   - **For software developers**: code is found right here (on Github)
 
-- **Pre-made PCB hardware:** Hams K5EM and KE6MT have created custom circuit boards that implement a SOTACAT in a more compact and professionally designed package. Reach out to them for purchase instructions (QRZ or Slack-NA).  Justin K5EM has [posted his designs on Github](https://github.com/invertedlabs/sotacat-pcb/).
+- **Pre-made PCB hardware:** Justin K5EM sells professionally manufactured and assembled SOTACAT modules (based on a custom PCB) available [in his store](https://store.invertedlabs.com/product/sotacat/). Justin K5EM has also open sourced and [posted his designs on Github](https://github.com/invertedlabs/sotacat-pcb/).
   ![K5EM SOTACAT PCB](https://sotamat.com/wp-content/uploads/2024/03/K5EM-board-300x163.jpg)
 
 - **Beta SOTAMAT app**: A SOTAMAT compatible with SOTACAT has not yet been released and is in development. There are SOTACAT-aware **Beta** versions of SOTAMAT available at:
@@ -109,7 +109,7 @@ By having the SOTACAT connect to the phone and the phone connected to the cell n
 
 - AB6D, Brian Mathews: created the original SOTACAT concept, hardware, and firmware as well as a derivative version of the FT8 encoder originally developed by YL3JG, Karlis Goba.
 - KC6X, Jeff Kowalski: a maintainer for the SOTACAT Github project, makes significant ongoing contributions to the SOTACAT code base.
-- Justin K5EM: a regular contributor to the firmware and helped with some of the more challenging technical issues.
+- Justin K5EM: a regular contributor to the firmware and helped with some of the more challenging technical issues.  See [his store](https://store.invertedlabs.com/product/sotacat/) to purchase a pre-made SOTACAT.
 - KI6SYD, Max Praglin: provided key contributions to the implementation of direct FSK synthesis on the Elecraft KX radios, designed a [REST API](https://app.swaggerhub.com/apis-docs/KI6SYD_1/MAX-3B/1.0.2) which SOTACAT borrows from, and implemented a similar testbed with his [MAX-3B QRP transceiver](https://www.ki6syd.com/max-3b-qrp-radio) on which SOTAMAT-to-radio control was first implemented.
 - YL3JG, Karlis Goba: developed the original 'ft8_lib' FT8 CODEC. A derivative version was later created for encoding use in SOTACAT, and ported to C# for encoding in SOTAMAT by AB6D.
 - Elecraft: N6KR, Wayne Burdick, and N1AL, Alan, provided guidance on control of Elecraft radios and Mathcad analysis of FT8 FSK harmonics.
