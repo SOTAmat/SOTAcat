@@ -11,6 +11,8 @@ let gRefreshInterval = null;
 let gLatestSotaJson = null;
 let gSotaEpoch = null;
 let gLatestPotaJson = null;
+let gSdrUrl = null; // Cache for SDR URL from settings
+let gSdrWindow = null; // Reference to the SDR window
 // Check if the page is being served from localhost
 let gLocalhost = (window.location.hostname === 'localhost' ||
                   window.location.hostname === '127.0.0.1' ||
@@ -53,6 +55,80 @@ function launchSOTAmat()
 // ----------------------------------------------------------------------------
 // Handle clickable frequencies
 // ----------------------------------------------------------------------------
+// Fetch and cache the SDR URL from settings
+async function getSdrUrl() {
+    if (gSdrUrl !== null) {
+        return gSdrUrl; // Return cached value
+    }
+    
+    try {
+        const response = await fetch('/api/v1/sdr');
+        if (response.ok) {
+            const data = await response.json();
+            gSdrUrl = data.sdr_url || ''; // Cache the URL (empty string if not set)
+            return gSdrUrl;
+        }
+    } catch (error) {
+        console.error('Failed to fetch SDR URL:', error);
+    }
+    
+    gSdrUrl = ''; // Cache empty string on failure
+    return gSdrUrl;
+}
+
+// Open SDR URL with frequency and mode substitution
+async function openSdrUrl(frequencyHz, mode) {
+    const sdrUrl = await getSdrUrl();
+    
+    if (!sdrUrl || sdrUrl.trim() === '') {
+        return; // No URL configured, do nothing
+    }
+    
+    // Calculate frequency in different units
+    const frequencyKHz = Math.round(frequencyHz / 1000);
+    const frequencyMHz = (frequencyHz / 1000000).toFixed(3);
+    
+    // Calculate mode variants
+    const modeUpper = mode.toUpperCase();
+    
+    // <MODE-SSB>: Convert USB/LSB/SSB to just "SSB", pass through other modes as-is
+    const modeSSB = (modeUpper === 'USB' || modeUpper === 'LSB' || modeUpper === 'SSB') ? 'SSB' : modeUpper;
+    
+    // Replace frequency placeholders (case-insensitive)
+    let finalUrl = sdrUrl.replace(/<freq-mhz>/gi, frequencyMHz);
+    finalUrl = finalUrl.replace(/<freq-khz>/gi, frequencyKHz);
+    finalUrl = finalUrl.replace(/<freq-hz>/gi, frequencyHz);
+    
+    // Replace mode placeholders (case-insensitive)
+    // Note: <MODE> outputs USB/LSB/CW/AM/FM/DATA (SSB is already converted to USB/LSB before this function)
+    finalUrl = finalUrl.replace(/<mode-ssb>/gi, modeSSB);
+    finalUrl = finalUrl.replace(/<mode>/gi, modeUpper);
+    
+    // Check if we have a valid window reference that's still open
+    if (gSdrWindow && !gSdrWindow.closed) {
+        // Navigate existing window (doesn't steal focus)
+        try {
+            gSdrWindow.location.href = finalUrl;
+            console.log('Navigating existing SDR window to:', finalUrl);
+        } catch (e) {
+            // Cross-origin error or window became inaccessible, open new one
+            console.log('Could not navigate existing window, opening new one');
+            gSdrWindow = window.open(finalUrl, 'sotacat-sdr');
+        }
+    } else {
+        // Open new window in background
+        gSdrWindow = window.open(finalUrl, 'sotacat-sdr');
+        console.log('Opening new SDR window:', finalUrl);
+        
+        // Try to refocus the current window (may not work in all browsers)
+        try {
+            window.focus();
+        } catch (e) {
+            // Ignore focus errors
+        }
+    }
+}
+
 function tuneRadioMHz(freqMHz, mode) {  tuneRadioHz(parseFloat(freqMHz) * 1000000, mode);   }
 function tuneRadioKHz(freqKHz, mode) {  tuneRadioHz(parseFloat(freqKHz) * 1000, mode);      }
 function tuneRadioHz(frequency, mode)
@@ -63,6 +139,9 @@ function tuneRadioHz(frequency, mode)
         if (frequency < 10000000) useMode = "LSB";
         else useMode = "USB";
     }
+
+    // Open SDR URL if configured (don't wait for it)
+    openSdrUrl(frequency, useMode);
 
     fetch('/api/v1/frequency?frequency=' + frequency, { method: 'PUT' })
     .then(response => {

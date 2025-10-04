@@ -18,10 +18,14 @@ SOTACAT is a small hardware module that plugs into an Elecraft KX2 or KX3 radio�
 
 3. **Direct FT8 Synthesis without audio:**
 
-   While CAT control isn’t new, one unique feature of SOTACAT is that it can manipulate the Elecraft radio’s pure CW signal and VFO frequency fast enough to generate the same FSK (frequency shift keying) signals as used by FT8 or other FSK based modes, but without using any audio signal (direct FSK synthesis). SOTACAT can accept an FT8 message and from it compute and transmit a 15 second set of FT8 FSK signals. There is a REST API to which you can give it an FT8 message to send and it will compute all the requied FSK signals and produce them in the Elecraft.
+   While CAT control isn't new, one unique feature of SOTACAT is that it can manipulate the Elecraft radio's pure CW signal and VFO frequency fast enough to generate the same FSK (frequency shift keying) signals as used by FT8 or other FSK based modes, but without using any audio signal (direct FSK synthesis). SOTACAT can accept an FT8 message and from it compute and transmit a 15 second set of FT8 FSK signals. There is a REST API to which you can give it an FT8 message to send and it will compute all the requied FSK signals and produce them in the Elecraft.
    ![K5EM SOTACAT driving KX3 FT8 direct synthesis](https://sotamat.com/wp-content/uploads/2024/03/K5EM-case-300x226.jpg)
 
-4. **SOTAMAT integration: off-grid self-spotting, self-alerting:**
+4. **WebSDR Integration:**
+
+   SOTACAT can optionally open a WebSDR page when you click on a frequency in the SOTA or POTA spot lists. Configure a WebSDR URL in the Settings page using placeholders for frequency and mode, and SOTACAT will automatically update the WebSDR to the selected frequency without stealing browser focus. This allows you to monitor the frequency on a WebSDR while operating your radio.
+
+5. **SOTAMAT integration: off-grid self-spotting, self-alerting:**
 
    SOTACAT can form a bidirectional connection with the SOTAMAT app on your phone allowing SOTAMAT to read what operating frequency and mode you have selected, or allowing SOTAMAT’s frequency / band selector to adjust the radio’s operating frequency/band/mode. Once you enter your peak or park ID (or use the automatic peak/park selector via GPS), SOTAMAT will use the SOTACAT to send the proper FT8 message to self-spot, self-alert, or send one of your pre-defined SMS/eMail messaging commands. Use of SOTAMAT requires a one-time configuration. Please see [https://sotamat.com/getting-started] for instructions.
    ![SOTAMAT spotting via SOTACAT direct synthesis](https://sotamat.com/wp-content/uploads/2024/03/SOTACAT-SOTAMAT-integration.png)
@@ -68,6 +72,24 @@ git clone git@github.com:SOTAmat/SOTAcat.git
 cd SOTAcat
 pio run --target upload
 ```
+
+## WebSDR Integration Setup (Optional)
+
+SOTACAT can open a WebSDR page when you click on frequencies in SOTA/POTA spot lists. The WebSDR tab opens in the background and automatically updates as you click different spots, allowing you to monitor frequencies while keeping the SOTACAT interface in focus.
+
+To configure:
+
+1. Navigate to the Settings page in the SOTACAT web interface
+2. Scroll to the "SDR Integration" section
+3. Enter a WebSDR URL with placeholders:
+   - **Frequency:** `<FREQ-MHZ>` (14.237), `<FREQ-KHZ>` (14237), or `<FREQ-HZ>` (14237000)
+   - **Mode:** `<MODE>` outputs the sideband (USB/LSB/CW/AM/FM/DATA), or `<MODE-SSB>` outputs "SSB" for any sideband mode
+
+   Example: `http://websdr1.kfsdr.com:8901/?allow_kbd&tune=<FREQ-KHZ><MODE>&zoom=3`
+
+4. Click Save
+
+Leave the SDR URL field blank to disable this feature.
 
 ## Initial Setup of SOTACAT Network connection
 

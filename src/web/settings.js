@@ -125,6 +125,84 @@ async function loadGpsLocation() {
     }
 }
 
+function saveSdrUrl() {
+    const sdrUrlInput = document.getElementById('sdr-url');
+    const sdrUrl = sdrUrlInput.value.trim();
+
+    const settings = {
+        sdr_url: sdrUrl,
+    };
+
+    fetch('/api/v1/sdr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+    })
+    .then(response => {
+        if (response.ok) {
+            // Invalidate the cache in main.js so it will reload on next use
+            if (typeof gSdrUrl !== 'undefined') {
+                gSdrUrl = null;
+            }
+            alert('SDR URL saved successfully.');
+        } else {
+            response.json().then(data => {
+                throw new Error(data.error || 'Unknown error');
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to save SDR URL.');
+    });
+}
+
+function clearSdrUrl() {
+    const sdrUrlInput = document.getElementById('sdr-url');
+    sdrUrlInput.value = '';
+    
+    const settings = {
+        sdr_url: '',
+    };
+
+    fetch('/api/v1/sdr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+    })
+    .then(response => {
+        if (response.ok) {
+            // Invalidate the cache in main.js so it will reload on next use
+            if (typeof gSdrUrl !== 'undefined') {
+                gSdrUrl = null;
+            }
+            alert('SDR URL cleared successfully.');
+        } else {
+            response.json().then(data => {
+                throw new Error(data.error || 'Unknown error');
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to clear SDR URL.');
+    });
+}
+
+async function loadSdrUrl() {
+    try {
+        const response = await fetch('/api/v1/sdr');
+        const data = await response.json();
+        const sdrUrlInput = document.getElementById('sdr-url');
+
+        if (data.sdr_url) {
+            sdrUrlInput.value = data.sdr_url;
+        }
+    } catch (error) {
+        console.error('Failed to load SDR URL:', error);
+    }
+}
+
 function toggleWifiHelp() {
     const popup = document.getElementById('wifi-help-popup');
     const isVisible = popup.style.display !== 'none';
@@ -356,6 +434,7 @@ function settingsOnAppearing() {
     if (!gSubmitSettingsAttached)
         attachSubmitSettings();
     loadGpsLocation();
+    loadSdrUrl();
     // Also show the firmware version on the settings page, if present
     try {
         const el = document.getElementById('buildVersionSettings');

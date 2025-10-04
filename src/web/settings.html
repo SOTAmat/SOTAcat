@@ -33,6 +33,45 @@
     </div>
   </div>
 
+  <!-- SDR Integration Card -->
+  <div class="settings-card">
+    <h2>SDR Integration</h2>
+    <p class="settings-info">
+      Optionally open a WebSDR page when you click on a frequency. The WebSDR
+      tab opens in the background and updates automatically as you click
+      different spots. Leave blank to disable.
+    </p>
+    <p class="settings-info">
+      <strong>Frequency placeholders:</strong>
+      <code>&lt;FREQ-MHZ&gt;</code>,
+      <code>&lt;FREQ-KHZ&gt;</code>, or
+      <code>&lt;FREQ-HZ&gt;</code>
+    </p>
+    <p class="settings-info">
+      <strong>Mode placeholders:</strong> <code>&lt;MODE&gt;</code> substitutes the
+      sideband (USB/LSB/CW/AM/FM/DATA). <code>&lt;MODE-SSB&gt;</code> substitutes
+      "SSB" for any sideband mode.
+    </p>
+    <p class="settings-info">
+      <strong>Example:</strong>
+      <code
+        >http://websdr1.kfsdr.com:8901/?allow_kbd&amp;tune=&lt;FREQ-KHZ&gt;&lt;MODE&gt</code
+      >
+    </p>
+    <div class="input-group-vertical">
+      <input
+        type="text"
+        id="sdr-url"
+        placeholder="e.g. http://websdr.example.com/?tune=<FREQ-KHZ><MODE>"
+        maxlength="255"
+      />
+      <div class="button-group">
+        <button class="btn-primary" onclick="saveSdrUrl()">Save</button>
+        <button class="btn-secondary" onclick="clearSdrUrl()">Clear</button>
+      </div>
+    </div>
+  </div>
+
   <!-- WiFi Settings Card -->
   <div class="settings-card">
     <h2>

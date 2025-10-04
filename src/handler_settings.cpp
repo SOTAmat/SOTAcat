@@ -39,6 +39,8 @@ static const char s_gps_lat_key[] = "gps_lat";
 char              g_gps_lat[MAX_GPS_LAT_SIZE];
 static const char s_gps_lon_key[] = "gps_lon";
 char              g_gps_lon[MAX_GPS_LON_SIZE];
+static const char s_sdr_url_key[] = "sdr_url";
+char              g_sdr_url[MAX_SDR_URL_SIZE];
 
 /**
  * Handle to our Non-Volatile Storage while we're in communication with it.
@@ -101,6 +103,7 @@ static void populate_settings () {
     GET_NV_STRING (ap_pass, "12345678");
     GET_NV_STRING (gps_lat, "");
     GET_NV_STRING (gps_lon, "");
+    GET_NV_STRING (sdr_url, "");
 }
 
 /**
@@ -150,11 +153,12 @@ static std::shared_ptr<char[]> get_settings_json () {
                            sizeof (s_sta3_pass_key) + sizeof (g_sta3_pass) + 6 +
                            sizeof (s_ap_ssid_key) + sizeof (g_ap_ssid) + 6 +
                            sizeof (s_ap_pass_key) + sizeof (g_ap_pass) + 6 +
+                           sizeof (s_sdr_url_key) + sizeof (g_sdr_url) + 6 +
                            1;
-    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\"}";
+    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\"}";
 
     std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_sta1_ssid_key, g_sta1_ssid, s_sta1_pass_key, g_sta1_pass, s_sta2_ssid_key, g_sta2_ssid, s_sta2_pass_key, g_sta2_pass, s_sta3_ssid_key, g_sta3_ssid, s_sta3_pass_key, g_sta3_pass, s_ap_ssid_key, g_ap_ssid, s_ap_pass_key, g_ap_pass);
+    snprintf (buf.get(), required_size, format, s_sta1_ssid_key, g_sta1_ssid, s_sta1_pass_key, g_sta1_pass, s_sta2_ssid_key, g_sta2_ssid, s_sta2_pass_key, g_sta2_pass, s_sta3_ssid_key, g_sta3_ssid, s_sta3_pass_key, g_sta3_pass, s_ap_ssid_key, g_ap_ssid, s_ap_pass_key, g_ap_pass, s_sdr_url_key, g_sdr_url);
 
     return buf;
 }
@@ -351,4 +355,65 @@ esp_err_t handler_gps_settings_post (httpd_req_t * req) {
     populate_settings();
 
     return retrieve_and_send_gps_settings (req);
+}
+
+static std::shared_ptr<char[]> get_sdr_settings_json () {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    size_t required_size = 1 +
+                           sizeof (s_sdr_url_key) + sizeof (g_sdr_url) + 6 +
+                           1;
+    const char format[] = "{\"%s\":\"%s\"}";
+
+    std::shared_ptr<char[]> buf (new char[required_size]);
+    snprintf (buf.get(), required_size, format, s_sdr_url_key, g_sdr_url);
+
+    return buf;
+}
+
+static esp_err_t retrieve_and_send_sdr_settings (httpd_req_t * req) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    httpd_resp_set_type (req, "application/json");
+    auto settings_json = get_sdr_settings_json();
+    return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t handler_sdr_settings_get (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    return retrieve_and_send_sdr_settings (req);
+}
+
+esp_err_t handler_sdr_settings_post (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    if (!buf)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+
+    char * unsafe_buf = buf.get();
+
+    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
+    if (ret <= 0) {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408 (req);
+        }
+        return ESP_FAIL;
+    }
+
+    unsafe_buf[req->content_len] = '\0';
+
+    parse_and_process_json (unsafe_buf);
+
+    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
+
+    populate_settings();
+
+    return retrieve_and_send_sdr_settings (req);
 }
