@@ -29,10 +29,22 @@ function sota_loadSortState() {
 
 async function sota_updateSotaTable()
 {
-    const data = await gLatestSotaJson;
+    let data = await gLatestSotaJson;
     if (data == null) {
         console.info('SOTA Json is null');
         return;
+    }
+
+    // Apply time-based filtering if a specific duration is selected
+    const historySelector = document.getElementById('historyDurationSelector');
+    if (historySelector) {
+        const requestedHours = Math.abs(parseFloat(historySelector.value));
+        const now = new Date();
+        const cutoffTime = new Date(now.getTime() - (requestedHours * 60 * 60 * 1000));
+        
+        // Filter data to only include spots within the requested time period
+        data = data.filter(spot => spot.timestamp >= cutoffTime);
+        console.log(`SOTA: Filtered to ${data.length} spots within last ${requestedHours} hours`);
     }
 
     data.sort((a, b) => {
@@ -143,15 +155,43 @@ async function sota_updateSotaTable()
 
 function sota_saveHistoryDurationState()
 {
-    const value = document.getElementById('historyDurationSelector').value;
-    localStorage.setItem('historyDuration', value);
+    const selector = document.getElementById('historyDurationSelector');
+    if (selector) {
+        const value = selector.value;
+        localStorage.setItem('sotaHistoryDuration', value); // Use separate key from POTA
+    }
 }
 
 function sota_loadHistoryDurationState() {
-    const savedState = localStorage.getItem('historyDuration');
-    // If there's a saved state, convert it to Boolean and set the checkbox
-    if (savedState !== null)
-        document.getElementById('historyDurationSelector').value = savedState;
+    const savedState = localStorage.getItem('sotaHistoryDuration');
+    // If there's a saved state, set the selector
+    if (savedState !== null) {
+        const selector = document.getElementById('historyDurationSelector');
+        if (selector) selector.value = savedState;
+    }
+}
+
+function sota_changeHistoryDuration() {
+    const selector = document.getElementById('historyDurationSelector');
+    if (!selector) return;
+    
+    const requestedLimit = parseFloat(selector.value);
+    // For fractional hours (15 min, 30 min), we fetch 1 hour from API
+    const apiLimit = (requestedLimit > -1) ? -1 : requestedLimit;
+    
+    // Determine if we need to fetch more data
+    const needsMoreData = (gLastSotaFetchedDuration === null) || 
+                          (apiLimit < gLastSotaFetchedDuration); // More negative = more hours
+    
+    if (needsMoreData) {
+        console.log(`SOTA: Requesting ${Math.abs(requestedLimit)}h, need to fetch ${Math.abs(apiLimit)}h (cached: ${gLastSotaFetchedDuration ? Math.abs(gLastSotaFetchedDuration) + 'h' : 'none'})`);
+        refreshSotaPotaJson(true); // Fetch more data
+    } else {
+        console.log(`SOTA: Requesting ${Math.abs(requestedLimit)}h, using cached ${Math.abs(gLastSotaFetchedDuration)}h`);
+        sota_updateSotaTable(); // Just filter cached data
+    }
+    
+    sota_saveHistoryDurationState();
 }
 
 // Auto-refresh spots
@@ -386,8 +426,7 @@ function sotaOnAppearing() {
     const historySelector = document.getElementById('historyDurationSelector');
     if (historySelector) {
         historySelector.onchange = function() {
-            refreshSotaPotaJson(true); // This might be global, check definition
-            sota_saveHistoryDurationState();
+            sota_changeHistoryDuration(); // Smart handler that only fetches when needed
         };
     }
 

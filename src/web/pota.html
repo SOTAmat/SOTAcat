@@ -17,8 +17,9 @@
   </div>
 
   <div class="pota-controls-right">
-    <div class="mode-filter-container">
-      <div class="control-prefix">&nbsp;</div>
+    <div class="show-past-container">
+      <div class="control-prefix"></div>
+
       <div class="control-main">
         <label for="modeFilter">Mode:</label>
         <select
@@ -35,6 +36,25 @@
           <option value="FT4">FT4</option>
           <option value="DATA">DATA</option>
           <option value="OTHER">OTHER</option>
+        </select>
+      </div>
+    </div>
+    <div class="mode-filter-container">
+      <div class="control-prefix">&nbsp;</div>
+
+      <div class="control-main">
+        <label>Show past:</label>
+        <select
+          id="historyDurationSelector"
+          class="historyDurationDropdown sota-control-selector"
+          aria-label="History duration"
+          onchange="pota_updatePotaTable(); pota_saveHistoryDurationState();"
+        >
+          <option value="-0.25">15 minutes</option>
+          <option value="-0.5">30 minutes</option>
+          <option value="-1" selected>1 hour</option>
+          <option value="-3">3 hours</option>
+          <option value="-24">24 hours</option>
         </select>
       </div>
     </div>

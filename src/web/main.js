@@ -11,6 +11,11 @@ let gRefreshInterval = null;
 let gLatestSotaJson = null;
 let gSotaEpoch = null;
 let gLatestPotaJson = null;
+// Full data caches (used when displaying partial time periods)
+let gFullSotaCache = null;
+let gFullPotaCache = null;
+// Track what duration we last fetched for SOTA (in hours, as negative number)
+let gLastSotaFetchedDuration = null;
 let gSdrUrl = null; // Cache for SDR URL from settings
 let gSdrMobile = null; // Cache for mobile SDR permission setting
 let gSdrWindow = null; // Reference to the SDR window
@@ -732,9 +737,14 @@ async function refreshSotaPotaJson(force) {
         const now = Date.now();
         const timeSinceLastFetch = now - gLastSotaFetchTime;
         
-        if (!force && timeSinceLastFetch < SOTA_MIN_FETCH_INTERVAL_MS) {
+        const requestedLimit = parseFloat(document.getElementById("historyDurationSelector").value);
+        // For fractional hours (15 min, 30 min), always fetch 1 hour from API
+        const apiLimit = (requestedLimit > -1) ? -1 : requestedLimit;
+        
+        // Enforce rate limiting for ALL requests (including forced ones)
+        if (timeSinceLastFetch < SOTA_MIN_FETCH_INTERVAL_MS) {
             console.info(`SOTA rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`);
-            // Still update the table with cached data
+            // Still update the table with cached data (will filter to requested time period)
             if (typeof sota_updateSotaTable === 'function') {
                 sota_updateSotaTable();
             }
@@ -746,11 +756,10 @@ async function refreshSotaPotaJson(force) {
         
         // Always fetch data when switching to SOTA tab or when forced
         if (force || gLatestSotaJson == null || shouldCheck) {
-            const limit = document.getElementById("historyDurationSelector").value;
             try {
-                console.log('Fetching SOTA data with limit:', limit);
+                console.log('Fetching SOTA data with API limit:', apiLimit, 'for requested limit:', requestedLimit);
                 gLastSotaFetchTime = Date.now(); // Update last fetch time
-                const result = await fetch(`https://api-db2.sota.org.uk/api/spots/${limit}/all/all/`,
+                const result = await fetch(`https://api-db2.sota.org.uk/api/spots/${apiLimit}/all/all/`,
                                          { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } });
                 const data = await result.json();
                 gSotaEpoch = data[0]?.epoch ?? null; // assume first spot's epoch is the one
@@ -765,7 +774,13 @@ async function refreshSotaPotaJson(force) {
                                                   function(spot){ return (spot.frequency || 0) * 1000 * 1000; }); // getFrequencyHzFunc (SOTA: MHz -> Hz)
 
                 // Wait for enrichment and then update the table
-                gLatestSotaJson = await enrichmentPromise;
+                const enrichedData = await enrichmentPromise;
+                
+                // Store full cache for fractional hour filtering
+                gFullSotaCache = enrichedData;
+                gLatestSotaJson = enrichedData;
+                gLastSotaFetchedDuration = apiLimit; // Track what we fetched
+                
                 console.info('SOTA Json updated and enriched');
                 // Call the renamed function
                 if (typeof sota_updateSotaTable === 'function') {
@@ -810,7 +825,12 @@ async function refreshSotaPotaJson(force) {
                                                   function(spot){ return (spot.frequency || 0) * 1000; }); // getFrequencyHzFunc (POTA: KHz -> Hz)
 
                 // Wait for enrichment and then update the table
-                gLatestPotaJson = await enrichmentPromise;
+                const enrichedData = await enrichmentPromise;
+                
+                // Store full cache for time-based filtering
+                gFullPotaCache = enrichedData;
+                gLatestPotaJson = enrichedData;
+                
                 console.info('POTA Json updated and enriched');
                 // Call the renamed function
                 if (typeof pota_updatePotaTable === 'function') {

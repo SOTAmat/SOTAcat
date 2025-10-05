@@ -33,11 +33,23 @@ function pota_loadSortState() {
 
 async function pota_updatePotaTable()
 {
-    const data = await gLatestPotaJson;
+    let data = await gLatestPotaJson;
     if (data == null)
     {
         console.info('POTA Json is null');
         return;
+    }
+
+    // Apply time-based filtering if a specific duration is selected
+    const historySelector = document.getElementById('historyDurationSelector');
+    if (historySelector) {
+        const requestedHours = Math.abs(parseFloat(historySelector.value));
+        const now = new Date();
+        const cutoffTime = new Date(now.getTime() - (requestedHours * 60 * 60 * 1000));
+        
+        // Filter data to only include spots within the requested time period
+        data = data.filter(spot => spot.timestamp >= cutoffTime);
+        console.log(`POTA: Filtered to ${data.length} spots within last ${requestedHours} hours`);
     }
 
     data.sort((a, b) => {
@@ -173,7 +185,7 @@ function potaOnAppearing() {
     const historySelector = document.getElementById('historyDurationSelector');
     if (historySelector) {
         historySelector.onchange = function() {
-            refreshSotaPotaJson(true); // Global function
+            pota_updatePotaTable(); // Re-filter cached data with new time period
             pota_saveHistoryDurationState();
         };
     }
@@ -237,18 +249,19 @@ function potaOnAppearing() {
 
 function pota_saveHistoryDurationState()
 {
-    const value = document.getElementById('historyDurationSelector').value;
-    localStorage.setItem('historyDuration', value); // Use same key as SOTA for now
+    const selector = document.getElementById('historyDurationSelector');
+    if (selector) {
+        const value = selector.value;
+        localStorage.setItem('potaHistoryDuration', value); // Use separate key from SOTA
+    }
 }
 
 function pota_loadHistoryDurationState() {
-    const savedState = localStorage.getItem('historyDuration');
+    const savedState = localStorage.getItem('potaHistoryDuration');
     if (savedState !== null) {
         const selector = document.getElementById('historyDurationSelector');
         if (selector) selector.value = savedState;
     }
-    // Note: POTA API fetch in main.js currently doesn't use this value.
-    // Need to adjust refreshSotaPotaJson in main.js if POTA API supports time filtering.
 }
 
 // Auto-refresh spots
@@ -456,9 +469,7 @@ function potaOnLeaving() {
     pota_saveAutoRefreshCheckboxState();
     pota_saveShowSpecialRowsState();
     pota_saveModeFilterState();
-    
-    // Don't save historyDurationState because it's shared with SOTA
-    // and is not effectively used in POTA yet
+    pota_saveHistoryDurationState(); // Save history duration state (now has separate key)
     
     // Stop the auto-refresh interval when leaving the tab
     if (gRefreshInterval != null) {
