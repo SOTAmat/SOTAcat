@@ -89,6 +89,8 @@ let vfoUpdateInterval = null;
 let lastUserAction = 0; // Timestamp of last user VFO action
 let isUpdatingVfo = false; // Flag to prevent concurrent updates
 let pendingFrequencyUpdate = null; // For debouncing frequency updates
+let consecutiveErrors = 0; // Track consecutive polling errors for backoff
+let lastFrequencyChange = 0; // Track when frequency last changed (for adaptive polling)
 
 function formatFrequency(frequencyHz) {
   // Convert Hz to MHz and format as XX.XXX.XXX
@@ -168,65 +170,80 @@ function updateBandDisplay() {
   }
 }
 
-function getCurrentFrequency() {
-  if (isUpdatingVfo) return;
+function getCurrentVfoState() {
+  if (isUpdatingVfo) return; // Avoid concurrent updates
+
+  // Don't poll if user made a change in the last 2 seconds
   if (Date.now() - lastUserAction < 2000) return;
 
+  // Back off if we've had consecutive errors
+  if (consecutiveErrors > 2) {
+    console.log('Backing off due to errors, skipping poll');
+    return;
+  }
+
+  // If frequency changed recently (within 5 seconds), we're likely tuning - be more cautious
+  const timeSinceFreqChange = Date.now() - lastFrequencyChange;
+  if (timeSinceFreqChange < 5000 && timeSinceFreqChange > 0) {
+    // Skip some polls when actively tuning to reduce server load
+    if (Math.random() < 0.5) return;
+  }
+
   isUpdatingVfo = true;
-  fetch('/api/v1/frequency', { method: 'GET' })
-    .then(response => {
-      if (response.ok) {
-        return response.text();
-      }
-      throw new Error('Failed to get frequency');
-    })
-    .then(frequency => {
+
+  // Fetch both frequency and mode in parallel
+  Promise.all([
+    fetch('/api/v1/frequency', { method: 'GET' }).then(r => r.ok ? r.text() : null),
+    fetch('/api/v1/mode', { method: 'GET' }).then(r => r.ok ? r.text() : null)
+  ])
+  .then(([frequency, mode]) => {
+    // Success - reset error counter
+    consecutiveErrors = 0;
+
+    // Update frequency if it has changed
+    if (frequency) {
       const newFreq = parseInt(frequency);
       if (newFreq !== currentFrequencyHz) {
         currentFrequencyHz = newFreq;
+        lastFrequencyChange = Date.now(); // Track that frequency changed
         updateFrequencyDisplay();
         updateBandDisplay(); // Update band button active state
         console.log('Frequency updated from radio:', currentFrequencyHz);
       }
-    })
-    .catch(error => {
-      console.error('Error getting frequency:', error);
-    })
-    .finally(() => {
-      isUpdatingVfo = false;
-    });
-}
+    }
 
-function getCurrentMode() {
-  if (isUpdatingVfo) return;
-  if (Date.now() - lastUserAction < 2000) return;
-
-  fetch('/api/v1/mode', { method: 'GET' })
-    .then(response => {
-      if (response.ok) {
-        return response.text();
-      }
-      throw new Error('Failed to get mode');
-    })
-    .then(mode => {
+    // Update mode if it has changed
+    if (mode) {
       const newMode = mode.toUpperCase();
       if (newMode !== currentMode) {
         currentMode = newMode;
         updateModeDisplay();
         console.log('Mode updated from radio:', currentMode);
       }
-    })
-    .catch(error => {
-      console.error('Error getting mode:', error);
-    });
+    }
+  })
+  .catch(error => {
+    consecutiveErrors++;
+    console.error(`Error getting VFO state (${consecutiveErrors} consecutive):`, error);
+    // After 3 consecutive errors, we'll back off automatically
+  })
+  .finally(() => {
+    isUpdatingVfo = false;
+  });
 }
 
 function setFrequency(frequencyHz) {
-  lastUserAction = Date.now();
+  lastUserAction = Date.now(); // Mark user action timestamp
 
+  // Clear any pending frequency update
   if (pendingFrequencyUpdate) {
     clearTimeout(pendingFrequencyUpdate);
   }
+
+  // Update display immediately for responsive feel
+  currentFrequencyHz = frequencyHz;
+  updateFrequencyDisplay();
+  updateBandDisplay();
 
   // Debounce frequency updates to avoid flooding the radio
   pendingFrequencyUpdate = setTimeout(() => {
@@ -234,28 +251,22 @@ function setFrequency(frequencyHz) {
     fetch(url, { method: 'PUT' })
       .then(response => {
         if (response.ok) {
-          currentFrequencyHz = frequencyHz;
-          updateFrequencyDisplay();
-          updateBandDisplay(); // Update band button active state
           console.log('Frequency updated successfully:', frequencyHz);
         } else {
           console.error('Error updating frequency');
-          getCurrentFrequency();
+          // Revert display on error
+          getCurrentVfoState();
         }
       })
       .catch(error => {
         console.error('Fetch error:', error);
-        getCurrentFrequency();
+        // Revert display on error
+        getCurrentVfoState();
       })
       .finally(() => {
         pendingFrequencyUpdate = null;
       });
   }, 300); // 300ms debounce
-
-  // Update display immediately for responsive feel
-  currentFrequencyHz = frequencyHz;
-  updateFrequencyDisplay();
-  updateBandDisplay(); // Update band button active state immediately
 }
 
 function adjustFrequency(deltaHz) {
@@ -271,17 +282,44 @@ function adjustFrequency(deltaHz) {
 
 function selectBand(band) {
   if (BAND_PLAN[band]) {
+    lastUserAction = Date.now(); // Mark user action to prevent polling conflicts
+
+    // Set frequency first
     setFrequency(BAND_PLAN[band].initial);
 
-    // Set appropriate mode for the band
-    let mode = 'USB'; // Default for higher bands
-    if (band === '40m') {
-      mode = 'LSB'; // 40m typically uses LSB
-    }
-
+    // Check current mode from radio after frequency change and only set sideband if in SSB mode
+    // Wait for debounced frequency update to complete before checking mode
     setTimeout(() => {
-      setMode(mode);
-    }, 100); // Small delay to ensure frequency is set first
+      // Get current mode from radio (don't trust cached value since user may have changed it on radio)
+      fetch('/api/v1/mode', { method: 'GET' })
+        .then(response => {
+          if (response.ok) {
+            return response.text();
+          }
+          throw new Error('Failed to get current mode');
+        })
+        .then(modeFromRadio => {
+          const mode = modeFromRadio.toUpperCase();
+
+          // Only set sideband if current mode is SSB (USB or LSB)
+          if (mode === 'USB' || mode === 'LSB') {
+            // Set appropriate sideband for the band
+            let targetMode = 'USB'; // Default for higher bands
+            if (band === '40m') {
+              targetMode = 'LSB'; // 40m typically uses LSB
+            }
+
+            // Only change if different from current mode
+            if (targetMode !== mode) {
+              setMode(targetMode);
+            }
+          }
+          // If not in SSB mode (AM, FM, DATA, CW, etc.), leave mode unchanged
+        })
+        .catch(error => {
+          console.error('Error checking current mode:', error);
+        });
+    }, 400); // Wait for frequency debounce (300ms) + network round-trip margin
   }
 }
 
@@ -304,12 +342,14 @@ function setMode(mode) {
         console.log('Mode updated successfully:', actualMode);
       } else {
         console.error('Error updating mode');
-        getCurrentMode();
+        // Revert display on error
+        getCurrentVfoState();
       }
     })
     .catch(error => {
       console.error('Fetch error:', error);
-      getCurrentMode();
+      // Revert display on error
+      getCurrentVfoState();
     });
 }
 
@@ -317,6 +357,10 @@ function startVfoUpdates() {
   if (vfoUpdateInterval) {
     clearInterval(vfoUpdateInterval);
   }
+
+  // Reset error tracking
+  consecutiveErrors = 0;
+  lastFrequencyChange = 0;
 
   // Get initial values
   isUpdatingVfo = true;
@@ -328,20 +372,27 @@ function startVfoUpdates() {
       currentFrequencyHz = parseInt(frequency);
       updateFrequencyDisplay();
       updateBandDisplay();
+      console.log('Initial frequency loaded:', currentFrequencyHz);
     }
     if (mode) {
       currentMode = mode.toUpperCase();
       updateModeDisplay();
+      console.log('Initial mode loaded:', currentMode);
     }
   }).catch(error => {
     console.error('Error loading initial VFO state:', error);
   }).finally(() => {
     isUpdatingVfo = false;
 
-    // Start periodic updates
+    // Start periodic updates (every 3 seconds, respecting user actions)
     vfoUpdateInterval = setInterval(() => {
-      getCurrentFrequency();
-      getCurrentMode();
+      getCurrentVfoState();
+
+      // Reset error counter if we've been stable for a while
+      if (consecutiveErrors > 0 && Date.now() - lastFrequencyChange > 10000) {
+        console.log('System stable, resetting error counter');
+        consecutiveErrors = 0;
+      }
     }, 3000);
   });
 }
