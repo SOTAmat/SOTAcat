@@ -164,9 +164,10 @@ static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, co
 
         sent += to_send;
 
-        // Give other tasks a chance to run
-        if (sent < total_size) {
-            vTaskDelay (1);  // 1 tick delay
+        // Give other tasks a chance to run, but only for very large files
+        // Small delays add up and can cause request queueing
+        if (sent < total_size && total_size > 32768) {  // Only delay for files >32KB
+            vTaskDelay (pdMS_TO_TICKS(5));  // 5ms delay
         }
     }
 
@@ -269,8 +270,8 @@ void start_webserver () {
     config.server_port         = 80;  // Explicitly set port 80 for mobile compatibility
     config.lru_purge_enable    = true;
     config.max_open_sockets    = 7;     // Increase from default of 4
-    config.recv_wait_timeout   = 30;    // seconds
-    config.send_wait_timeout   = 30;    // seconds
+    config.recv_wait_timeout   = 10;    // seconds - reduced for faster fail-fast behavior
+    config.send_wait_timeout   = 10;    // seconds - reduced for faster fail-fast behavior
     config.stack_size          = 8192;  // bytes
     config.keep_alive_enable   = true;
     config.keep_alive_idle     = 5;  // 5 seconds
