@@ -464,7 +464,7 @@ function toggleSection(sectionId) {
 }
 
 function loadCollapsibleStates() {
-  const sections = ['tune-section', 'transmit-section'];
+  const sections = ['tune-section', 'spot-section', 'transmit-section'];
   sections.forEach(sectionId => {
     const savedState = localStorage.getItem(sectionId + '_expanded');
     const content = document.getElementById(sectionId);
