@@ -100,9 +100,9 @@ a {
 
 /* Main Container */
 #contentArea {
-  max-width: 600px;
+  max-width: 1600px; /* Default for data-heavy pages (SOTA/POTA tables) */
   margin: 0 auto;
-  padding: 0 0 80px;
+  padding: 0 var(--space-md) 80px; /* Add horizontal padding so content doesn't touch edges */
   min-height: 100vh;
 }
 
@@ -118,7 +118,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 600px;
+  max-width: 1600px; /* Match content area default width */
   margin: 0 auto;
 }
 
@@ -143,6 +143,13 @@ a {
 }
 
 /* =========================== Card Components */
+
+/* CAT Page Container */
+.cat-container {
+  max-width: 1200px; /* Medium width for comfortable button/control sizing */
+  margin: 0 auto;
+}
+
 .section-card {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -668,7 +675,7 @@ tbody tr:active {
 /* =========================== Settings Page */
 .settings-container {
   padding: 0;
-  max-width: 600px;
+  max-width: 900px; /* Narrower for better form usability, but wider than mobile */
   margin: 0 auto;
 }
 
@@ -714,7 +721,7 @@ tbody tr:active {
 .help-popup-content {
   background: var(--white);
   border-radius: var(--radius-lg);
-  max-width: 600px;
+  max-width: 900px; /* Match settings container for consistency */
   margin: var(--space-xl) auto;
   box-shadow: var(--shadow-lg);
   max-height: 90vh;
