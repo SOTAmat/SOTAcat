@@ -135,13 +135,6 @@ a {
   opacity: 0.9;
 }
 
-.descriptionHeading {
-  font-size: var(--text-sm);
-  opacity: 0.8;
-  margin-top: var(--space-sm);
-  text-align: center;
-}
-
 /* =========================== Card Components */
 
 /* CAT Page Container */
@@ -167,10 +160,6 @@ a {
   cursor: pointer;
   user-select: none;
   min-height: var(--touch-target);
-}
-
-.section-header.static {
-  cursor: default;
 }
 
 .section-header h2 {
@@ -467,14 +456,6 @@ a {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(34, 139, 230, 0.1);
-}
-
-.input-grid input:valid {
-  border-color: var(--success);
-}
-
-.input-grid input:invalid:not(:placeholder-shown) {
-  border-color: var(--danger);
 }
 
 .checkbox-label {
