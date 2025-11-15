@@ -3,8 +3,8 @@
 // ----------------------------------------------------------------------------
 function refreshVersion()
 {
-    if (gLocalhost) return;
-    fetchAndUpdateElement('/api/v1/version', 'buildVersion');
+    if (isLocalhost) return;
+    fetchAndUpdateElement('/api/v1/version', 'build-version');
 }
 
 function aboutOnAppearing()

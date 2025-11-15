@@ -99,8 +99,8 @@ a {
 /* =========================== Layout Components */
 
 /* Main Container */
-#contentArea {
-  max-width: 1600px; /* Default for data-heavy pages (SOTA/POTA tables) */
+#content-area {
+  max-width: 1600px; /* Default for data-heavy pages (Chase table) */
   margin: 0 auto;
   padding: 0 var(--space-md) 80px; /* Add horizontal padding so content doesn't touch edges */
   min-height: 100vh;
@@ -218,6 +218,10 @@ a {
 [class*="btn-"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-disabled {
+  background: var(--gray-4) !important;
 }
 
 /* Button color variants */
@@ -512,7 +516,7 @@ a {
   box-shadow: 0 0 0 3px rgba(34, 139, 230, 0.1);
 }
 
-/* =========================== SOTA/POTA Page Controls */
+/* =========================== Chase Page Controls */
 .controls-card {
   background: var(--white);
   border-radius: var(--radius-lg);
@@ -522,10 +526,11 @@ a {
 }
 
 .controls-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: flex;
+  flex-direction: row;
   gap: var(--space-lg);
-  align-items: center;
+  align-items: flex-end;
+  flex-wrap: nowrap;
 }
 
 .control-group {
@@ -556,7 +561,7 @@ a {
 }
 
 /* =========================== Tables */
-#tableContainer {
+#table-container {
   background: var(--white);
   border-radius: var(--radius-lg);
   overflow-x: auto;
@@ -592,7 +597,7 @@ tr:last-child td {
   border-bottom: none;
 }
 
-tbody tr:nth-child(even) {
+tbody tr.even-row {
   background: var(--gray-0);
 }
 
@@ -612,14 +617,75 @@ tbody tr:active {
 .mode-cell-CW { background: var(--primary); }
 .mode-cell-SSB, .mode-cell-FM { background: var(--success); }
 .mode-cell-FT8, .mode-cell-FT4, .mode-cell-DATA { background: var(--warning); color: var(--gray-9); }
-.mode-cell-QRT { background: var(--danger); }
 .mode-cell-OTHER { background: var(--gray-6); }
 
-/* Special rows */
-.special-row td:nth-child(2),
-.special-row td:nth-child(3) {
-  opacity: 0.5;
-  text-decoration: line-through;
+/* Type badges (SOTA, POTA, WWFF, etc.) */
+.type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.type-badge-SOTA {
+  background: #8b4513;  /* Mountain brown */
+  color: white;
+}
+
+.type-badge-POTA {
+  background: #2f855a;  /* Park green */
+  color: white;
+}
+
+.type-badge-WWFF {
+  background: #d69e2e;  /* Wildlife gold */
+  color: var(--gray-9);
+}
+
+.type-badge-GMA {
+  background: #805ad5;  /* Mountain purple */
+  color: white;
+}
+
+.type-badge-IOTA {
+  background: #3182ce;  /* Island blue */
+  color: white;
+}
+
+.type-badge-WCA {
+  background: #744210;  /* Castle brown */
+  color: white;
+}
+
+.type-badge-ZLOTA {
+  background: #4B0082;  /* New Zealand indigo */
+  color: white;
+}
+
+.type-badge-WWBOTA {
+  background: #38a169;  /* Wildlife green */
+  color: white;
+}
+
+.type-badge-HEMA {
+  background: #d69e2e;  /* Heritage gold */
+  color: var(--gray-9);
+}
+
+.type-badge-Cluster {
+  background: var(--gray-6);  /* Gray for DX cluster spots */
+  color: white;
+}
+
+/* Fallback for any other unknown types */
+.type-badge[class*="type-badge-"]:not([class*="SOTA"]):not([class*="POTA"]):not([class*="WWFF"]):not([class*="GMA"]):not([class*="IOTA"]):not([class*="WCA"]):not([class*="ZLOTA"]):not([class*="WWBOTA"]):not([class*="HEMA"]):not([class*="Cluster"]) {
+  background: var(--gray-5);
+  color: var(--gray-9);
 }
 
 /* Band color styling for frequency cells */
@@ -650,9 +716,27 @@ tbody tr:active {
 }
 
 /* Numeric "hertz" frequency columns - right aligned */
-#sotaTable td:nth-child(3),
-#potaTable td:nth-child(3) {
+#chase-table td:nth-child(3) {
   text-align: right;
+}
+
+/* Frequency display styling - emphasize MHz, de-emphasize fractional KHz */
+.freq-whole {
+  font-size: 1.15em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.freq-frac {
+  font-size: 0.85em;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+/* Chase table row hover effect - indicate clickable rows */
+#chase-table tbody tr:hover {
+  background-color: var(--gray-1);
+  transition: background-color 0.15s ease;
 }
 
 /* Sort indicators */
@@ -870,7 +954,7 @@ tbody tr:active {
 }
 
 /* About page section titles */
-#contentArea h2 {
+#content-area h2 {
   margin-left: var(--space-md);
   margin-right: var(--space-md);
 }
@@ -964,7 +1048,7 @@ tbody tr:active {
   }
 
   /* Tables Mobile */
-  #tableContainer {
+  #table-container {
     margin: var(--space-sm);
     border-radius: var(--radius-md);
   }
@@ -976,30 +1060,6 @@ tbody tr:active {
 
   .data-table {
     font-size: 12px;
-  }
-
-  /* Hide less important columns on very small screens */
-  @media (max-width: 360px) {
-    #sotaTable th:nth-child(7),
-    #sotaTable td:nth-child(7),
-    #sotaTable th:nth-child(8),
-    #sotaTable td:nth-child(8),
-    #potaTable th:nth-child(7),
-    #potaTable td:nth-child(7),
-    #potaTable th:nth-child(8),
-    #potaTable td:nth-child(8) {
-      display: none;
-    }
-  }
-
-  /* Controls Mobile */
-  .controls-grid {
-    grid-template-columns: 1fr;
-    gap: var(--space-md);
-  }
-
-  .control-group {
-    width: 100%;
   }
 
   /* Settings Mobile */
@@ -1036,7 +1096,7 @@ tbody tr:active {
     font-size: 20px;
   }
 
-  #contentArea {
+  #content-area {
     padding-bottom: 60px;
   }
 

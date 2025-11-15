@@ -10,47 +10,44 @@
       <div class="headerLogoBarContainer">
         <img src="sclogo.png" alt="SOTAcat Logo" class="responsive-image" />
         <div class="status-container">
-          <div><span id="currentUTCTime"></span>z</div>
-          <div><span id="connectionStatus">&#x26AA;</span></div>
+          <div><span id="current-utc-time"></span>z</div>
+          <div><span id="connection-status">&#x26AA;</span></div>
         </div>
         <div class="battery-info-container">
           <div>
-            <span id="batteryPercent"></span>%<span class="icon">
+            <span id="battery-percent"></span>%<span class="icon">
               &#x1F50B;
             </span>
           </div>
           <div>
-            <span id="batteryVoltage"></span>v<span class="icon">&#x26A1;</span>
+            <span id="battery-voltage"></span>v<span class="icon">&#x26A1;</span>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="contentSpace" id="contentArea"></div>
+    <div class="contentSpace" id="content-area"></div>
 
     <div class="tabBar">
-      <button id="sotaTabButton" class="tabActive" data-tab="sota">
-        <div class="tabIcons">&#x1F3D4;&#xFE0F;</div>
-        SOTA
+      <button id="chase-tab-button" class="tabActive" data-tab="chase">
+        <div class="tabIcons">&#x1F3AF;</div>
+        CHASE
       </button>
-      <button id="potaTabButton" data-tab="pota">
-        <div class="tabIcons">&#x1F3DE;&#xFE0F;</div>
-        POTA
-      </button>
-      <button id="catTabButton" data-tab="cat">
+      <button id="cat-tab-button" data-tab="cat">
         <div class="tabIcons">&#x1F431;&#xFE0F;</div>
         CAT
       </button>
-      <button id="settingsTabButton" data-tab="settings">
+      <button id="settings-tab-button" data-tab="settings">
         <div class="tabIcons">&#x2699;&#xFE0F;</div>
         Settings
       </button>
-      <button id="aboutTabButton" data-tab="about">
+      <button id="about-tab-button" data-tab="about">
         <div class="tabIcons">&#x2754;</div>
         About
       </button>
     </div>
 
+    <script src="chase_api.js"></script>
     <script src="main.js"></script>
   </body>
 </html>

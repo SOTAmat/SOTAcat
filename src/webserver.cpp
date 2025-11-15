@@ -22,13 +22,12 @@ DECLARE_ASSET (cat_js)
 DECLARE_ASSET (favicon_ico)
 DECLARE_ASSET (index_html)
 DECLARE_ASSET (main_js)
-DECLARE_ASSET (pota_html)
-DECLARE_ASSET (pota_js)
 DECLARE_ASSET (sclogo_png)
 DECLARE_ASSET (settings_html)
 DECLARE_ASSET (settings_js)
-DECLARE_ASSET (sota_html)
-DECLARE_ASSET (sota_js)
+DECLARE_ASSET (chase_html)
+DECLARE_ASSET (chase_js)
+DECLARE_ASSET (chase_api_js)
 DECLARE_ASSET (style_css)
 
 /**
@@ -55,10 +54,9 @@ static const asset_entry_t asset_map[] = {
     {"/main.js",       main_js_srt,       main_js_end,       "text/javascript", 60},
     {"/sclogo.png",    sclogo_png_srt,    sclogo_png_end,    "image/png",       0 }, // Cache forever
     {"/favicon.ico",   favicon_ico_srt,   favicon_ico_end,   "image/x-icon",    0 },
-    {"/sota.html",     sota_html_srt,     sota_html_end,     "text/html",       60},
-    {"/sota.js",       sota_js_srt,       sota_js_end,       "text/javascript", 60},
-    {"/pota.html",     pota_html_srt,     pota_html_end,     "text/html",       60},
-    {"/pota.js",       pota_js_srt,       pota_js_end,       "text/javascript", 60},
+    {"/chase.html",    chase_html_srt,    chase_html_end,    "text/html",       60},
+    {"/chase.js",      chase_js_srt,      chase_js_end,      "text/javascript", 60},
+    {"/chase_api.js",  chase_api_js_srt,  chase_api_js_end,  "text/javascript", 60},
     {"/settings.html", settings_html_srt, settings_html_end, "text/html",       60},
     {"/settings.js",   settings_js_srt,   settings_js_end,   "text/javascript", 60},
     {"/cat.html",      cat_html_srt,      cat_html_end,      "text/html",       60},
@@ -167,7 +165,7 @@ static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, co
         // Give other tasks a chance to run, but only for very large files
         // Small delays add up and can cause request queueing
         if (sent < total_size && total_size > 32768) {  // Only delay for files >32KB
-            vTaskDelay (pdMS_TO_TICKS(5));  // 5ms delay
+            vTaskDelay (pdMS_TO_TICKS (5));             // 5ms delay
         }
     }
 

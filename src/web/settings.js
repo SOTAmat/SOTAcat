@@ -44,12 +44,11 @@ function saveGpsLocation() {
         .then(response => {
             if (response.ok) {
                 // Invalidate the cache in main.js
-                gGpsOverride = null;
+                gpsOverride = null;
                 // Clear the distance cache to force recalculation with new location
                 clearDistanceCache();
                 // Force refresh of spots data with new location
-                gLatestSotaJson = null;
-                gLatestPotaJson = null;
+                latestChaseJson = null;
 
                 alert('GPS location override saved. The new location will be used for distance calculations.');
             } else {
@@ -81,14 +80,13 @@ async function clearGpsLocation() {
     .then(response => {
         if (response.ok) {
             // Invalidate the cache in main.js
-            gGpsOverride = null;
+            gpsOverride = null;
             // Clear the input field
             loadGpsLocation();
             // Clear the distance cache to force recalculation with default location
             clearDistanceCache();
             // Force refresh of spots data with new location
-            gLatestSotaJson = null;
-            gLatestPotaJson = null;
+            latestChaseJson = null;
 
             alert('GPS location override cleared. Automatic location detection will be used.');
         } else {
@@ -153,7 +151,7 @@ function togglePasswordVisibility(inputId) {
 }
 
 async function fetchSettings() {
-    if (gLocalhost) return;
+    if (isLocalhost) return;
     try {
         const response = await fetch('/api/v1/settings', { method: 'GET' });
         const data = await response.json();
@@ -173,7 +171,7 @@ async function fetchSettings() {
 
 function saveSettings() {
     console.log("Saving settings...");
-    if (gLocalhost) return;
+    if (isLocalhost) return;
 
     const settings = {
         sta1_ssid: document.getElementById('sta1-ssid').value,
@@ -340,17 +338,29 @@ function uploadFirmware() {
     });
 }
 
-gSubmitSettingsAttached = false;
+let submitSettingsAttached = false;
 
 function attachSubmitSettings() {
     var wifiForm = document.getElementById("wifi-settings");
     wifiForm.addEventListener("submit", onSubmitSettings);
-    gSubmitSettingsAttached = true;
+    submitSettingsAttached = true;
+}
+
+async function manualCheckFirmwareVersion() {
+    try {
+        const result = await checkFirmwareVersion(true);
+        if (result) {
+            alert(result);
+        }
+    } catch (error) {
+        console.error('[Manual Version Check] Error:', error);
+        alert('Error checking for firmware updates. Please try again later.');
+    }
 }
 
 function settingsOnAppearing() {
     fetchSettings();
-    if (!gSubmitSettingsAttached)
+    if (!submitSettingsAttached)
         attachSubmitSettings();
     loadGpsLocation();
 }

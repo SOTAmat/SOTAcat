@@ -15,7 +15,7 @@ function sendXmitRequest(state) {
 }
 
 function toggleXmit() {
-  const xmitButton = document.getElementById("xmitButton");
+  const xmitButton = document.getElementById("xmit-button");
   isXmitActive = !isXmitActive;
 
   if (isXmitActive) {
@@ -108,7 +108,7 @@ function formatFrequency(frequencyHz) {
 }
 
 function updateFrequencyDisplay() {
-  const display = document.getElementById('currentFrequency');
+  const display = document.getElementById('current-frequency');
   if (display) {
     display.textContent = formatFrequency(currentFrequencyHz);
     // Brief visual feedback
@@ -120,7 +120,7 @@ function updateFrequencyDisplay() {
 }
 
 function updateModeDisplay() {
-  const display = document.getElementById('currentMode');
+  const display = document.getElementById('current-mode');
   if (display) {
     display.textContent = currentMode;
     // Brief visual feedback
@@ -134,11 +134,11 @@ function updateModeDisplay() {
   document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
 
   if (currentMode === 'CW') {
-    document.getElementById('cwModeBtn')?.classList.add('active');
+    document.getElementById('btn-cw')?.classList.add('active');
   } else if (currentMode === 'USB' || currentMode === 'LSB') {
-    document.getElementById('ssbModeBtn')?.classList.add('active');
+    document.getElementById('btn-ssb')?.classList.add('active');
   } else if (currentMode === 'DATA') {
-    document.getElementById('dataModeBtn')?.classList.add('active');
+    document.getElementById('btn-data')?.classList.add('active');
   }
 }
 
@@ -160,7 +160,7 @@ function updateBandDisplay() {
 
   if (currentBand) {
     // Find and activate the corresponding band button
-    const bandButton = document.getElementById(`${currentBand}Btn`);
+    const bandButton = document.getElementById(`btn-${currentBand}`);
     if (bandButton) {
       bandButton.classList.add('active');
       console.log(`Band display updated: ${currentBand} active`);
@@ -435,15 +435,15 @@ function tuneAtu() {
 }
 
 function loadInputValues() {
-  document.getElementById("message1").value = localStorage.getItem("message1") || "";
-  document.getElementById("message2").value = localStorage.getItem("message2") || "";
-  document.getElementById("message3").value = localStorage.getItem("message3") || "";
+  document.getElementById("message-1").value = localStorage.getItem("message1") || "";
+  document.getElementById("message-2").value = localStorage.getItem("message2") || "";
+  document.getElementById("message-3").value = localStorage.getItem("message3") || "";
 }
 
 function saveInputValues() {
-  localStorage.setItem("message1", document.getElementById("message1").value);
-  localStorage.setItem("message2", document.getElementById("message2").value);
-  localStorage.setItem("message3", document.getElementById("message3").value);
+  localStorage.setItem("message1", document.getElementById("message-1").value);
+  localStorage.setItem("message2", document.getElementById("message-2").value);
+  localStorage.setItem("message3", document.getElementById("message-3").value);
 }
 
 // Collapsible section functionality
@@ -481,18 +481,27 @@ function loadCollapsibleStates() {
   });
 }
 
-let gMessageInputListenersAttached = false;
+let messageInputListenersAttached = false;
+
+function launchSOTAmat() {
+  var sotamat_base_url = 'sotamat://api/v1?app=sotacat&appversion=2.1';
+  var currentUrl = window.location.href;
+  var encodedReturnPath = encodeURIComponent(currentUrl);
+  var newHref = sotamat_base_url + '&returnpath=' + encodedReturnPath;
+
+  window.open(newHref, '_blank');
+}
 
 function catOnAppearing() {
   console.info("CAT tab appearing");
   loadInputValues();
   loadCollapsibleStates();
 
-  if (!gMessageInputListenersAttached) {
-    gMessageInputListenersAttached = true;
-    document.getElementById("message1").addEventListener("input", saveInputValues);
-    document.getElementById("message2").addEventListener("input", saveInputValues);
-    document.getElementById("message3").addEventListener("input", saveInputValues);
+  if (!messageInputListenersAttached) {
+    messageInputListenersAttached = true;
+    document.getElementById("message-1").addEventListener("input", saveInputValues);
+    document.getElementById("message-2").addEventListener("input", saveInputValues);
+    document.getElementById("message-3").addEventListener("input", saveInputValues);
   }
 
   startVfoUpdates();
