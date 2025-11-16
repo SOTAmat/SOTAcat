@@ -24,12 +24,12 @@ let descending = true;
 // State Management Functions
 // ============================================================================
 
-function chase_saveSortState() {
+function saveSortState() {
     localStorage.setItem('chaseSortField', sortField);
     localStorage.setItem('chaseSortDescending', descending);
 }
 
-function chase_loadSortState() {
+function loadSortState() {
     const savedSortField = localStorage.getItem('chaseSortField');
     const savedSortDescending = localStorage.getItem('chaseSortDescending');
 
@@ -62,7 +62,7 @@ function saveTypeFilter(type) {
 
 function onTypeFilterChange(type) {
     saveTypeFilter(type);
-    chase_applyTableFilters();
+    applyTableFilters();
 }
 
 // Mode filter state management
@@ -85,7 +85,7 @@ function applyGlobalModeFilter() {
     }
 
     // Apply the filter to the current table
-    chase_applyTableFilters();
+    applyTableFilters();
 }
 
 function onModeFilterChange(mode) {
@@ -191,7 +191,7 @@ function tuneRadioHz(frequency, mode) {
 // Table Rendering
 // ============================================================================
 
-async function chase_updateChaseTable() {
+async function updateChaseTable() {
     const data = await latestChaseJson;
     if (data == null) {
         console.info('Chase Json is null');
@@ -319,14 +319,14 @@ async function chase_updateChaseTable() {
     tbody.parentNode.replaceChild(newTbody, tbody);
     console.info('Chase table updated');
 
-    setTimeout(chase_applyTableFilters, 0);
+    setTimeout(applyTableFilters, 0);
 }
 
 // ============================================================================
 // Filtering
 // ============================================================================
 
-function chase_applyTableFilters() {
+function applyTableFilters() {
     const tableBody = document.querySelector('#chase-table tbody');
     if (!tableBody) {
         console.warn('Chase table body not found, cannot apply filters');
@@ -398,7 +398,7 @@ function chase_applyTableFilters() {
 // Sorting
 // ============================================================================
 
-function chase_updateSortIndicators(headers, sortField, descending) {
+function updateSortIndicators(headers, sortField, descending) {
     headers.forEach(header => {
         const span = header.querySelector('span[data-sort-field]');
         if (span && span.getAttribute('data-sort-field') === sortField) {
@@ -424,8 +424,8 @@ async function refreshChaseJson(force) {
 
     if (!force && timeSinceLastFetch < CHASE_MIN_REFRESH_INTERVAL_MS) {
         console.info(`Chase rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`);
-        if (typeof chase_updateChaseTable === 'function') {
-            chase_updateChaseTable();
+        if (typeof updateChaseTable === 'function') {
+            updateChaseTable();
         }
         return;
     }
@@ -443,7 +443,7 @@ async function refreshChaseJson(force) {
 
         // Build fetch options
         // NOTE: Always fetch all spots from Spothole API regardless of UI filters.
-        // Filtering is done client-side in chase_applyTableFilters() for better UX
+        // Filtering is done client-side in applyTableFilters() for better UX
         // (allows users to toggle filters without re-fetching data).
         const fetchOptions = {
             max_age: CHASE_HISTORY_DURATION_SECONDS,
@@ -460,10 +460,10 @@ async function refreshChaseJson(force) {
         latestChaseJson = spots;
         console.info(`Chase Json updated: ${spots.length} spots`);
 
-        if (typeof chase_updateChaseTable === 'function') {
-            chase_updateChaseTable();
+        if (typeof updateChaseTable === 'function') {
+            updateChaseTable();
         } else {
-            console.error('chase_updateChaseTable function not found');
+            console.error('updateChaseTable function not found');
         }
 
         // Update refresh complete time and restart timer
@@ -490,7 +490,7 @@ async function refreshChaseJson(force) {
 // Page Lifecycle
 // ============================================================================
 
-function chaseOnAppearing() {
+function onChaseAppearing() {
     console.info('Chase tab appearing');
 
     // Start the refresh timer
@@ -503,7 +503,7 @@ function chaseOnAppearing() {
     }
 
     // Load all saved settings
-    chase_loadSortState();
+    loadSortState();
 
     // Load and apply filters
     loadGlobalModeFilter();
@@ -534,7 +534,7 @@ function chaseOnAppearing() {
     // Load data
     if (latestChaseJson != null) {
         console.log('Chase tab appearing: Using existing data');
-        chase_updateChaseTable();
+        updateChaseTable();
     } else {
         console.log('Chase tab appearing: Fetching new data');
         refreshChaseJson(true);
@@ -557,22 +557,22 @@ function chaseOnAppearing() {
                     descending = true;
                 }
                 sortField = clickedSortField;
-                chase_saveSortState();
-                chase_updateSortIndicators(document.querySelectorAll('#chase-table th'), sortField, descending);
-                chase_updateChaseTable();
+                saveSortState();
+                updateSortIndicators(document.querySelectorAll('#chase-table th'), sortField, descending);
+                updateChaseTable();
             });
         }
     });
 
-    chase_updateSortIndicators(document.querySelectorAll('#chase-table th'), sortField, descending);
+    updateSortIndicators(document.querySelectorAll('#chase-table th'), sortField, descending);
 }
 
-function chaseOnLeaving() {
+function onChaseLeaving() {
     console.info('Chase tab leaving');
 
     // Stop the refresh timer
     stopRefreshTimer();
 
     // Save all settings
-    chase_saveSortState();
+    saveSortState();
 }

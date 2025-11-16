@@ -77,7 +77,8 @@ let currentTabName = null;
 function cleanupCurrentTab() {
     if (currentTabName) {
         // Call onLeaving function if it exists for the current tab
-        const onLeavingFunctionName = `${currentTabName}OnLeaving`;
+        const tabNameCapitalized = currentTabName.charAt(0).toUpperCase() + currentTabName.slice(1);
+        const onLeavingFunctionName = `on${tabNameCapitalized}Leaving`;
         if (typeof window[onLeavingFunctionName] === 'function') {
             console.log(`Calling ${onLeavingFunctionName} function`);
             window[onLeavingFunctionName]();
@@ -189,7 +190,8 @@ function openTab(tabName) {
             })
             .then(() => {
                 // Once the script is loaded, call the onAppearing function
-                const onAppearingFunctionName = `${currentTabName}OnAppearing`;
+                const tabNameCapitalized = currentTabName.charAt(0).toUpperCase() + currentTabName.slice(1);
+                const onAppearingFunctionName = `on${tabNameCapitalized}Appearing`;
                 console.log(`Calling ${onAppearingFunctionName} function`);
 
                 if (typeof window[onAppearingFunctionName] === 'function') {

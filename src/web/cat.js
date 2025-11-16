@@ -492,7 +492,7 @@ function launchSOTAmat() {
   window.open(newHref, '_blank');
 }
 
-function catOnAppearing() {
+function onCatAppearing() {
   console.info("CAT tab appearing");
   loadInputValues();
   loadCollapsibleStates();
@@ -591,7 +591,7 @@ function attachCatEventListeners() {
   });
 }
 
-function catOnLeaving() {
+function onCatLeaving() {
   console.info("CAT tab leaving");
   stopVfoUpdates();
 }

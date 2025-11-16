@@ -7,11 +7,11 @@ function refreshVersion()
     fetchAndUpdateElement('/api/v1/version', 'build-version');
 }
 
-function aboutOnAppearing()
+function onAboutAppearing()
 {
     refreshVersion();
 }
 
-function aboutOnLeaving() {
+function onAboutLeaving() {
     // No special cleanup needed for the About tab
 }

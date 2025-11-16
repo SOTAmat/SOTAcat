@@ -358,7 +358,7 @@ async function manualCheckFirmwareVersion() {
     }
 }
 
-function settingsOnAppearing() {
+function onSettingsAppearing() {
     fetchSettings();
     if (!submitSettingsAttached)
         attachSubmitSettings();
