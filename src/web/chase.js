@@ -9,24 +9,30 @@ const CHASE_DEFAULT_MODE_FILTER = 'SSB'; // Default mode filter
 const CHASE_API_SPOT_LIMIT = 500; // Maximum number of spots to fetch from API
 const CHASE_MIN_REFRESH_INTERVAL_MS = 60000; // Minimum time between API calls (60 seconds)
 
-// Global variables for chase page state
-let typeFilter = null; // Type filter for xOTA programs (SOTA/POTA/etc.)
-let modeFilter = null; // Mode filter state
-let lastChaseRefreshTime = 0;
-let lastChaseRefreshCompleteTime = 0; // Timestamp when last refresh completed
-let refreshTimerInterval = null; // Timer for updating "last refresh" display
-// Sort state variables
-let sortField = "timestamp";
-let lastSortField = sortField;
-let descending = true;
+// Chase page state encapsulated in a single object
+const ChaseState = {
+    // Filter state
+    typeFilter: null,
+    modeFilter: null,
+
+    // Timing state
+    lastRefreshTime: 0,
+    lastRefreshCompleteTime: 0,
+    refreshTimerInterval: null,
+
+    // Sort state
+    sortField: 'timestamp',
+    lastSortField: 'timestamp',
+    descending: true
+};
 
 // ============================================================================
 // State Management Functions
 // ============================================================================
 
 function saveSortState() {
-    localStorage.setItem('chaseSortField', sortField);
-    localStorage.setItem('chaseSortDescending', descending);
+    localStorage.setItem('chaseSortField', ChaseState.sortField);
+    localStorage.setItem('chaseSortDescending', ChaseState.descending);
 }
 
 function loadSortState() {
@@ -34,29 +40,29 @@ function loadSortState() {
     const savedSortDescending = localStorage.getItem('chaseSortDescending');
 
     if (savedSortField !== null) {
-        sortField = savedSortField;
-        lastSortField = savedSortField;
+        ChaseState.sortField = savedSortField;
+        ChaseState.lastSortField = savedSortField;
     } else {
-        sortField = "timestamp";
-        lastSortField = "timestamp";
+        ChaseState.sortField = "timestamp";
+        ChaseState.lastSortField = "timestamp";
     }
 
     if (savedSortDescending !== null) {
-        descending = (savedSortDescending === 'true');
+        ChaseState.descending = (savedSortDescending === 'true');
     } else {
-        descending = true;
+        ChaseState.descending = true;
     }
 }
 
 // Type filter state management
 function loadTypeFilter() {
     const savedType = localStorage.getItem('chaseTypeFilter');
-    typeFilter = savedType !== null ? savedType : 'xOTA'; // Default to xOTA only (not DX cluster)
-    return typeFilter;
+    ChaseState.typeFilter = savedType !== null ? savedType : 'xOTA'; // Default to xOTA only (not DX cluster)
+    return ChaseState.typeFilter;
 }
 
 function saveTypeFilter(type) {
-    typeFilter = type;
+    ChaseState.typeFilter = type;
     localStorage.setItem('chaseTypeFilter', type);
 }
 
@@ -68,20 +74,20 @@ function onTypeFilterChange(type) {
 // Mode filter state management
 function loadGlobalModeFilter() {
     const savedMode = localStorage.getItem('globalModeFilter');
-    modeFilter = savedMode !== null ? savedMode : 'All';
-    return modeFilter;
+    ChaseState.modeFilter = savedMode !== null ? savedMode : 'All';
+    return ChaseState.modeFilter;
 }
 
 function saveGlobalModeFilter(mode) {
-    modeFilter = mode;
+    ChaseState.modeFilter = mode;
     localStorage.setItem('globalModeFilter', mode);
 }
 
 function applyGlobalModeFilter() {
     // Get the mode selector element
     const modeSelector = document.getElementById('mode-filter');
-    if (modeSelector && modeFilter !== null) {
-        modeSelector.value = modeFilter;
+    if (modeSelector && ChaseState.modeFilter !== null) {
+        modeSelector.value = ChaseState.modeFilter;
     }
 
     // Apply the filter to the current table
@@ -102,13 +108,13 @@ function updateRefreshTimer() {
     const timerElement = document.getElementById('last-refresh-time');
     if (!timerElement) return;
 
-    if (lastChaseRefreshCompleteTime === 0) {
+    if (ChaseState.lastRefreshCompleteTime === 0) {
         timerElement.textContent = 'Last refresh 0:00 ago';
         return;
     }
 
     const now = Date.now();
-    const elapsedSeconds = Math.floor((now - lastChaseRefreshCompleteTime) / 1000);
+    const elapsedSeconds = Math.floor((now - ChaseState.lastRefreshCompleteTime) / 1000);
     const minutes = Math.floor(elapsedSeconds / 60);
     const seconds = elapsedSeconds % 60;
 
@@ -118,22 +124,22 @@ function updateRefreshTimer() {
 // Start the refresh timer interval
 function startRefreshTimer() {
     // Clear any existing interval
-    if (refreshTimerInterval) {
-        clearInterval(refreshTimerInterval);
+    if (ChaseState.refreshTimerInterval) {
+        clearInterval(ChaseState.refreshTimerInterval);
     }
 
     // Update immediately
     updateRefreshTimer();
 
     // Update every second
-    refreshTimerInterval = setInterval(updateRefreshTimer, 1000);
+    ChaseState.refreshTimerInterval = setInterval(updateRefreshTimer, 1000);
 }
 
 // Stop the refresh timer interval
 function stopRefreshTimer() {
-    if (refreshTimerInterval) {
-        clearInterval(refreshTimerInterval);
-        refreshTimerInterval = null;
+    if (ChaseState.refreshTimerInterval) {
+        clearInterval(ChaseState.refreshTimerInterval);
+        ChaseState.refreshTimerInterval = null;
     }
 }
 
@@ -199,8 +205,8 @@ async function updateChaseTable() {
     }
 
     data.sort((a, b) => {
-        if (a[sortField] < b[sortField]) return descending ? 1 : -1;
-        if (a[sortField] > b[sortField]) return descending ? -1 : 1;
+        if (a[ChaseState.sortField] < b[ChaseState.sortField]) return ChaseState.descending ? 1 : -1;
+        if (a[ChaseState.sortField] > b[ChaseState.sortField]) return ChaseState.descending ? -1 : 1;
         return 0;
     });
 
@@ -340,8 +346,8 @@ function applyTableFilters() {
     }
 
     // Get current filter settings
-    const selectedMode = modeFilter || 'All';
-    const selectedType = typeFilter || 'All';
+    const selectedMode = ChaseState.modeFilter || 'All';
+    const selectedType = ChaseState.typeFilter || 'All';
 
     console.log(`Applying Chase filters - Mode: ${selectedMode}, Type: ${selectedType}, Rows: ${allRows.length}`);
 
@@ -420,7 +426,7 @@ async function refreshChaseJson(force) {
 
     // Check rate limit
     const now = Date.now();
-    const timeSinceLastFetch = now - lastChaseRefreshTime;
+    const timeSinceLastFetch = now - ChaseState.lastRefreshTime;
 
     if (!force && timeSinceLastFetch < CHASE_MIN_REFRESH_INTERVAL_MS) {
         console.info(`Chase rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`);
@@ -439,7 +445,7 @@ async function refreshChaseJson(force) {
         }
 
         console.log('Fetching Chase data from Spothole API');
-        lastChaseRefreshTime = Date.now();
+        ChaseState.lastRefreshTime = Date.now();
 
         // Build fetch options
         // NOTE: Always fetch all spots from Spothole API regardless of UI filters.
@@ -467,7 +473,7 @@ async function refreshChaseJson(force) {
         }
 
         // Update refresh complete time and restart timer
-        lastChaseRefreshCompleteTime = Date.now();
+        ChaseState.lastRefreshCompleteTime = Date.now();
         startRefreshTimer();
 
     } catch (error) {
@@ -509,15 +515,15 @@ function onChaseAppearing() {
     loadGlobalModeFilter();
 
     // Override with Chase default if not set
-    if (!modeFilter || modeFilter === 'All') {
-        modeFilter = CHASE_DEFAULT_MODE_FILTER;
+    if (!ChaseState.modeFilter || ChaseState.modeFilter === 'All') {
+        ChaseState.modeFilter = CHASE_DEFAULT_MODE_FILTER;
     }
 
     loadTypeFilter();
 
     const modeSelector = document.getElementById('mode-filter');
     if (modeSelector) {
-        modeSelector.value = modeFilter;
+        modeSelector.value = ChaseState.modeFilter;
         modeSelector.onchange = function() {
             onModeFilterChange(this.value);
         };
@@ -525,7 +531,7 @@ function onChaseAppearing() {
 
     const typeSelector = document.getElementById('type-filter');
     if (typeSelector) {
-        typeSelector.value = typeFilter;
+        typeSelector.value = ChaseState.typeFilter;
         typeSelector.onchange = function() {
             onTypeFilterChange(this.value);
         };
@@ -550,21 +556,21 @@ function onChaseAppearing() {
 
             newHeader.addEventListener('click', function() {
                 const clickedSortField = sortSpan.getAttribute('data-sort-field');
-                if (clickedSortField === lastSortField) {
-                    descending = !descending;
+                if (clickedSortField === ChaseState.lastSortField) {
+                    ChaseState.descending = !ChaseState.descending;
                 } else {
-                    lastSortField = clickedSortField;
-                    descending = true;
+                    ChaseState.lastSortField = clickedSortField;
+                    ChaseState.descending = true;
                 }
-                sortField = clickedSortField;
+                ChaseState.sortField = clickedSortField;
                 saveSortState();
-                updateSortIndicators(document.querySelectorAll('#chase-table th'), sortField, descending);
+                updateSortIndicators(document.querySelectorAll('#chase-table th'), ChaseState.sortField, ChaseState.descending);
                 updateChaseTable();
             });
         }
     });
 
-    updateSortIndicators(document.querySelectorAll('#chase-table th'), sortField, descending);
+    updateSortIndicators(document.querySelectorAll('#chase-table th'), ChaseState.sortField, ChaseState.descending);
 }
 
 function onChaseLeaving() {

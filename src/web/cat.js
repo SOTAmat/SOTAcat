@@ -5,7 +5,26 @@ function playMsg(slot) {
   );
 }
 
-let isXmitActive = false;
+// CAT page state encapsulated in a single object
+const CatState = {
+    // Transmit state
+    isXmitActive: false,
+
+    // VFO state
+    currentFrequencyHz: 14225000, // Default to 20m
+    currentMode: 'USB',
+
+    // VFO polling state
+    vfoUpdateInterval: null,
+    lastUserAction: 0,
+    isUpdatingVfo: false,
+    pendingFrequencyUpdate: null,
+    consecutiveErrors: 0,
+    lastFrequencyChange: 0,
+
+    // UI state
+    messageInputListenersAttached: false
+};
 
 function sendXmitRequest(state) {
   const url = "/api/v1/xmit?state=" + state;
@@ -16,9 +35,9 @@ function sendXmitRequest(state) {
 
 function toggleXmit() {
   const xmitButton = document.getElementById("xmit-button");
-  isXmitActive = !isXmitActive;
+  CatState.isXmitActive = !CatState.isXmitActive;
 
-  if (isXmitActive) {
+  if (CatState.isXmitActive) {
     xmitButton.classList.add("active");
     sendXmitRequest(1);
   } else {
@@ -83,15 +102,6 @@ const BAND_PLAN = {
   }
 };
 
-let currentFrequencyHz = 14225000; // Default to 20m
-let currentMode = 'USB';
-let vfoUpdateInterval = null;
-let lastUserAction = 0; // Timestamp of last user VFO action
-let isUpdatingVfo = false; // Flag to prevent concurrent updates
-let pendingFrequencyUpdate = null; // For debouncing frequency updates
-let consecutiveErrors = 0; // Track consecutive polling errors for backoff
-let lastFrequencyChange = 0; // Track when frequency last changed (for adaptive polling)
-
 function formatFrequency(frequencyHz) {
   // Convert Hz to MHz and format as XX.XXX.XXX
   const mhz = frequencyHz / 1000000;
@@ -110,7 +120,7 @@ function formatFrequency(frequencyHz) {
 function updateFrequencyDisplay() {
   const display = document.getElementById('current-frequency');
   if (display) {
-    display.textContent = formatFrequency(currentFrequencyHz);
+    display.textContent = formatFrequency(CatState.currentFrequencyHz);
     // Brief visual feedback
     display.style.color = 'var(--success)';
     setTimeout(() => {
@@ -122,7 +132,7 @@ function updateFrequencyDisplay() {
 function updateModeDisplay() {
   const display = document.getElementById('current-mode');
   if (display) {
-    display.textContent = currentMode;
+    display.textContent = CatState.currentMode;
     // Brief visual feedback
     display.style.color = 'var(--warning)';
     setTimeout(() => {
@@ -133,11 +143,11 @@ function updateModeDisplay() {
   // Update mode button active states
   document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
 
-  if (currentMode === 'CW') {
+  if (CatState.currentMode === 'CW') {
     document.getElementById('btn-cw')?.classList.add('active');
-  } else if (currentMode === 'USB' || currentMode === 'LSB') {
+  } else if (CatState.currentMode === 'USB' || CatState.currentMode === 'LSB') {
     document.getElementById('btn-ssb')?.classList.add('active');
-  } else if (currentMode === 'DATA') {
+  } else if (CatState.currentMode === 'DATA') {
     document.getElementById('btn-data')?.classList.add('active');
   }
 }
@@ -156,7 +166,7 @@ function updateBandDisplay() {
   document.querySelectorAll('.btn-band').forEach(btn => btn.classList.remove('active'));
 
   // Determine which band the current frequency falls into
-  const currentBand = getBandFromFrequency(currentFrequencyHz);
+  const currentBand = getBandFromFrequency(CatState.currentFrequencyHz);
 
   if (currentBand) {
     // Find and activate the corresponding band button
@@ -171,25 +181,25 @@ function updateBandDisplay() {
 }
 
 function getCurrentVfoState() {
-  if (isUpdatingVfo) return; // Avoid concurrent updates
+  if (CatState.isUpdatingVfo) return; // Avoid concurrent updates
 
   // Don't poll if user made a change in the last 2 seconds
-  if (Date.now() - lastUserAction < 2000) return;
+  if (Date.now() - CatState.lastUserAction < 2000) return;
 
   // Back off if we've had consecutive errors
-  if (consecutiveErrors > 2) {
+  if (CatState.consecutiveErrors > 2) {
     console.log('Backing off due to errors, skipping poll');
     return;
   }
 
   // If frequency changed recently (within 5 seconds), we're likely tuning - be more cautious
-  const timeSinceFreqChange = Date.now() - lastFrequencyChange;
+  const timeSinceFreqChange = Date.now() - CatState.lastFrequencyChange;
   if (timeSinceFreqChange < 5000 && timeSinceFreqChange > 0) {
     // Skip some polls when actively tuning to reduce server load
     if (Math.random() < 0.5) return;
   }
 
-  isUpdatingVfo = true;
+  CatState.isUpdatingVfo = true;
 
   // Fetch both frequency and mode in parallel
   Promise.all([
@@ -198,55 +208,55 @@ function getCurrentVfoState() {
   ])
   .then(([frequency, mode]) => {
     // Success - reset error counter
-    consecutiveErrors = 0;
+    CatState.consecutiveErrors = 0;
 
     // Update frequency if it has changed
     if (frequency) {
       const newFreq = parseInt(frequency);
-      if (newFreq !== currentFrequencyHz) {
-        currentFrequencyHz = newFreq;
-        lastFrequencyChange = Date.now(); // Track that frequency changed
+      if (newFreq !== CatState.currentFrequencyHz) {
+        CatState.currentFrequencyHz = newFreq;
+        CatState.lastFrequencyChange = Date.now(); // Track that frequency changed
         updateFrequencyDisplay();
         updateBandDisplay(); // Update band button active state
-        console.log('Frequency updated from radio:', currentFrequencyHz);
+        console.log('Frequency updated from radio:', CatState.currentFrequencyHz);
       }
     }
 
     // Update mode if it has changed
     if (mode) {
       const newMode = mode.toUpperCase();
-      if (newMode !== currentMode) {
-        currentMode = newMode;
+      if (newMode !== CatState.currentMode) {
+        CatState.currentMode = newMode;
         updateModeDisplay();
-        console.log('Mode updated from radio:', currentMode);
+        console.log('Mode updated from radio:', CatState.currentMode);
       }
     }
   })
   .catch(error => {
-    consecutiveErrors++;
-    console.error(`Error getting VFO state (${consecutiveErrors} consecutive):`, error);
+    CatState.consecutiveErrors++;
+    console.error(`Error getting VFO state (${CatState.consecutiveErrors} consecutive):`, error);
     // After 3 consecutive errors, we'll back off automatically
   })
   .finally(() => {
-    isUpdatingVfo = false;
+    CatState.isUpdatingVfo = false;
   });
 }
 
 function setFrequency(frequencyHz) {
-  lastUserAction = Date.now(); // Mark user action timestamp
+  CatState.lastUserAction = Date.now(); // Mark user action timestamp
 
   // Clear any pending frequency update
-  if (pendingFrequencyUpdate) {
-    clearTimeout(pendingFrequencyUpdate);
+  if (CatState.pendingFrequencyUpdate) {
+    clearTimeout(CatState.pendingFrequencyUpdate);
   }
 
   // Update display immediately for responsive feel
-  currentFrequencyHz = frequencyHz;
+  CatState.currentFrequencyHz = frequencyHz;
   updateFrequencyDisplay();
   updateBandDisplay();
 
   // Debounce frequency updates to avoid flooding the radio
-  pendingFrequencyUpdate = setTimeout(() => {
+  CatState.pendingFrequencyUpdate = setTimeout(() => {
     const url = `/api/v1/frequency?frequency=${frequencyHz}`;
     fetch(url, { method: 'PUT' })
       .then(response => {
@@ -264,13 +274,13 @@ function setFrequency(frequencyHz) {
         getCurrentVfoState();
       })
       .finally(() => {
-        pendingFrequencyUpdate = null;
+        CatState.pendingFrequencyUpdate = null;
       });
   }, 300); // 300ms debounce
 }
 
 function adjustFrequency(deltaHz) {
-  const newFrequency = currentFrequencyHz + deltaHz;
+  const newFrequency = CatState.currentFrequencyHz + deltaHz;
 
   // Basic bounds checking (1.8 MHz to 29.7 MHz)
   if (newFrequency >= 1800000 && newFrequency <= 29700000) {
@@ -282,7 +292,7 @@ function adjustFrequency(deltaHz) {
 
 function selectBand(band) {
   if (BAND_PLAN[band]) {
-    lastUserAction = Date.now(); // Mark user action to prevent polling conflicts
+    CatState.lastUserAction = Date.now(); // Mark user action to prevent polling conflicts
 
     // Set frequency first
     setFrequency(BAND_PLAN[band].initial);
@@ -324,20 +334,20 @@ function selectBand(band) {
 }
 
 function setMode(mode) {
-  lastUserAction = Date.now(); // Mark user action timestamp
+  CatState.lastUserAction = Date.now(); // Mark user action timestamp
 
   let actualMode = mode;
 
   // Handle SSB mode selection based on frequency
   if (mode === 'SSB') {
-    actualMode = currentFrequencyHz < 10000000 ? 'LSB' : 'USB';
+    actualMode = CatState.currentFrequencyHz < 10000000 ? 'LSB' : 'USB';
   }
 
   const url = `/api/v1/mode?bw=${actualMode}`;
   fetch(url, { method: 'PUT' })
     .then(response => {
       if (response.ok) {
-        currentMode = actualMode;
+        CatState.currentMode = actualMode;
         updateModeDisplay();
         console.log('Mode updated successfully:', actualMode);
       } else {
@@ -354,62 +364,62 @@ function setMode(mode) {
 }
 
 function startVfoUpdates() {
-  if (vfoUpdateInterval) {
-    clearInterval(vfoUpdateInterval);
+  if (CatState.vfoUpdateInterval) {
+    clearInterval(CatState.vfoUpdateInterval);
   }
 
   // Reset error tracking
-  consecutiveErrors = 0;
-  lastFrequencyChange = 0;
+  CatState.consecutiveErrors = 0;
+  CatState.lastFrequencyChange = 0;
 
   // Get initial values
-  isUpdatingVfo = true;
+  CatState.isUpdatingVfo = true;
   Promise.all([
     fetch('/api/v1/frequency', { method: 'GET' }).then(r => r.ok ? r.text() : null),
     fetch('/api/v1/mode', { method: 'GET' }).then(r => r.ok ? r.text() : null)
   ]).then(([frequency, mode]) => {
     if (frequency) {
-      currentFrequencyHz = parseInt(frequency);
+      CatState.currentFrequencyHz = parseInt(frequency);
       updateFrequencyDisplay();
       updateBandDisplay();
-      console.log('Initial frequency loaded:', currentFrequencyHz);
+      console.log('Initial frequency loaded:', CatState.currentFrequencyHz);
     }
     if (mode) {
-      currentMode = mode.toUpperCase();
+      CatState.currentMode = mode.toUpperCase();
       updateModeDisplay();
-      console.log('Initial mode loaded:', currentMode);
+      console.log('Initial mode loaded:', CatState.currentMode);
     }
   }).catch(error => {
     console.error('Error loading initial VFO state:', error);
   }).finally(() => {
-    isUpdatingVfo = false;
+    CatState.isUpdatingVfo = false;
 
     // Start periodic updates (every 3 seconds, respecting user actions)
-    vfoUpdateInterval = setInterval(() => {
+    CatState.vfoUpdateInterval = setInterval(() => {
       getCurrentVfoState();
 
       // Reset error counter if we've been stable for a while
-      if (consecutiveErrors > 0 && Date.now() - lastFrequencyChange > 10000) {
+      if (CatState.consecutiveErrors > 0 && Date.now() - CatState.lastFrequencyChange > 10000) {
         console.log('System stable, resetting error counter');
-        consecutiveErrors = 0;
+        CatState.consecutiveErrors = 0;
       }
     }, 3000);
   });
 }
 
 function stopVfoUpdates() {
-  if (vfoUpdateInterval) {
-    clearInterval(vfoUpdateInterval);
-    vfoUpdateInterval = null;
+  if (CatState.vfoUpdateInterval) {
+    clearInterval(CatState.vfoUpdateInterval);
+    CatState.vfoUpdateInterval = null;
   }
 
-  if (pendingFrequencyUpdate) {
-    clearTimeout(pendingFrequencyUpdate);
-    pendingFrequencyUpdate = null;
+  if (CatState.pendingFrequencyUpdate) {
+    clearTimeout(CatState.pendingFrequencyUpdate);
+    CatState.pendingFrequencyUpdate = null;
   }
 
-  isUpdatingVfo = false;
-  lastUserAction = 0;
+  CatState.isUpdatingVfo = false;
+  CatState.lastUserAction = 0;
 }
 
 function tuneAtu() {
@@ -481,8 +491,6 @@ function loadCollapsibleStates() {
   });
 }
 
-let messageInputListenersAttached = false;
-
 function launchSOTAmat() {
   var sotamat_base_url = 'sotamat://api/v1?app=sotacat&appversion=2.1';
   var currentUrl = window.location.href;
@@ -497,8 +505,8 @@ function onCatAppearing() {
   loadInputValues();
   loadCollapsibleStates();
 
-  if (!messageInputListenersAttached) {
-    messageInputListenersAttached = true;
+  if (!CatState.messageInputListenersAttached) {
+    CatState.messageInputListenersAttached = true;
     document.getElementById("message-1").addEventListener("input", saveInputValues);
     document.getElementById("message-2").addEventListener("input", saveInputValues);
     document.getElementById("message-3").addEventListener("input", saveInputValues);
