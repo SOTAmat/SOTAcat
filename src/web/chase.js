@@ -205,7 +205,7 @@ async function updateChaseTable() {
     });
 
     const tbody = document.querySelector('#chase-table tbody');
-    let newTbody = document.createElement('tbody');
+    const newTbody = document.createElement('tbody');
 
     data.forEach(spot => {
         const row = newTbody.insertRow();
