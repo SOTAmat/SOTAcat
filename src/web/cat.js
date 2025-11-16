@@ -117,6 +117,138 @@ function formatFrequency(frequencyHz) {
   return formatted;
 }
 
+/**
+ * Parse user frequency input into Hz
+ * Supports various formats:
+ * - Pure integers: 7225 -> 7.225 MHz, 14225 -> 14.225 MHz, 282 -> 28.200 MHz
+ * - Single decimal: 7.225 -> 7.225 MHz, 14.070 -> 14.070 MHz
+ * - Multi-period: 14.208.1 -> 14.208100 MHz
+ *
+ * Returns an object: { success: boolean, frequencyHz: number, error: string }
+ */
+function parseFrequencyInput(input) {
+  // Clean the input
+  const cleaned = input.trim();
+
+  if (!cleaned) {
+    return { success: false, error: 'Empty input' };
+  }
+
+  // Convert commas to periods (treat them as equivalent separators)
+  const normalized = cleaned.replace(/,/g, '.');
+
+  // Allow only digits and periods/commas
+  if (!/^[0-9.,]+$/.test(cleaned)) {
+    return { success: false, error: 'Invalid characters (only digits, periods, and commas allowed)' };
+  }
+
+  // Count periods (after normalization)
+  const periodCount = (normalized.match(/\./g) || []).length;
+
+  let frequencyHz;
+
+  if (periodCount === 0) {
+    // Pure integer input - interpret intelligently
+    frequencyHz = parseIntegerFrequency(normalized);
+  } else if (periodCount === 1) {
+    // Single decimal - treat as MHz
+    const mhz = parseFloat(normalized);
+    if (isNaN(mhz)) {
+      return { success: false, error: 'Invalid decimal format' };
+    }
+    frequencyHz = Math.round(mhz * 1000000);
+  } else {
+    // Multi-period format - treat periods as grouping separators
+    frequencyHz = parseMultiPeriodFrequency(normalized);
+  }
+
+  if (frequencyHz === null) {
+    return { success: false, error: 'Could not parse frequency' };
+  }
+
+  // Validate against band plan
+  const band = getBandFromFrequency(frequencyHz);
+  if (!band) {
+    return {
+      success: false,
+      error: `Frequency ${(frequencyHz / 1000000).toFixed(3)} MHz not in any supported band`
+    };
+  }
+
+  return { success: true, frequencyHz, band };
+}
+
+/**
+ * Parse integer frequency inputs intelligently
+ * Examples:
+ * - 7225 -> 7.225 MHz (40m)
+ * - 14225 -> 14.225 MHz (20m)
+ * - 28085 -> 28.085 MHz (10m)
+ * - 282 -> 28.200 MHz (10m)
+ */
+function parseIntegerFrequency(intStr) {
+  const num = parseInt(intStr, 10);
+  if (isNaN(num)) return null;
+
+  // Try different interpretations and see which fits a band
+  const candidates = [];
+
+  // Interpretation 1: Last 3 digits are kHz
+  if (num >= 1000) {
+    const mhz = Math.floor(num / 1000);
+    const khz = num % 1000;
+    candidates.push(mhz * 1000000 + khz * 1000);
+  }
+
+  // Interpretation 2: Direct MHz (for smaller numbers)
+  candidates.push(num * 1000000);
+
+  // Interpretation 3: Last 2 digits are 10s of kHz (e.g., 282 -> 28.2 MHz)
+  if (num >= 100) {
+    const mhz = Math.floor(num / 10);
+    const tenKhz = num % 10;
+    candidates.push(mhz * 1000000 + tenKhz * 100000);
+  }
+
+  // Try to find a candidate that fits a known band
+  for (const freqHz of candidates) {
+    if (getBandFromFrequency(freqHz)) {
+      return freqHz;
+    }
+  }
+
+  // If none match, return the first interpretation (most common)
+  return candidates[0] || null;
+}
+
+/**
+ * Parse multi-period format like 14.208.1 -> 14.208100 MHz
+ * The first part is the MHz whole number, subsequent parts are decimal digits
+ */
+function parseMultiPeriodFrequency(multiPeriod) {
+  // Split by periods and concatenate
+  const parts = multiPeriod.split('.');
+
+  if (parts.length < 2) return null;
+
+  const wholeMhz = parseInt(parts[0], 10);
+  if (isNaN(wholeMhz)) return null;
+
+  // Concatenate all decimal parts
+  let decimalStr = parts.slice(1).join('');
+
+  // Pad to 6 decimal places (1 Hz resolution)
+  decimalStr = decimalStr.padEnd(6, '0');
+
+  // Take only first 6 digits
+  decimalStr = decimalStr.substring(0, 6);
+
+  const decimalHz = parseInt(decimalStr, 10);
+  if (isNaN(decimalHz)) return null;
+
+  return wholeMhz * 1000000 + decimalHz;
+}
+
 function updateFrequencyDisplay() {
   const display = document.getElementById('current-frequency');
   if (display) {
@@ -127,6 +259,140 @@ function updateFrequencyDisplay() {
       display.style.color = '';
     }, 200);
   }
+}
+
+/**
+ * Make the frequency display editable when clicked
+ */
+function enableFrequencyEditing() {
+  const display = document.getElementById('current-frequency');
+  if (!display) return;
+
+  // Store original value for restoration on cancel
+  const originalFrequency = CatState.currentFrequencyHz;
+  const originalText = display.textContent;
+
+  // Flag to prevent double-processing (when both Enter and blur fire)
+  let isProcessing = false;
+
+  // Create input element
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.inputMode = 'decimal'; // Shows numeric keyboard with decimal point on both iOS and Android
+  input.pattern = '[0-9.,]*';
+  input.className = 'frequency-input-edit';
+
+  // Pre-populate with the currently displayed frequency value
+  input.value = display.textContent;
+
+  // Copy the display's class to inherit all its CSS styling
+  input.className = display.className + ' frequency-input-edit';
+
+  // Get computed styles from the display to ensure exact dimensional match
+  const displayStyles = window.getComputedStyle(display);
+
+  // Reset mobile browser input defaults
+  input.style.webkitAppearance = 'none';
+  input.style.appearance = 'none';
+
+  // Copy all relevant styles to ensure no geometry change
+  input.style.display = displayStyles.display;
+  input.style.width = displayStyles.width;
+  input.style.height = displayStyles.height;
+  input.style.minHeight = displayStyles.height;
+  input.style.maxHeight = displayStyles.height;
+  input.style.padding = displayStyles.padding;
+  input.style.margin = displayStyles.margin;
+  input.style.lineHeight = displayStyles.lineHeight;
+  input.style.fontSize = displayStyles.fontSize;
+  input.style.fontWeight = displayStyles.fontWeight;
+  input.style.fontFamily = displayStyles.fontFamily;
+  input.style.background = displayStyles.background || displayStyles.backgroundColor;
+  input.style.textAlign = 'center';
+  input.style.boxSizing = displayStyles.boxSizing;
+  input.style.border = displayStyles.border;
+  input.style.borderRadius = displayStyles.borderRadius;
+  input.style.verticalAlign = displayStyles.verticalAlign;
+  input.style.outline = 'none';
+
+  // Subtle visual cue for edit mode - just change text color slightly
+  input.style.color = 'var(--warning)';
+
+  // Handle input confirmation
+  const confirmInput = () => {
+    if (isProcessing) return; // Prevent double-processing
+    isProcessing = true;
+
+    const userInput = input.value.trim();
+
+    if (!userInput) {
+      // Empty input - cancel
+      restoreDisplay();
+      return;
+    }
+
+    // Parse the frequency
+    const result = parseFrequencyInput(userInput);
+
+    if (result.success) {
+      // Valid frequency - apply it
+      setFrequency(result.frequencyHz);
+      restoreDisplay();
+      console.log(`Frequency set to ${result.frequencyHz} Hz (${result.band})`);
+    } else {
+      // Invalid frequency - show error briefly
+      input.style.border = '2px solid var(--danger)';
+      input.style.color = 'var(--danger)';
+
+      // Show error in console or as placeholder
+      console.error('Invalid frequency input:', result.error);
+
+      // Optionally show error message
+      setTimeout(() => {
+        alert(result.error);
+        restoreDisplay();
+      }, 100);
+    }
+  };
+
+  // Handle cancellation
+  const cancelInput = () => {
+    if (isProcessing) return; // Prevent double-processing
+    isProcessing = true;
+
+    // Restore original frequency
+    CatState.currentFrequencyHz = originalFrequency;
+    restoreDisplay();
+  };
+
+  // Restore the display element
+  const restoreDisplay = () => {
+    if (input.parentNode) {
+      display.textContent = formatFrequency(CatState.currentFrequencyHz);
+      display.style.cursor = 'pointer';
+      input.parentNode.replaceChild(display, input);
+    }
+  };
+
+  // Event handlers
+  input.addEventListener('blur', confirmInput);
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      input.blur(); // Trigger blur instead of calling confirmInput directly
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelInput();
+    }
+  });
+
+  // Replace display with input
+  display.parentNode.replaceChild(input, display);
+
+  // Focus and select all text
+  input.focus();
+  input.select();
 }
 
 function updateModeDisplay() {
@@ -534,6 +800,13 @@ function attachCatEventListeners() {
       toggleSection(sectionId);
     });
   });
+
+  // Frequency display click-to-edit
+  const frequencyDisplay = document.getElementById('current-frequency');
+  if (frequencyDisplay) {
+    frequencyDisplay.style.cursor = 'pointer';
+    frequencyDisplay.addEventListener('click', enableFrequencyEditing);
+  }
 
   // Frequency adjustment buttons
   document.querySelectorAll('.btn-freq[data-freq-delta]').forEach(button => {
