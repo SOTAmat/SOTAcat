@@ -1,8 +1,20 @@
 // ----------------------------------------------------------------------------
-// Global variables used across tabs
+// Global application state
 // ----------------------------------------------------------------------------
-// Data caches
-let latestChaseJson = null; // Chase page data from Spothole API
+const AppState = {
+    // Data caches
+    latestChaseJson: null,
+
+    // Tab management
+    currentTabName: null,
+
+    // Location
+    gpsOverride: null,
+
+    // Version checking
+    versionCheckRetryTimer: null
+};
+
 // Check if the page is being served from localhost
 const isLocalhost = (window.location.hostname === 'localhost' ||
                      window.location.hostname === '127.0.0.1' ||
@@ -70,14 +82,12 @@ setInterval(updateConnectionStatus, 5000); // Then refresh it every 5 seconds
 // Tab handling
 // ----------------------------------------------------------------------------
 
-let currentTabName = null;
-
 // This function is called before loading new tab content.
 // It calls the onLeaving function of the current tab if it exists.
 function cleanupCurrentTab() {
-    if (currentTabName) {
+    if (AppState.currentTabName) {
         // Call onLeaving function if it exists for the current tab
-        const tabNameCapitalized = currentTabName.charAt(0).toUpperCase() + currentTabName.slice(1);
+        const tabNameCapitalized = AppState.currentTabName.charAt(0).toUpperCase() + AppState.currentTabName.slice(1);
         const onLeavingFunctionName = `on${tabNameCapitalized}Leaving`;
         if (typeof window[onLeavingFunctionName] === 'function') {
             console.log(`Calling ${onLeavingFunctionName} function`);
@@ -159,21 +169,21 @@ function openTab(tabName) {
         });
 
         // Set the new current tab name
-        currentTabName = tabName.toLowerCase();
-        console.log(`Current tab set to: ${currentTabName}`);
+        AppState.currentTabName = tabName.toLowerCase();
+        console.log(`Current tab set to: ${AppState.currentTabName}`);
 
         // Find and highlight the active tab
-        const tabButton = document.getElementById(currentTabName + '-tab-button');
+        const tabButton = document.getElementById(AppState.currentTabName + '-tab-button');
         if (tabButton) {
             tabButton.classList.add('tabActive');
         } else {
-            console.error(`Tab button for ${currentTabName} not found`);
+            console.error(`Tab button for ${AppState.currentTabName} not found`);
         }
 
         // Save the active tab to localStorage
-        saveActiveTab(currentTabName);
+        saveActiveTab(AppState.currentTabName);
 
-        const contentPath = `${currentTabName}.html`;
+        const contentPath = `${AppState.currentTabName}.html`;
         console.log(`Fetching content from: ${contentPath}`);
 
         fetch(contentPath)
@@ -185,12 +195,12 @@ function openTab(tabName) {
             })
             .then(text => {
                 document.getElementById('content-area').innerHTML = text;
-                console.log(`Content for ${currentTabName} loaded`);
-                return loadTabScriptIfNeeded(currentTabName);
+                console.log(`Content for ${AppState.currentTabName} loaded`);
+                return loadTabScriptIfNeeded(AppState.currentTabName);
             })
             .then(() => {
                 // Once the script is loaded, call the onAppearing function
-                const tabNameCapitalized = currentTabName.charAt(0).toUpperCase() + currentTabName.slice(1);
+                const tabNameCapitalized = AppState.currentTabName.charAt(0).toUpperCase() + AppState.currentTabName.slice(1);
                 const onAppearingFunctionName = `on${tabNameCapitalized}Appearing`;
                 console.log(`Calling ${onAppearingFunctionName} function`);
 
@@ -204,10 +214,10 @@ function openTab(tabName) {
                 } else {
                     console.warn(`Function ${onAppearingFunctionName} not found`);
                 }
-                console.log(`Tab switch to ${currentTabName} complete`);
+                console.log(`Tab switch to ${AppState.currentTabName} complete`);
             })
             .catch(error => {
-                console.error(`Error during tab switch to ${currentTabName}:`, error);
+                console.error(`Error during tab switch to ${AppState.currentTabName}:`, error);
                 // Attempt recovery by reloading the current tab
                 alert(`Error switching tabs: ${error.message}\nPlease try once more, or reload the page if the issue persists.`);
             });
@@ -267,13 +277,11 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-let gpsOverride = null;
-
 async function getLocation() {
     // First check if there's a GPS location override from the backend
-    if (gpsOverride) {
+    if (AppState.gpsOverride) {
         console.log('Using cached GPS location override');
-        return gpsOverride;
+        return AppState.gpsOverride;
     }
 
     try {
@@ -281,8 +289,8 @@ async function getLocation() {
         const data = await response.json();
         if (data.gps_lat && data.gps_lon) {
             console.log('Using GPS location override from NVRAM');
-            gpsOverride = { latitude: parseFloat(data.gps_lat), longitude: parseFloat(data.gps_lon) };
-            return gpsOverride;
+            AppState.gpsOverride = { latitude: parseFloat(data.gps_lat), longitude: parseFloat(data.gps_lon) };
+            return AppState.gpsOverride;
         }
     } catch (error) {
         console.error('Failed to fetch GPS override:', error);
@@ -346,18 +354,15 @@ const MANIFEST_URL = 'https://sotamat.com/wp-content/uploads/manifest.json';
 const VERSION_CHECK_TIMEOUT_MS = 5000;
 const VERSION_CHECK_RETRY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
-// Global variable to track retry timer
-let versionCheckRetryTimer = null;
-
 // Start retry timer for failed version checks
 function startVersionCheckRetryTimer() {
     // Clear any existing timer
-    if (versionCheckRetryTimer) {
-        clearInterval(versionCheckRetryTimer);
+    if (AppState.versionCheckRetryTimer) {
+        clearInterval(AppState.versionCheckRetryTimer);
     }
 
     console.log('[Version Check] Starting retry timer (will retry every 15 minutes)');
-    versionCheckRetryTimer = setInterval(async () => {
+    AppState.versionCheckRetryTimer = setInterval(async () => {
         console.log('[Version Check] Retry timer triggered - attempting version check');
         try {
             await checkFirmwareVersion(false); // false = automatic check
@@ -372,10 +377,10 @@ function startVersionCheckRetryTimer() {
 
 // Stop retry timer
 function stopVersionCheckRetryTimer() {
-    if (versionCheckRetryTimer) {
+    if (AppState.versionCheckRetryTimer) {
         console.log('[Version Check] Stopping retry timer');
-        clearInterval(versionCheckRetryTimer);
-        versionCheckRetryTimer = null;
+        clearInterval(AppState.versionCheckRetryTimer);
+        AppState.versionCheckRetryTimer = null;
     }
 }
 

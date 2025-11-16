@@ -44,11 +44,11 @@ function saveGpsLocation() {
         .then(response => {
             if (response.ok) {
                 // Invalidate the cache in main.js
-                gpsOverride = null;
+                AppState.gpsOverride = null;
                 // Clear the distance cache to force recalculation with new location
                 clearDistanceCache();
                 // Force refresh of spots data with new location
-                latestChaseJson = null;
+                AppState.latestChaseJson = null;
 
                 alert('GPS location override saved. The new location will be used for distance calculations.');
             } else {
@@ -80,13 +80,13 @@ async function clearGpsLocation() {
     .then(response => {
         if (response.ok) {
             // Invalidate the cache in main.js
-            gpsOverride = null;
+            AppState.gpsOverride = null;
             // Clear the input field
             loadGpsLocation();
             // Clear the distance cache to force recalculation with default location
             clearDistanceCache();
             // Force refresh of spots data with new location
-            latestChaseJson = null;
+            AppState.latestChaseJson = null;
 
             alert('GPS location override cleared. Automatic location detection will be used.');
         } else {
