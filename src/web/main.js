@@ -23,23 +23,23 @@ const isLocalhost = (window.location.hostname === 'localhost' ||
 // ----------------------------------------------------------------------------
 // Update status indicators
 // ----------------------------------------------------------------------------
-function fetchAndUpdateElement(url, elementId) {
-    fetch(url)
-        .then(response => {
-            if (!response.ok) {
-                if (response.status === 404) {
-                    return '';
-                }
-                throw new Error(`HTTP error! Status: ${response.status}`);
+async function fetchAndUpdateElement(url, elementId) {
+    try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                document.getElementById(elementId).textContent = '';
+                return;
             }
-            return response.text();
-        })
-        .then(text => {
-            document.getElementById(elementId).textContent = text;
-        })
-        .catch(error => {
-            document.getElementById(elementId).textContent = '??';
-        });
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const text = await response.text();
+        document.getElementById(elementId).textContent = text;
+    } catch (error) {
+        document.getElementById(elementId).textContent = '??';
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -111,52 +111,51 @@ function loadActiveTab() {
 const loadedTabScripts = new Set();
 
 // Check if the script for a given Tab has already been loaded to avoid duplicates
-function loadTabScriptIfNeeded(tabName) {
+async function loadTabScriptIfNeeded(tabName) {
     const scriptPath = `${tabName}.js`;
     console.log(`Checking if script needs to be loaded: ${scriptPath}`);
 
-    return new Promise((resolve, reject) => {
-        if (loadedTabScripts.has(scriptPath)) {
-            // Script already loaded, resolve immediately
-            console.log(`Script ${scriptPath} already loaded, skipping`);
-            resolve();
+    if (loadedTabScripts.has(scriptPath)) {
+        // Script already loaded, resolve immediately
+        console.log(`Script ${scriptPath} already loaded, skipping`);
+        return;
+    }
+
+    console.log(`Loading script: ${scriptPath}`);
+
+    try {
+        const response = await fetch(scriptPath);
+
+        if (!response.ok) {
+            console.warn(`Script ${scriptPath} fetch failed with status: ${response.status}`);
+            // If the script doesn't need to be loaded (e.g., not found), resolve the promise
             return;
         }
 
-        console.log(`Loading script: ${scriptPath}`);
-        fetch(scriptPath)
-            .then(response => {
-                if (!response.ok) {
-                    console.warn(`Script ${scriptPath} fetch failed with status: ${response.status}`);
-                    // If the script doesn't need to be loaded (e.g., not found), resolve the promise
-                    resolve();
-                    return;
-                }
-
-                // Create script tag and add to document
-                const scriptTag = document.createElement('script');
-                scriptTag.src = scriptPath;
-                scriptTag.onload = () => {
-                    console.log(`Script ${scriptPath} loaded successfully`);
-                    loadedTabScripts.add(scriptPath);
-                    resolve(); // Resolve the promise once the script is loaded
-                };
-                scriptTag.onerror = (error) => {
-                    console.error(`Error loading script ${scriptPath}:`, error);
-                    reject(error);
-                };
-
-                // Add the script to the page
-                document.body.appendChild(scriptTag);
-            })
-            .catch(error => {
-                console.error(`Error fetching script ${scriptPath}:`, error);
+        // Create script tag and add to document
+        return new Promise((resolve, reject) => {
+            const scriptTag = document.createElement('script');
+            scriptTag.src = scriptPath;
+            scriptTag.onload = () => {
+                console.log(`Script ${scriptPath} loaded successfully`);
+                loadedTabScripts.add(scriptPath);
+                resolve();
+            };
+            scriptTag.onerror = (error) => {
+                console.error(`Error loading script ${scriptPath}:`, error);
                 reject(error);
-            });
-    });
+            };
+
+            // Add the script to the page
+            document.body.appendChild(scriptTag);
+        });
+    } catch (error) {
+        console.error(`Error fetching script ${scriptPath}:`, error);
+        throw error;
+    }
 }
 
-function openTab(tabName) {
+async function openTab(tabName) {
     console.log(`Switching to tab: ${tabName}`);
 
     try {
@@ -186,43 +185,38 @@ function openTab(tabName) {
         const contentPath = `${AppState.currentTabName}.html`;
         console.log(`Fetching content from: ${contentPath}`);
 
-        fetch(contentPath)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch ${contentPath}: ${response.status} ${response.statusText}`);
-                }
-                return response.text();
-            })
-            .then(text => {
-                document.getElementById('content-area').innerHTML = text;
-                console.log(`Content for ${AppState.currentTabName} loaded`);
-                return loadTabScriptIfNeeded(AppState.currentTabName);
-            })
-            .then(() => {
-                // Once the script is loaded, call the onAppearing function
-                const tabNameCapitalized = AppState.currentTabName.charAt(0).toUpperCase() + AppState.currentTabName.slice(1);
-                const onAppearingFunctionName = `on${tabNameCapitalized}Appearing`;
-                console.log(`Calling ${onAppearingFunctionName} function`);
+        const response = await fetch(contentPath);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch ${contentPath}: ${response.status} ${response.statusText}`);
+        }
 
-                if (typeof window[onAppearingFunctionName] === 'function') {
-                    try {
-                        window[onAppearingFunctionName]();
-                    } catch (error) {
-                        console.error(`Error in ${onAppearingFunctionName}:`, error);
-                        throw error;
-                    }
-                } else {
-                    console.warn(`Function ${onAppearingFunctionName} not found`);
-                }
-                console.log(`Tab switch to ${AppState.currentTabName} complete`);
-            })
-            .catch(error => {
-                console.error(`Error during tab switch to ${AppState.currentTabName}:`, error);
-                // Attempt recovery by reloading the current tab
-                alert(`Error switching tabs: ${error.message}\nPlease try once more, or reload the page if the issue persists.`);
-            });
+        const text = await response.text();
+        document.getElementById('content-area').innerHTML = text;
+        console.log(`Content for ${AppState.currentTabName} loaded`);
+
+        await loadTabScriptIfNeeded(AppState.currentTabName);
+
+        // Once the script is loaded, call the onAppearing function
+        const tabNameCapitalized = AppState.currentTabName.charAt(0).toUpperCase() + AppState.currentTabName.slice(1);
+        const onAppearingFunctionName = `on${tabNameCapitalized}Appearing`;
+        console.log(`Calling ${onAppearingFunctionName} function`);
+
+        if (typeof window[onAppearingFunctionName] === 'function') {
+            try {
+                window[onAppearingFunctionName]();
+            } catch (error) {
+                console.error(`Error in ${onAppearingFunctionName}:`, error);
+                throw error;
+            }
+        } else {
+            console.warn(`Function ${onAppearingFunctionName} not found`);
+        }
+        console.log(`Tab switch to ${AppState.currentTabName} complete`);
+
     } catch (error) {
-        console.error(`Unexpected error in openTab(${tabName}):`, error);
+        console.error(`Error during tab switch to ${AppState.currentTabName}:`, error);
+        // Attempt recovery by reloading the current tab
+        alert(`Error switching tabs: ${error.message}\nPlease try once more, or reload the page if the issue persists.`);
     }
 }
 

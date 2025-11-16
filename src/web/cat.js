@@ -180,7 +180,7 @@ function updateBandDisplay() {
   }
 }
 
-function getCurrentVfoState() {
+async function getCurrentVfoState() {
   if (CatState.isUpdatingVfo) return; // Avoid concurrent updates
 
   // Don't poll if user made a change in the last 2 seconds
@@ -201,12 +201,16 @@ function getCurrentVfoState() {
 
   CatState.isUpdatingVfo = true;
 
-  // Fetch both frequency and mode in parallel
-  Promise.all([
-    fetch('/api/v1/frequency', { method: 'GET' }).then(r => r.ok ? r.text() : null),
-    fetch('/api/v1/mode', { method: 'GET' }).then(r => r.ok ? r.text() : null)
-  ])
-  .then(([frequency, mode]) => {
+  try {
+    // Fetch both frequency and mode in parallel
+    const [frequencyResponse, modeResponse] = await Promise.all([
+      fetch('/api/v1/frequency', { method: 'GET' }),
+      fetch('/api/v1/mode', { method: 'GET' })
+    ]);
+
+    const frequency = frequencyResponse.ok ? await frequencyResponse.text() : null;
+    const mode = modeResponse.ok ? await modeResponse.text() : null;
+
     // Success - reset error counter
     CatState.consecutiveErrors = 0;
 
@@ -231,15 +235,13 @@ function getCurrentVfoState() {
         console.log('Mode updated from radio:', CatState.currentMode);
       }
     }
-  })
-  .catch(error => {
+  } catch (error) {
     CatState.consecutiveErrors++;
     console.error(`Error getting VFO state (${CatState.consecutiveErrors} consecutive):`, error);
     // After 3 consecutive errors, we'll back off automatically
-  })
-  .finally(() => {
+  } finally {
     CatState.isUpdatingVfo = false;
-  });
+  }
 }
 
 function setFrequency(frequencyHz) {
@@ -256,26 +258,26 @@ function setFrequency(frequencyHz) {
   updateBandDisplay();
 
   // Debounce frequency updates to avoid flooding the radio
-  CatState.pendingFrequencyUpdate = setTimeout(() => {
+  CatState.pendingFrequencyUpdate = setTimeout(async () => {
     const url = `/api/v1/frequency?frequency=${frequencyHz}`;
-    fetch(url, { method: 'PUT' })
-      .then(response => {
-        if (response.ok) {
-          console.log('Frequency updated successfully:', frequencyHz);
-        } else {
-          console.error('Error updating frequency');
-          // Revert display on error
-          getCurrentVfoState();
-        }
-      })
-      .catch(error => {
-        console.error('Fetch error:', error);
+
+    try {
+      const response = await fetch(url, { method: 'PUT' });
+
+      if (response.ok) {
+        console.log('Frequency updated successfully:', frequencyHz);
+      } else {
+        console.error('Error updating frequency');
         // Revert display on error
         getCurrentVfoState();
-      })
-      .finally(() => {
-        CatState.pendingFrequencyUpdate = null;
-      });
+      }
+    } catch (error) {
+      console.error('Fetch error:', error);
+      // Revert display on error
+      getCurrentVfoState();
+    } finally {
+      CatState.pendingFrequencyUpdate = null;
+    }
   }, 300); // 300ms debounce
 }
 
@@ -299,41 +301,40 @@ function selectBand(band) {
 
     // Check current mode from radio after frequency change and only set sideband if in SSB mode
     // Wait for debounced frequency update to complete before checking mode
-    setTimeout(() => {
-      // Get current mode from radio (don't trust cached value since user may have changed it on radio)
-      fetch('/api/v1/mode', { method: 'GET' })
-        .then(response => {
-          if (response.ok) {
-            return response.text();
-          }
+    setTimeout(async () => {
+      try {
+        // Get current mode from radio (don't trust cached value since user may have changed it on radio)
+        const response = await fetch('/api/v1/mode', { method: 'GET' });
+
+        if (!response.ok) {
           throw new Error('Failed to get current mode');
-        })
-        .then(modeFromRadio => {
-          const mode = modeFromRadio.toUpperCase();
+        }
 
-          // Only set sideband if current mode is SSB (USB or LSB)
-          if (mode === 'USB' || mode === 'LSB') {
-            // Set appropriate sideband for the band
-            let targetMode = 'USB'; // Default for higher bands
-            if (band === '40m') {
-              targetMode = 'LSB'; // 40m typically uses LSB
-            }
+        const modeFromRadio = await response.text();
+        const mode = modeFromRadio.toUpperCase();
 
-            // Only change if different from current mode
-            if (targetMode !== mode) {
-              setMode(targetMode);
-            }
+        // Only set sideband if current mode is SSB (USB or LSB)
+        if (mode === 'USB' || mode === 'LSB') {
+          // Set appropriate sideband for the band
+          let targetMode = 'USB'; // Default for higher bands
+          if (band === '40m') {
+            targetMode = 'LSB'; // 40m typically uses LSB
           }
-          // If not in SSB mode (AM, FM, DATA, CW, etc.), leave mode unchanged
-        })
-        .catch(error => {
-          console.error('Error checking current mode:', error);
-        });
+
+          // Only change if different from current mode
+          if (targetMode !== mode) {
+            setMode(targetMode);
+          }
+        }
+        // If not in SSB mode (AM, FM, DATA, CW, etc.), leave mode unchanged
+      } catch (error) {
+        console.error('Error checking current mode:', error);
+      }
     }, 400); // Wait for frequency debounce (300ms) + network round-trip margin
   }
 }
 
-function setMode(mode) {
+async function setMode(mode) {
   CatState.lastUserAction = Date.now(); // Mark user action timestamp
 
   let actualMode = mode;
@@ -344,26 +345,27 @@ function setMode(mode) {
   }
 
   const url = `/api/v1/mode?bw=${actualMode}`;
-  fetch(url, { method: 'PUT' })
-    .then(response => {
-      if (response.ok) {
-        CatState.currentMode = actualMode;
-        updateModeDisplay();
-        console.log('Mode updated successfully:', actualMode);
-      } else {
-        console.error('Error updating mode');
-        // Revert display on error
-        getCurrentVfoState();
-      }
-    })
-    .catch(error => {
-      console.error('Fetch error:', error);
+
+  try {
+    const response = await fetch(url, { method: 'PUT' });
+
+    if (response.ok) {
+      CatState.currentMode = actualMode;
+      updateModeDisplay();
+      console.log('Mode updated successfully:', actualMode);
+    } else {
+      console.error('Error updating mode');
       // Revert display on error
       getCurrentVfoState();
-    });
+    }
+  } catch (error) {
+    console.error('Fetch error:', error);
+    // Revert display on error
+    getCurrentVfoState();
+  }
 }
 
-function startVfoUpdates() {
+async function startVfoUpdates() {
   if (CatState.vfoUpdateInterval) {
     clearInterval(CatState.vfoUpdateInterval);
   }
@@ -374,10 +376,16 @@ function startVfoUpdates() {
 
   // Get initial values
   CatState.isUpdatingVfo = true;
-  Promise.all([
-    fetch('/api/v1/frequency', { method: 'GET' }).then(r => r.ok ? r.text() : null),
-    fetch('/api/v1/mode', { method: 'GET' }).then(r => r.ok ? r.text() : null)
-  ]).then(([frequency, mode]) => {
+
+  try {
+    const [frequencyResponse, modeResponse] = await Promise.all([
+      fetch('/api/v1/frequency', { method: 'GET' }),
+      fetch('/api/v1/mode', { method: 'GET' })
+    ]);
+
+    const frequency = frequencyResponse.ok ? await frequencyResponse.text() : null;
+    const mode = modeResponse.ok ? await modeResponse.text() : null;
+
     if (frequency) {
       CatState.currentFrequencyHz = parseInt(frequency);
       updateFrequencyDisplay();
@@ -389,9 +397,9 @@ function startVfoUpdates() {
       updateModeDisplay();
       console.log('Initial mode loaded:', CatState.currentMode);
     }
-  }).catch(error => {
+  } catch (error) {
     console.error('Error loading initial VFO state:', error);
-  }).finally(() => {
+  } finally {
     CatState.isUpdatingVfo = false;
 
     // Start periodic updates (every 3 seconds, respecting user actions)
@@ -404,7 +412,7 @@ function startVfoUpdates() {
         CatState.consecutiveErrors = 0;
       }
     }, 3000);
-  });
+  }
 }
 
 function stopVfoUpdates() {

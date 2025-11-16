@@ -1,23 +1,24 @@
-function syncTime() {
+async function syncTime() {
     // Get the browser's current UTC time in whole seconds
     const now = Math.round(Date.now() / 1000);
 
-    // Create the PUT request using Fetch API
-    fetch('/api/v1/time?time=' + now, { method: 'PUT' })
-    .then(response => {
+    try {
+        // Create the PUT request using Fetch API
+        const response = await fetch('/api/v1/time?time=' + now, { method: 'PUT' });
+
         if (response.status === 204) {
             console.log('Time sync successful');
-            return null;  // No content, sync was successful
+            return;  // No content, sync was successful
         } else if (!response.ok) {
-            return response.json().then(data => {
-                throw new Error(data.error || 'Unknown error');
-            });
+            const data = await response.json();
+            throw new Error(data.error || 'Unknown error');
         }
-    })
-    .catch(error => console.error('Time sync failed:', error.message));
+    } catch (error) {
+        console.error('Time sync failed:', error.message);
+    }
 }
 
-function saveGpsLocation() {
+async function saveGpsLocation() {
     const gpsLocationInput = document.getElementById('gps-location');
 
     // Validate the input using regex
@@ -36,12 +37,13 @@ function saveGpsLocation() {
             gps_lon: longitude.toString(),
         };
 
-        fetch('/api/v1/gps', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(settings),
-        })
-        .then(response => {
+        try {
+            const response = await fetch('/api/v1/gps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings),
+            });
+
             if (response.ok) {
                 // Invalidate the cache in main.js
                 AppState.gpsOverride = null;
@@ -52,15 +54,13 @@ function saveGpsLocation() {
 
                 alert('GPS location override saved. The new location will be used for distance calculations.');
             } else {
-                response.json().then(data => {
-                    throw new Error(data.error || 'Unknown error');
-                });
+                const data = await response.json();
+                throw new Error(data.error || 'Unknown error');
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error:', error);
             alert('Failed to save GPS location.');
-        });
+        }
     } else {
         alert('Please enter a valid GPS location or use the Clear Override button to remove the override.');
     }
@@ -72,12 +72,13 @@ async function clearGpsLocation() {
         gps_lon: "",
     };
 
-    fetch('/api/v1/gps', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
-    })
-    .then(response => {
+    try {
+        const response = await fetch('/api/v1/gps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings),
+        });
+
         if (response.ok) {
             // Invalidate the cache in main.js
             AppState.gpsOverride = null;
@@ -90,15 +91,13 @@ async function clearGpsLocation() {
 
             alert('GPS location override cleared. Automatic location detection will be used.');
         } else {
-            response.json().then(data => {
-                throw new Error(data.error || 'Unknown error');
-            });
+            const data = await response.json();
+            throw new Error(data.error || 'Unknown error');
         }
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('Error:', error);
         alert('Failed to clear GPS location.');
-    });
+    }
 }
 
 async function loadGpsLocation() {
@@ -169,7 +168,7 @@ async function fetchSettings() {
     }
 }
 
-function saveSettings() {
+async function saveSettings() {
     console.log("Saving settings...");
     if (isLocalhost) return;
 
@@ -184,12 +183,13 @@ function saveSettings() {
         ap_pass:   document.getElementById('ap-pass').value,
     };
 
-    fetch('/api/v1/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
-    })
-    .then(response => {
+    try {
+        const response = await fetch('/api/v1/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings),
+        });
+
         // If the response is OK but empty (likely due to reboot), assume success
         if (response.ok) {
             console.log('Success:', response);
@@ -198,11 +198,10 @@ function saveSettings() {
         }
 
         // Otherwise, parse the response for potential errors
-        return response.json().then(data => {
-            throw new Error(data.error || 'Unknown error');
-        });
-    })
-    .catch((error) => {
+        const data = await response.json();
+        throw new Error(data.error || 'Unknown error');
+
+    } catch (error) {
         // If the error is a network error (likely due to reboot), ignore it
         if (error.message.includes('NetworkError')) {
             console.warn("Ignoring expected network error due to reboot.");
@@ -211,7 +210,7 @@ function saveSettings() {
 
         console.error('Error:', error);
         alert('Failed to save settings.');
-    });
+    }
 }
 
 function customCheckSettingsValidity() {
@@ -273,7 +272,7 @@ function updateButtonText() {
     }
 }
 
-function uploadFirmware() {
+async function uploadFirmware() {
     const otaFileInput = document.getElementById('ota-file');
     const otaStatus = document.getElementById('ota-status');
     const uploadButton = document.getElementById('upload-button');
@@ -291,51 +290,49 @@ function uploadFirmware() {
 
     const blob = new Blob([file], { type: 'application/octet-stream' });
 
-    fetch('/api/v1/ota', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/octet-stream' },
-        body: blob
-    })
-    .then(response => {
+    try {
+        const response = await fetch('/api/v1/ota', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/octet-stream' },
+            body: blob
+        });
+
         if (response.ok) {
             // Update status to show firmware is being applied
             otaStatus.innerHTML = 'Firmware upload successful. Applying firmware update...';
             uploadButton.textContent = 'Applying firmware...';
-            
+
             // Show final message and alert
             setTimeout(() => {
                 otaStatus.innerHTML = 'Firmware upload successful. SOTAcat will now reboot.';
                 uploadButton.textContent = 'Upload Complete';
                 alert("Firmware upload successful.\nYour SOTAcat is rebooting with the new firmware.\nPlease restart your browser.");
             }, 2000);
-            return null;
+            return;
         }
-        else {
-            // Reset button state on error
-            uploadButton.disabled = false;
-            uploadButton.textContent = 'Upload Firmware';
-            
-            return response.text().then(text => {
-                let errorData;
-                try {
-                    errorData = JSON.parse(text);
-                }
-                catch (e) {
-                    throw new Error('Failed to parse error response from server');
-                }
-                throw new Error(errorData.error || 'Unknown error occurred');
-            });
+
+        // Handle error response
+        uploadButton.disabled = false;
+        uploadButton.textContent = 'Upload Firmware';
+
+        const text = await response.text();
+        let errorData;
+        try {
+            errorData = JSON.parse(text);
+        } catch (e) {
+            throw new Error('Failed to parse error response from server');
         }
-    })
-    .catch(error => {
+        throw new Error(errorData.error || 'Unknown error occurred');
+
+    } catch (error) {
         console.error('Firmware upload error:', error);
         otaStatus.innerHTML = `Firmware upload failed: ${error.message}`;
         alert(`Firmware upload failed: ${error.message}`);
-        
+
         // Reset button state
         uploadButton.disabled = false;
         uploadButton.textContent = 'Upload Firmware';
-    });
+    }
 }
 
 let submitSettingsAttached = false;
