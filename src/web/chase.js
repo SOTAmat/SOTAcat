@@ -496,6 +496,12 @@ function chaseOnAppearing() {
     // Start the refresh timer
     startRefreshTimer();
 
+    // Attach refresh button event listener
+    const refreshButton = document.getElementById('refresh-button');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', () => refreshChaseJson(true));
+    }
+
     // Load all saved settings
     chase_loadSortState();
 

@@ -504,7 +504,91 @@ function catOnAppearing() {
     document.getElementById("message-3").addEventListener("input", saveInputValues);
   }
 
+  // Attach event listeners for all controls
+  attachCatEventListeners();
+
   startVfoUpdates();
+}
+
+function attachCatEventListeners() {
+  // Section toggle handlers
+  document.querySelectorAll('.section-header[data-section]').forEach(header => {
+    header.addEventListener('click', () => {
+      const sectionId = header.getAttribute('data-section');
+      toggleSection(sectionId);
+    });
+  });
+
+  // Frequency adjustment buttons
+  document.querySelectorAll('.btn-freq[data-freq-delta]').forEach(button => {
+    button.addEventListener('click', () => {
+      const delta = parseInt(button.getAttribute('data-freq-delta'));
+      adjustFrequency(delta);
+    });
+  });
+
+  // Band selection buttons
+  document.querySelectorAll('.btn-band[data-band]').forEach(button => {
+    button.addEventListener('click', () => {
+      const band = button.getAttribute('data-band');
+      selectBand(band);
+    });
+  });
+
+  // Mode selection buttons
+  document.querySelectorAll('.btn-mode[data-mode]').forEach(button => {
+    button.addEventListener('click', () => {
+      const mode = button.getAttribute('data-mode');
+      setMode(mode);
+    });
+  });
+
+  // Power control buttons
+  const minPowerBtn = document.getElementById('min-power-button');
+  if (minPowerBtn) {
+    minPowerBtn.addEventListener('click', () => setPowerMinMax(false));
+  }
+
+  const maxPowerBtn = document.getElementById('max-power-button');
+  if (maxPowerBtn) {
+    maxPowerBtn.addEventListener('click', () => setPowerMinMax(true));
+  }
+
+  const tuneAtuBtn = document.getElementById('tune-atu-button');
+  if (tuneAtuBtn) {
+    tuneAtuBtn.addEventListener('click', tuneAtu);
+  }
+
+  // SOTAMAT button
+  const sotamatBtn = document.getElementById('sotamat-button');
+  if (sotamatBtn) {
+    sotamatBtn.addEventListener('click', launchSOTAmat);
+  }
+
+  // Message playback buttons
+  document.querySelectorAll('.btn-msg[data-msg-slot]').forEach(button => {
+    button.addEventListener('click', () => {
+      const slot = parseInt(button.getAttribute('data-msg-slot'));
+      playMsg(slot);
+    });
+  });
+
+  // Transmit toggle button
+  const xmitBtn = document.getElementById('xmit-button');
+  if (xmitBtn) {
+    xmitBtn.addEventListener('click', toggleXmit);
+  }
+
+  // CW send buttons
+  document.querySelectorAll('.btn-send[data-message-input]').forEach(button => {
+    button.addEventListener('click', () => {
+      const inputId = button.getAttribute('data-message-input');
+      const inputElement = document.getElementById(inputId);
+      if (inputElement) {
+        sendKeys(inputElement.value);
+      }
+    });
+  });
 }
 
 function catOnLeaving() {

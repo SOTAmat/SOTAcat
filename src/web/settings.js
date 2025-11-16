@@ -133,17 +133,17 @@ function toggleWifiHelp() {
     }
 }
 
-// Close popup when clicking outside of it
-document.addEventListener('click', function(event) {
+// Close popup when clicking outside of it (will be attached in settingsOnAppearing)
+function handleClickOutsidePopup(event) {
     const popup = document.getElementById('wifi-help-popup');
-    const helpButton = document.querySelector('.btn-info');
+    const helpButton = document.getElementById('wifi-help-button');
 
     if (popup && popup.style.display === 'block' &&
         !popup.contains(event.target) &&
-        !helpButton.contains(event.target)) {
+        helpButton && !helpButton.contains(event.target)) {
         toggleWifiHelp();
     }
-});
+}
 
 function togglePasswordVisibility(inputId) {
     var passwordInput = document.getElementById(inputId);
@@ -363,4 +363,76 @@ function settingsOnAppearing() {
     if (!submitSettingsAttached)
         attachSubmitSettings();
     loadGpsLocation();
+    attachSettingsEventListeners();
+}
+
+function attachSettingsEventListeners() {
+    // Sync time button
+    const syncTimeBtn = document.getElementById('sync-time-button');
+    if (syncTimeBtn) {
+        syncTimeBtn.addEventListener('click', syncTime);
+    }
+
+    // GPS buttons
+    const clearGpsBtn = document.getElementById('clear-gps-button');
+    if (clearGpsBtn) {
+        clearGpsBtn.addEventListener('click', clearGpsLocation);
+    }
+
+    const saveGpsBtn = document.getElementById('save-gps-button');
+    if (saveGpsBtn) {
+        saveGpsBtn.addEventListener('click', saveGpsLocation);
+    }
+
+    // WiFi help buttons
+    const wifiHelpBtn = document.getElementById('wifi-help-button');
+    if (wifiHelpBtn) {
+        wifiHelpBtn.addEventListener('click', toggleWifiHelp);
+    }
+
+    const wifiHelpCloseBtn = document.getElementById('wifi-help-close-button');
+    if (wifiHelpCloseBtn) {
+        wifiHelpCloseBtn.addEventListener('click', toggleWifiHelp);
+    }
+
+    // Password visibility toggles
+    document.querySelectorAll('.password-visibility-toggle').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const targetId = this.getAttribute('data-target');
+            togglePasswordVisibility(targetId);
+        });
+    });
+
+    // Firmware update buttons
+    const checkUpdatesBtn = document.getElementById('check-updates-button');
+    if (checkUpdatesBtn) {
+        checkUpdatesBtn.addEventListener('click', manualCheckFirmwareVersion);
+    }
+
+    const downloadFirmwareBtn = document.getElementById('download-firmware-button');
+    if (downloadFirmwareBtn) {
+        downloadFirmwareBtn.addEventListener('click', () => {
+            window.location.href = 'https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin';
+        });
+    }
+
+    const selectFileBtn = document.getElementById('select-file-button');
+    const otaFileInput = document.getElementById('ota-file');
+    if (selectFileBtn && otaFileInput) {
+        selectFileBtn.addEventListener('click', () => {
+            otaFileInput.click();
+        });
+    }
+
+    if (otaFileInput) {
+        otaFileInput.addEventListener('change', updateButtonText);
+    }
+
+    const uploadBtn = document.getElementById('upload-button');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', uploadFirmware);
+    }
+
+    // Click outside popup to close
+    document.addEventListener('click', handleClickOutsidePopup);
 }

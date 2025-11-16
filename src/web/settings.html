@@ -5,7 +5,7 @@
   <div class="settings-card">
     <h2>Clock Sync</h2>
     <p class="settings-info">Synchronize your KX radio clock with your phone</p>
-    <button class="btn-primary" onclick="syncTime()">Sync Clock Now</button>
+    <button id="sync-time-button" class="btn-primary">Sync Clock Now</button>
   </div>
 
   <!-- GPS Location Card -->
@@ -16,8 +16,8 @@
       <input type="text" id="gps-location" placeholder="e.g. 37.93389, -122.01136"
              pattern="^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$">
       <div class="button-group">
-        <button class="btn-secondary" onclick="clearGpsLocation()">Clear</button>
-        <button class="btn-primary" onclick="saveGpsLocation()">Save Location</button>
+        <button id="clear-gps-button" class="btn-secondary">Clear</button>
+        <button id="save-gps-button" class="btn-primary">Save Location</button>
       </div>
     </div>
   </div>
@@ -26,7 +26,7 @@
   <div class="settings-card">
     <h2>
       WiFi Configuration
-      <button type="button" class="btn-info" onclick="toggleWifiHelp()">
+      <button type="button" id="wifi-help-button" class="btn-info">
         <span class="info-icon">ⓘ</span>
       </button>
     </h2>
@@ -37,7 +37,7 @@
     <div class="help-popup-content">
       <div class="help-popup-header">
         <h3>WiFi Configuration Help</h3>
-        <button type="button" class="btn-close" onclick="toggleWifiHelp()">×</button>
+        <button type="button" id="wifi-help-close-button" class="btn-close">×</button>
       </div>
       <div class="help-popup-body">
         <p>When SOTACAT boots, it will try to connect to one of two WiFi networks (Client-1 and Client-2) in order. If those connections fail, it will create its own WiFi hotspot (Server) so that you can connect to the SOTACAT WiFi from your mobile device.</p>
@@ -61,7 +61,7 @@
                  pattern=".{0}|.{8,63}" title="Empty or 8-63 characters">
         </div>
         <label class="checkbox-label">
-          <input type="checkbox" onclick="togglePasswordVisibility('sta1-pass')">
+          <input type="checkbox" class="password-visibility-toggle" data-target="sta1-pass">
           <span>Show password</span>
         </label>
       </div>
@@ -76,7 +76,7 @@
                  pattern=".{0}|.{8,63}" title="Empty or 8-63 characters">
         </div>
         <label class="checkbox-label">
-          <input type="checkbox" onclick="togglePasswordVisibility('sta2-pass')">
+          <input type="checkbox" class="password-visibility-toggle" data-target="sta2-pass">
           <span>Show password</span>
         </label>
       </div>
@@ -91,7 +91,7 @@
                  pattern=".{0}|.{8,63}" title="Empty or 8-63 characters">
         </div>
         <label class="checkbox-label">
-          <input type="checkbox" onclick="togglePasswordVisibility('sta3-pass')">
+          <input type="checkbox" class="password-visibility-toggle" data-target="sta3-pass">
           <span>Show password</span>
         </label>
       </div>
@@ -106,7 +106,7 @@
                  pattern=".{0}|.{8,63}" title="Empty or 8-63 characters">
         </div>
         <label class="checkbox-label">
-          <input type="checkbox" onclick="togglePasswordVisibility('ap-pass')">
+          <input type="checkbox" class="password-visibility-toggle" data-target="ap-pass">
           <span>Show password</span>
         </label>
       </div>
@@ -126,7 +126,7 @@
         <span class="step-number">1</span>
         <div class="step-content">
           <p>Check for available updates</p>
-          <button class="btn-secondary" onclick="manualCheckFirmwareVersion()">Check Updates</button>
+          <button id="check-updates-button" class="btn-secondary">Check Updates</button>
         </div>
       </div>
 
@@ -134,8 +134,7 @@
         <span class="step-number">2</span>
         <div class="step-content">
           <p>Download firmware to your device</p>
-          <button class="btn-secondary"
-                  onclick="window.location.href='https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin'">
+          <button id="download-firmware-button" class="btn-secondary">
             Download Firmware
           </button>
         </div>
@@ -145,10 +144,10 @@
         <span class="step-number">3</span>
         <div class="step-content">
           <p>Select downloaded firmware file</p>
-          <button class="btn-secondary" onclick="document.getElementById('ota-file').click()">
+          <button id="select-file-button" class="btn-secondary">
             Select File
           </button>
-          <input type="file" id="ota-file" accept=".bin" onchange="updateButtonText()" style="display: none">
+          <input type="file" id="ota-file" accept=".bin" style="display: none">
         </div>
       </div>
 
@@ -156,7 +155,7 @@
         <span class="step-number">4</span>
         <div class="step-content">
           <p>Install firmware to SOTACAT</p>
-          <button class="btn-primary" id="upload-button" onclick="uploadFirmware()" disabled>
+          <button class="btn-primary" id="upload-button" disabled>
             Install Firmware
           </button>
         </div>
