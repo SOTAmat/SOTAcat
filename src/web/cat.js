@@ -266,57 +266,21 @@ function updateFrequencyDisplay() {
  */
 function enableFrequencyEditing() {
   const display = document.getElementById('current-frequency');
-  if (!display) return;
+  const input = document.getElementById('frequency-input');
+  const modeDisplay = document.getElementById('current-mode');
+  if (!display || !input) return;
 
   // Store original value for restoration on cancel
   const originalFrequency = CatState.currentFrequencyHz;
-  const originalText = display.textContent;
 
   // Flag to prevent double-processing (when both Enter and blur fire)
   let isProcessing = false;
 
-  // Create input element
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.inputMode = 'decimal'; // Shows numeric keyboard with decimal point on both iOS and Android
-  input.pattern = '[0-9.,]*';
-  input.className = 'frequency-input-edit';
-
-  // Pre-populate with the currently displayed frequency value
+  // Switch from display to input and hide mode display
+  display.style.display = 'none';
+  input.style.display = '';
+  if (modeDisplay) modeDisplay.style.display = 'none';
   input.value = display.textContent;
-
-  // Copy the display's class to inherit all its CSS styling
-  input.className = display.className + ' frequency-input-edit';
-
-  // Get computed styles from the display to ensure exact dimensional match
-  const displayStyles = window.getComputedStyle(display);
-
-  // Reset mobile browser input defaults
-  input.style.webkitAppearance = 'none';
-  input.style.appearance = 'none';
-
-  // Copy all relevant styles to ensure no geometry change
-  input.style.display = displayStyles.display;
-  input.style.width = displayStyles.width;
-  input.style.height = displayStyles.height;
-  input.style.minHeight = displayStyles.height;
-  input.style.maxHeight = displayStyles.height;
-  input.style.padding = displayStyles.padding;
-  input.style.margin = displayStyles.margin;
-  input.style.lineHeight = displayStyles.lineHeight;
-  input.style.fontSize = displayStyles.fontSize;
-  input.style.fontWeight = displayStyles.fontWeight;
-  input.style.fontFamily = displayStyles.fontFamily;
-  input.style.background = displayStyles.background || displayStyles.backgroundColor;
-  input.style.textAlign = 'center';
-  input.style.boxSizing = displayStyles.boxSizing;
-  input.style.border = displayStyles.border;
-  input.style.borderRadius = displayStyles.borderRadius;
-  input.style.verticalAlign = displayStyles.verticalAlign;
-  input.style.outline = 'none';
-
-  // Subtle visual cue for edit mode - just change text color slightly
-  input.style.color = 'var(--warning)';
 
   // Handle input confirmation
   const confirmInput = () => {
@@ -327,7 +291,7 @@ function enableFrequencyEditing() {
 
     if (!userInput) {
       // Empty input - cancel
-      restoreDisplay();
+      exitEditMode();
       return;
     }
 
@@ -337,21 +301,13 @@ function enableFrequencyEditing() {
     if (result.success) {
       // Valid frequency - apply it
       setFrequency(result.frequencyHz);
-      restoreDisplay();
+      exitEditMode();
       console.log(`Frequency set to ${result.frequencyHz} Hz (${result.band})`);
     } else {
-      // Invalid frequency - show error briefly
-      input.style.border = '2px solid var(--danger)';
-      input.style.color = 'var(--danger)';
-
-      // Show error in console or as placeholder
+      // Invalid frequency - show error
       console.error('Invalid frequency input:', result.error);
-
-      // Optionally show error message
-      setTimeout(() => {
-        alert(result.error);
-        restoreDisplay();
-      }, 100);
+      alert(result.error);
+      exitEditMode();
     }
   };
 
@@ -362,22 +318,23 @@ function enableFrequencyEditing() {
 
     // Restore original frequency
     CatState.currentFrequencyHz = originalFrequency;
-    restoreDisplay();
+    exitEditMode();
   };
 
-  // Restore the display element
-  const restoreDisplay = () => {
-    if (input.parentNode) {
-      display.textContent = formatFrequency(CatState.currentFrequencyHz);
-      display.style.cursor = 'pointer';
-      input.parentNode.replaceChild(display, input);
-    }
+  // Exit edit mode and restore display
+  const exitEditMode = () => {
+    input.style.display = 'none';
+    display.style.display = '';
+    if (modeDisplay) modeDisplay.style.display = '';
+    display.textContent = formatFrequency(CatState.currentFrequencyHz);
+
+    // Remove event listeners
+    input.removeEventListener('blur', confirmInput);
+    input.removeEventListener('keydown', handleKeydown);
   };
 
-  // Event handlers
-  input.addEventListener('blur', confirmInput);
-
-  input.addEventListener('keydown', (e) => {
+  // Keydown handler
+  const handleKeydown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       input.blur(); // Trigger blur instead of calling confirmInput directly
@@ -385,10 +342,11 @@ function enableFrequencyEditing() {
       e.preventDefault();
       cancelInput();
     }
-  });
+  };
 
-  // Replace display with input
-  display.parentNode.replaceChild(input, display);
+  // Attach event handlers
+  input.addEventListener('blur', confirmInput);
+  input.addEventListener('keydown', handleKeydown);
 
   // Focus and select all text
   input.focus();
@@ -804,7 +762,6 @@ function attachCatEventListeners() {
   // Frequency display click-to-edit
   const frequencyDisplay = document.getElementById('current-frequency');
   if (frequencyDisplay) {
-    frequencyDisplay.style.cursor = 'pointer';
     frequencyDisplay.addEventListener('click', enableFrequencyEditing);
   }
 

@@ -292,6 +292,34 @@ a {
   font-weight: 700;
   color: var(--primary-light);
   letter-spacing: 2px;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  border: none;
+  line-height: 1.2;
+}
+
+/* Input for editing frequency - shares same styling as display */
+input.frequency-display {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  text-align: center;
+  color: var(--warning);
+  cursor: text;
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 1.2 !important;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  box-sizing: content-box;
+  vertical-align: baseline;
+  /* Prevent mobile browser touch target expansion */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .mode-display {
@@ -1017,6 +1045,11 @@ tbody tr:active {
   .frequency-display {
     font-size: 24px;
     letter-spacing: 1px;
+  }
+
+  input.frequency-display {
+    font-size: 24px !important;
+    letter-spacing: 1px !important;
   }
 
   .mode-display {
