@@ -4,6 +4,7 @@
 #include "max17260.h"
 #include "settings.h"
 #include <esp_task_wdt.h>
+#include <driver/i2c_master.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:batmon..";
@@ -82,6 +83,7 @@ static float                   vpct_analog       = 0;
 static float                   vbat_digital      = 0;
 static float                   vpct_digital      = 0;
 static max17260_saved_params_t params;
+static i2c_master_bus_handle_t i2c_bus_handle = NULL;
 
 float get_battery_voltage (void) {
     if (max17260_detected)
@@ -97,22 +99,36 @@ float get_battery_percentage (void) {
         return vpct_analog;
 }
 
-static void i2c_setup (void) {
-    i2c_config_t conf;
-    conf.mode             = I2C_MODE_MASTER;
-    conf.sda_io_num       = I2C_SDA_PIN;
-    conf.scl_io_num       = I2C_SCL_PIN;
-    conf.sda_pullup_en    = GPIO_PULLUP_DISABLE;
-    conf.scl_pullup_en    = GPIO_PULLUP_DISABLE;
-    conf.clk_flags        = 0;
-    conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
-    i2c_param_config (I2C_MASTER_NUM, &conf);
+static esp_err_t i2c_setup (void) {
+    i2c_master_bus_config_t i2c_bus_config = {
+        .i2c_port = I2C_MASTER_NUM,
+        .sda_io_num = I2C_SDA_PIN,
+        .scl_io_num = I2C_SCL_PIN,
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .glitch_ignore_cnt = 7,
+        .intr_priority = 0,
+        .trans_queue_depth = 0,
+        .flags = {
+            .enable_internal_pullup = false,
+        },
+    };
 
-    i2c_driver_install (I2C_MASTER_NUM, I2C_MODE_MASTER, 0, 0, 0);
+    esp_err_t err = i2c_new_master_bus(&i2c_bus_config, &i2c_bus_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG8, "Failed to create I2C master bus: %s", esp_err_to_name(err));
+    }
+    return err;
 }
 
-static void i2c_teardown (void) {
-    i2c_driver_delete (I2C_MASTER_NUM);
+static esp_err_t i2c_teardown (void) {
+    if (i2c_bus_handle != NULL) {
+        esp_err_t err = i2c_del_master_bus(i2c_bus_handle);
+        if (err == ESP_OK) {
+            i2c_bus_handle = NULL;
+        }
+        return err;
+    }
+    return ESP_OK;
 }
 
 void battery_monitor_task (void * _pvParameter) {
@@ -123,12 +139,15 @@ void battery_monitor_task (void * _pvParameter) {
 
     if (HW_TYPE == SOTAcat_HW_Type::K5EM_1) {
         // Determine if we have a digital battery monitor
-        i2c_setup();
+        if (i2c_setup() != ESP_OK) {
+            ESP_LOGE(TAG8, "Failed to initialize I2C bus");
+            return;
+        }
 
         // Set up the SMBus for the digital battery monitor
         smbus_info_t * smbus_info = smbus_malloc();
-        smbus_init (smbus_info, I2C_MASTER_NUM, MAX_1726x_ADDR);
-        smbus_set_timeout (smbus_info, SMBUS_TIMEOUT_MS / portTICK_PERIOD_MS);
+        smbus_init (smbus_info, i2c_bus_handle, MAX_1726x_ADDR);
+        smbus_set_timeout (smbus_info, SMBUS_TIMEOUT_MS);
 
         // Instantiate the digital battery monitor driver
         max17620_setup_t battery_setup;

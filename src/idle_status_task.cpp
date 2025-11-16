@@ -12,7 +12,6 @@
 #include "esp_timer.h"
 #include "max17260.h"
 #include "smbus.h"
-#include <driver/i2c.h>
 #include <esp_task_wdt.h>
 
 #include <esp_log.h>
