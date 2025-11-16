@@ -198,7 +198,7 @@ function tuneRadioHz(frequency, mode) {
 // ============================================================================
 
 async function updateChaseTable() {
-    const data = await latestChaseJson;
+    const data = await AppState.latestChaseJson;
     if (data == null) {
         console.info('Chase Json is null');
         return;
@@ -463,7 +463,7 @@ async function refreshChaseJson(force) {
         // Fetch and process spots
         const spots = await fetchAndProcessSpots(fetchOptions, location, true);
 
-        latestChaseJson = spots;
+        AppState.latestChaseJson = spots;
         console.info(`Chase Json updated: ${spots.length} spots`);
 
         if (typeof updateChaseTable === 'function') {
@@ -538,7 +538,7 @@ function onChaseAppearing() {
     }
 
     // Load data
-    if (latestChaseJson != null) {
+    if (AppState.latestChaseJson != null) {
         console.log('Chase tab appearing: Using existing data');
         updateChaseTable();
     } else {
