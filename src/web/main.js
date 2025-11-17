@@ -11,6 +11,9 @@ const AppState = {
     // Location
     gpsOverride: null,
 
+    // User settings
+    callSign: '',
+
     // Version checking
     versionCheckRetryTimer: null
 };

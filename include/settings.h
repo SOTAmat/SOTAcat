@@ -35,9 +35,14 @@ extern char g_ap_pass[MAX_WIFI_PASS_SIZE];
 extern char g_gps_lat[MAX_GPS_LAT_SIZE];
 extern char g_gps_lon[MAX_GPS_LON_SIZE];
 
+#define MAX_CALLSIGN_SIZE 16
+extern char g_callsign[MAX_CALLSIGN_SIZE];
+
 void      init_settings ();
 esp_err_t retrieve_and_send_settings (httpd_req_t * req);
 esp_err_t handler_settings_get (httpd_req_t * req);
 esp_err_t handler_settings_post (httpd_req_t * req);
 esp_err_t handler_gps_settings_get (httpd_req_t * req);
 esp_err_t handler_gps_settings_post (httpd_req_t * req);
+esp_err_t handler_callsign_settings_get (httpd_req_t * req);
+esp_err_t handler_callsign_settings_post (httpd_req_t * req);

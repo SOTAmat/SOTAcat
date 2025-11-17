@@ -109,6 +109,8 @@ static const api_handler_t api_handlers[] = {
     {HTTP_POST, "ota",              handler_ota_post,             false},
     {HTTP_GET,  "gps",              handler_gps_settings_get,     false},
     {HTTP_POST, "gps",              handler_gps_settings_post,    false},
+    {HTTP_GET,  "callsign",         handler_callsign_settings_get,false},
+    {HTTP_POST, "callsign",         handler_callsign_settings_post,false},
     {0,         NULL,               NULL,                         false}  // Sentinel to mark end of array
 };
 

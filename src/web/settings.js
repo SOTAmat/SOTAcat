@@ -18,6 +18,91 @@ async function syncTime() {
     }
 }
 
+async function saveCallSign() {
+    const callSignInput = document.getElementById('callsign');
+    const callSign = callSignInput.value.toUpperCase().trim();
+
+    // Validate the input using regex - uppercase letters, numbers, and slashes only
+    const callSignPattern = /^[A-Z0-9/]*$/;
+    if (!callSignPattern.test(callSign) && callSign !== '') {
+        alert('Call sign can only contain uppercase letters, numbers, and slashes (/)');
+        return;
+    }
+
+    const settings = {
+        callsign: callSign,
+    };
+
+    try {
+        const response = await fetch('/api/v1/callsign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings),
+        });
+
+        if (response.ok) {
+            // Update the global AppState
+            AppState.callSign = callSign;
+            alert('Call sign saved successfully.');
+        } else {
+            const data = await response.json();
+            throw new Error(data.error || 'Unknown error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to save call sign.');
+    }
+}
+
+async function clearCallSign() {
+    const settings = {
+        callsign: "",
+    };
+
+    try {
+        const response = await fetch('/api/v1/callsign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings),
+        });
+
+        if (response.ok) {
+            // Update the global AppState
+            AppState.callSign = "";
+            // Clear the input field
+            loadCallSign();
+            alert('Call sign cleared.');
+        } else {
+            const data = await response.json();
+            throw new Error(data.error || 'Unknown error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to clear call sign.');
+    }
+}
+
+async function loadCallSign() {
+    try {
+        const response = await fetch('/api/v1/callsign');
+        const data = await response.json();
+        const callSignInput = document.getElementById('callsign');
+
+        if (data.callsign) {
+            callSignInput.value = data.callsign.toUpperCase();
+            AppState.callSign = data.callsign.toUpperCase();
+        } else {
+            callSignInput.value = '';
+            AppState.callSign = '';
+        }
+    } catch (error) {
+        console.error('Failed to load call sign:', error);
+        const callSignInput = document.getElementById('callsign');
+        callSignInput.value = '';
+        AppState.callSign = '';
+    }
+}
+
 async function saveGpsLocation() {
     const gpsLocationInput = document.getElementById('gps-location');
 
@@ -359,6 +444,7 @@ function onSettingsAppearing() {
     fetchSettings();
     if (!submitSettingsAttached)
         attachSubmitSettings();
+    loadCallSign();
     loadGpsLocation();
     attachSettingsEventListeners();
 }
@@ -368,6 +454,26 @@ function attachSettingsEventListeners() {
     const syncTimeBtn = document.getElementById('sync-time-button');
     if (syncTimeBtn) {
         syncTimeBtn.addEventListener('click', syncTime);
+    }
+
+    // Call sign buttons
+    const clearCallSignBtn = document.getElementById('clear-callsign-button');
+    if (clearCallSignBtn) {
+        clearCallSignBtn.addEventListener('click', clearCallSign);
+    }
+
+    const saveCallSignBtn = document.getElementById('save-callsign-button');
+    if (saveCallSignBtn) {
+        saveCallSignBtn.addEventListener('click', saveCallSign);
+    }
+
+    // Call sign input - enforce uppercase and valid characters
+    const callSignInput = document.getElementById('callsign');
+    if (callSignInput) {
+        callSignInput.addEventListener('input', function(e) {
+            // Convert to uppercase and filter to only allow A-Z, 0-9, and /
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
+        });
     }
 
     // GPS buttons

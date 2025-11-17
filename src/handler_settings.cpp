@@ -39,6 +39,8 @@ static const char s_gps_lat_key[] = "gps_lat";
 char              g_gps_lat[MAX_GPS_LAT_SIZE];
 static const char s_gps_lon_key[] = "gps_lon";
 char              g_gps_lon[MAX_GPS_LON_SIZE];
+static const char s_callsign_key[] = "callsign";
+char              g_callsign[MAX_CALLSIGN_SIZE];
 
 /**
  * Handle to our Non-Volatile Storage while we're in communication with it.
@@ -101,6 +103,7 @@ static void populate_settings () {
     GET_NV_STRING (ap_pass, "12345678");
     GET_NV_STRING (gps_lat, "");
     GET_NV_STRING (gps_lon, "");
+    GET_NV_STRING (callsign, "");
 }
 
 /**
@@ -351,4 +354,65 @@ esp_err_t handler_gps_settings_post (httpd_req_t * req) {
     populate_settings();
 
     return retrieve_and_send_gps_settings (req);
+}
+
+static std::shared_ptr<char[]> get_callsign_settings_json () {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    size_t required_size = 1 +
+                           sizeof (s_callsign_key) + sizeof (g_callsign) + 6 +
+                           1;
+    const char format[] = "{\"%s\":\"%s\"}";
+
+    std::shared_ptr<char[]> buf (new char[required_size]);
+    snprintf (buf.get(), required_size, format, s_callsign_key, g_callsign);
+
+    return buf;
+}
+
+static esp_err_t retrieve_and_send_callsign_settings (httpd_req_t * req) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    httpd_resp_set_type (req, "application/json");
+    auto settings_json = get_callsign_settings_json();
+    return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t handler_callsign_settings_get (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    return retrieve_and_send_callsign_settings (req);
+}
+
+esp_err_t handler_callsign_settings_post (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    if (!buf)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+
+    char * unsafe_buf = buf.get();
+
+    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
+    if (ret <= 0) {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408 (req);
+        }
+        return ESP_FAIL;
+    }
+
+    unsafe_buf[req->content_len] = '\0';
+
+    parse_and_process_json (unsafe_buf);
+
+    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
+
+    populate_settings();
+
+    return retrieve_and_send_callsign_settings (req);
 }

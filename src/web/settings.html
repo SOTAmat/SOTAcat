@@ -8,6 +8,24 @@
     <button id="sync-time-button" class="btn-primary">Sync Clock Now</button>
   </div>
 
+  <!-- Call Sign Card -->
+  <div class="settings-card">
+    <h2>Call Sign</h2>
+    <p class="settings-info">Enter your amateur radio call sign</p>
+    <div class="input-group-vertical">
+      <input type="text" id="callsign" placeholder="e.g. W1AW"
+             pattern="^[A-Z0-9/]*$"
+             inputmode="text"
+             autocapitalize="characters"
+             style="text-transform: uppercase;"
+             maxlength="15">
+      <div class="button-group">
+        <button id="clear-callsign-button" class="btn-secondary">Clear</button>
+        <button id="save-callsign-button" class="btn-primary">Save Call Sign</button>
+      </div>
+    </div>
+  </div>
+
   <!-- GPS Location Card -->
   <div class="settings-card">
     <h2>GPS Location Override</h2>
