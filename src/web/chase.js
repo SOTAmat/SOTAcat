@@ -315,6 +315,14 @@ async function updateChaseTable() {
             refLink.target = '_blank';
             refLink.textContent = spot.locationID;
             refCell.appendChild(refLink);
+        } else if (spot.sig === 'ZLOTA' && spot.locationID !== '-') {
+            const refLink = document.createElement('a');
+            // Convert slash format (ZLP/WK-0503) to underscore format (ZLP_WK-0503) for URL
+            const urlRef = spot.locationID.replace('/', '_');
+            refLink.href = `https://ontheair.nz/assets/${urlRef}`;
+            refLink.target = '_blank';
+            refLink.textContent = spot.locationID;
+            refCell.appendChild(refLink);
         } else {
             // Cluster or other types without reference - just show text (or dash)
             refCell.textContent = spot.locationID;
