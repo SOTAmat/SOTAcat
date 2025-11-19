@@ -1,6 +1,13 @@
-// ----------------------------------------------------------------------------
-// Global application state
-// ----------------------------------------------------------------------------
+// ============================================================================
+// Main Application Entry Point
+// ============================================================================
+// Core application logic including tab management, status updates, location
+// services, and version checking
+
+// ============================================================================
+// Global Application State
+// ============================================================================
+
 const AppState = {
     // Data caches
     latestChaseJson: null,
@@ -18,14 +25,20 @@ const AppState = {
     versionCheckRetryTimer: null
 };
 
+// ============================================================================
+// Environment Detection
+// ============================================================================
+
 // Check if the page is being served from localhost
 const isLocalhost = (window.location.hostname === 'localhost' ||
                      window.location.hostname === '127.0.0.1' ||
                      window.location.hostname === '[::1]'); // IPv6 loopback
 
-// ----------------------------------------------------------------------------
-// Update status indicators
-// ----------------------------------------------------------------------------
+// ============================================================================
+// Generic UI Update Functions
+// ============================================================================
+
+// Fetch API endpoint and update element with response text (url: string, elementId: string)
 async function fetchAndUpdateElement(url, elementId) {
     try {
         const response = await fetch(url);
@@ -45,48 +58,35 @@ async function fetchAndUpdateElement(url, elementId) {
     }
 }
 
-// ----------------------------------------------------------------------------
-// Status:Clock
-// ----------------------------------------------------------------------------
+// ============================================================================
+// Status Bar Functions
+// ============================================================================
+
+// Update UTC clock display (HH:MM format)
 function refreshUTCClock() {
     // Update the UTC clock, but only show the hours and the minutes and nothing else
     const utcTime = new Date().toUTCString();
     document.getElementById('current-utc-time').textContent = utcTime.slice(17, 22);
 }
 
-refreshUTCClock(); // Initial refresh
-setInterval(refreshUTCClock, 10000); // Refresh every 10 seconds
-
-// ----------------------------------------------------------------------------
-// Status:Battery
-// ----------------------------------------------------------------------------
+// Update battery percentage and voltage display
 function updateBatteryInfo() {
     if (isLocalhost) return;
     fetchAndUpdateElement('/api/v1/batteryPercent', 'battery-percent');
     fetchAndUpdateElement('/api/v1/batteryVoltage', 'battery-voltage');
 }
 
-updateBatteryInfo(); // Call the function immediately
-setInterval(updateBatteryInfo, 60000); // Then refresh it every 1 minute
-
-// ----------------------------------------------------------------------------
-// Status:Connection
-// ----------------------------------------------------------------------------
+// Update WiFi connection status display
 function updateConnectionStatus() {
     if (isLocalhost) return;
     fetchAndUpdateElement('/api/v1/connectionStatus', 'connection-status');
 }
 
-updateConnectionStatus(); // Call the function immediately
-setInterval(updateConnectionStatus, 5000); // Then refresh it every 5 seconds
+// ============================================================================
+// Tab Management Functions
+// ============================================================================
 
-
-// ----------------------------------------------------------------------------
-// Tab handling
-// ----------------------------------------------------------------------------
-
-// This function is called before loading new tab content.
-// It calls the onLeaving function of the current tab if it exists.
+// Clean up current tab before switching to a new one
 function cleanupCurrentTab() {
     if (AppState.currentTabName) {
         // Call onLeaving function if it exists for the current tab
@@ -99,21 +99,21 @@ function cleanupCurrentTab() {
     }
 }
 
-// Save the currently active tab to localStorage
-function saveActiveTab(tabName) {
-    localStorage.setItem('activeTab', tabName.toLowerCase());
-}
-
-// Load the previously active tab from localStorage
+// Load previously active tab from localStorage (returns tab name string, defaults to 'chase')
 function loadActiveTab() {
     const activeTab = localStorage.getItem('activeTab');
     return activeTab ? activeTab : 'chase'; // Default to 'chase' if no tab is saved
 }
 
-// Keep track of loaded scripts
+// Save currently active tab to localStorage (tabName: 'chase', 'cat', 'settings', 'about')
+function saveActiveTab(tabName) {
+    localStorage.setItem('activeTab', tabName.toLowerCase());
+}
+
+// Track loaded tab scripts to avoid duplicates
 const loadedTabScripts = new Set();
 
-// Check if the script for a given Tab has already been loaded to avoid duplicates
+// Load tab-specific JavaScript file if not already loaded (tabName: 'chase', 'cat', 'settings', 'about')
 async function loadTabScriptIfNeeded(tabName) {
     const scriptPath = `${tabName}.js`;
     console.log(`Checking if script needs to be loaded: ${scriptPath}`);
@@ -158,6 +158,7 @@ async function loadTabScriptIfNeeded(tabName) {
     }
 }
 
+// Switch to a different tab (tabName: 'chase', 'cat', 'settings', 'about')
 async function openTab(tabName) {
     console.log(`Switching to tab: ${tabName}`);
 
@@ -223,7 +224,11 @@ async function openTab(tabName) {
     }
 }
 
-// Add to the DOMContentLoaded event listener in main.js
+// ============================================================================
+// Application Initialization
+// ============================================================================
+
+// Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', function () {
     console.log('DOMContentLoaded event fired');
 
@@ -254,12 +259,27 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 1000);
 });
 
-// ----------------------------------------------------------------------------
-// Enrichment and distance calculations
-// ----------------------------------------------------------------------------
+// ============================================================================
+// Status Bar Update Intervals
+// ============================================================================
 
-// Function to calculate distance between two points using the Haversine formula
-// returns distance in kilometers
+// UTC Clock - update every 10 seconds
+refreshUTCClock();
+setInterval(refreshUTCClock, 10000);
+
+// Battery info - update every 1 minute
+updateBatteryInfo();
+setInterval(updateBatteryInfo, 60000);
+
+// Connection status - update every 5 seconds
+updateConnectionStatus();
+setInterval(updateConnectionStatus, 5000);
+
+// ============================================================================
+// Geolocation and Distance Functions
+// ============================================================================
+
+// Calculate distance between two points using Haversine formula (returns distance in km)
 function calculateDistance(lat1, lon1, lat2, lon2) {
     function toRad(x) { return x * Math.PI / 180; }
     function squared(x) { return x * x }
@@ -274,6 +294,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// Get user location from GPS override or IP-based geolocation (returns {latitude, longitude})
 async function getLocation() {
     // First check if there's a GPS location override from the backend
     if (AppState.gpsOverride) {
@@ -326,13 +347,10 @@ async function getLocation() {
     }
 }
 
-// Cache to store distance by reference (summits, parks, etc.)
-// We declare it outside the following function so that it can persist
-// across function calls, but it's not really meant to be used outside
-// of the conjunction of the function.
+// Distance cache for reference lookups
 const distanceCache = {};
 
-// used when GPS location changes
+// Clear distance cache (called when GPS location changes)
 function clearDistanceCache() {
     // Clear the distance cache to force recalculation with new location
     for (const key in distanceCache) {
@@ -341,9 +359,11 @@ function clearDistanceCache() {
     console.log('Distance cache cleared for location change');
 }
 
-// ----------------------------------------------------------------------------
-// Version checking
-// ----------------------------------------------------------------------------
+// ============================================================================
+// Firmware Version Checking Functions
+// ============================================================================
+
+// Version check configuration constants
 const VERSION_CHECK_INTERVAL_DAYS = 1.0;
 const VERSION_CHECK_STORAGE_KEY = 'sotacat_version_check';
 const VERSION_CHECK_SUCCESS_KEY = 'sotacat_version_check_success';
@@ -381,7 +401,7 @@ function stopVersionCheckRetryTimer() {
     }
 }
 
-// Add the version check functions
+// Parse version string to Unix timestamp (returns seconds since epoch, or null on failure)
 function normalizeVersion(versionString) {
     console.log('[Version Check] Parsing version string:', versionString);
 
@@ -444,6 +464,7 @@ function normalizeVersion(versionString) {
     return timestamp;
 }
 
+// Check if enough time has passed since last version check (returns boolean)
 function shouldCheckVersion() {
     const lastCheck = localStorage.getItem(VERSION_CHECK_STORAGE_KEY);
     console.log('[Version Check] Last check timestamp:', lastCheck);
@@ -463,7 +484,7 @@ function shouldCheckVersion() {
     return shouldCheck;
 }
 
-// Perform version check
+// Perform version check (manualCheck: boolean - true for user-initiated, false for automatic)
 async function checkFirmwareVersion(manualCheck = false) {
     console.log('[Version Check] Starting version check');
     if (!manualCheck && !shouldCheckVersion()) {

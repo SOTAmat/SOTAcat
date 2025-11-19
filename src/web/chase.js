@@ -30,11 +30,7 @@ const ChaseState = {
 // State Management Functions
 // ============================================================================
 
-function saveSortState() {
-    localStorage.setItem('chaseSortField', ChaseState.sortField);
-    localStorage.setItem('chaseSortDescending', ChaseState.descending);
-}
-
+// Load saved sort preferences from localStorage and update ChaseState
 function loadSortState() {
     const savedSortField = localStorage.getItem('chaseSortField');
     const savedSortDescending = localStorage.getItem('chaseSortDescending');
@@ -54,35 +50,45 @@ function loadSortState() {
     }
 }
 
-// Type filter state management
+// Save current sort preferences from ChaseState to localStorage
+function saveSortState() {
+    localStorage.setItem('chaseSortField', ChaseState.sortField);
+    localStorage.setItem('chaseSortDescending', ChaseState.descending);
+}
+
+// Load saved type filter from localStorage (returns 'xOTA', 'Cluster', 'All', etc.)
 function loadTypeFilter() {
     const savedType = localStorage.getItem('chaseTypeFilter');
     ChaseState.typeFilter = savedType !== null ? savedType : 'xOTA'; // Default to xOTA only (not DX cluster)
     return ChaseState.typeFilter;
 }
 
+// Save type filter selection to localStorage and update ChaseState
 function saveTypeFilter(type) {
     ChaseState.typeFilter = type;
     localStorage.setItem('chaseTypeFilter', type);
 }
 
+// Handle type filter dropdown change event (saves and applies new filter)
 function onTypeFilterChange(type) {
     saveTypeFilter(type);
     applyTableFilters();
 }
 
-// Mode filter state management
+// Load saved mode filter from localStorage (returns 'All', 'CW', 'SSB', 'DATA', etc.)
 function loadGlobalModeFilter() {
     const savedMode = localStorage.getItem('globalModeFilter');
     ChaseState.modeFilter = savedMode !== null ? savedMode : 'All';
     return ChaseState.modeFilter;
 }
 
+// Save mode filter selection to localStorage and update ChaseState
 function saveGlobalModeFilter(mode) {
     ChaseState.modeFilter = mode;
     localStorage.setItem('globalModeFilter', mode);
 }
 
+// Apply saved mode filter to UI dropdown and table rows
 function applyGlobalModeFilter() {
     // Get the mode selector element
     const modeSelector = document.getElementById('mode-filter');
@@ -94,6 +100,7 @@ function applyGlobalModeFilter() {
     applyTableFilters();
 }
 
+// Handle mode filter dropdown change event (saves and applies new filter)
 function onModeFilterChange(mode) {
     saveGlobalModeFilter(mode);
     applyGlobalModeFilter();
@@ -143,7 +150,7 @@ function stopRefreshTimer() {
     }
 }
 
-// Frequency band detection for styling
+// Determine amateur band from frequency in Hz (returns '160m', '40m', '20m', etc., or null)
 function getFrequencyBand(frequencyHz) {
     const freqMHz = frequencyHz / 1000000;
 
@@ -166,7 +173,7 @@ function getFrequencyBand(frequencyHz) {
     return null;
 }
 
-// Handle clickable frequencies - tune radio to selected frequency/mode
+// Tune radio to specified frequency (Hz) and mode (adjusts SSB sideband based on frequency)
 function tuneRadioHz(frequency, mode) {
     let useMode = mode.toUpperCase();
     if (useMode == "SSB") {
@@ -197,6 +204,7 @@ function tuneRadioHz(frequency, mode) {
 // Table Rendering
 // ============================================================================
 
+// Update chase table display with sorted spots from AppState.latestChaseJson
 async function updateChaseTable() {
     const data = await AppState.latestChaseJson;
     if (data == null) {
@@ -332,6 +340,7 @@ async function updateChaseTable() {
 // Filtering
 // ============================================================================
 
+// Apply mode and type filters to table rows, showing/hiding as needed
 function applyTableFilters() {
     const tableBody = document.querySelector('#chase-table tbody');
     if (!tableBody) {
@@ -404,6 +413,7 @@ function applyTableFilters() {
 // Sorting
 // ============================================================================
 
+// Update visual sort indicators on table headers (shows ascending/descending arrows)
 function updateSortIndicators(headers, sortField, descending) {
     headers.forEach(header => {
         const span = header.querySelector('span[data-sort-field]');
@@ -419,6 +429,7 @@ function updateSortIndicators(headers, sortField, descending) {
 // Data Fetching
 // ============================================================================
 
+// Fetch latest spot data from Spothole API with rate limiting (force=true bypasses rate limit)
 async function refreshChaseJson(force) {
     // Get refresh button for UI feedback
     const refreshButton = document.getElementById('refresh-button');
@@ -496,6 +507,7 @@ async function refreshChaseJson(force) {
 // Page Lifecycle
 // ============================================================================
 
+// Called when Chase tab becomes visible
 function onChaseAppearing() {
     console.info('Chase tab appearing');
 
@@ -573,6 +585,7 @@ function onChaseAppearing() {
     updateSortIndicators(document.querySelectorAll('#chase-table th'), ChaseState.sortField, ChaseState.descending);
 }
 
+// Called when Chase tab is hidden
 function onChaseLeaving() {
     console.info('Chase tab leaving');
 

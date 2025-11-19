@@ -1,3 +1,14 @@
+// ============================================================================
+// Settings Page Logic
+// ============================================================================
+// Handles device configuration including time sync, callsign, GPS location,
+// WiFi settings, and firmware updates
+
+// ============================================================================
+// Time Synchronization Functions
+// ============================================================================
+
+// Sync device time with browser's UTC time
 async function syncTime() {
     // Get the browser's current UTC time in whole seconds
     const now = Math.round(Date.now() / 1000);
@@ -18,6 +29,33 @@ async function syncTime() {
     }
 }
 
+// ============================================================================
+// Callsign Management Functions
+// ============================================================================
+
+// Load saved callsign from device and populate input field
+async function loadCallSign() {
+    try {
+        const response = await fetch('/api/v1/callsign');
+        const data = await response.json();
+        const callSignInput = document.getElementById('callsign');
+
+        if (data.callsign) {
+            callSignInput.value = data.callsign.toUpperCase();
+            AppState.callSign = data.callsign.toUpperCase();
+        } else {
+            callSignInput.value = '';
+            AppState.callSign = '';
+        }
+    } catch (error) {
+        console.error('Failed to load call sign:', error);
+        const callSignInput = document.getElementById('callsign');
+        callSignInput.value = '';
+        AppState.callSign = '';
+    }
+}
+
+// Save operator callsign to device (validates A-Z, 0-9, and / only)
 async function saveCallSign() {
     const callSignInput = document.getElementById('callsign');
     const callSign = callSignInput.value.toUpperCase().trim();
@@ -54,6 +92,7 @@ async function saveCallSign() {
     }
 }
 
+// Clear saved callsign from device and reload
 async function clearCallSign() {
     const settings = {
         callsign: "",
@@ -82,27 +121,31 @@ async function clearCallSign() {
     }
 }
 
-async function loadCallSign() {
-    try {
-        const response = await fetch('/api/v1/callsign');
-        const data = await response.json();
-        const callSignInput = document.getElementById('callsign');
+// ============================================================================
+// GPS Location Override Functions
+// ============================================================================
 
-        if (data.callsign) {
-            callSignInput.value = data.callsign.toUpperCase();
-            AppState.callSign = data.callsign.toUpperCase();
+// Load GPS location override from device or show current location as placeholder
+async function loadGpsLocation() {
+    try {
+        const response = await fetch('/api/v1/gps');
+        const data = await response.json();
+        const gpsLocationInput = document.getElementById('gps-location');
+
+        if (data.gps_lat && data.gps_lon) {
+            gpsLocationInput.value = `${data.gps_lat}, ${data.gps_lon}`;
         } else {
-            callSignInput.value = '';
-            AppState.callSign = '';
+            const { latitude, longitude } = await getLocation();
+            gpsLocationInput.placeholder = `e.g. ${latitude}, ${longitude}`;
         }
     } catch (error) {
-        console.error('Failed to load call sign:', error);
-        const callSignInput = document.getElementById('callsign');
-        callSignInput.value = '';
-        AppState.callSign = '';
+        console.error('Failed to load GPS location:', error);
+        const gpsLocationInput = document.getElementById('gps-location');
+        gpsLocationInput.placeholder = 'Could not fetch location';
     }
 }
 
+// Save GPS location override to device (format: "latitude, longitude")
 async function saveGpsLocation() {
     const gpsLocationInput = document.getElementById('gps-location');
 
@@ -151,6 +194,7 @@ async function saveGpsLocation() {
     }
 }
 
+// Clear GPS location override from device and reload
 async function clearGpsLocation() {
     const settings = {
         gps_lat: "",
@@ -185,25 +229,11 @@ async function clearGpsLocation() {
     }
 }
 
-async function loadGpsLocation() {
-    try {
-        const response = await fetch('/api/v1/gps');
-        const data = await response.json();
-        const gpsLocationInput = document.getElementById('gps-location');
+// ============================================================================
+// WiFi Help Popup Functions
+// ============================================================================
 
-        if (data.gps_lat && data.gps_lon) {
-            gpsLocationInput.value = `${data.gps_lat}, ${data.gps_lon}`;
-        } else {
-            const { latitude, longitude } = await getLocation();
-            gpsLocationInput.placeholder = `e.g. ${latitude}, ${longitude}`;
-        }
-    } catch (error) {
-        console.error('Failed to load GPS location:', error);
-        const gpsLocationInput = document.getElementById('gps-location');
-        gpsLocationInput.placeholder = 'Could not fetch location';
-    }
-}
-
+// Toggle WiFi configuration help popup
 function toggleWifiHelp() {
     const popup = document.getElementById('wifi-help-popup');
     const isVisible = popup.style.display !== 'none';
@@ -217,7 +247,7 @@ function toggleWifiHelp() {
     }
 }
 
-// Close popup when clicking outside of it (will be attached in settingsOnAppearing)
+// Close popup when clicking outside of it
 function handleClickOutsidePopup(event) {
     const popup = document.getElementById('wifi-help-popup');
     const helpButton = document.getElementById('wifi-help-button');
@@ -229,11 +259,21 @@ function handleClickOutsidePopup(event) {
     }
 }
 
+// ============================================================================
+// Password Visibility Functions
+// ============================================================================
+
+// Toggle password field visibility (inputId: 'sta1-pass', 'sta2-pass', etc.)
 function togglePasswordVisibility(inputId) {
     var passwordInput = document.getElementById(inputId);
     passwordInput.type = (passwordInput.type === "password") ? "text" : "password";
 }
 
+// ============================================================================
+// WiFi Settings Functions
+// ============================================================================
+
+// Fetch WiFi settings from device
 async function fetchSettings() {
     if (isLocalhost) return;
     try {
@@ -253,6 +293,7 @@ async function fetchSettings() {
     }
 }
 
+// Save WiFi settings to device (causes immediate device reboot)
 async function saveSettings() {
     console.log("Saving settings...");
     if (isLocalhost) return;
@@ -298,6 +339,11 @@ async function saveSettings() {
     }
 }
 
+// ============================================================================
+// WiFi Settings Validation Functions
+// ============================================================================
+
+// Validate that WiFi SSID and password fields are consistently filled
 function customCheckSettingsValidity() {
     // Define pairs of SSID and password inputs
     const wifiPairs = [
@@ -323,6 +369,7 @@ function customCheckSettingsValidity() {
     return true;
 }
 
+// Handle WiFi settings form submission with validation (event handler)
 function onSubmitSettings(event) {
     var wifiForm = document.getElementById("wifi-settings");
 
@@ -342,7 +389,11 @@ function onSubmitSettings(event) {
     saveSettings();
 }
 
+// ============================================================================
+// Firmware Upload Functions
+// ============================================================================
 
+// Update upload button text when file is selected
 function updateButtonText() {
     const fileInput = document.getElementById('ota-file');
     const uploadButton = document.getElementById('upload-button');
@@ -357,6 +408,7 @@ function updateButtonText() {
     }
 }
 
+// Upload firmware file to device (causes immediate device reboot)
 async function uploadFirmware() {
     const otaFileInput = document.getElementById('ota-file');
     const otaStatus = document.getElementById('ota-status');
@@ -420,14 +472,11 @@ async function uploadFirmware() {
     }
 }
 
-let submitSettingsAttached = false;
+// ============================================================================
+// Version Checking Functions
+// ============================================================================
 
-function attachSubmitSettings() {
-    var wifiForm = document.getElementById("wifi-settings");
-    wifiForm.addEventListener("submit", onSubmitSettings);
-    submitSettingsAttached = true;
-}
-
+// Manually trigger firmware version check (returns message string or throws error)
 async function manualCheckFirmwareVersion() {
     try {
         const result = await checkFirmwareVersion(true);
@@ -440,15 +489,20 @@ async function manualCheckFirmwareVersion() {
     }
 }
 
-function onSettingsAppearing() {
-    fetchSettings();
-    if (!submitSettingsAttached)
-        attachSubmitSettings();
-    loadCallSign();
-    loadGpsLocation();
-    attachSettingsEventListeners();
+// ============================================================================
+// Event Handler Attachment
+// ============================================================================
+
+let submitSettingsAttached = false;
+
+// Attach WiFi settings form submit handler (called once)
+function attachSubmitSettings() {
+    var wifiForm = document.getElementById("wifi-settings");
+    wifiForm.addEventListener("submit", onSubmitSettings);
+    submitSettingsAttached = true;
 }
 
+// Attach all Settings page event listeners
 function attachSettingsEventListeners() {
     // Sync time button
     const syncTimeBtn = document.getElementById('sync-time-button');
@@ -538,4 +592,18 @@ function attachSettingsEventListeners() {
 
     // Click outside popup to close
     document.addEventListener('click', handleClickOutsidePopup);
+}
+
+// ============================================================================
+// Page Lifecycle
+// ============================================================================
+
+// Called when Settings tab becomes visible
+function onSettingsAppearing() {
+    fetchSettings();
+    if (!submitSettingsAttached)
+        attachSubmitSettings();
+    loadCallSign();
+    loadGpsLocation();
+    attachSettingsEventListeners();
 }
