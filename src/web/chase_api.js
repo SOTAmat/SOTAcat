@@ -5,10 +5,6 @@
 // unified xOTA (SOTA, POTA, WWFF, etc.) spot data.
 //
 // API Documentation: https://spothole.app/apidocs/openapi.yml
-//
-// Reference enrichment URLs (for future implementation):
-// - ZLOTA (New Zealand On The Air): https://ontheair.nz/assets?searchtext={reference}
-//   Example: https://ontheair.nz/assets?searchtext=ZLP/OT-0267
 
 const SPOTHOLE_BASE_URL = 'https://spothole.app/api/v1';
 const SPOTHOLE_API_TIMEOUT_MS = 10000; // 10 seconds
