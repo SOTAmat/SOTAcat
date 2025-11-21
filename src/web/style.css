@@ -632,7 +632,7 @@ tbody tr:active {
 }
 
 .mode-cell-CW { background: var(--primary); }
-.mode-cell-SSB, .mode-cell-FM { background: var(--success); }
+.mode-cell-SSB, .mode-cell-AM, .mode-cell-FM { background: var(--success); }
 .mode-cell-FT8, .mode-cell-FT4, .mode-cell-DATA { background: var(--warning); color: var(--gray-9); }
 .mode-cell-OTHER { background: var(--gray-6); }
 

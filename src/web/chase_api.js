@@ -194,7 +194,7 @@ function spothole_transformSpots(spotsData, location) {
             modeType = 'SSB';
         }
 
-        if (!['CW', 'SSB', 'FM', 'FT8', 'FT4', 'DATA'].includes(modeType)) {
+        if (!['CW', 'SSB', 'AM', 'FM', 'FT8', 'FT4', 'DATA'].includes(modeType)) {
             // Check for common data modes
             if (['PSK31', 'RTTY', 'MFSK', 'JT65', 'JT9', 'FT8', 'FT4', 'PKT'].includes(modeType)) {
                 modeType = 'DATA';
