@@ -30,6 +30,7 @@ const ChaseState = {
 
     // Usage tracking for smart suggestions
     manualRefreshTimes: [],
+    suggestionRevertTimeoutId: null,
 
     // Sort state
     sortField: 'timestamp',
@@ -201,6 +202,13 @@ function stopRefreshTimer() {
 function startAutoRefresh() {
     ChaseState.autoRefreshEnabled = true;
     saveAutoRefreshEnabled(true);
+
+    // Clear suggestion revert timeout since user accepted the suggestion
+    if (ChaseState.suggestionRevertTimeoutId) {
+        clearTimeout(ChaseState.suggestionRevertTimeoutId);
+        ChaseState.suggestionRevertTimeoutId = null;
+    }
+
     scheduleNextAutoRefresh();
     updateRefreshButtonLabel();
     updateRefreshTimer();
@@ -286,7 +294,21 @@ function trackManualRefresh() {
     );
 
     // Check if we should suggest auto-refresh
-    return ChaseState.manualRefreshTimes.length >= CHASE_AUTO_SUGGEST_THRESHOLD;
+    const shouldSuggest = ChaseState.manualRefreshTimes.length >= CHASE_AUTO_SUGGEST_THRESHOLD;
+
+    // If we're now suggesting, set a timer to revert after 5 seconds
+    if (shouldSuggest && !ChaseState.suggestionRevertTimeoutId) {
+        // Only set the timeout if we don't already have one active
+        console.log('Setting 5-second revert timer for auto-refresh suggestion');
+        ChaseState.suggestionRevertTimeoutId = setTimeout(() => {
+            console.log('Reverting auto-refresh suggestion back to "Refresh Now"');
+            ChaseState.manualRefreshTimes = [];
+            updateRefreshButtonLabel();
+            ChaseState.suggestionRevertTimeoutId = null;
+        }, 5000);
+    }
+
+    return shouldSuggest;
 }
 
 // Update refresh button label based on current state
@@ -296,14 +318,17 @@ function updateRefreshButtonLabel() {
 
     if (ChaseState.autoRefreshEnabled) {
         // Auto-refresh is enabled
+        console.log('Button state: Disable Auto-Refresh');
         refreshButton.textContent = 'Disable Auto-Refresh';
         refreshButton.classList.add('btn-auto-refresh-active');
     } else if (shouldSuggestAutoRefresh()) {
         // Suggest enabling auto-refresh
+        console.log('Button state: Enable Auto-Refresh?');
         refreshButton.textContent = 'Enable Auto-Refresh?';
         refreshButton.classList.remove('btn-auto-refresh-active');
     } else {
         // Normal manual refresh
+        console.log('Button state: Refresh Now');
         refreshButton.textContent = 'Refresh Now';
         refreshButton.classList.remove('btn-auto-refresh-active');
     }
@@ -590,7 +615,11 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
 
     // Track manual refreshes for smart suggestions (but not auto-refreshes)
     if (!isAutoRefresh) {
-        trackManualRefresh();
+        const nowSuggestingAutoRefresh = trackManualRefresh();
+        // Update button label if we just hit the threshold
+        if (nowSuggestingAutoRefresh) {
+            updateRefreshButtonLabel();
+        }
     }
 
     // Check rate limit
@@ -745,7 +774,7 @@ function onChaseAppearing() {
         refreshChaseJson(true);
     }
 
-    // If auto-refresh was enabled, restart it
+    // If auto-refresh was enabled, resume it (it was paused when leaving tab)
     if (ChaseState.autoRefreshEnabled) {
         scheduleNextAutoRefresh();
     }
@@ -781,13 +810,21 @@ function onChaseAppearing() {
 function onChaseLeaving() {
     console.info('Chase tab leaving');
 
-    // Stop the refresh timer
+    // Stop the refresh timer display
     stopRefreshTimer();
 
-    // Stop auto-refresh scheduling (but keep preference saved)
+    // Pause auto-refresh while away (but remember the state)
     if (ChaseState.autoRefreshTimeoutId) {
         clearTimeout(ChaseState.autoRefreshTimeoutId);
         ChaseState.autoRefreshTimeoutId = null;
+        ChaseState.nextAutoRefreshTime = 0;
+    }
+    // Note: autoRefreshEnabled flag stays set, preserved in localStorage
+
+    // Clear suggestion revert timeout
+    if (ChaseState.suggestionRevertTimeoutId) {
+        clearTimeout(ChaseState.suggestionRevertTimeoutId);
+        ChaseState.suggestionRevertTimeoutId = null;
     }
 
     // Save all settings
