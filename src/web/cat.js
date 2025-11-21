@@ -336,6 +336,10 @@ function updateModeDisplay() {
     document.getElementById('btn-ssb')?.classList.add('active');
   } else if (CatState.currentMode === 'DATA') {
     document.getElementById('btn-data')?.classList.add('active');
+  } else if (CatState.currentMode === 'AM') {
+    document.getElementById('btn-am')?.classList.add('active');
+  } else if (CatState.currentMode === 'FM') {
+    document.getElementById('btn-fm')?.classList.add('active');
   }
 }
 
