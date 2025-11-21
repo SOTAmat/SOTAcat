@@ -240,6 +240,14 @@ a {
   background: var(--primary-dark);
 }
 
+.btn-auto-refresh-active {
+  background: var(--success) !important;
+  box-shadow: 0 0 0 3px rgba(64, 192, 87, 0.2);
+}
+.btn-auto-refresh-active:active:not(:disabled) {
+  background: #37a34a !important;
+}
+
 .btn-info {
   background: none;
   color: var(--primary);

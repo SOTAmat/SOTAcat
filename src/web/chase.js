@@ -8,6 +8,9 @@ const CHASE_HISTORY_DURATION_SECONDS = 3600; // 1 hour (3600 seconds)
 const CHASE_DEFAULT_MODE_FILTER = 'SSB'; // Default mode filter
 const CHASE_API_SPOT_LIMIT = 500; // Maximum number of spots to fetch from API
 const CHASE_MIN_REFRESH_INTERVAL_MS = 60000; // Minimum time between API calls (60 seconds)
+const CHASE_AUTO_REFRESH_INTERVAL_MS = 60000; // Auto-refresh interval (60 seconds)
+const CHASE_AUTO_SUGGEST_THRESHOLD = 3; // Number of manual refreshes to suggest auto-refresh
+const CHASE_AUTO_SUGGEST_WINDOW_MS = 300000; // Time window to track refreshes (5 minutes)
 
 // Chase page state encapsulated in a single object
 const ChaseState = {
@@ -19,6 +22,14 @@ const ChaseState = {
     lastRefreshTime: 0,
     lastRefreshCompleteTime: 0,
     refreshTimerInterval: null,
+
+    // Auto-refresh state
+    autoRefreshEnabled: false,
+    autoRefreshTimeoutId: null,
+    nextAutoRefreshTime: 0,
+
+    // Usage tracking for smart suggestions
+    manualRefreshTimes: [],
 
     // Sort state
     sortField: 'timestamp',
@@ -106,21 +117,57 @@ function onModeFilterChange(mode) {
     applyGlobalModeFilter();
 }
 
+// Load auto-refresh preference from localStorage
+function loadAutoRefreshEnabled() {
+    const saved = localStorage.getItem('chaseAutoRefreshEnabled');
+    ChaseState.autoRefreshEnabled = saved === 'true';
+    return ChaseState.autoRefreshEnabled;
+}
+
+// Save auto-refresh preference to localStorage
+function saveAutoRefreshEnabled(enabled) {
+    ChaseState.autoRefreshEnabled = enabled;
+    localStorage.setItem('chaseAutoRefreshEnabled', enabled.toString());
+}
+
 // ============================================================================
 // Utility Functions
 // ============================================================================
 
-// Update the "Last refresh X ago" display
+// Update the "Last refresh X ago" display or countdown for auto-refresh
 function updateRefreshTimer() {
     const timerElement = document.getElementById('last-refresh-time');
     if (!timerElement) return;
 
+    const now = Date.now();
+
+    // Auto-refresh mode: show countdown
+    if (ChaseState.autoRefreshEnabled && ChaseState.nextAutoRefreshTime > 0) {
+        const remainingMs = ChaseState.nextAutoRefreshTime - now;
+
+        if (remainingMs <= 0) {
+            timerElement.textContent = 'Auto-refreshing now...';
+            return;
+        }
+
+        const remainingSeconds = Math.ceil(remainingMs / 1000);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+
+        if (minutes > 0) {
+            timerElement.textContent = `Auto-refresh in ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        } else {
+            timerElement.textContent = `Auto-refresh in ${seconds} sec`;
+        }
+        return;
+    }
+
+    // Manual mode: show time since last refresh
     if (ChaseState.lastRefreshCompleteTime === 0) {
         timerElement.textContent = 'Last refresh 0:00 ago';
         return;
     }
 
-    const now = Date.now();
     const elapsedSeconds = Math.floor((now - ChaseState.lastRefreshCompleteTime) / 1000);
     const minutes = Math.floor(elapsedSeconds / 60);
     const seconds = elapsedSeconds % 60;
@@ -150,6 +197,59 @@ function stopRefreshTimer() {
     }
 }
 
+// Start auto-refresh mode
+function startAutoRefresh() {
+    ChaseState.autoRefreshEnabled = true;
+    saveAutoRefreshEnabled(true);
+    scheduleNextAutoRefresh();
+    updateRefreshButtonLabel();
+    updateRefreshTimer();
+}
+
+// Stop auto-refresh mode
+function stopAutoRefresh() {
+    ChaseState.autoRefreshEnabled = false;
+    saveAutoRefreshEnabled(false);
+
+    // Clear any pending auto-refresh timeout
+    if (ChaseState.autoRefreshTimeoutId) {
+        clearTimeout(ChaseState.autoRefreshTimeoutId);
+        ChaseState.autoRefreshTimeoutId = null;
+    }
+
+    ChaseState.nextAutoRefreshTime = 0;
+
+    // Clear manual refresh tracking to reset the suggestion trigger
+    ChaseState.manualRefreshTimes = [];
+
+    updateRefreshButtonLabel();
+    updateRefreshTimer();
+}
+
+// Schedule the next auto-refresh
+function scheduleNextAutoRefresh() {
+    // Clear any existing timeout
+    if (ChaseState.autoRefreshTimeoutId) {
+        clearTimeout(ChaseState.autoRefreshTimeoutId);
+        ChaseState.autoRefreshTimeoutId = null;
+    }
+
+    if (!ChaseState.autoRefreshEnabled) {
+        return;
+    }
+
+    // Calculate next refresh time
+    ChaseState.nextAutoRefreshTime = Date.now() + CHASE_AUTO_REFRESH_INTERVAL_MS;
+
+    // Schedule the refresh
+    ChaseState.autoRefreshTimeoutId = setTimeout(() => {
+        console.log('Auto-refresh triggered');
+        refreshChaseJson(true, true); // force=true, isAutoRefresh=true
+    }, CHASE_AUTO_REFRESH_INTERVAL_MS);
+
+    updateRefreshTimer();
+}
+
 // Determine amateur band from frequency in Hz (returns '160m', '40m', '20m', etc., or null)
 function getFrequencyBand(frequencyHz) {
     const freqMHz = frequencyHz / 1000000;
@@ -171,6 +271,51 @@ function getFrequencyBand(frequencyHz) {
 
     // Return null for frequencies outside amateur bands
     return null;
+}
+
+// Track manual refresh and determine if we should suggest auto-refresh
+function trackManualRefresh() {
+    const now = Date.now();
+
+    // Add current refresh time
+    ChaseState.manualRefreshTimes.push(now);
+
+    // Remove refreshes outside the tracking window
+    ChaseState.manualRefreshTimes = ChaseState.manualRefreshTimes.filter(
+        time => (now - time) < CHASE_AUTO_SUGGEST_WINDOW_MS
+    );
+
+    // Check if we should suggest auto-refresh
+    return ChaseState.manualRefreshTimes.length >= CHASE_AUTO_SUGGEST_THRESHOLD;
+}
+
+// Update refresh button label based on current state
+function updateRefreshButtonLabel() {
+    const refreshButton = document.getElementById('refresh-button');
+    if (!refreshButton) return;
+
+    if (ChaseState.autoRefreshEnabled) {
+        // Auto-refresh is enabled
+        refreshButton.textContent = 'Disable Auto-Refresh';
+        refreshButton.classList.add('btn-auto-refresh-active');
+    } else if (shouldSuggestAutoRefresh()) {
+        // Suggest enabling auto-refresh
+        refreshButton.textContent = 'Enable Auto-Refresh?';
+        refreshButton.classList.remove('btn-auto-refresh-active');
+    } else {
+        // Normal manual refresh
+        refreshButton.textContent = 'Refresh Now';
+        refreshButton.classList.remove('btn-auto-refresh-active');
+    }
+}
+
+// Check if we should suggest auto-refresh (without modifying state)
+function shouldSuggestAutoRefresh() {
+    const now = Date.now();
+    const recentRefreshes = ChaseState.manualRefreshTimes.filter(
+        time => (now - time) < CHASE_AUTO_SUGGEST_WINDOW_MS
+    );
+    return recentRefreshes.length >= CHASE_AUTO_SUGGEST_THRESHOLD;
 }
 
 // Tune radio to specified frequency (Hz) and mode (adjusts SSB sideband based on frequency)
@@ -438,10 +583,15 @@ function updateSortIndicators(headers, sortField, descending) {
 // ============================================================================
 
 // Fetch latest spot data from Spothole API with rate limiting (force=true bypasses rate limit)
-async function refreshChaseJson(force) {
+async function refreshChaseJson(force, isAutoRefresh = false) {
     // Get refresh button for UI feedback
     const refreshButton = document.getElementById('refresh-button');
     const originalText = refreshButton?.textContent;
+
+    // Track manual refreshes for smart suggestions (but not auto-refreshes)
+    if (!isAutoRefresh) {
+        trackManualRefresh();
+    }
 
     // Check rate limit
     const now = Date.now();
@@ -495,16 +645,26 @@ async function refreshChaseJson(force) {
         ChaseState.lastRefreshCompleteTime = Date.now();
         startRefreshTimer();
 
+        // If auto-refresh is enabled, schedule the next refresh
+        if (ChaseState.autoRefreshEnabled) {
+            scheduleNextAutoRefresh();
+        }
+
     } catch (error) {
         console.error('Error fetching or processing Chase data:', error);
         // Show error to user if this was a manual refresh
-        if (force) {
+        if (force && !isAutoRefresh) {
             alert('Failed to fetch spots from Spothole API. Please check your internet connection and try again.');
+        }
+
+        // If auto-refresh is enabled, schedule retry
+        if (ChaseState.autoRefreshEnabled) {
+            scheduleNextAutoRefresh();
         }
     } finally {
         // Restore button to original state
         if (refreshButton) {
-            refreshButton.textContent = originalText || 'Refresh Now';
+            updateRefreshButtonLabel();
             refreshButton.disabled = false;
             refreshButton.classList.remove('btn-disabled');
         }
@@ -522,11 +682,30 @@ function onChaseAppearing() {
     // Start the refresh timer
     startRefreshTimer();
 
+    // Load auto-refresh preference
+    loadAutoRefreshEnabled();
+
     // Attach refresh button event listener
     const refreshButton = document.getElementById('refresh-button');
     if (refreshButton) {
-        refreshButton.addEventListener('click', () => refreshChaseJson(true));
+        refreshButton.addEventListener('click', () => {
+            if (ChaseState.autoRefreshEnabled) {
+                // Currently in auto-refresh mode - turn it off
+                stopAutoRefresh();
+            } else if (shouldSuggestAutoRefresh()) {
+                // Suggesting auto-refresh - turn it on
+                startAutoRefresh();
+                // Also do an immediate refresh
+                refreshChaseJson(true);
+            } else {
+                // Normal manual refresh
+                refreshChaseJson(true);
+            }
+        });
     }
+
+    // Update button label to reflect current state
+    updateRefreshButtonLabel();
 
     // Load all saved settings
     loadSortState();
@@ -566,6 +745,11 @@ function onChaseAppearing() {
         refreshChaseJson(true);
     }
 
+    // If auto-refresh was enabled, restart it
+    if (ChaseState.autoRefreshEnabled) {
+        scheduleNextAutoRefresh();
+    }
+
     // Set up column sorting
     const headers = document.querySelectorAll('#chase-table th');
     headers.forEach(header => {
@@ -599,6 +783,12 @@ function onChaseLeaving() {
 
     // Stop the refresh timer
     stopRefreshTimer();
+
+    // Stop auto-refresh scheduling (but keep preference saved)
+    if (ChaseState.autoRefreshTimeoutId) {
+        clearTimeout(ChaseState.autoRefreshTimeoutId);
+        ChaseState.autoRefreshTimeoutId = null;
+    }
 
     // Save all settings
     saveSortState();
