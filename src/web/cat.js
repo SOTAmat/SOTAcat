@@ -25,7 +25,8 @@ const CatState = {
     lastFrequencyChange: 0,
 
     // UI state
-    messageInputListenersAttached: false
+    messageInputListenersAttached: false,
+    catEventListenersAttached: false
 };
 
 // ============================================================================
@@ -823,6 +824,12 @@ function launchSOTAmat() {
 
 // Attach all CAT page event listeners
 function attachCatEventListeners() {
+  // Only attach once to prevent memory leaks
+  if (CatState.catEventListenersAttached) {
+    return;
+  }
+  CatState.catEventListenersAttached = true;
+
   // Section toggle handlers
   document.querySelectorAll('.section-header[data-section]').forEach(header => {
     header.addEventListener('click', () => {

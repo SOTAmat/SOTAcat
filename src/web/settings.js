@@ -494,6 +494,7 @@ async function manualCheckFirmwareVersion() {
 // ============================================================================
 
 let submitSettingsAttached = false;
+let settingsEventListenersAttached = false;
 
 // Attach WiFi settings form submit handler (called once)
 function attachSubmitSettings() {
@@ -504,6 +505,12 @@ function attachSubmitSettings() {
 
 // Attach all Settings page event listeners
 function attachSettingsEventListeners() {
+    // Only attach once to prevent memory leaks
+    if (settingsEventListenersAttached) {
+        return;
+    }
+    settingsEventListenersAttached = true;
+
     // Sync time button
     const syncTimeBtn = document.getElementById('sync-time-button');
     if (syncTimeBtn) {
@@ -606,4 +613,11 @@ function onSettingsAppearing() {
     loadCallSign();
     loadGpsLocation();
     attachSettingsEventListeners();
+}
+
+// Called when Settings tab is hidden
+function onSettingsLeaving() {
+    console.info('Settings tab leaving');
+    // Clean up document-level event listener to prevent memory leaks
+    document.removeEventListener('click', handleClickOutsidePopup);
 }
