@@ -33,6 +33,14 @@ const CatState = {
 // Constants and Band Plan
 // ============================================================================
 
+// Timing constants (milliseconds)
+const VISUAL_FEEDBACK_DURATION_MS = 200;
+const FREQUENCY_UPDATE_DEBOUNCE_MS = 300;
+const MODE_CHECK_DELAY_MS = 400;
+const VFO_POLLING_INTERVAL_MS = 3000;
+const ERROR_RESET_STABILITY_MS = 10000;
+const ATU_FEEDBACK_DURATION_MS = 1000;
+
 // ARRL Band Plan with frequency ranges in Hz
 // Using conservative band edges to increase compatibility across license classes
 const BAND_PLAN = {
@@ -312,7 +320,7 @@ function updateFrequencyDisplay() {
     display.style.color = 'var(--success)';
     setTimeout(() => {
       display.style.color = '';
-    }, 200);
+    }, VISUAL_FEEDBACK_DURATION_MS);
   }
 }
 
@@ -325,7 +333,7 @@ function updateModeDisplay() {
     display.style.color = 'var(--warning)';
     setTimeout(() => {
       display.style.color = '';
-    }, 200);
+    }, VISUAL_FEEDBACK_DURATION_MS);
   }
 
   // Update mode button active states
@@ -497,7 +505,7 @@ function setFrequency(frequencyHz) {
     } finally {
       CatState.pendingFrequencyUpdate = null;
     }
-  }, 300); // 300ms debounce
+  }, FREQUENCY_UPDATE_DEBOUNCE_MS);
 }
 
 // Adjust frequency by specified delta in Hz (positive or negative)
@@ -583,7 +591,7 @@ function selectBand(band) {
       } catch (error) {
         console.error('Error checking current mode:', error);
       }
-    }, 400); // Wait for frequency debounce (300ms) + network round-trip margin
+    }, MODE_CHECK_DELAY_MS);
   }
 }
 
@@ -699,11 +707,11 @@ async function startVfoUpdates() {
       getCurrentVfoState();
 
       // Reset error counter if we've been stable for a while
-      if (CatState.consecutiveErrors > 0 && Date.now() - CatState.lastFrequencyChange > 10000) {
+      if (CatState.consecutiveErrors > 0 && Date.now() - CatState.lastFrequencyChange > ERROR_RESET_STABILITY_MS) {
         console.log('System stable, resetting error counter');
         CatState.consecutiveErrors = 0;
       }
-    }, 3000);
+    }, VFO_POLLING_INTERVAL_MS);
   }
 }
 
@@ -739,7 +747,7 @@ function tuneAtu() {
           atuBtn.style.background = 'var(--success)';
           setTimeout(() => {
             atuBtn.style.background = '';
-          }, 1000);
+          }, ATU_FEEDBACK_DURATION_MS);
         }
       } else {
         console.error('Error initiating ATU tune');

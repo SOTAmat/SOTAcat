@@ -11,6 +11,8 @@ const CHASE_MIN_REFRESH_INTERVAL_MS = 60000; // Minimum time between API calls (
 const CHASE_AUTO_REFRESH_INTERVAL_MS = 60000; // Auto-refresh interval (60 seconds)
 const CHASE_AUTO_SUGGEST_THRESHOLD = 3; // Number of manual refreshes to suggest auto-refresh
 const CHASE_AUTO_SUGGEST_WINDOW_MS = 300000; // Time window to track refreshes (5 minutes)
+const REFRESH_TIMER_UPDATE_INTERVAL_MS = 1000; // Update refresh timer every second
+const AUTO_SUGGESTION_REVERT_TIMEOUT_MS = 5000; // Auto-suggestion revert delay
 
 // Chase page state encapsulated in a single object
 const ChaseState = {
@@ -190,7 +192,7 @@ function startRefreshTimer() {
     updateRefreshTimer();
 
     // Update every second
-    ChaseState.refreshTimerInterval = setInterval(updateRefreshTimer, 1000);
+    ChaseState.refreshTimerInterval = setInterval(updateRefreshTimer, REFRESH_TIMER_UPDATE_INTERVAL_MS);
 }
 
 // Stop the refresh timer interval
@@ -308,7 +310,7 @@ function trackManualRefresh() {
             ChaseState.manualRefreshTimes = [];
             updateRefreshButtonLabel();
             ChaseState.suggestionRevertTimeoutId = null;
-        }, 5000);
+        }, AUTO_SUGGESTION_REVERT_TIMEOUT_MS);
     }
 
     return shouldSuggest;

@@ -5,6 +5,12 @@
 // WiFi settings, and firmware updates
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+const FIRMWARE_UPLOAD_SUCCESS_DELAY_MS = 2000;
+
+// ============================================================================
 // Time Synchronization Functions
 // ============================================================================
 
@@ -444,7 +450,7 @@ async function uploadFirmware() {
                 otaStatus.innerHTML = 'Firmware upload successful. SOTAcat will now reboot.';
                 uploadButton.textContent = 'Upload Complete';
                 alert("Firmware upload successful.\nYour SOTAcat is rebooting with the new firmware.\nPlease restart your browser.");
-            }, 2000);
+            }, FIRMWARE_UPLOAD_SUCCESS_DELAY_MS);
             return;
         }
 

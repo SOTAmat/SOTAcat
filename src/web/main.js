@@ -5,6 +5,15 @@
 // services, and version checking
 
 // ============================================================================
+// Timing Constants
+// ============================================================================
+
+const INITIAL_VERSION_CHECK_DELAY_MS = 1000;
+const UTC_CLOCK_UPDATE_INTERVAL_MS = 10000;
+const BATTERY_INFO_UPDATE_INTERVAL_MS = 60000;
+const CONNECTION_STATUS_UPDATE_INTERVAL_MS = 5000;
+
+// ============================================================================
 // Global Application State
 // ============================================================================
 
@@ -256,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('[Version Check] Initial version check failed:', error);
             // Retry timer will be started automatically by checkFirmwareVersion
         });
-    }, 1000);
+    }, INITIAL_VERSION_CHECK_DELAY_MS);
 });
 
 // ============================================================================
@@ -265,15 +274,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // UTC Clock - update every 10 seconds
 refreshUTCClock();
-setInterval(refreshUTCClock, 10000);
+setInterval(refreshUTCClock, UTC_CLOCK_UPDATE_INTERVAL_MS);
 
 // Battery info - update every 1 minute
 updateBatteryInfo();
-setInterval(updateBatteryInfo, 60000);
+setInterval(updateBatteryInfo, BATTERY_INFO_UPDATE_INTERVAL_MS);
 
 // Connection status - update every 5 seconds
 updateConnectionStatus();
-setInterval(updateConnectionStatus, 5000);
+setInterval(updateConnectionStatus, CONNECTION_STATUS_UPDATE_INTERVAL_MS);
 
 // ============================================================================
 // Geolocation and Distance Functions
