@@ -67,7 +67,7 @@ async function saveCallSign() {
     const callSign = callSignInput.value.toUpperCase().trim();
 
     // Validate the input using regex - uppercase letters, numbers, and slashes only
-    const callSignPattern = /^[A-Z0-9/]*$/;
+    const callSignPattern = /^[A-Z0-9\/]*$/;
     if (!callSignPattern.test(callSign) && callSign !== '') {
         alert('Call sign can only contain uppercase letters, numbers, and slashes (/)');
         return;
@@ -539,7 +539,7 @@ function attachSettingsEventListeners() {
     if (callSignInput) {
         callSignInput.addEventListener('input', function() {
             // Convert to uppercase and filter to only allow A-Z, 0-9, and /
-            this.value = this.value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9\/]/g, '');
         });
     }
 
