@@ -351,11 +351,11 @@ function tuneRadioHz(frequency, mode) {
         else useMode = "USB";
     }
 
-    fetch('/api/v1/frequency?frequency=' + frequency, { method: 'PUT' })
+    fetch(`/api/v1/frequency?frequency=${frequency}`, { method: 'PUT' })
     .then(response => {
         if (response.ok) {
                 console.log('Frequency updated successfully');
-                fetch('/api/v1/mode?bw=' + useMode, { method: 'PUT' })
+                fetch(`/api/v1/mode?bw=${useMode}`, { method: 'PUT' })
                 .then(response => {
                     if (response.ok)    {   console.log('Mode updated successfully');   }
                     else                {   console.error('Error updating mode');       }
@@ -413,8 +413,7 @@ async function updateChaseTable() {
         };
 
         // 1. UTC time
-        const formattedTime = spot.timestamp.getUTCHours().toString().padStart(2, '0') + ':' +
-                             spot.timestamp.getUTCMinutes().toString().padStart(2, '0');
+        const formattedTime = `${spot.timestamp.getUTCHours().toString().padStart(2, '0')}:${spot.timestamp.getUTCMinutes().toString().padStart(2, '0')}`;
         row.insertCell().textContent = formattedTime;
 
         // 2. Callsign
@@ -438,7 +437,7 @@ async function updateChaseTable() {
 
             const fracSpan = document.createElement('span');
             fracSpan.className = 'freq-frac';
-            fracSpan.textContent = '.' + fracPart;
+            fracSpan.textContent = `.${fracPart}`;
 
             frequencyCell.appendChild(wholeSpan);
             frequencyCell.appendChild(fracSpan);

@@ -602,8 +602,8 @@ async function checkFirmwareVersion(manualCheck = false) {
             if (latestVersion > currentBuildTime) {
                 // Newer firmware available - show dialog
                 const userResponse = confirm(
-                    'A new firmware version is available for your SOTAcat device.\n\n' +
-                    'Would you like to go to the Settings page to update your firmware?\n\n' +
+                    `A new firmware version is available for your SOTAcat device.\n\n` +
+                    `Would you like to go to the Settings page to update your firmware?\n\n` +
                     `Your version: ${new Date(currentBuildTime * 1000).toISOString()}\n` +
                     `New version: ${new Date(latestVersion * 1000).toISOString()}`
                 );

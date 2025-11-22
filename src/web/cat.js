@@ -73,7 +73,7 @@ const BAND_PLAN = {
 
 // Play pre-recorded message from specified memory bank slot (1-3)
 function playMsg(slot) {
-  const url = "/api/v1/msg?bank=" + slot;
+  const url = `/api/v1/msg?bank=${slot}`;
   fetch(url, { method: "PUT" }).catch((error) =>
     console.error("Fetch error:", error),
   );
@@ -85,7 +85,7 @@ function playMsg(slot) {
 
 // Send transmit state change request to radio (state: 0=RX, 1=TX)
 function sendXmitRequest(state) {
-  const url = "/api/v1/xmit?state=" + state;
+  const url = `/api/v1/xmit?state=${state}`;
   fetch(url, { method: "PUT" }).catch((error) =>
     console.error("Fetch error:", error)
   );
@@ -113,7 +113,7 @@ function toggleXmit() {
 function setPowerMinMax(maximum) {
   // KX3 max power is 15w, KX2 will accept that and gracefully set 10w instead
   // On both radios, actual power may be lower than requested, depending on mode, battery, etc.
-  const url = "/api/v1/power?power=" + (maximum ? "15" : "0");
+  const url = `/api/v1/power?power=${maximum ? "15" : "0"}`;
   fetch(url, { method: "PUT" }).catch((error) =>
     console.error("Fetch error:", error),
   );
@@ -130,7 +130,7 @@ function sendKeys(message) {
     return;
   }
 
-  const url = "/api/v1/keyer?message=" + message;
+  const url = `/api/v1/keyer?message=${message}`;
   fetch(url, { method: "PUT" }).catch((error) =>
     console.error("Fetch error:", error),
   );
@@ -812,7 +812,7 @@ function launchSOTAmat() {
   const sotamat_base_url = 'sotamat://api/v1?app=sotacat&appversion=2.1';
   const currentUrl = window.location.href;
   const encodedReturnPath = encodeURIComponent(currentUrl);
-  const newHref = sotamat_base_url + '&returnpath=' + encodedReturnPath;
+  const newHref = `${sotamat_base_url}&returnpath=${encodedReturnPath}`;
 
   window.open(newHref, '_blank');
 }

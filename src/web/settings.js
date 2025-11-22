@@ -15,7 +15,7 @@ async function syncTime() {
 
     try {
         // Create the PUT request using Fetch API
-        const response = await fetch('/api/v1/time?time=' + now, { method: 'PUT' });
+        const response = await fetch(`/api/v1/time?time=${now}`, { method: 'PUT' });
 
         if (response.status === 204) {
             console.log('Time sync successful');
