@@ -537,7 +537,7 @@ function attachSettingsEventListeners() {
     // Call sign input - enforce uppercase and valid characters
     const callSignInput = document.getElementById('callsign');
     if (callSignInput) {
-        callSignInput.addEventListener('input', function(e) {
+        callSignInput.addEventListener('input', function() {
             // Convert to uppercase and filter to only allow A-Z, 0-9, and /
             this.value = this.value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
         });

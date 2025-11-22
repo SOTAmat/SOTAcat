@@ -596,8 +596,6 @@ async function checkFirmwareVersion(manualCheck = false) {
         if (manualCheck) {
             // Manual check - always show popup with version strings and update timestamp
             shouldUpdateTimestamp = true;
-            const currentVersionString = currentVersion;
-            const serverVersionString = manifest.version;
 
             if (latestVersion > currentBuildTime) {
                 return `A new firmware is available: please update using instructions on the Settings page.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
