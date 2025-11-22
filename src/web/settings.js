@@ -265,7 +265,7 @@ function handleClickOutsidePopup(event) {
 
 // Toggle password field visibility (inputId: 'sta1-pass', 'sta2-pass', etc.)
 function togglePasswordVisibility(inputId) {
-    var passwordInput = document.getElementById(inputId);
+    const passwordInput = document.getElementById(inputId);
     passwordInput.type = (passwordInput.type === "password") ? "text" : "password";
 }
 
@@ -371,7 +371,7 @@ function customCheckSettingsValidity() {
 
 // Handle WiFi settings form submission with validation (event handler)
 function onSubmitSettings(event) {
-    var wifiForm = document.getElementById("wifi-settings");
+    const wifiForm = document.getElementById("wifi-settings");
 
     // Prevent the form from submitting until we've done our custom validation
     event.preventDefault();
@@ -497,7 +497,7 @@ let submitSettingsAttached = false;
 
 // Attach WiFi settings form submit handler (called once)
 function attachSubmitSettings() {
-    var wifiForm = document.getElementById("wifi-settings");
+    const wifiForm = document.getElementById("wifi-settings");
     wifiForm.addEventListener("submit", onSubmitSettings);
     submitSettingsAttached = true;
 }

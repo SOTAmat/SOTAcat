@@ -809,10 +809,10 @@ function loadCollapsibleStates() {
 
 // Launch SOTAmat app with return path to this page
 function launchSOTAmat() {
-  var sotamat_base_url = 'sotamat://api/v1?app=sotacat&appversion=2.1';
-  var currentUrl = window.location.href;
-  var encodedReturnPath = encodeURIComponent(currentUrl);
-  var newHref = sotamat_base_url + '&returnpath=' + encodedReturnPath;
+  const sotamat_base_url = 'sotamat://api/v1?app=sotacat&appversion=2.1';
+  const currentUrl = window.location.href;
+  const encodedReturnPath = encodeURIComponent(currentUrl);
+  const newHref = sotamat_base_url + '&returnpath=' + encodedReturnPath;
 
   window.open(newHref, '_blank');
 }
