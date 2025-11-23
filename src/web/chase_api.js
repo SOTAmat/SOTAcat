@@ -25,6 +25,7 @@ const callsignDetailsCache = {};
  * @param {string} options.mode - Filter by mode (CW, SSB, FM, FT8, FT4, etc.)
  * @param {string} options.sig - Filter by source (SOTA, POTA, WWFF, etc.)
  * @param {boolean} options.dedupe - Remove duplicate callsigns (default: true)
+ * @param {boolean} options.allow_qrt - Allow spots that are known to be QRT. (default: false)
  * @param {number} options.received_since - Unix timestamp for incremental updates
  * @returns {Promise<Array>} Array of spot objects
  */
@@ -32,6 +33,7 @@ async function fetchSpots(options = {}) {
     const params = new URLSearchParams({
         limit: options.limit || 200,
         dedupe: options.dedupe !== false ? 'true' : 'false',
+        allow_qrt: options.allow_qrt !== true ? 'false' : 'true',
     });
 
     if (options.max_age) {
