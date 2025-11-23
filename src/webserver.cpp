@@ -15,20 +15,20 @@ static const char * TAG8 = "sc:webserve";
     extern const uint8_t asset##_end[] asm ("_binary_" #asset "_end"); \
     extern const uint8_t asset##_srt[] asm ("_binary_" #asset "_start");
 
-DECLARE_ASSET (about_html)
-DECLARE_ASSET (about_js)
-DECLARE_ASSET (cat_html)
-DECLARE_ASSET (cat_js)
+DECLARE_ASSET (about_htmlgz)
+DECLARE_ASSET (about_jsgz)
+DECLARE_ASSET (cat_htmlgz)
+DECLARE_ASSET (cat_jsgz)
+DECLARE_ASSET (chase_api_jsgz)
+DECLARE_ASSET (chase_htmlgz)
+DECLARE_ASSET (chase_jsgz)
 DECLARE_ASSET (favicon_ico)
-DECLARE_ASSET (index_html)
-DECLARE_ASSET (main_js)
+DECLARE_ASSET (index_htmlgz)
+DECLARE_ASSET (main_jsgz)
 DECLARE_ASSET (sclogo_jpg)
-DECLARE_ASSET (settings_html)
-DECLARE_ASSET (settings_js)
-DECLARE_ASSET (chase_html)
-DECLARE_ASSET (chase_js)
-DECLARE_ASSET (chase_api_js)
-DECLARE_ASSET (style_css)
+DECLARE_ASSET (settings_htmlgz)
+DECLARE_ASSET (settings_jsgz)
+DECLARE_ASSET (style_cssgz)
 
 /**
  * Structure to map web URI to embedded binary asset locations.
@@ -39,6 +39,7 @@ typedef struct
     const uint8_t * asset_start;
     const uint8_t * asset_end;
     const char *    asset_type;
+    bool            gzipped;
     long            cache_time;  // Cache time in seconds
 } asset_entry_t;
 
@@ -46,24 +47,24 @@ typedef struct
  * Represents an array of asset entries to facilitate URI to asset mapping.
  */
 static const asset_entry_t asset_map[] = {
-    // uri               asset_start        asset_end          asset_type         cache_time
-    // ================= ================== ================== ================== ======================
-    {"/",              index_html_srt,    index_html_end,    "text/html",       60}, // 1 minute cache
-    {"/index.html",    index_html_srt,    index_html_end,    "text/html",       60},
-    {"/style.css",     style_css_srt,     style_css_end,     "text/css",        60},
-    {"/main.js",       main_js_srt,       main_js_end,       "text/javascript", 60},
-    {"/sclogo.jpg",    sclogo_jpg_srt,    sclogo_jpg_end,    "image/jpeg",      0 }, // Cache forever
-    {"/favicon.ico",   favicon_ico_srt,   favicon_ico_end,   "image/x-icon",    0 },
-    {"/chase.html",    chase_html_srt,    chase_html_end,    "text/html",       60},
-    {"/chase.js",      chase_js_srt,      chase_js_end,      "text/javascript", 60},
-    {"/chase_api.js",  chase_api_js_srt,  chase_api_js_end,  "text/javascript", 60},
-    {"/settings.html", settings_html_srt, settings_html_end, "text/html",       60},
-    {"/settings.js",   settings_js_srt,   settings_js_end,   "text/javascript", 60},
-    {"/cat.html",      cat_html_srt,      cat_html_end,      "text/html",       60},
-    {"/cat.js",        cat_js_srt,        cat_js_end,        "text/javascript", 60},
-    {"/about.html",    about_html_srt,    about_html_end,    "text/html",       60},
-    {"/about.js",      about_js_srt,      about_js_end,      "text/javascript", 60},
-    {NULL,             NULL,              NULL,              NULL,              0 }  // Sentinel to mark end of array
+    // uri             asset_start          asset_end            asset_type         gzip   cache_time
+    // =============== ==================== ==================== ================== ====== ==============
+    {"/",              index_htmlgz_srt,    index_htmlgz_end,    "text/html",       true,  60}, // 1 minute cache
+    {"/about.html",    about_htmlgz_srt,    about_htmlgz_end,    "text/html",       true,  60},
+    {"/about.js",      about_jsgz_srt,      about_jsgz_end,      "text/javascript", true,  60},
+    {"/cat.html",      cat_htmlgz_srt,      cat_htmlgz_end,      "text/html",       true,  60},
+    {"/cat.js",        cat_jsgz_srt,        cat_jsgz_end,        "text/javascript", true,  60},
+    {"/chase.html",    chase_htmlgz_srt,    chase_htmlgz_end,    "text/html",       true,  60},
+    {"/chase.js",      chase_jsgz_srt,      chase_jsgz_end,      "text/javascript", true,  60},
+    {"/chase_api.js",  chase_api_jsgz_srt,  chase_api_jsgz_end,  "text/javascript", true,  60},
+    {"/favicon.ico",   favicon_ico_srt,     favicon_ico_end,     "image/x-icon",    false, 0 },
+    {"/index.html",    index_htmlgz_srt,    index_htmlgz_end,    "text/html",       true,  60},
+    {"/main.js",       main_jsgz_srt,       main_jsgz_end,       "text/javascript", true,  60},
+    {"/sclogo.jpg",    sclogo_jpg_srt,      sclogo_jpg_end,      "image/jpeg",      false, 0 }, // Cache forever
+    {"/settings.html", settings_htmlgz_srt, settings_htmlgz_end, "text/html",       true,  60},
+    {"/settings.js",   settings_jsgz_srt,   settings_jsgz_end,   "text/javascript", true,  60},
+    {"/style.css",     style_cssgz_srt,     style_cssgz_end,     "text/css",        true,  60},
+    {NULL,             NULL,                NULL,                NULL,              true,  0 }  // Sent to mark end of array
 };
 
 /**
@@ -197,6 +198,8 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
 
     // Set headers
     httpd_resp_set_type (req, asset_ptr->asset_type);
+    if (asset_ptr->gzipped)
+        httpd_resp_set_hdr (req, "Content-Encoding", "gzip");
 
     // Add cache headers
     char cache_header[64];

@@ -9,20 +9,20 @@ FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.cpp)
 idf_component_register(
     SRCS ${app_sources} 
     EMBED_FILES 
-        "web/index.html"
+        "web/index.htmlgz"
         "web/sclogo.jpg"
         "web/favicon.ico"
-        "web/style.css"
-        "web/main.js"
-        "web/chase.html"
-        "web/chase.js"
-        "web/chase_api.js"
-        "web/cat.html"
-        "web/cat.js"
-        "web/settings.html"
-        "web/settings.js"
-        "web/about.html"
-        "web/about.js"
+        "web/style.cssgz"
+        "web/main.jsgz"
+        "web/chase.htmlgz"
+        "web/chase.jsgz"
+        "web/chase_api.jsgz"
+        "web/cat.htmlgz"
+        "web/cat.jsgz"
+        "web/settings.htmlgz"
+        "web/settings.jsgz"
+        "web/about.htmlgz"
+        "web/about.jsgz"
         )
 
 # Apply compile definitions to this component
