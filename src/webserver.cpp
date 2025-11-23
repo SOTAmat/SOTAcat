@@ -22,7 +22,7 @@ DECLARE_ASSET (cat_js)
 DECLARE_ASSET (favicon_ico)
 DECLARE_ASSET (index_html)
 DECLARE_ASSET (main_js)
-DECLARE_ASSET (sclogo_png)
+DECLARE_ASSET (sclogo_jpg)
 DECLARE_ASSET (settings_html)
 DECLARE_ASSET (settings_js)
 DECLARE_ASSET (chase_html)
@@ -52,7 +52,7 @@ static const asset_entry_t asset_map[] = {
     {"/index.html",    index_html_srt,    index_html_end,    "text/html",       60},
     {"/style.css",     style_css_srt,     style_css_end,     "text/css",        60},
     {"/main.js",       main_js_srt,       main_js_end,       "text/javascript", 60},
-    {"/sclogo.png",    sclogo_png_srt,    sclogo_png_end,    "image/png",       0 }, // Cache forever
+    {"/sclogo.jpg",    sclogo_jpg_srt,    sclogo_jpg_end,    "image/jpeg",      0 }, // Cache forever
     {"/favicon.ico",   favicon_ico_srt,   favicon_ico_end,   "image/x-icon",    0 },
     {"/chase.html",    chase_html_srt,    chase_html_end,    "text/html",       60},
     {"/chase.js",      chase_js_srt,      chase_js_end,      "text/javascript", 60},
@@ -82,36 +82,36 @@ typedef struct
  */
 static const api_handler_t api_handlers[] = {
     // method     api_name            handler_func                  requires_radio
-    // ========== =================== ============================= =============
-    {HTTP_GET,  "batteryPercent",   handler_batteryPercent_get,   false},
-    {HTTP_GET,  "batteryVoltage",   handler_batteryVoltage_get,   false},
-    {HTTP_GET,  "connectionStatus", handler_connectionStatus_get, false}, // disconnected radio /is/ a status
-    {HTTP_GET,  "frequency",        handler_frequency_get,        true },
-    {HTTP_GET,  "mode",             handler_mode_get,             true },
-    {HTTP_GET,  "power",            handler_power_get,            true },
-    {HTTP_GET,  "reboot",           handler_reboot_get,           false},
-    {HTTP_GET,  "rxBandwidth",      handler_mode_get,             true }, // alias for "mode"
-    {HTTP_GET,  "settings",         handler_settings_get,         false},
-    {HTTP_GET,  "version",          handler_version_get,          false},
-    {HTTP_PUT,  "frequency",        handler_frequency_put,        true },
-    {HTTP_PUT,  "keyer",            handler_keyer_put,            true },
-    {HTTP_PUT,  "mode",             handler_mode_put,             true },
-    {HTTP_PUT,  "msg",              handler_msg_put,              true },
-    {HTTP_PUT,  "power",            handler_power_put,            true },
-    {HTTP_PUT,  "rxBandwidth",      handler_mode_put,             true }, // alias for "mode"
-    {HTTP_PUT,  "time",             handler_time_put,             true },
-    {HTTP_PUT,  "xmit",             handler_xmit_put,             true },
-    {HTTP_PUT,  "atu",              handler_atu_put,              true },
-    {HTTP_POST, "prepareft8",       handler_prepareft8_post,      true },
-    {HTTP_POST, "ft8",              handler_ft8_post,             true },
-    {HTTP_POST, "cancelft8",        handler_cancelft8_post,       true },
-    {HTTP_POST, "settings",         handler_settings_post,        false},
-    {HTTP_POST, "ota",              handler_ota_post,             false},
-    {HTTP_GET,  "gps",              handler_gps_settings_get,     false},
-    {HTTP_POST, "gps",              handler_gps_settings_post,    false},
-    {HTTP_GET,  "callsign",         handler_callsign_settings_get,false},
-    {HTTP_POST, "callsign",         handler_callsign_settings_post,false},
-    {0,         NULL,               NULL,                         false}  // Sentinel to mark end of array
+    // ========  ================== =============================== =============
+    {HTTP_GET,  "batteryPercent",   handler_batteryPercent_get,     false},
+    {HTTP_GET,  "batteryVoltage",   handler_batteryVoltage_get,     false},
+    {HTTP_GET,  "connectionStatus", handler_connectionStatus_get,   false}, // disconnected radio /is/ a status
+    {HTTP_GET,  "frequency",        handler_frequency_get,          true },
+    {HTTP_GET,  "mode",             handler_mode_get,               true },
+    {HTTP_GET,  "power",            handler_power_get,              true },
+    {HTTP_GET,  "reboot",           handler_reboot_get,             false},
+    {HTTP_GET,  "rxBandwidth",      handler_mode_get,               true }, // alias for "mode"
+    {HTTP_GET,  "settings",         handler_settings_get,           false},
+    {HTTP_GET,  "version",          handler_version_get,            false},
+    {HTTP_PUT,  "frequency",        handler_frequency_put,          true },
+    {HTTP_PUT,  "keyer",            handler_keyer_put,              true },
+    {HTTP_PUT,  "mode",             handler_mode_put,               true },
+    {HTTP_PUT,  "msg",              handler_msg_put,                true },
+    {HTTP_PUT,  "power",            handler_power_put,              true },
+    {HTTP_PUT,  "rxBandwidth",      handler_mode_put,               true }, // alias for "mode"
+    {HTTP_PUT,  "time",             handler_time_put,               true },
+    {HTTP_PUT,  "xmit",             handler_xmit_put,               true },
+    {HTTP_PUT,  "atu",              handler_atu_put,                true },
+    {HTTP_POST, "prepareft8",       handler_prepareft8_post,        true },
+    {HTTP_POST, "ft8",              handler_ft8_post,               true },
+    {HTTP_POST, "cancelft8",        handler_cancelft8_post,         true },
+    {HTTP_POST, "settings",         handler_settings_post,          false},
+    {HTTP_POST, "ota",              handler_ota_post,               false},
+    {HTTP_GET,  "gps",              handler_gps_settings_get,       false},
+    {HTTP_POST, "gps",              handler_gps_settings_post,      false},
+    {HTTP_GET,  "callsign",         handler_callsign_settings_get,  false},
+    {HTTP_POST, "callsign",         handler_callsign_settings_post, false},
+    {0,         NULL,               NULL,                           false}  // Sentinel to mark end of array
 };
 
 /**
