@@ -177,22 +177,16 @@ static void wifi_init_softap () {
 
     ESP_LOGI (TAG8, "Setting up soft AP");
     wifi_config_t    wifi_config = {};
-    wifi_ap_config_t ap_config   = {
-          .ssid            = "",
-          .password        = "",
-          .ssid_len        = 0,
-          .channel         = 1,
-          .authmode        = WIFI_AUTH_WPA2_PSK,
-          .ssid_hidden     = 0,
-          .max_connection  = 8,
-          .beacon_interval = 100,
-          .pairwise_cipher = WIFI_CIPHER_TYPE_CCMP,
-          .ftm_responder   = false,
-          .pmf_cfg         = {
-                              .capable  = true,
-                              .required = false},
-          .sae_pwe_h2e = WPA3_SAE_PWE_BOTH
-    };
+    wifi_ap_config_t ap_config   = {};  // Zero-initialize all fields
+    ap_config.channel         = 1;
+    ap_config.authmode        = WIFI_AUTH_WPA2_PSK;
+    ap_config.max_connection  = 8;
+    ap_config.beacon_interval = 100;
+    ap_config.pairwise_cipher = WIFI_CIPHER_TYPE_CCMP;
+    ap_config.ftm_responder   = false;
+    ap_config.pmf_cfg.capable = true;
+    ap_config.pmf_cfg.required = false;
+    ap_config.sae_pwe_h2e     = WPA3_SAE_PWE_BOTH;
     memcpy (&wifi_config.ap, &ap_config, sizeof (wifi_ap_config_t));
 
     strlcpy ((char *)wifi_config.ap.ssid, g_ap_ssid, sizeof (wifi_config.ap.ssid));
