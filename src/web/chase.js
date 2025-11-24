@@ -5,7 +5,7 @@
 
 // Configuration constants - adjust these to change behavior
 const CHASE_HISTORY_DURATION_SECONDS = 3600; // 1 hour (3600 seconds)
-const CHASE_DEFAULT_MODE_FILTER = 'SSB'; // Default mode filter
+const CHASE_DEFAULT_MODE_FILTER = "SSB"; // Default mode filter
 const CHASE_API_SPOT_LIMIT = 500; // Maximum number of spots to fetch from API
 const CHASE_MIN_REFRESH_INTERVAL_MS = 60000; // Minimum time between API calls (60 seconds)
 const CHASE_AUTO_REFRESH_INTERVAL_MS = 60000; // Auto-refresh interval (60 seconds)
@@ -35,12 +35,12 @@ const ChaseState = {
     suggestionRevertTimeoutId: null,
 
     // Sort state
-    sortField: 'timestamp',
-    lastSortField: 'timestamp',
+    sortField: "timestamp",
+    lastSortField: "timestamp",
     descending: true,
 
     // UI state
-    chaseEventListenersAttached: false
+    chaseEventListenersAttached: false,
 };
 
 // ============================================================================
@@ -49,8 +49,8 @@ const ChaseState = {
 
 // Load saved sort preferences from localStorage and update ChaseState
 function loadSortState() {
-    const savedSortField = localStorage.getItem('chaseSortField');
-    const savedSortDescending = localStorage.getItem('chaseSortDescending');
+    const savedSortField = localStorage.getItem("chaseSortField");
+    const savedSortDescending = localStorage.getItem("chaseSortDescending");
 
     if (savedSortField !== null) {
         ChaseState.sortField = savedSortField;
@@ -61,7 +61,7 @@ function loadSortState() {
     }
 
     if (savedSortDescending !== null) {
-        ChaseState.descending = (savedSortDescending === 'true');
+        ChaseState.descending = savedSortDescending === "true";
     } else {
         ChaseState.descending = true;
     }
@@ -69,21 +69,21 @@ function loadSortState() {
 
 // Save current sort preferences from ChaseState to localStorage
 function saveSortState() {
-    localStorage.setItem('chaseSortField', ChaseState.sortField);
-    localStorage.setItem('chaseSortDescending', ChaseState.descending);
+    localStorage.setItem("chaseSortField", ChaseState.sortField);
+    localStorage.setItem("chaseSortDescending", ChaseState.descending);
 }
 
 // Load saved type filter from localStorage (returns 'xOTA', 'Cluster', 'All', etc.)
 function loadTypeFilter() {
-    const savedType = localStorage.getItem('chaseTypeFilter');
-    ChaseState.typeFilter = savedType !== null ? savedType : 'xOTA'; // Default to xOTA only (not DX cluster)
+    const savedType = localStorage.getItem("chaseTypeFilter");
+    ChaseState.typeFilter = savedType !== null ? savedType : "xOTA"; // Default to xOTA only (not DX cluster)
     return ChaseState.typeFilter;
 }
 
 // Save type filter selection to localStorage and update ChaseState
 function saveTypeFilter(type) {
     ChaseState.typeFilter = type;
-    localStorage.setItem('chaseTypeFilter', type);
+    localStorage.setItem("chaseTypeFilter", type);
 }
 
 // Handle type filter dropdown change event (saves and applies new filter)
@@ -94,21 +94,21 @@ function onTypeFilterChange(type) {
 
 // Load saved mode filter from localStorage (returns 'All', 'CW', 'SSB', 'DATA', etc.)
 function loadGlobalModeFilter() {
-    const savedMode = localStorage.getItem('globalModeFilter');
-    ChaseState.modeFilter = savedMode !== null ? savedMode : 'All';
+    const savedMode = localStorage.getItem("globalModeFilter");
+    ChaseState.modeFilter = savedMode !== null ? savedMode : "All";
     return ChaseState.modeFilter;
 }
 
 // Save mode filter selection to localStorage and update ChaseState
 function saveGlobalModeFilter(mode) {
     ChaseState.modeFilter = mode;
-    localStorage.setItem('globalModeFilter', mode);
+    localStorage.setItem("globalModeFilter", mode);
 }
 
 // Apply saved mode filter to UI dropdown and table rows
 function applyGlobalModeFilter() {
     // Get the mode selector element
-    const modeSelector = document.getElementById('mode-filter');
+    const modeSelector = document.getElementById("mode-filter");
     if (modeSelector && ChaseState.modeFilter !== null) {
         modeSelector.value = ChaseState.modeFilter;
     }
@@ -125,15 +125,15 @@ function onModeFilterChange(mode) {
 
 // Load auto-refresh preference from localStorage
 function loadAutoRefreshEnabled() {
-    const saved = localStorage.getItem('chaseAutoRefreshEnabled');
-    ChaseState.autoRefreshEnabled = saved === 'true';
+    const saved = localStorage.getItem("chaseAutoRefreshEnabled");
+    ChaseState.autoRefreshEnabled = saved === "true";
     return ChaseState.autoRefreshEnabled;
 }
 
 // Save auto-refresh preference to localStorage
 function saveAutoRefreshEnabled(enabled) {
     ChaseState.autoRefreshEnabled = enabled;
-    localStorage.setItem('chaseAutoRefreshEnabled', enabled.toString());
+    localStorage.setItem("chaseAutoRefreshEnabled", enabled.toString());
 }
 
 // ============================================================================
@@ -142,7 +142,7 @@ function saveAutoRefreshEnabled(enabled) {
 
 // Update the "Last refresh X ago" display or countdown for auto-refresh
 function updateRefreshTimer() {
-    const timerElement = document.getElementById('last-refresh-time');
+    const timerElement = document.getElementById("last-refresh-time");
     if (!timerElement) return;
 
     const now = Date.now();
@@ -152,7 +152,7 @@ function updateRefreshTimer() {
         const remainingMs = ChaseState.nextAutoRefreshTime - now;
 
         if (remainingMs <= 0) {
-            timerElement.textContent = 'Auto-refreshing now...';
+            timerElement.textContent = "Auto-refreshing now...";
             return;
         }
 
@@ -161,7 +161,7 @@ function updateRefreshTimer() {
         const seconds = remainingSeconds % 60;
 
         if (minutes > 0) {
-            timerElement.textContent = `Auto-refresh in ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            timerElement.textContent = `Auto-refresh in ${minutes}:${seconds.toString().padStart(2, "0")}`;
         } else {
             timerElement.textContent = `Auto-refresh in ${seconds} sec`;
         }
@@ -170,7 +170,7 @@ function updateRefreshTimer() {
 
     // Manual mode: show time since last refresh
     if (ChaseState.lastRefreshCompleteTime === 0) {
-        timerElement.textContent = 'Last refresh 0:00 ago';
+        timerElement.textContent = "Last refresh 0:00 ago";
         return;
     }
 
@@ -178,7 +178,7 @@ function updateRefreshTimer() {
     const minutes = Math.floor(elapsedSeconds / 60);
     const seconds = elapsedSeconds % 60;
 
-    timerElement.textContent = `Last refresh ${minutes}:${seconds.toString().padStart(2, '0')} ago`;
+    timerElement.textContent = `Last refresh ${minutes}:${seconds.toString().padStart(2, "0")} ago`;
 }
 
 // Start the refresh timer interval
@@ -256,7 +256,7 @@ function scheduleNextAutoRefresh() {
 
     // Schedule the refresh
     ChaseState.autoRefreshTimeoutId = setTimeout(() => {
-        console.log('Auto-refresh triggered');
+        console.log("Auto-refresh triggered");
         refreshChaseJson(true, true); // force=true, isAutoRefresh=true
     }, CHASE_AUTO_REFRESH_INTERVAL_MS);
 
@@ -267,20 +267,20 @@ function scheduleNextAutoRefresh() {
 function getFrequencyBand(frequencyHz) {
     const freqMHz = frequencyHz / 1000000;
 
-    if (freqMHz >= 1.8 && freqMHz <= 2.0) return '160m';
-    if (freqMHz >= 3.5 && freqMHz <= 4.0) return '80m';
-    if (freqMHz >= 5.3 && freqMHz <= 5.4) return '60m';
-    if (freqMHz >= 7.0 && freqMHz <= 7.3) return '40m';
-    if (freqMHz >= 10.1 && freqMHz <= 10.15) return '30m';
-    if (freqMHz >= 14.0 && freqMHz <= 14.35) return '20m';
-    if (freqMHz >= 18.068 && freqMHz <= 18.168) return '17m';
-    if (freqMHz >= 21.0 && freqMHz <= 21.45) return '15m';
-    if (freqMHz >= 24.89 && freqMHz <= 24.99) return '12m';
-    if (freqMHz >= 28.0 && freqMHz <= 29.7) return '10m';
-    if (freqMHz >= 50.0 && freqMHz <= 54.0) return '6m';
-    if (freqMHz >= 144.0 && freqMHz <= 148.0) return '2m';
-    if (freqMHz >= 420.0 && freqMHz <= 450.0) return '70cm';
-    if (freqMHz >= 1240.0 && freqMHz <= 1300.0) return '23cm';
+    if (freqMHz >= 1.8 && freqMHz <= 2.0) return "160m";
+    if (freqMHz >= 3.5 && freqMHz <= 4.0) return "80m";
+    if (freqMHz >= 5.3 && freqMHz <= 5.4) return "60m";
+    if (freqMHz >= 7.0 && freqMHz <= 7.3) return "40m";
+    if (freqMHz >= 10.1 && freqMHz <= 10.15) return "30m";
+    if (freqMHz >= 14.0 && freqMHz <= 14.35) return "20m";
+    if (freqMHz >= 18.068 && freqMHz <= 18.168) return "17m";
+    if (freqMHz >= 21.0 && freqMHz <= 21.45) return "15m";
+    if (freqMHz >= 24.89 && freqMHz <= 24.99) return "12m";
+    if (freqMHz >= 28.0 && freqMHz <= 29.7) return "10m";
+    if (freqMHz >= 50.0 && freqMHz <= 54.0) return "6m";
+    if (freqMHz >= 144.0 && freqMHz <= 148.0) return "2m";
+    if (freqMHz >= 420.0 && freqMHz <= 450.0) return "70cm";
+    if (freqMHz >= 1240.0 && freqMHz <= 1300.0) return "23cm";
 
     // Return null for frequencies outside amateur bands
     return null;
@@ -295,7 +295,7 @@ function trackManualRefresh() {
 
     // Remove refreshes outside the tracking window
     ChaseState.manualRefreshTimes = ChaseState.manualRefreshTimes.filter(
-        time => (now - time) < CHASE_AUTO_SUGGEST_WINDOW_MS
+        (time) => now - time < CHASE_AUTO_SUGGEST_WINDOW_MS
     );
 
     // Check if we should suggest auto-refresh
@@ -304,7 +304,7 @@ function trackManualRefresh() {
     // If we're now suggesting, set a timer to revert after 5 seconds
     if (shouldSuggest && !ChaseState.suggestionRevertTimeoutId) {
         // Only set the timeout if we don't already have one active
-        console.log('Setting 5-second revert timer for auto-refresh suggestion');
+        console.log("Setting 5-second revert timer for auto-refresh suggestion");
         ChaseState.suggestionRevertTimeoutId = setTimeout(() => {
             console.log('Reverting auto-refresh suggestion back to "Refresh Now"');
             ChaseState.manualRefreshTimes = [];
@@ -318,33 +318,31 @@ function trackManualRefresh() {
 
 // Update refresh button label based on current state
 function updateRefreshButtonLabel() {
-    const refreshButton = document.getElementById('refresh-button');
+    const refreshButton = document.getElementById("refresh-button");
     if (!refreshButton) return;
 
     if (ChaseState.autoRefreshEnabled) {
         // Auto-refresh is enabled
-        console.log('Button state: Disable Auto-Refresh');
-        refreshButton.textContent = 'Disable Auto-Refresh';
-        refreshButton.classList.add('btn-auto-refresh-active');
+        console.log("Button state: Disable Auto-Refresh");
+        refreshButton.textContent = "Disable Auto-Refresh";
+        refreshButton.classList.add("btn-auto-refresh-active");
     } else if (shouldSuggestAutoRefresh()) {
         // Suggest enabling auto-refresh
-        console.log('Button state: Enable Auto-Refresh?');
-        refreshButton.textContent = 'Enable Auto-Refresh?';
-        refreshButton.classList.remove('btn-auto-refresh-active');
+        console.log("Button state: Enable Auto-Refresh?");
+        refreshButton.textContent = "Enable Auto-Refresh?";
+        refreshButton.classList.remove("btn-auto-refresh-active");
     } else {
         // Normal manual refresh
-        console.log('Button state: Refresh Now');
-        refreshButton.textContent = 'Refresh Now';
-        refreshButton.classList.remove('btn-auto-refresh-active');
+        console.log("Button state: Refresh Now");
+        refreshButton.textContent = "Refresh Now";
+        refreshButton.classList.remove("btn-auto-refresh-active");
     }
 }
 
 // Check if we should suggest auto-refresh (without modifying state)
 function shouldSuggestAutoRefresh() {
     const now = Date.now();
-    const recentRefreshes = ChaseState.manualRefreshTimes.filter(
-        time => (now - time) < CHASE_AUTO_SUGGEST_WINDOW_MS
-    );
+    const recentRefreshes = ChaseState.manualRefreshTimes.filter((time) => now - time < CHASE_AUTO_SUGGEST_WINDOW_MS);
     return recentRefreshes.length >= CHASE_AUTO_SUGGEST_THRESHOLD;
 }
 
@@ -356,23 +354,24 @@ function tuneRadioHz(frequency, mode) {
         else useMode = "USB";
     }
 
-    fetch(`/api/v1/frequency?frequency=${frequency}`, { method: 'PUT' })
-    .then(response => {
-        if (response.ok) {
-                console.log('Frequency updated successfully');
-                fetch(`/api/v1/mode?bw=${useMode}`, { method: 'PUT' })
-                .then(response => {
-                    if (response.ok)    {   console.log('Mode updated successfully');   }
-                    else                {   console.error('Error updating mode');       }
-                })
-                .catch(error => console.error('Fetch error:', error));
-        }
-        else
-        {
-            console.error('Error updating frequency');
-        }
-    })
-    .catch(error => console.error('Fetch error:', error));
+    fetch(`/api/v1/frequency?frequency=${frequency}`, { method: "PUT" })
+        .then((response) => {
+            if (response.ok) {
+                console.log("Frequency updated successfully");
+                fetch(`/api/v1/mode?bw=${useMode}`, { method: "PUT" })
+                    .then((response) => {
+                        if (response.ok) {
+                            console.log("Mode updated successfully");
+                        } else {
+                            console.error("Error updating mode");
+                        }
+                    })
+                    .catch((error) => console.error("Fetch error:", error));
+            } else {
+                console.error("Error updating frequency");
+            }
+        })
+        .catch((error) => console.error("Fetch error:", error));
 }
 
 // ============================================================================
@@ -383,7 +382,7 @@ function tuneRadioHz(frequency, mode) {
 async function updateChaseTable() {
     const data = await AppState.latestChaseJson;
     if (data == null) {
-        console.info('Chase Json is null');
+        console.info("Chase Json is null");
         return;
     }
 
@@ -393,10 +392,10 @@ async function updateChaseTable() {
         return 0;
     });
 
-    const tbody = document.querySelector('#chase-table tbody');
-    const newTbody = document.createElement('tbody');
+    const tbody = document.querySelector("#chase-table tbody");
+    const newTbody = document.createElement("tbody");
 
-    data.forEach(spot => {
+    data.forEach((spot) => {
         const row = newTbody.insertRow();
         const modeType = spot.modeType;
 
@@ -405,10 +404,10 @@ async function updateChaseTable() {
         row.classList.add(`row-type-${spot.sig}`); // Type-based class for filtering
 
         // Make entire row clickable to tune radio (except for links)
-        row.style.cursor = 'pointer';
-        row.onclick = function(event) {
+        row.style.cursor = "pointer";
+        row.onclick = function (event) {
             // Don't tune if user clicked on a link (Call or Ref columns)
-            if (event.target.tagName === 'A' || event.target.closest('a')) {
+            if (event.target.tagName === "A" || event.target.closest("a")) {
                 return; // Let the link handle it
             }
             // Tune the radio
@@ -418,30 +417,30 @@ async function updateChaseTable() {
         };
 
         // 1. UTC time
-        const formattedTime = `${spot.timestamp.getUTCHours().toString().padStart(2, '0')}:${spot.timestamp.getUTCMinutes().toString().padStart(2, '0')}`;
+        const formattedTime = `${spot.timestamp.getUTCHours().toString().padStart(2, "0")}:${spot.timestamp.getUTCMinutes().toString().padStart(2, "0")}`;
         row.insertCell().textContent = formattedTime;
 
         // 2. Callsign
         const callsignCell = row.insertCell();
-        const callsignLink = document.createElement('a');
+        const callsignLink = document.createElement("a");
         callsignLink.href = `https://qrz.com/db/${spot.baseCallsign}`;
-        callsignLink.target = '_blank';
+        callsignLink.target = "_blank";
         callsignLink.textContent = spot.activatorCallsign;
         callsignCell.appendChild(callsignLink);
 
         // 3. MHz Frequency (styled digits, row click tunes radio)
         const frequencyCell = row.insertCell();
-        if (spot.hertz && typeof spot.hertz === 'number') {
+        if (spot.hertz && typeof spot.hertz === "number") {
             const freqMHz = spot.hertz / 1000000;
-            const [wholePart, fracPart] = freqMHz.toFixed(3).split('.');
+            const [wholePart, fracPart] = freqMHz.toFixed(3).split(".");
 
             // Create styled frequency display with emphasis on MHz part
-            const wholeSpan = document.createElement('span');
-            wholeSpan.className = 'freq-whole';
+            const wholeSpan = document.createElement("span");
+            wholeSpan.className = "freq-whole";
             wholeSpan.textContent = wholePart;
 
-            const fracSpan = document.createElement('span');
-            fracSpan.className = 'freq-frac';
+            const fracSpan = document.createElement("span");
+            fracSpan.className = "freq-frac";
             fracSpan.textContent = `.${fracPart}`;
 
             frequencyCell.appendChild(wholeSpan);
@@ -450,19 +449,19 @@ async function updateChaseTable() {
             // Add band coloring
             const band = getFrequencyBand(spot.hertz);
             if (band) {
-                frequencyCell.classList.add('band-cell', `band-${band}`);
+                frequencyCell.classList.add("band-cell", `band-${band}`);
             }
         }
 
         // 4. Mode
         const modeCell = row.insertCell();
         modeCell.textContent = spot.mode.toUpperCase().trim();
-        modeCell.classList.add('mode-cell');
+        modeCell.classList.add("mode-cell");
         modeCell.classList.add(`mode-cell-${modeType}`);
 
         // 5. Type (xOTA program badge: SOTA/POTA/etc.)
         const typeCell = row.insertCell();
-        const typeBadge = document.createElement('span');
+        const typeBadge = document.createElement("span");
         typeBadge.className = `type-badge type-badge-${spot.sig}`;
         typeBadge.textContent = spot.sig;
         typeCell.appendChild(typeBadge);
@@ -471,30 +470,30 @@ async function updateChaseTable() {
         const refCell = row.insertCell();
 
         // Generate appropriate link based on sig type
-        if (spot.sig === 'SOTA' && spot.locationID !== '-') {
-            const refLink = document.createElement('a');
+        if (spot.sig === "SOTA" && spot.locationID !== "-") {
+            const refLink = document.createElement("a");
             refLink.href = `https://sotl.as/summits/${spot.locationID}`;
-            refLink.target = '_blank';
+            refLink.target = "_blank";
             refLink.textContent = spot.locationID;
             refCell.appendChild(refLink);
-        } else if (spot.sig === 'POTA' && spot.locationID !== '-') {
-            const refLink = document.createElement('a');
+        } else if (spot.sig === "POTA" && spot.locationID !== "-") {
+            const refLink = document.createElement("a");
             refLink.href = `https://pota.app/#/park/${spot.locationID}`;
-            refLink.target = '_blank';
+            refLink.target = "_blank";
             refLink.textContent = spot.locationID;
             refCell.appendChild(refLink);
-        } else if (spot.sig === 'WWFF' && spot.locationID !== '-') {
-            const refLink = document.createElement('a');
+        } else if (spot.sig === "WWFF" && spot.locationID !== "-") {
+            const refLink = document.createElement("a");
             refLink.href = `https://wwff.co/directory/?showRef=${spot.locationID}`;
-            refLink.target = '_blank';
+            refLink.target = "_blank";
             refLink.textContent = spot.locationID;
             refCell.appendChild(refLink);
-        } else if (spot.sig === 'ZLOTA' && spot.locationID !== '-') {
-            const refLink = document.createElement('a');
+        } else if (spot.sig === "ZLOTA" && spot.locationID !== "-") {
+            const refLink = document.createElement("a");
             // Convert slash format (ZLP/WK-0503) to underscore format (ZLP_WK-0503) for URL
-            const urlRef = spot.locationID.replace('/', '_');
+            const urlRef = spot.locationID.replace("/", "_");
             refLink.href = `https://ontheair.nz/assets/${urlRef}`;
-            refLink.target = '_blank';
+            refLink.target = "_blank";
             refLink.textContent = spot.locationID;
             refCell.appendChild(refLink);
         } else {
@@ -513,7 +512,7 @@ async function updateChaseTable() {
     });
 
     tbody.parentNode.replaceChild(newTbody, tbody);
-    console.info('Chase table updated');
+    console.info("Chase table updated");
 
     setTimeout(applyTableFilters, 0);
 }
@@ -524,28 +523,28 @@ async function updateChaseTable() {
 
 // Apply mode and type filters to table rows, showing/hiding as needed
 function applyTableFilters() {
-    const tableBody = document.querySelector('#chase-table tbody');
+    const tableBody = document.querySelector("#chase-table tbody");
     if (!tableBody) {
-        console.warn('Chase table body not found, cannot apply filters');
+        console.warn("Chase table body not found, cannot apply filters");
         return;
     }
 
-    const allRows = tableBody.querySelectorAll('tr');
+    const allRows = tableBody.querySelectorAll("tr");
     if (allRows.length === 0) {
-        console.warn('No rows in Chase table, skipping filter application');
+        console.warn("No rows in Chase table, skipping filter application");
         return;
     }
 
     // Get current filter settings
-    const selectedMode = ChaseState.modeFilter || 'All';
-    const selectedType = ChaseState.typeFilter || 'All';
+    const selectedMode = ChaseState.modeFilter || "All";
+    const selectedType = ChaseState.typeFilter || "All";
 
     console.log(`Applying Chase filters - Mode: ${selectedMode}, Type: ${selectedType}, Rows: ${allRows.length}`);
 
     let visibleRows = 0;
     let hiddenRows = 0;
 
-    allRows.forEach(row => {
+    allRows.forEach((row) => {
         // Check filters
         let modeMatch = false;
         let typeMatch = false;
@@ -554,9 +553,10 @@ function applyTableFilters() {
         if (selectedMode === "All") {
             modeMatch = true;
         } else if (selectedMode === "DATA") {
-            modeMatch = row.classList.contains('row-mode-DATA') ||
-                       row.classList.contains('row-mode-FT8') ||
-                       row.classList.contains('row-mode-FT4');
+            modeMatch =
+                row.classList.contains("row-mode-DATA") ||
+                row.classList.contains("row-mode-FT8") ||
+                row.classList.contains("row-mode-FT4");
         } else {
             modeMatch = row.classList.contains(`row-mode-${selectedMode}`);
         }
@@ -566,10 +566,10 @@ function applyTableFilters() {
             typeMatch = true;
         } else if (selectedType === "xOTA") {
             // Show all xOTA spots (SOTA, POTA, WWFF, GMA, IOTA, WCA, etc.) but NOT Cluster
-            typeMatch = !row.classList.contains('row-type-Cluster');
+            typeMatch = !row.classList.contains("row-type-Cluster");
         } else if (selectedType === "Cluster") {
             // Show only DX cluster spots (non-xOTA)
-            typeMatch = row.classList.contains('row-type-Cluster');
+            typeMatch = row.classList.contains("row-type-Cluster");
         } else {
             // Specific type (SOTA, POTA, WWFF, GMA, IOTA, WCA)
             typeMatch = row.classList.contains(`row-type-${selectedType}`);
@@ -577,13 +577,13 @@ function applyTableFilters() {
 
         // Show row only if ALL filters match
         if (modeMatch && typeMatch) {
-            row.style.display = '';
+            row.style.display = "";
             // Apply alternating row background based on visible row index
-            row.classList.toggle('even-row', visibleRows % 2 === 1);
+            row.classList.toggle("even-row", visibleRows % 2 === 1);
             visibleRows++;
         } else {
-            row.style.display = 'none';
-            row.classList.remove('even-row');
+            row.style.display = "none";
+            row.classList.remove("even-row");
             hiddenRows++;
         }
     });
@@ -597,12 +597,12 @@ function applyTableFilters() {
 
 // Update visual sort indicators on table headers (shows ascending/descending arrows)
 function updateSortIndicators(headers, sortField, descending) {
-    headers.forEach(header => {
-        const span = header.querySelector('span[data-sort-field]');
-        if (span && span.getAttribute('data-sort-field') === sortField) {
-            span.setAttribute('data-sort-dir', descending ? 'desc' : 'asc');
+    headers.forEach((header) => {
+        const span = header.querySelector("span[data-sort-field]");
+        if (span && span.getAttribute("data-sort-field") === sortField) {
+            span.setAttribute("data-sort-dir", descending ? "desc" : "asc");
         } else if (span) {
-            span.removeAttribute('data-sort-dir');
+            span.removeAttribute("data-sort-dir");
         }
     });
 }
@@ -614,7 +614,7 @@ function updateSortIndicators(headers, sortField, descending) {
 // Fetch latest spot data from Spothole API with rate limiting (force=true bypasses rate limit)
 async function refreshChaseJson(force, isAutoRefresh = false) {
     // Get refresh button for UI feedback
-    const refreshButton = document.getElementById('refresh-button');
+    const refreshButton = document.getElementById("refresh-button");
     const originalText = refreshButton?.textContent;
 
     // Track manual refreshes for smart suggestions (but not auto-refreshes)
@@ -631,8 +631,10 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
     const timeSinceLastFetch = now - ChaseState.lastRefreshTime;
 
     if (!force && timeSinceLastFetch < CHASE_MIN_REFRESH_INTERVAL_MS) {
-        console.info(`Chase rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`);
-        if (typeof updateChaseTable === 'function') {
+        console.info(
+            `Chase rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`
+        );
+        if (typeof updateChaseTable === "function") {
             updateChaseTable();
         }
         return;
@@ -641,12 +643,12 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
     try {
         // Set button to refreshing state
         if (refreshButton) {
-            refreshButton.textContent = 'Refreshing...';
+            refreshButton.textContent = "Refreshing...";
             refreshButton.disabled = true;
-            refreshButton.classList.add('btn-disabled');
+            refreshButton.classList.add("btn-disabled");
         }
 
-        console.log('Fetching Chase data from Spothole API');
+        console.log("Fetching Chase data from Spothole API");
         ChaseState.lastRefreshTime = Date.now();
 
         // Build fetch options
@@ -656,7 +658,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
         const fetchOptions = {
             max_age: CHASE_HISTORY_DURATION_SECONDS,
             limit: CHASE_API_SPOT_LIMIT,
-            dedupe: true
+            dedupe: true,
         };
 
         // Get user location
@@ -668,10 +670,10 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
         AppState.latestChaseJson = spots;
         console.info(`Chase Json updated: ${spots.length} spots`);
 
-        if (typeof updateChaseTable === 'function') {
+        if (typeof updateChaseTable === "function") {
             updateChaseTable();
         } else {
-            console.error('updateChaseTable function not found');
+            console.error("updateChaseTable function not found");
         }
 
         // Update refresh complete time and restart timer
@@ -682,12 +684,11 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
         if (ChaseState.autoRefreshEnabled) {
             scheduleNextAutoRefresh();
         }
-
     } catch (error) {
-        console.error('Error fetching or processing Chase data:', error);
+        console.error("Error fetching or processing Chase data:", error);
         // Show error to user if this was a manual refresh
         if (force && !isAutoRefresh) {
-            alert('Failed to fetch spots from Spothole API. Please check your internet connection and try again.');
+            alert("Failed to fetch spots from Spothole API. Please check your internet connection and try again.");
         }
 
         // If auto-refresh is enabled, schedule retry
@@ -699,7 +700,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
         if (refreshButton) {
             updateRefreshButtonLabel();
             refreshButton.disabled = false;
-            refreshButton.classList.remove('btn-disabled');
+            refreshButton.classList.remove("btn-disabled");
         }
     }
 }
@@ -710,7 +711,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
 
 // Called when Chase tab becomes visible
 function onChaseAppearing() {
-    console.info('Chase tab appearing');
+    console.info("Chase tab appearing");
 
     // Start the refresh timer
     startRefreshTimer();
@@ -722,9 +723,9 @@ function onChaseAppearing() {
     if (!ChaseState.chaseEventListenersAttached) {
         ChaseState.chaseEventListenersAttached = true;
 
-        const refreshButton = document.getElementById('refresh-button');
+        const refreshButton = document.getElementById("refresh-button");
         if (refreshButton) {
-            refreshButton.addEventListener('click', () => {
+            refreshButton.addEventListener("click", () => {
                 if (ChaseState.autoRefreshEnabled) {
                     // Currently in auto-refresh mode - turn it off
                     stopAutoRefresh();
@@ -740,46 +741,50 @@ function onChaseAppearing() {
             });
         }
 
-    // Update button label to reflect current state
-    updateRefreshButtonLabel();
+        // Update button label to reflect current state
+        updateRefreshButtonLabel();
 
-    // Load all saved settings
-    loadSortState();
+        // Load all saved settings
+        loadSortState();
 
-    // Load and apply filters
-    loadGlobalModeFilter();
+        // Load and apply filters
+        loadGlobalModeFilter();
 
-    // Override with Chase default if not set
-    if (!ChaseState.modeFilter || ChaseState.modeFilter === 'All') {
-        ChaseState.modeFilter = CHASE_DEFAULT_MODE_FILTER;
-    }
+        // Override with Chase default if not set
+        if (!ChaseState.modeFilter || ChaseState.modeFilter === "All") {
+            ChaseState.modeFilter = CHASE_DEFAULT_MODE_FILTER;
+        }
 
-    loadTypeFilter();
+        loadTypeFilter();
 
-        const modeSelector = document.getElementById('mode-filter');
+        const modeSelector = document.getElementById("mode-filter");
         if (modeSelector) {
-            modeSelector.onchange = function() {
+            modeSelector.onchange = function () {
                 onModeFilterChange(this.value);
             };
         }
 
-        const typeSelector = document.getElementById('type-filter');
+        const typeSelector = document.getElementById("type-filter");
         if (typeSelector) {
-            typeSelector.onchange = function() {
+            typeSelector.onchange = function () {
                 onTypeFilterChange(this.value);
             };
         }
 
         // Set up column sorting
-        const headers = document.querySelectorAll('#chase-table th');
-        headers.forEach(header => {
-            const sortSpan = header.querySelector('span[data-sort-field]');
+        const headers = document.querySelectorAll("#chase-table th");
+        headers.forEach((header) => {
+            const sortSpan = header.querySelector("span[data-sort-field]");
             if (sortSpan) {
                 header.replaceWith(header.cloneNode(true));
-                const newHeader = document.querySelector(`#chase-table th span[data-sort-field='${sortSpan.getAttribute('data-sort-field')}']`).closest('th');
+                const newHeader = document
+                    .querySelector(
+                        `#chase-table th span[data-sort-field='${sortSpan.getAttribute("data-sort-field")}']`
+                    )
+                    .closest("th");
 
-                newHeader.addEventListener('click', function() {
-                    const clickedSortField = sortSpan.getAttribute('data-sort-field');
+                newHeader.addEventListener("click", function () {
+                    const clickedSortField = sortSpan.getAttribute("data-sort-field");
                     if (clickedSortField === ChaseState.lastSortField) {
                         ChaseState.descending = !ChaseState.descending;
                     } else {
@@ -788,7 +793,11 @@ function onChaseAppearing() {
                     }
                     ChaseState.sortField = clickedSortField;
                     saveSortState();
-                    updateSortIndicators(document.querySelectorAll('#chase-table th'), ChaseState.sortField, ChaseState.descending);
+                    updateSortIndicators(
+                        document.querySelectorAll("#chase-table th"),
+                        ChaseState.sortField,
+                        ChaseState.descending
+                    );
                     updateChaseTable();
                 });
             }
@@ -796,22 +805,22 @@ function onChaseAppearing() {
     }
 
     // Set filter dropdown values (do this every time for state consistency)
-    const modeSelector = document.getElementById('mode-filter');
+    const modeSelector = document.getElementById("mode-filter");
     if (modeSelector) {
         modeSelector.value = ChaseState.modeFilter;
     }
 
-    const typeSelector = document.getElementById('type-filter');
+    const typeSelector = document.getElementById("type-filter");
     if (typeSelector) {
         typeSelector.value = ChaseState.typeFilter;
     }
 
     // Load data
     if (AppState.latestChaseJson != null) {
-        console.log('Chase tab appearing: Using existing data');
+        console.log("Chase tab appearing: Using existing data");
         updateChaseTable();
     } else {
-        console.log('Chase tab appearing: Fetching new data');
+        console.log("Chase tab appearing: Fetching new data");
         refreshChaseJson(true);
     }
 
@@ -820,12 +829,12 @@ function onChaseAppearing() {
         scheduleNextAutoRefresh();
     }
 
-    updateSortIndicators(document.querySelectorAll('#chase-table th'), ChaseState.sortField, ChaseState.descending);
+    updateSortIndicators(document.querySelectorAll("#chase-table th"), ChaseState.sortField, ChaseState.descending);
 }
 
 // Called when Chase tab is hidden
 function onChaseLeaving() {
-    console.info('Chase tab leaving');
+    console.info("Chase tab leaving");
 
     // Stop the refresh timer display
     stopRefreshTimer();

@@ -1,54 +1,48 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>SOTAcat KX SOTAmat CAT Control</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" type="text/css" href="style.css" />
-  </head>
-  <body>
-    <div class="mainHeaderContainer">
-      <div class="headerLogoBarContainer">
-        <img src="sclogo.jpg" alt="SOTAcat Logo" class="responsive-image" />
-        <div class="status-container">
-          <div><span id="current-utc-time"></span>z</div>
-          <div><span id="connection-status">&#x26AA;</span></div>
+    <head>
+        <meta charset="UTF-8" />
+        <title>SOTAcat KX SOTAmat CAT Control</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" type="text/css" href="style.css" />
+    </head>
+    <body>
+        <div class="mainHeaderContainer">
+            <div class="headerLogoBarContainer">
+                <img src="sclogo.jpg" alt="SOTAcat Logo" class="responsive-image" />
+                <div class="status-container">
+                    <div><span id="current-utc-time"></span>z</div>
+                    <div><span id="connection-status">&#x26AA;</span></div>
+                </div>
+                <div class="battery-info-container">
+                    <div><span id="battery-percent"></span>%<span> &#x1F50B; </span></div>
+                    <div><span id="battery-voltage"></span>v<span>&#x26A1;</span></div>
+                </div>
+            </div>
         </div>
-        <div class="battery-info-container">
-          <div>
-            <span id="battery-percent"></span>%<span>
-              &#x1F50B;
-            </span>
-          </div>
-          <div>
-            <span id="battery-voltage"></span>v<span>&#x26A1;</span>
-          </div>
+
+        <div id="content-area"></div>
+
+        <div class="tabBar">
+            <button id="chase-tab-button" class="tabActive" data-tab="chase">
+                <div class="tabIcons">&#x1F3AF;</div>
+                CHASE
+            </button>
+            <button id="cat-tab-button" data-tab="cat">
+                <div class="tabIcons">&#x1F431;&#xFE0F;</div>
+                CAT
+            </button>
+            <button id="settings-tab-button" data-tab="settings">
+                <div class="tabIcons">&#x2699;&#xFE0F;</div>
+                Settings
+            </button>
+            <button id="about-tab-button" data-tab="about">
+                <div class="tabIcons">&#x2754;</div>
+                About
+            </button>
         </div>
-      </div>
-    </div>
 
-    <div id="content-area"></div>
-
-    <div class="tabBar">
-      <button id="chase-tab-button" class="tabActive" data-tab="chase">
-        <div class="tabIcons">&#x1F3AF;</div>
-        CHASE
-      </button>
-      <button id="cat-tab-button" data-tab="cat">
-        <div class="tabIcons">&#x1F431;&#xFE0F;</div>
-        CAT
-      </button>
-      <button id="settings-tab-button" data-tab="settings">
-        <div class="tabIcons">&#x2699;&#xFE0F;</div>
-        Settings
-      </button>
-      <button id="about-tab-button" data-tab="about">
-        <div class="tabIcons">&#x2754;</div>
-        About
-      </button>
-    </div>
-
-    <script src="chase_api.js"></script>
-    <script src="main.js"></script>
-  </body>
+        <script src="chase_api.js"></script>
+        <script src="main.js"></script>
+    </body>
 </html>

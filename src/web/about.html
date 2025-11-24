@@ -1,120 +1,142 @@
 <div>
-    <br>
+    <br />
     <h2>VERSION</h2>
-    <div class="aboutParagraph">
-        <strong>Firmware</strong> <span id="build-version">Loading...</span>
-    </div>
+    <div class="aboutParagraph"><strong>Firmware</strong> <span id="build-version">Loading...</span></div>
     <h2>ABOUT</h2>
     <div class="aboutParagraph">
-        SOTACAT is a hardware module you can build that allows your mobile device to wirelessly control your transceiver using its “CAT” (Computer Aided Transceiver) port (also known as an “ACC” or “accessory” serial data port).
-    <br><br>
-    SOTACAT is currently designed to work with Elecraft KX2 and KX3 transceivers.
-    <br><br>
-    The SOTAMĀT app on your mobile device knows how to communicate with SOTACAT to automate functions such as sending SOTA and POTA spots, alerts, or sending pre-defined messages (SMS/eMail).
-    <br><br>
-    The SOTACAT module controls the Elecraft radio so that it directly synthesizes SOTAMĀT's FT8 messages over-the-air without using audio (direct FSK synthesis, without using the microphone jack or the built-in microphone).
-    <br><br>
-    SOTAMĀT skimmers (automated monitoring stations) receive your transmission and decode the special SOTAMĀT FT8 messages.  The SOTAMĀT server then executes your command (spot, alert, message, etc.).
-    <br><br>
-    CW SOTA operators can use SOTACAT and SOTAMĀT’s “Alert-CW” mode to tickle the RBNhole service to automatically start spotting you as you QSY on CW.   That means you don’t have to remember to post a SOTA Alert before your trip: you can self-alert for RBNhole on the summit!
-    <br><br>
-    Before using SOTACAT, you should first learn how to use SOTAMĀT.  You must first create an online configuration before you can use SOTAMĀT.  Full instructions are found at: https://sotamat.com.
-    <br><br>
+        SOTACAT is a hardware module you can build that allows your mobile device to wirelessly control your transceiver
+        using its “CAT” (Computer Aided Transceiver) port (also known as an “ACC” or “accessory” serial data port).
+        <br /><br />
+        SOTACAT is currently designed to work with Elecraft KX2 and KX3 transceivers.
+        <br /><br />
+        The SOTAMĀT app on your mobile device knows how to communicate with SOTACAT to automate functions such as
+        sending SOTA and POTA spots, alerts, or sending pre-defined messages (SMS/eMail).
+        <br /><br />
+        The SOTACAT module controls the Elecraft radio so that it directly synthesizes SOTAMĀT's FT8 messages
+        over-the-air without using audio (direct FSK synthesis, without using the microphone jack or the built-in
+        microphone).
+        <br /><br />
+        SOTAMĀT skimmers (automated monitoring stations) receive your transmission and decode the special SOTAMĀT FT8
+        messages. The SOTAMĀT server then executes your command (spot, alert, message, etc.).
+        <br /><br />
+        CW SOTA operators can use SOTACAT and SOTAMĀT’s “Alert-CW” mode to tickle the RBNhole service to automatically
+        start spotting you as you QSY on CW. That means you don’t have to remember to post a SOTA Alert before your
+        trip: you can self-alert for RBNhole on the summit!
+        <br /><br />
+        Before using SOTACAT, you should first learn how to use SOTAMĀT. You must first create an online configuration
+        before you can use SOTAMĀT. Full instructions are found at: https://sotamat.com.
+        <br /><br />
     </div>
     <h2>ATTRIBUTION</h2>
     <div class="aboutParagraph">
-    <ul>
-        <li>
-            <strong>AB6D, Brian Mathews:</strong> created the original SOTACAT concept, hardware, and firmware as well as a derivative version of the FT8 encoder originally developed by YL3JG, Karlis Goba.
-        </li>
-        <li>
-            <strong>KC6X, Jeff Kowalski:</strong> a maintainer for the SOTACAT Github project, makes significant ongoing contributions to the SOTACAT code base.
-        </li>
-        <li>
-            <strong>Justin K5EM:</strong> a regular contributor to the firmware and helped with some of the more challenging technical issues.
-        </li>
-        <li>
-            <strong>KI6SYD, Max Praglin:</strong> provided key contributions to the implementation of direct FSK synthesis on the Elecraft KX radios, designed a <a href="https://app.swaggerhub.com/apis-docs/KI6SYD_1/MAX-3B/1.0.2" target="_blank" rel="noopener">REST API</a> which SOTACAT borrows from, and implemented a similar testbed with his <a href="https://www.ki6syd.com/max-3b-qrp-radio" target="_blank" rel="noopener">MAX-3B QRP transceiver</a> on which SOTAMAT-to-radio control was first implemented.
-        </li>
-        <li>
-            <strong>YL3JG, Karlis Goba:</strong> developed the original 'ft8_lib' FT8 CODEC. A derivative version was later created for encoding use in SOTACAT, and ported to C# for encoding in SOTAMAT by AB6D.
-        </li>
-        <li>
-            <strong>Elecraft:</strong> N6KR, Wayne Burdick, and N1AL, Alan, provided guidance on control of Elecraft radios and Mathcad analysis of FT8 FSK harmonics.
-        </li>
-        <li>
-            <strong>Justin K5EM and Rex KE6MT:</strong> Created derivative hardware versions, custom SMT PCBs, and helped with packaging analysis, circuit analysis, and testing.
-            <ul>
-                <li>See <a href="https://github.com/invertedlabs/sotacat-pcb/" target="_blank" rel="noopener">Justin's SOTACAT-PCB Github page</a> for an open source custom PCB (printed circuit board) that implements SOTACAT in a compact and professional way, as well as 3D printing files for an enclosure.</li>
-            </ul>
-        </li>
-        <li>
-            <strong>Spothole:</strong> Provides the unified xOTA spots API that powers the chase page, aggregating data from SOTA, POTA, WWFF, GMA, IOTA, WCA, and other programs. Learn more at <a href="https://spothole.app/about" target="_blank" rel="noopener">spothole.app</a>.
-        </li>
-    </ul>
+        <ul>
+            <li>
+                <strong>AB6D, Brian Mathews:</strong> created the original SOTACAT concept, hardware, and firmware as
+                well as a derivative version of the FT8 encoder originally developed by YL3JG, Karlis Goba.
+            </li>
+            <li>
+                <strong>KC6X, Jeff Kowalski:</strong> a maintainer for the SOTACAT Github project, makes significant
+                ongoing contributions to the SOTACAT code base.
+            </li>
+            <li>
+                <strong>Justin K5EM:</strong> a regular contributor to the firmware and helped with some of the more
+                challenging technical issues.
+            </li>
+            <li>
+                <strong>KI6SYD, Max Praglin:</strong> provided key contributions to the implementation of direct FSK
+                synthesis on the Elecraft KX radios, designed a
+                <a href="https://app.swaggerhub.com/apis-docs/KI6SYD_1/MAX-3B/1.0.2" target="_blank" rel="noopener"
+                    >REST API</a
+                >
+                which SOTACAT borrows from, and implemented a similar testbed with his
+                <a href="https://www.ki6syd.com/max-3b-qrp-radio" target="_blank" rel="noopener"
+                    >MAX-3B QRP transceiver</a
+                >
+                on which SOTAMAT-to-radio control was first implemented.
+            </li>
+            <li>
+                <strong>YL3JG, Karlis Goba:</strong> developed the original 'ft8_lib' FT8 CODEC. A derivative version
+                was later created for encoding use in SOTACAT, and ported to C# for encoding in SOTAMAT by AB6D.
+            </li>
+            <li>
+                <strong>Elecraft:</strong> N6KR, Wayne Burdick, and N1AL, Alan, provided guidance on control of Elecraft
+                radios and Mathcad analysis of FT8 FSK harmonics.
+            </li>
+            <li>
+                <strong>Justin K5EM and Rex KE6MT:</strong> Created derivative hardware versions, custom SMT PCBs, and
+                helped with packaging analysis, circuit analysis, and testing.
+                <ul>
+                    <li>
+                        See
+                        <a href="https://github.com/invertedlabs/sotacat-pcb/" target="_blank" rel="noopener"
+                            >Justin's SOTACAT-PCB Github page</a
+                        >
+                        for an open source custom PCB (printed circuit board) that implements SOTACAT in a compact and
+                        professional way, as well as 3D printing files for an enclosure.
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <strong>Spothole:</strong> Provides the unified xOTA spots API that powers the chase page, aggregating
+                data from SOTA, POTA, WWFF, GMA, IOTA, WCA, and other programs. Learn more at
+                <a href="https://spothole.app/about" target="_blank" rel="noopener">spothole.app</a>.
+            </li>
+        </ul>
     </div>
     <h2>LICENSES</h2>
     <div class="aboutParagraph">
-    <strong>SOTACAT Firmware</strong>
-    <br>
-    <br>
-    MIT License
-    <br>
-    <br>
-    Copyright (c) 2023-2024 Brian Mathews, AB6D
-    <br>
-    <br>
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-    <br>
-    <br>
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-    <br>
-    <br>
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-    <br>
-    <br>
-    <br>
-    <strong>FT8 Library</strong>
-    <br>
-    <br>
-    MIT License
-    <br>
-    <br>
-    Copyright (c) 2018 Kārlis Goba
-    <br>
-    Derivative work: Copyright (c) 2023 by Brian Mathews
-    <br>
-    <br>
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-    <br>
-    <br>
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-    <br>
-    <br>
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+        <strong>SOTACAT Firmware</strong>
+        <br />
+        <br />
+        MIT License
+        <br />
+        <br />
+        Copyright (c) 2023-2024 Brian Mathews, AB6D
+        <br />
+        <br />
+        Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+        documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+        the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+        to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+        <br />
+        <br />
+        The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+        the Software.
+        <br />
+        <br />
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+        THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+        CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+        DEALINGS IN THE SOFTWARE.
+        <br />
+        <br />
+        <br />
+        <strong>FT8 Library</strong>
+        <br />
+        <br />
+        MIT License
+        <br />
+        <br />
+        Copyright (c) 2018 Kārlis Goba
+        <br />
+        Derivative work: Copyright (c) 2023 by Brian Mathews
+        <br />
+        <br />
+        Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+        documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+        the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+        to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+        <br />
+        <br />
+        The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+        the Software.
+        <br />
+        <br />
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+        THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+        CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+        DEALINGS IN THE SOFTWARE.
     </div>
 </div>

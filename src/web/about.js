@@ -10,7 +10,7 @@
 // Fetch and display current firmware build version
 function refreshVersion() {
     if (isLocalhost) return;
-    fetchAndUpdateElement('/api/v1/version', 'build-version');
+    fetchAndUpdateElement("/api/v1/version", "build-version");
 }
 
 // ============================================================================

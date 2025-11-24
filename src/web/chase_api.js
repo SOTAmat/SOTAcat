@@ -6,7 +6,7 @@
 //
 // API Documentation: https://spothole.app/apidocs/openapi.yml
 
-const SPOTHOLE_BASE_URL = 'https://spothole.app/api/v1';
+const SPOTHOLE_BASE_URL = "https://spothole.app/api/v1";
 const SPOTHOLE_API_TIMEOUT_MS = 10000; // 10 seconds
 
 // Cache for reference details (summit/park names, etc.)
@@ -32,25 +32,25 @@ const callsignDetailsCache = {};
 async function fetchSpots(options = {}) {
     const params = new URLSearchParams({
         limit: options.limit || 200,
-        dedupe: options.dedupe !== false ? 'true' : 'false',
-        allow_qrt: options.allow_qrt !== true ? 'false' : 'true',
+        dedupe: options.dedupe !== false ? "true" : "false",
+        allow_qrt: options.allow_qrt !== true ? "false" : "true",
     });
 
     if (options.max_age) {
-        params.append('max_age', options.max_age);
+        params.append("max_age", options.max_age);
     }
     if (options.mode) {
-        params.append('mode', options.mode);
+        params.append("mode", options.mode);
     }
     if (options.sig) {
-        params.append('sig', options.sig);
+        params.append("sig", options.sig);
     }
     if (options.received_since) {
-        params.append('received_since', options.received_since);
+        params.append("received_since", options.received_since);
     }
 
     const url = `${SPOTHOLE_BASE_URL}/spots?${params.toString()}`;
-    console.log('[Spothole API] Fetching spots from:', url);
+    console.log("[Spothole API] Fetching spots from:", url);
 
     try {
         const controller = new AbortController();
@@ -59,9 +59,9 @@ async function fetchSpots(options = {}) {
         const response = await fetch(url, {
             signal: controller.signal,
             headers: {
-                'Accept': 'application/json',
-                'Accept-Encoding': 'gzip, deflate, br'
-            }
+                Accept: "application/json",
+                "Accept-Encoding": "gzip, deflate, br",
+            },
         });
 
         clearTimeout(timeoutId);
@@ -73,12 +73,11 @@ async function fetchSpots(options = {}) {
         const data = await response.json();
         console.log(`[Spothole API] Received ${data.length} spots`);
         return data;
-
     } catch (error) {
-        if (error.name === 'AbortError') {
-            throw new Error('Spothole API request timed out');
+        if (error.name === "AbortError") {
+            throw new Error("Spothole API request timed out");
         }
-        console.error('[Spothole API] Error fetching spots:', error);
+        console.error("[Spothole API] Error fetching spots:", error);
         throw error;
     }
 }
@@ -95,7 +94,7 @@ async function fetchReferenceDetails(sigRef) {
     }
 
     const url = `${SPOTHOLE_BASE_URL}/lookup/sigref?sigref=${encodeURIComponent(sigRef)}`;
-    console.log('[Spothole API] Fetching reference details:', sigRef);
+    console.log("[Spothole API] Fetching reference details:", sigRef);
 
     try {
         const controller = new AbortController();
@@ -104,8 +103,8 @@ async function fetchReferenceDetails(sigRef) {
         const response = await fetch(url, {
             signal: controller.signal,
             headers: {
-                'Accept': 'application/json'
-            }
+                Accept: "application/json",
+            },
         });
 
         clearTimeout(timeoutId);
@@ -120,9 +119,8 @@ async function fetchReferenceDetails(sigRef) {
         // Cache the result
         referenceDetailsCache[sigRef] = data;
         return data;
-
     } catch (error) {
-        console.warn('[Spothole API] Error fetching reference details:', error);
+        console.warn("[Spothole API] Error fetching reference details:", error);
         return null;
     }
 }
@@ -147,8 +145,8 @@ async function fetchCallsignDetails(callsign) {
         const response = await fetch(url, {
             signal: controller.signal,
             headers: {
-                'Accept': 'application/json'
-            }
+                Accept: "application/json",
+            },
         });
 
         clearTimeout(timeoutId);
@@ -162,9 +160,8 @@ async function fetchCallsignDetails(callsign) {
         // Cache the result
         callsignDetailsCache[callsign] = data;
         return data;
-
     } catch (error) {
-        console.warn('[Spothole API] Error fetching callsign details:', error);
+        console.warn("[Spothole API] Error fetching callsign details:", error);
         return null;
     }
 }
@@ -181,53 +178,46 @@ async function fetchCallsignDetails(callsign) {
  * @returns {Array} Transformed spot objects
  */
 function spothole_transformSpots(spotsData, location) {
-    return spotsData.map(spot => {
+    return spotsData.map((spot) => {
         // Extract base callsign (remove /P, /M, etc.)
-        const baseCallsign = (spot.dx_call || '').split('/')[0];
+        const baseCallsign = (spot.dx_call || "").split("/")[0];
 
         // Normalize mode to uppercase
-        const mode = (spot.mode || 'UNKNOWN').toUpperCase();
+        const mode = (spot.mode || "UNKNOWN").toUpperCase();
 
         // Determine mode type for filtering/styling
         let modeType = mode;
 
         // USB and LSB are members of the SSB mode family
-        if (['USB', 'LSB'].includes(modeType)) {
-            modeType = 'SSB';
+        if (["USB", "LSB"].includes(modeType)) {
+            modeType = "SSB";
         }
 
-        if (!['CW', 'SSB', 'AM', 'FM', 'FT8', 'FT4', 'DATA'].includes(modeType)) {
+        if (!["CW", "SSB", "AM", "FM", "FT8", "FT4", "DATA"].includes(modeType)) {
             // Check for common data modes
-            if (['PSK31', 'RTTY', 'MFSK', 'JT65', 'JT9', 'FT8', 'FT4', 'PKT'].includes(modeType)) {
-                modeType = 'DATA';
+            if (["PSK31", "RTTY", "MFSK", "JT65", "JT9", "FT8", "FT4", "PKT"].includes(modeType)) {
+                modeType = "DATA";
             } else {
-                modeType = 'OTHER';
+                modeType = "OTHER";
             }
         }
 
         // Calculate distance if we have coordinates
         let distance = 99999; // Default to large number if no location
         if (location && spot.dx_latitude && spot.dx_longitude) {
-            distance = Math.round(calculateDistance(
-                location.latitude,
-                location.longitude,
-                spot.dx_latitude,
-                spot.dx_longitude
-            ));
+            distance = Math.round(
+                calculateDistance(location.latitude, location.longitude, spot.dx_latitude, spot.dx_longitude)
+            );
         }
 
         // Convert timestamp to Date object
         const timestamp = new Date(spot.time * 1000); // Spothole uses Unix timestamp in seconds
 
         // Extract reference ID from sig_refs array (first one if multiple)
-        const locationID = (spot.sig_refs && spot.sig_refs.length > 0)
-            ? spot.sig_refs[0].id
-            : '-';
+        const locationID = spot.sig_refs && spot.sig_refs.length > 0 ? spot.sig_refs[0].id : "-";
 
         // Extract reference details from sig_refs
-        const refDetails = (spot.sig_refs && spot.sig_refs.length > 0)
-            ? spot.sig_refs[0].name
-            : '';
+        const refDetails = spot.sig_refs && spot.sig_refs.length > 0 ? spot.sig_refs[0].name : "";
 
         return {
             // Original Spothole fields (prefixed for clarity)
@@ -246,21 +236,21 @@ function spothole_transformSpots(spotsData, location) {
             spothole_dx_location_good: spot.dx_location_good,
 
             // Normalized fields for unified chase table display
-            activatorCallsign: spot.dx_call || 'UNKNOWN',
+            activatorCallsign: spot.dx_call || "UNKNOWN",
             baseCallsign: baseCallsign,
             hertz: spot.freq || 0,
             frequency: (spot.freq || 0) / 1000000, // MHz for compatibility
             mode: mode,
             modeType: modeType,
             locationID: locationID,
-            sig: spot.sig || 'Cluster', // Source type (SOTA, POTA, or Cluster for DX spots)
+            sig: spot.sig || "Cluster", // Source type (SOTA, POTA, or Cluster for DX spots)
             distance: distance,
             timestamp: timestamp,
-            comments: spot.comment || '',
+            comments: spot.comment || "",
 
             // Fields to be enriched later
-            activatorName: spot.dx_name || '', // Name from API or enrichment
-            details: refDetails // Reference name from sig_refs or enrichment
+            activatorName: spot.dx_name || "", // Name from API or enrichment
+            details: refDetails, // Reference name from sig_refs or enrichment
         };
     });
 }
@@ -274,21 +264,23 @@ function spothole_transformSpots(spotsData, location) {
  * @returns {Promise<Array>} Enriched spots
  */
 async function spothole_enrichSpots(spots, enrichReferences = true, enrichCallsigns = false) {
-    console.log(`[Spothole API] Enriching ${spots.length} spots (refs: ${enrichReferences}, calls: ${enrichCallsigns})`);
+    console.log(
+        `[Spothole API] Enriching ${spots.length} spots (refs: ${enrichReferences}, calls: ${enrichCallsigns})`
+    );
 
     // Collect unique references and callsigns
     const uniqueRefs = new Set();
     const uniqueCalls = new Set();
 
-    spots.forEach(spot => {
+    spots.forEach((spot) => {
         if (spot.sig_ref) uniqueRefs.add(spot.sig_ref);
         if (spot.baseCallsign) uniqueCalls.add(spot.baseCallsign);
     });
 
     // Fetch all reference details in parallel (if enabled)
     if (enrichReferences && uniqueRefs.size > 0) {
-        const refPromises = Array.from(uniqueRefs).map(ref =>
-            fetchReferenceDetails(ref).catch(err => {
+        const refPromises = Array.from(uniqueRefs).map((ref) =>
+            fetchReferenceDetails(ref).catch((err) => {
                 console.warn(`Failed to fetch details for ${ref}:`, err);
                 return null;
             })
@@ -298,8 +290,8 @@ async function spothole_enrichSpots(spots, enrichReferences = true, enrichCallsi
 
     // Fetch all callsign details in parallel (if enabled)
     if (enrichCallsigns && uniqueCalls.size > 0) {
-        const callPromises = Array.from(uniqueCalls).map(call =>
-            fetchCallsignDetails(call).catch(err => {
+        const callPromises = Array.from(uniqueCalls).map((call) =>
+            fetchCallsignDetails(call).catch((err) => {
                 console.warn(`Failed to fetch details for ${call}:`, err);
                 return null;
             })
@@ -308,7 +300,7 @@ async function spothole_enrichSpots(spots, enrichReferences = true, enrichCallsi
     }
 
     // Now enrich each spot with cached data
-    spots.forEach(spot => {
+    spots.forEach((spot) => {
         // Enrich with reference details
         if (enrichReferences && spot.locationID) {
             const refDetails = referenceDetailsCache[spot.locationID];
@@ -336,21 +328,21 @@ async function spothole_enrichSpots(spots, enrichReferences = true, enrichCallsi
  * @returns {string} Formatted details string
  */
 function formatReferenceDetails(refDetails, sig) {
-    if (!refDetails) return '';
+    if (!refDetails) return "";
 
-    if (sig === 'SOTA') {
+    if (sig === "SOTA") {
         // Format like: "Mount Tamalpais, 785m, 8 points"
         const parts = [];
         if (refDetails.name) parts.push(refDetails.name);
         if (refDetails.altitude_m) parts.push(`${refDetails.altitude_m}m`);
         if (refDetails.points) parts.push(`${refDetails.points} points`);
-        return parts.join(', ');
-    } else if (sig === 'POTA') {
+        return parts.join(", ");
+    } else if (sig === "POTA") {
         // Format like: "Mount Tamalpais State Park"
-        return refDetails.name || '';
+        return refDetails.name || "";
     } else {
         // Generic format
-        return refDetails.name || '';
+        return refDetails.name || "";
     }
 }
 
@@ -386,9 +378,8 @@ async function fetchAndProcessSpots(options, location, enrichDetails = true) {
         }
 
         return spots;
-
     } catch (error) {
-        console.error('[Spothole API] Error in fetchAndProcessSpots:', error);
+        console.error("[Spothole API] Error in fetchAndProcessSpots:", error);
         throw error;
     }
 }
