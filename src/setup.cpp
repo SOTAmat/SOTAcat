@@ -126,7 +126,7 @@ void setup () {
 
     // Setup battery monitoring task
     TaskHandle_t xBatteryMonitorHandle = NULL;
-    xTaskCreate (&battery_monitor_task, "battery_monitor_task", 2048, NULL, SC_TASK_PRIORITY_IDLE + 1, &xBatteryMonitorHandle);
+    xTaskCreate (&battery_monitor_task, "battery_monitor_task", 4096, NULL, SC_TASK_PRIORITY_IDLE + 1, &xBatteryMonitorHandle);
     ESP_LOGI (TAG8, "battery_monitor task started.");
 
     gpio_set_level (LED_RED, LED_OFF);
