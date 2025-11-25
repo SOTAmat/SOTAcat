@@ -141,34 +141,51 @@ static int find_and_execute_api_handler (int method, const char * api_name, cons
     REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "handler not found");
 }
 
+static const size_t CHUNK_SIZE = 8192;  // Increased from 1KB to 8KB for efficiency
+
 /**
- * Sends a memory region as an HTTP chunked response.
+ * Sends a memory region as an HTTP chunked response with retry logic.
  * @param req Pointer to the HTTP request.
  * @param start Pointer to the beginning of the data buffer.
  * @param end Pointer to one past the last byte of the data buffer.
  * @return ESP_OK on successful transmission, or an error code if the send fails.
  */
 static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, const uint8_t * end) {
-    const size_t CHUNK_SIZE = 1024;  // Send in 1KB chunks
-    size_t       total_size = end - start - 1;
-    size_t       sent       = 0;
+    const int MAX_RETRIES    = 3;
+    const int RETRY_DELAY_MS = 10;
+    size_t    total_size     = end - start - 1;
+    size_t    sent           = 0;
 
     while (sent < total_size) {
         size_t to_send = MIN (CHUNK_SIZE, total_size - sent);
-        int    ret     = httpd_resp_send_chunk (req, (const char *)(start + sent), to_send);
+        int    ret     = ESP_FAIL;
 
-        if (ret != ESP_OK) {
-            // Connection closed by client
-            httpd_resp_send_chunk (req, NULL, 0);  // Terminate chunked response
-            return ret;
+        // Retry loop for EAGAIN/EWOULDBLOCK errors
+        for (int retry = 0; retry <= MAX_RETRIES; retry++) {
+            ret = httpd_resp_send_chunk (req, (const char *)(start + sent), to_send);
+
+            if (ret == ESP_OK) {
+                break;  // Success, continue with next chunk
+            }
+
+            // If error is not EAGAIN or we've exhausted retries, give up
+            if (ret != ESP_ERR_HTTPD_RESP_SEND && retry >= MAX_RETRIES) {
+                ESP_LOGW (TAG8, "Failed to send chunk after %d retries, error: %d", MAX_RETRIES, ret);
+                httpd_resp_send_chunk (req, NULL, 0);  // Terminate chunked response
+                return ret;
+            }
+
+            // EAGAIN error - wait and retry
+            if (retry < MAX_RETRIES) {
+                vTaskDelay (pdMS_TO_TICKS (RETRY_DELAY_MS));
+            }
         }
 
         sent += to_send;
 
-        // Give other tasks a chance to run, but only for very large files
-        // Small delays add up and can cause request queueing
-        if (sent < total_size && total_size > 32768) {  // Only delay for files >32KB
-            vTaskDelay (pdMS_TO_TICKS (5));             // 5ms delay
+        // Brief yield to allow other tasks to run
+        if (sent < total_size) {
+            vTaskDelay (pdMS_TO_TICKS (1));
         }
     }
 
@@ -211,7 +228,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
 
     // Use chunked transfer for large files
     size_t file_size = asset_ptr->asset_end - asset_ptr->asset_start - 1;
-    if (file_size > 4096) {  // Chunk files larger than 4KB
+    if (file_size > CHUNK_SIZE) {  // Chunk large files
         ESP_LOGI (TAG8, "sending chunked asset");
         return send_file_chunked (req,
                                   asset_ptr->asset_start,
