@@ -3,8 +3,8 @@
 #include "hardware_specific.h"
 #include "max17260.h"
 #include "settings.h"
-#include <esp_task_wdt.h>
 #include <driver/i2c_master.h>
+#include <esp_task_wdt.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:batmon..";
@@ -100,29 +100,32 @@ float get_battery_percentage (void) {
 }
 
 static esp_err_t i2c_setup (void) {
+    ESP_LOGD (TAG8, "I2C setup: SDA=GPIO%d, SCL=GPIO%d, freq=%dHz", I2C_SDA_PIN, I2C_SCL_PIN, I2C_MASTER_FREQ_HZ);
+
     i2c_master_bus_config_t i2c_bus_config = {
-        .i2c_port = I2C_MASTER_NUM,
-        .sda_io_num = I2C_SDA_PIN,
-        .scl_io_num = I2C_SCL_PIN,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .i2c_port          = I2C_MASTER_NUM,
+        .sda_io_num        = I2C_SDA_PIN,
+        .scl_io_num        = I2C_SCL_PIN,
+        .clk_source        = I2C_CLK_SRC_DEFAULT,
         .glitch_ignore_cnt = 7,
-        .intr_priority = 0,
+        .intr_priority     = 0,
         .trans_queue_depth = 0,
-        .flags = {
-            .enable_internal_pullup = false,
-        },
+        .flags             = {
+                              .enable_internal_pullup = true,
+                              .allow_pd               = false,
+                              },
     };
 
-    esp_err_t err = i2c_new_master_bus(&i2c_bus_config, &i2c_bus_handle);
+    esp_err_t err = i2c_new_master_bus (&i2c_bus_config, &i2c_bus_handle);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG8, "Failed to create I2C master bus: %s", esp_err_to_name(err));
+        ESP_LOGE (TAG8, "Failed to create I2C master bus: %s", esp_err_to_name (err));
     }
     return err;
 }
 
 static esp_err_t i2c_teardown (void) {
     if (i2c_bus_handle != NULL) {
-        esp_err_t err = i2c_del_master_bus(i2c_bus_handle);
+        esp_err_t err = i2c_del_master_bus (i2c_bus_handle);
         if (err == ESP_OK) {
             i2c_bus_handle = NULL;
         }
@@ -140,13 +143,26 @@ void battery_monitor_task (void * _pvParameter) {
     if (HW_TYPE == SOTAcat_HW_Type::K5EM_1) {
         // Determine if we have a digital battery monitor
         if (i2c_setup() != ESP_OK) {
-            ESP_LOGE(TAG8, "Failed to initialize I2C bus");
+            ESP_LOGE (TAG8, "Failed to initialize I2C bus");
             return;
         }
 
         // Set up the SMBus for the digital battery monitor
         smbus_info_t * smbus_info = smbus_malloc();
-        smbus_init (smbus_info, i2c_bus_handle, MAX_1726x_ADDR);
+        if (smbus_info == NULL) {
+            ESP_LOGE (TAG8, "Failed to allocate SMBus structure");
+            i2c_teardown();
+            return;
+        }
+
+        esp_err_t smbus_err = smbus_init (smbus_info, i2c_bus_handle, MAX_1726x_ADDR);
+        if (smbus_err != ESP_OK) {
+            ESP_LOGE (TAG8, "SMBus init failed: %s", esp_err_to_name (smbus_err));
+            smbus_free (&smbus_info);
+            i2c_teardown();
+            return;
+        }
+
         smbus_set_timeout (smbus_info, SMBUS_TIMEOUT_MS);
 
         // Instantiate the digital battery monitor driver
@@ -160,6 +176,7 @@ void battery_monitor_task (void * _pvParameter) {
             dig_bat_mon.read_learned_params (&params);
         }
         else {  // No digital battery monitor dectected, free resources
+            ESP_LOGW (TAG8, "MAX17260 init failed: %s - falling back to analog battery monitoring", esp_err_to_name (bat_mon_err));
             smbus_free (&smbus_info);
             i2c_teardown();
         }
