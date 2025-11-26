@@ -79,7 +79,7 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
                 ESP_LOGW (TAG8, "Beacon timeout - Android hotspot may be power saving");
                 break;
             case WIFI_REASON_NO_AP_FOUND:
-                ESP_LOGW (TAG8, "No AP found - Android hotspot may be hidden or turned off");
+                ESP_LOGI (TAG8, "No AP found - Android hotspot may be hidden or turned off");
                 break;
             }
 
@@ -178,15 +178,15 @@ static void wifi_init_softap () {
     ESP_LOGI (TAG8, "Setting up soft AP");
     wifi_config_t    wifi_config = {};
     wifi_ap_config_t ap_config   = {};  // Zero-initialize all fields
-    ap_config.channel         = 1;
-    ap_config.authmode        = WIFI_AUTH_WPA2_PSK;
-    ap_config.max_connection  = 8;
-    ap_config.beacon_interval = 100;
-    ap_config.pairwise_cipher = WIFI_CIPHER_TYPE_CCMP;
-    ap_config.ftm_responder   = false;
-    ap_config.pmf_cfg.capable = true;
-    ap_config.pmf_cfg.required = false;
-    ap_config.sae_pwe_h2e     = WPA3_SAE_PWE_BOTH;
+    ap_config.channel            = 1;
+    ap_config.authmode           = WIFI_AUTH_WPA2_PSK;
+    ap_config.max_connection     = 8;
+    ap_config.beacon_interval    = 100;
+    ap_config.pairwise_cipher    = WIFI_CIPHER_TYPE_CCMP;
+    ap_config.ftm_responder      = false;
+    ap_config.pmf_cfg.capable    = true;
+    ap_config.pmf_cfg.required   = false;
+    ap_config.sae_pwe_h2e        = WPA3_SAE_PWE_BOTH;
     memcpy (&wifi_config.ap, &ap_config, sizeof (wifi_ap_config_t));
 
     strlcpy ((char *)wifi_config.ap.ssid, g_ap_ssid, sizeof (wifi_config.ap.ssid));
@@ -348,22 +348,24 @@ bool start_mdns_service () {
     // Attach network interfaces to the default mDNS server (required for ESP-IDF >= 5.0)
     if (sta_netif) {
         err = mdns_register_netif (sta_netif);
-        if (err != ESP_OK) {
+        if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+            // INVALID_STATE means already registered, which is fine
             ESP_LOGW (TAG8, "Failed to register STA interface with mDNS: %s", esp_err_to_name (err));
         }
     }
     else {
-        ESP_LOGW (TAG8, "STA interface not initialized, skipping mDNS registration");
+        ESP_LOGD (TAG8, "STA interface not initialized, skipping mDNS registration");
     }
 
     if (ap_netif) {
         err = mdns_register_netif (ap_netif);
-        if (err != ESP_OK) {
+        if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+            // INVALID_STATE means already registered, which is fine
             ESP_LOGW (TAG8, "Failed to register AP interface with mDNS: %s", esp_err_to_name (err));
         }
     }
     else {
-        ESP_LOGW (TAG8, "AP interface not initialized, skipping mDNS registration");
+        ESP_LOGD (TAG8, "AP interface not initialized, skipping mDNS registration");
     }
 
     // Enable mDNS on both interfaces immediately for IPv4
@@ -622,7 +624,6 @@ void wifi_task (void * pvParameters) {
 
                 if (start_mdns_service()) {
                     mdns_retry_count = 0;
-                    ESP_LOGI (TAG8, "mDNS service started");
                 }
                 else {
                     mdns_retry_count++;
