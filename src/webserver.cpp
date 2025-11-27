@@ -49,21 +49,24 @@ typedef struct
 static const asset_entry_t asset_map[] = {
     // uri             asset_start          asset_end            asset_type         gzip   cache_time
     // =============== ==================== ==================== ================== ====== ==============
-    {"/",              index_htmlgz_srt,    index_htmlgz_end,    "text/html",       true,  60}, // 1 minute cache
-    {"/about.html",    about_htmlgz_srt,    about_htmlgz_end,    "text/html",       true,  60},
-    {"/about.js",      about_jsgz_srt,      about_jsgz_end,      "text/javascript", true,  60},
-    {"/cat.html",      cat_htmlgz_srt,      cat_htmlgz_end,      "text/html",       true,  60},
-    {"/cat.js",        cat_jsgz_srt,        cat_jsgz_end,        "text/javascript", true,  60},
-    {"/chase.html",    chase_htmlgz_srt,    chase_htmlgz_end,    "text/html",       true,  60},
-    {"/chase.js",      chase_jsgz_srt,      chase_jsgz_end,      "text/javascript", true,  60},
-    {"/chase_api.js",  chase_api_jsgz_srt,  chase_api_jsgz_end,  "text/javascript", true,  60},
-    {"/favicon.ico",   favicon_ico_srt,     favicon_ico_end,     "image/x-icon",    false, 0 },
-    {"/index.html",    index_htmlgz_srt,    index_htmlgz_end,    "text/html",       true,  60},
-    {"/main.js",       main_jsgz_srt,       main_jsgz_end,       "text/javascript", true,  60},
-    {"/sclogo.jpg",    sclogo_jpg_srt,      sclogo_jpg_end,      "image/jpeg",      false, 0 }, // Cache forever
-    {"/settings.html", settings_htmlgz_srt, settings_htmlgz_end, "text/html",       true,  60},
-    {"/settings.js",   settings_jsgz_srt,   settings_jsgz_end,   "text/javascript", true,  60},
-    {"/style.css",     style_cssgz_srt,     style_cssgz_end,     "text/css",        true,  60},
+    // HTML pages - short cache (content may change)
+    {"/",              index_htmlgz_srt,    index_htmlgz_end,    "text/html",       true,  300},  // 5 min
+    {"/index.html",    index_htmlgz_srt,    index_htmlgz_end,    "text/html",       true,  300},
+    {"/about.html",    about_htmlgz_srt,    about_htmlgz_end,    "text/html",       true,  300},
+    {"/cat.html",      cat_htmlgz_srt,      cat_htmlgz_end,      "text/html",       true,  300},
+    {"/chase.html",    chase_htmlgz_srt,    chase_htmlgz_end,    "text/html",       true,  300},
+    {"/settings.html", settings_htmlgz_srt, settings_htmlgz_end, "text/html",       true,  300},
+    // JS/CSS - medium cache (versioned with firmware)
+    {"/about.js",      about_jsgz_srt,      about_jsgz_end,      "text/javascript", true,  3600}, // 1 hour
+    {"/cat.js",        cat_jsgz_srt,        cat_jsgz_end,        "text/javascript", true,  3600},
+    {"/chase.js",      chase_jsgz_srt,      chase_jsgz_end,      "text/javascript", true,  3600},
+    {"/chase_api.js",  chase_api_jsgz_srt,  chase_api_jsgz_end,  "text/javascript", true,  3600},
+    {"/main.js",       main_jsgz_srt,       main_jsgz_end,       "text/javascript", true,  3600},
+    {"/settings.js",   settings_jsgz_srt,   settings_jsgz_end,   "text/javascript", true,  3600},
+    {"/style.css",     style_cssgz_srt,     style_cssgz_end,     "text/css",        true,  3600},
+    // Images - long cache (never change)
+    {"/favicon.ico",   favicon_ico_srt,     favicon_ico_end,     "image/x-icon",    false, 86400}, // 1 day
+    {"/sclogo.jpg",    sclogo_jpg_srt,      sclogo_jpg_end,      "image/jpeg",      false, 86400},
     {NULL,             NULL,                NULL,                NULL,              true,  0 }  // Sent to mark end of array
 };
 
@@ -183,9 +186,9 @@ static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, co
 
         sent += to_send;
 
-        // Brief yield to allow other tasks to run
-        if (sent < total_size) {
-            vTaskDelay (pdMS_TO_TICKS (1));
+        // Cooperative yield every 4 chunks to allow other tasks to run
+        if (sent < total_size && (sent % (CHUNK_SIZE * 4)) == 0) {
+            taskYIELD();
         }
     }
 
@@ -218,12 +221,18 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
     if (asset_ptr->gzipped)
         httpd_resp_set_hdr (req, "Content-Encoding", "gzip");
 
-    // Add cache headers
+    // Add cache headers with immutable directive for long-cached assets
     char cache_header[64];
-    if (asset_ptr->cache_time > 0)
-        snprintf (cache_header, sizeof (cache_header), "max-age=%ld", asset_ptr->cache_time);
-    else
-        snprintf (cache_header, sizeof (cache_header), "max-age=31536000");  // 1 year (cache forever)
+    if (asset_ptr->cache_time > 0) {
+        if (asset_ptr->cache_time >= 86400) {
+            // Long cache: add immutable directive (browser never revalidates)
+            snprintf (cache_header, sizeof (cache_header), "max-age=%ld, immutable", asset_ptr->cache_time);
+        } else {
+            snprintf (cache_header, sizeof (cache_header), "max-age=%ld", asset_ptr->cache_time);
+        }
+    } else {
+        snprintf (cache_header, sizeof (cache_header), "max-age=31536000, immutable");  // 1 year (cache forever)
+    }
     httpd_resp_set_hdr (req, "Cache-Control", cache_header);
 
     // Use chunked transfer for large files
@@ -289,10 +298,10 @@ void start_webserver () {
     config.uri_match_fn        = custom_uri_matcher;
     config.server_port         = 80;  // Explicitly set port 80 for mobile compatibility
     config.lru_purge_enable    = true;
-    config.max_open_sockets    = 7;     // Increase from default of 4
-    config.recv_wait_timeout   = 10;    // seconds - reduced for faster fail-fast behavior
-    config.send_wait_timeout   = 10;    // seconds - reduced for faster fail-fast behavior
-    config.stack_size          = 8192;  // bytes
+    config.max_open_sockets    = 12;    // Accommodate 6+ parallel Chrome connections
+    config.recv_wait_timeout   = 5;     // seconds - faster recovery from stalled requests
+    config.send_wait_timeout   = 5;     // seconds - faster timeout detection
+    config.stack_size          = 10240; // bytes - increased from 8KB for complex handlers
     config.keep_alive_enable   = true;
     config.keep_alive_idle     = 5;  // 5 seconds
     config.keep_alive_interval = 5;  // 5 seconds
