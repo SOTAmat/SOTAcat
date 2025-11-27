@@ -97,6 +97,7 @@ static const api_handler_t api_handlers[] = {
     {HTTP_GET,  "rxBandwidth",      handler_mode_get,               true }, // alias for "mode"
     {HTTP_GET,  "settings",         handler_settings_get,           false},
     {HTTP_GET,  "version",          handler_version_get,            false},
+    {HTTP_GET,  "metrics",          handler_metrics_get,            false},
     {HTTP_PUT,  "frequency",        handler_frequency_put,          true },
     {HTTP_PUT,  "keyer",            handler_keyer_put,              true },
     {HTTP_PUT,  "mode",             handler_mode_put,               true },
@@ -110,6 +111,7 @@ static const api_handler_t api_handlers[] = {
     {HTTP_POST, "ft8",              handler_ft8_post,               true },
     {HTTP_POST, "cancelft8",        handler_cancelft8_post,         true },
     {HTTP_POST, "settings",         handler_settings_post,          false},
+    {HTTP_POST, "metrics",          handler_metrics_post,           false},
     {HTTP_POST, "ota",              handler_ota_post,               false},
     {HTTP_GET,  "gps",              handler_gps_settings_get,       false},
     {HTTP_POST, "gps",              handler_gps_settings_post,      false},
