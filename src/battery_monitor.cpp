@@ -111,7 +111,7 @@ static esp_err_t i2c_setup (void) {
         .intr_priority     = 0,
         .trans_queue_depth = 0,
         .flags             = {
-                              .enable_internal_pullup = true,
+                              .enable_internal_pullup = false,
                               .allow_pd               = false,
                               },
     };
