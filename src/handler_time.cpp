@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "timed_lock.h"
 #include "webserver.h"
 
 #include <memory>
@@ -123,8 +124,14 @@ static bool set_time (char const * param_value) {
     if (!convert_client_time (time_value, &client_time))
         return false;
 
-    const std::lock_guard<Lockable> lock (kxRadio);
-    time_hms                        radio_time;
+    // Tier 3: Critical timeout for time setting
+    TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "time SET");
+    if (!lock.acquired()) {
+        ESP_LOGW (TAG8, "radio busy - timeout acquiring mutex for time SET");
+        return false;
+    }
+
+    time_hms radio_time;
     kxRadio.put_to_kx ("MN", 3, 73, SC_KX_COMMUNICATION_RETRIES);  // enter time menu
     if (!get_radio_time (&radio_time))                             // read the screen; VFO A shows the time
         return false;

@@ -91,6 +91,7 @@ venv/
 test/integration/*.json
 test/integration/baseline_*.json
 test/integration/test_results_*.json
+test_results/
 
 # Pre-compressed web assets (generated at build time)
 src/web/*.htmlgz

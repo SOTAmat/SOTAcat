@@ -1,6 +1,7 @@
 // handler_atu.cpp
 #include "globals.h"
 #include "kx_radio.h"
+#include "timed_lock.h"
 #include "webserver.h"
 
 #include <memory>
@@ -24,9 +25,8 @@ esp_err_t handler_atu_put (httpd_req_t * req) {
 
     const char * command = nullptr;
 
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
-
+    // Tier 3: Critical timeout for ATU tuning operation
+    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "ATU tune") {
         // Determine the correct command based on radio type
         switch (kxRadio.get_radio_type()) {
         case RadioType::KX3:
@@ -43,9 +43,8 @@ esp_err_t handler_atu_put (httpd_req_t * req) {
         }
 
         // Send the command to the radio
-        if (!kxRadio.put_to_kx_command_string (command, 1)) {
+        if (!kxRadio.put_to_kx_command_string (command, 1))
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send ATU command");
-        }
     }
 
     REPLY_WITH_SUCCESS();

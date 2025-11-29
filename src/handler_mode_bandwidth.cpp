@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "timed_lock.h"
 #include "webserver.h"
 
 #include <memory>
@@ -55,18 +56,32 @@ radio_mode_t get_radio_mode () {
         ESP_LOGV (TAG8, "returning cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
     }
     else {
-        // Cache miss or expired - query radio
-        const std::lock_guard<Lockable> lock (kxRadio);
-        mode = kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
+        // Cache miss or expired - query radio with timeout
+        // Tier 1: Fast timeout for GET operations
+        TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "mode GET");
+        if (lock.acquired()) {
+            mode = kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
 
-        if (mode > MODE_UNKNOWN && mode <= MODE_LAST) {
-            // Update cache
-            cached_mode      = static_cast<radio_mode_t> (mode);
-            cached_mode_time = now;
-            ESP_LOGD (TAG8, "cached new mode: %ld (%s)", mode, radio_mode_map[mode].name);
+            if (mode > MODE_UNKNOWN && mode <= MODE_LAST) {
+                // Update cache
+                cached_mode      = static_cast<radio_mode_t> (mode);
+                cached_mode_time = now;
+                ESP_LOGD (TAG8, "cached new mode: %ld (%s)", mode, radio_mode_map[mode].name);
+            }
+            else {
+                ESP_LOGI (TAG8, "mode = %ld (%s)", mode, radio_mode_map[mode].name);
+            }
         }
         else {
-            ESP_LOGI (TAG8, "mode = %ld (%s)", mode, radio_mode_map[mode].name);
+            // Mutex timeout - return stale cache if available
+            if (cached_mode != MODE_UNKNOWN) {
+                mode = cached_mode;
+                ESP_LOGW (TAG8, "radio busy - returning stale cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
+            }
+            else {
+                ESP_LOGW (TAG8, "radio busy - no cached mode available");
+                mode = MODE_UNKNOWN;
+            }
         }
     }
 
@@ -112,9 +127,8 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
 
     radio_mode_t mode = MODE_UNKNOWN;
 
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
-
+    // Tier 2: Moderate timeout for SET operations
+    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_MODERATE_MS, "mode SET") {
         // Determine the radio mode based on the "bw" parameter
         if (!strcmp (bw, "SSB")) {
             // Get the current frequency and set the mode to LSB or USB based on the frequency
@@ -132,18 +146,19 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
                     mode = mode_kv->mode;
                     break;
                 }
+
         // Respond with an error if the mode is not recognized
         if (mode == MODE_UNKNOWN)
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid bw");
 
         // Set the radio mode
         kxRadio.put_to_kx ("MD", 1, mode, SC_KX_COMMUNICATION_RETRIES);
-    }
 
-    // Update cache after setting new mode
-    cached_mode      = mode;
-    cached_mode_time = esp_timer_get_time();
-    ESP_LOGD (TAG8, "cache updated with new mode: %s", radio_mode_map[mode].name);
+        // Update cache after setting new mode
+        cached_mode      = mode;
+        cached_mode_time = esp_timer_get_time();
+        ESP_LOGD (TAG8, "cache updated with new mode: %s", radio_mode_map[mode].name);
+    }
 
     REPLY_WITH_SUCCESS();
 }

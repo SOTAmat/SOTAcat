@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "timed_lock.h"
 #include "webserver.h"
 
 #include <memory>
@@ -25,8 +26,8 @@ esp_err_t handler_xmit_put (httpd_req_t * req) {
     long         xmit    = atoi (param_value);  // Convert the parameter to an integer
     const char * command = xmit ? "TX;" : "RX;";
 
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
+    // Tier 3: Critical timeout for TX/RX toggle
+    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "TX/RX toggle") {
         kxRadio.put_to_kx_command_string (command, 1);
     }
 
@@ -50,8 +51,8 @@ esp_err_t handler_msg_put (httpd_req_t * req) {
     long         bank    = atoi (param_value);  // Convert the parameter to an integer
     const char * command = bank == 1 ? "SWT11;SWT19;" : "SWT11;SWT27;";
 
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
+    // Tier 2: Quick timeout for fast SET operations
+    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_QUICK_MS, "message play") {
         kxRadio.put_to_kx_command_string (command, 1);
     }
 
@@ -72,8 +73,9 @@ esp_err_t handler_power_get (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     long power;
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
+
+    // Tier 1: Fast timeout for GET operations
+    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "power GET") {
         power = kxRadio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
     }
 
@@ -102,8 +104,9 @@ esp_err_t handler_power_put (httpd_req_t * req) {
     ESP_LOGI (TAG8, "setting power to '%s'", param_value);
 
     long desired_power = atoi (param_value);
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
+
+    // Tier 2: Moderate timeout for SET operations
+    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_MODERATE_MS, "power SET") {
         // first set it to a known value, zero
         if (!kxRadio.put_to_kx ("PC", 3, 0, SC_KX_COMMUNICATION_RETRIES))
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
@@ -116,6 +119,7 @@ esp_err_t handler_power_put (httpd_req_t * req) {
 
         // if the read result doesn't match the desired value, then ensure it has at least changed (from zero above)
         long power = kxRadio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
+
         if (power != desired_power)
             ESP_LOGI (TAG8, "requested power '%s', acquired only %ld", param_value, power);
         if (power == 0)
@@ -149,9 +153,9 @@ esp_err_t handler_keyer_put (httpd_req_t * req) {
 
     char command[256];
     snprintf (command, sizeof (command), "KYW%s;", param_value);
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
 
+    // Tier 3: Critical timeout for keyer operation
+    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "keyer") {
         radio_mode_t mode            = (radio_mode_t)kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
         long         speed_wpm       = kxRadio.get_from_kx ("KS", SC_KX_COMMUNICATION_RETRIES, 3);
         long         chars_remaining = strlen (param_value);

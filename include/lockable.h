@@ -23,4 +23,7 @@ class Lockable {
     void unlock ();
 
     bool locked () const { return m_locked; }
+
+    // Expose mutex for timeout-based locking
+    SemaphoreHandle_t get_mutex () const { return m_mutex; }
 };

@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# Run with: ../../.venv/bin/python3 test_webserver_performance.py
-# Or use: ./run_performance_test.sh --host sotacat.local
 """
 SOTAcat Web Server Performance Test Suite
 

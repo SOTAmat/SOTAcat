@@ -22,7 +22,7 @@ FIRMWARE_DIR := firmware/webtools
 OTA_BIN := $(FIRMWARE_DIR)/SOTACAT-ESP32C3-OTA.bin
 MERGED_BIN := $(FIRMWARE_DIR)/esp32c3.bin
 
-.PHONY: help build upload clean ota ota-upload monitor test
+.PHONY: help build upload clean ota ota-upload monitor test test-setup
 
 help:
 	@echo "SOTAcat Firmware Build Targets"
@@ -36,14 +36,18 @@ help:
 	@echo "OTA Targets:"
 	@echo "  ota-upload    - Upload firmware via OTA (default: sotacat.local)"
 	@echo ""
+	@echo "Test Targets:"
+	@echo "  test-setup    - Setup test environment (venv + dependencies)"
+	@echo "  test          - Run integration test suite"
+	@echo ""
 	@echo "Utility Targets:"
 	@echo "  clean         - Clean build artifacts"
-	@echo "  test          - Run integration tests"
 	@echo ""
 	@echo "Variables:"
 	@echo "  ENV=<env>     - Build environment (default: seeed_xiao_esp32c3_release)"
 	@echo "                  Options: seeed_xiao_esp32c3_debug, seeed_xiao_esp32c3_release"
 	@echo "  IP=<address>  - Device IP for OTA upload (default: sotacat.local)"
+	@echo "  HOST=<host>   - Device hostname/IP for testing (default: sotacat.local)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build                    # Build release firmware"
@@ -52,6 +56,8 @@ help:
 	@echo "  make ota-upload               # Upload via OTA (default: sotacat.local)"
 	@echo "  make ota-upload IP=192.168.1.100  # Upload via OTA to specific IP"
 	@echo "  make upload                   # Build and upload via USB"
+	@echo "  make test                     # Run integration tests (default: 10 iterations, 60s stress)"
+	@echo "  make test HOST=192.168.1.100  # Test specific device"
 
 build:
 	@echo "Building firmware for $(ENV)..."
@@ -99,9 +105,13 @@ clean:
 	@rm -f $(FIRMWARE_DIR)/*.bin
 	@echo "Clean complete."
 
+test-setup:
+	@echo "Setting up test environment..."
+	@cd test/integration && make setup
+
 test:
-	@echo "Running integration tests..."
-	@cd test/integration && make test
+	@echo "Running integration test suite..."
+	@cd test/integration && make test HOST=$(IP)
 
 # Convenience aliases
 .PHONY: flash debug release

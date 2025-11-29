@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "timed_lock.h"
 #include "webserver.h"
 
 #include <esp_log.h>
@@ -23,8 +24,15 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
     if (!kxRadio.is_connected())
         symbol = "⚫";
     else {
-        const std::lock_guard<Lockable> lock (kxRadio);
-        long                            transmitting = kxRadio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
+        long transmitting;
+
+        // Tier 1: Fast timeout for GET operations
+        TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET");
+        if (!lock.acquired()) {
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
+        }
+
+        transmitting = kxRadio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
 
         switch (transmitting) {
         case 0:
