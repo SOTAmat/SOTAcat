@@ -855,4 +855,8 @@ function onChaseLeaving() {
 
     // Save all settings
     saveSortState();
+
+    // Reset event listener flag so they can be reattached when returning to this tab
+    // (necessary because DOM is recreated on each tab switch)
+    ChaseState.chaseEventListenersAttached = false;
 }

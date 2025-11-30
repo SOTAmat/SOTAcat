@@ -828,9 +828,12 @@ function launchSOTAmat() {
 // Attach all CAT page event listeners
 function attachCatEventListeners() {
     // Only attach once to prevent memory leaks
+    console.log(`attachCatEventListeners called, flag is: ${CatState.catEventListenersAttached}`);
     if (CatState.catEventListenersAttached) {
+        console.log("Skipping event listener attachment - already attached");
         return;
     }
+    console.log("Attaching CAT event listeners to DOM");
     CatState.catEventListenersAttached = true;
 
     // Section toggle handlers
@@ -946,4 +949,9 @@ function onCatAppearing() {
 function onCatLeaving() {
     console.info("CAT tab leaving");
     stopVfoUpdates();
+
+    // Reset event listener flags so they can be reattached when returning to this tab
+    // (necessary because DOM is recreated on each tab switch)
+    CatState.catEventListenersAttached = false;
+    CatState.messageInputListenersAttached = false;
 }

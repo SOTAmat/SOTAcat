@@ -631,4 +631,9 @@ function onSettingsLeaving() {
     console.info("Settings tab leaving");
     // Clean up document-level event listener to prevent memory leaks
     document.removeEventListener("click", handleClickOutsidePopup);
+
+    // Reset event listener flags so they can be reattached when returning to this tab
+    // (necessary because DOM is recreated on each tab switch)
+    submitSettingsAttached = false;
+    settingsEventListenersAttached = false;
 }
