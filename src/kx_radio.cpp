@@ -24,9 +24,11 @@ static const char * TAG8 = "sc:kx_radio";
 // Global static instance
 KXRadio & kxRadio = KXRadio::getInstance();
 
-// 0.5 seconds / 500 ms
+// UART timeouts for radio commands
+// Short commands (status checks): 100ms is sufficient
+// Long commands (frequency changes): Radio needs time to settle VFO, use 2000ms
 #define KX_TIMEOUT_MS_SHORT_COMMANDS 100
-#define KX_TIMEOUT_MS_LONG_COMMANDS  1000
+#define KX_TIMEOUT_MS_LONG_COMMANDS  2000
 
 /*
  * Utilities
