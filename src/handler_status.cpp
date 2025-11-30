@@ -27,12 +27,9 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
         long transmitting;
 
         // Tier 1: Fast timeout for GET operations
-        TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET");
-        if (!lock.acquired()) {
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
+        TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET") {
+            transmitting = kxRadio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
         }
-
-        transmitting = kxRadio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
 
         switch (transmitting) {
         case 0:

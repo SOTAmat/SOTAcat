@@ -36,28 +36,30 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
     else {
         // Cache miss or expired - query radio with timeout
         // Tier 1: Fast timeout for GET operations
-        TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
-        if (lock.acquired()) {
-            frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
+        {
+            TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
+            if (lock.acquired()) {
+                frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
 
-            if (frequency > 0) {
-                // Update cache
-                cached_frequency      = frequency;
-                cached_frequency_time = now;
-                ESP_LOGD (TAG8, "cached new frequency: %ld", frequency);
-            }
-        }
-        else {
-            // Mutex timeout - return stale cache if available
-            if (cached_frequency > 0) {
-                frequency = cached_frequency;
-                ESP_LOGW (TAG8, "radio busy - returning stale cached frequency: %ld", frequency);
+                if (frequency > 0) {
+                    // Update cache
+                    cached_frequency      = frequency;
+                    cached_frequency_time = now;
+                    ESP_LOGD (TAG8, "cached new frequency: %ld", frequency);
+                }
             }
             else {
-                ESP_LOGW (TAG8, "radio busy - no cached frequency available");
-                REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
+                // Mutex timeout - return stale cache if available
+                if (cached_frequency > 0) {
+                    frequency = cached_frequency;
+                    ESP_LOGW (TAG8, "radio busy - returning stale cached frequency: %ld", frequency);
+                }
+                else {
+                    ESP_LOGW (TAG8, "radio busy - no cached frequency available");
+                    REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
+                }
             }
-        }
+        }  // TimedLock destructor runs here, after radio access is complete
     }
 
     if (frequency <= 0)

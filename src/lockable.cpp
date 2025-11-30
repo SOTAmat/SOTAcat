@@ -11,8 +11,7 @@ static const char * TAG8 = "sc:lockable";
  */
 
 Lockable::Lockable (char const * name)
-    : m_locked (false)
-    , m_name (name) {
+    : m_name (name) {
     m_mutex = xSemaphoreCreateMutex();
     if (!m_mutex) {
         ESP_LOGE (TAG8, "Failed to create mutex for %s", m_name);
@@ -29,15 +28,13 @@ Lockable::~Lockable() {
 
 void Lockable::lock() {
     ESP_LOGD (TAG8, "locking %s", m_name);
-    if (m_locked)
+    if (locked())
         ESP_LOGE (TAG8, "double-lock detected!");
     xSemaphoreTake (m_mutex, portMAX_DELAY);
-    m_locked = true;
     ESP_LOGD (TAG8, "%s LOCKED --", m_name);
 }
 
 void Lockable::unlock() {
     xSemaphoreGive (m_mutex);
-    m_locked = false;
     ESP_LOGD (TAG8, "-- %s UNLOCKED", m_name);
 }

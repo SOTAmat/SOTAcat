@@ -34,30 +34,27 @@ constexpr TickType_t RADIO_LOCK_TIMEOUT_FT8_MS      = 20000;  // FT8: Long trans
  *
  * Usage examples:
  *
- * 1. Basic usage with manual check:
+ * 1. TIMED_LOCK_OR_FAIL macro (recommended for most cases):
  *   ```
- *   TimedLock lock(kxRadio, 500, "power GET");
- *   if (!lock.acquired()) {
- *       REPLY_WITH_FAILURE(req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
+ *   TIMED_LOCK_OR_FAIL(req, kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET") {
+ *       transmitting = kxRadio.get_from_kx("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
  *   }
- *   long power = kxRadio.get_from_kx("PC", SC_KX_COMMUNICATION_RETRIES, 3);
- *   // Automatically unlocks when lock goes out of scope
+ *   // Auto unlocks and auto-returns HTTP 500 "radio busy" on timeout
  *   ```
  *
- * 2. Using TIMED_LOCK macro:
+ * 2. Manual TimedLock with custom fallback behavior (e.g., returning stale cached data):
  *   ```
- *   TIMED_LOCK(kxRadio, 500, "power GET") {
- *       long power = kxRadio.get_from_kx("PC", SC_KX_COMMUNICATION_RETRIES, 3);
- *   }
- *   // Auto unlocks at end of block
- *   ```
- *
- * 3. Using TIMED_LOCK_OR_FAIL macro (most convenient):
- *   ```
- *   TIMED_LOCK_OR_FAIL(req, kxRadio, 2000, "frequency SET") {
- *       kxRadio.put_to_kx("FA", 11, freq, SC_KX_COMMUNICATION_RETRIES);
- *   }
- *   // Auto unlocks and auto-returns HTTP 500 on timeout
+ *   {
+ *       TimedLock lock(kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
+ *       if (lock.acquired()) {
+ *           frequency = kxRadio.get_from_kx("FA", SC_KX_COMMUNICATION_RETRIES, 11);
+ *       }
+ *       else {
+ *           // Custom handling: return stale cache instead of failing
+ *           frequency = cached_frequency;
+ *           ESP_LOGW(TAG8, "radio busy - returning stale cached frequency");
+ *       }
+ *   }  // Lock automatically released here
  *   ```
  */
 class TimedLock {
@@ -79,7 +76,10 @@ class TimedLock {
 
         m_acquired = (xSemaphoreTake (lockable.get_mutex(), pdMS_TO_TICKS (timeout_ms)) == pdTRUE);
 
-        if (!m_acquired && m_operation) {
+        if (m_acquired) {
+            ESP_LOGD ("TimedLock", "%s LOCKED (timed) --", m_operation ? m_operation : "unknown");
+        }
+        else if (m_operation) {
             ESP_LOGW ("TimedLock", "timeout acquiring mutex for %s", m_operation);
         }
     }
@@ -111,15 +111,11 @@ class TimedLock {
 };
 
 /**
- * Helper macros for common patterns
+ * Helper macro for automatic failure on timeout
+ *
+ * TIMED_LOCK_OR_FAIL acquires the lock and automatically returns HTTP 500 if timeout occurs.
+ * This is the recommended pattern for most HTTP handlers.
  */
-
-// Simple usage - check if acquired manually, creates scoped lock
-#define TIMED_LOCK(lockable, timeout_ms, operation)                     \
-    TimedLock _timed_lock_##__LINE__ (lockable, timeout_ms, operation); \
-    if (_timed_lock_##__LINE__.acquired())
-
-// Auto-fail HTTP request on timeout
 #define TIMED_LOCK_OR_FAIL(req, lockable, timeout_ms, operation)                               \
     TimedLock _timed_lock_##__LINE__ (lockable, timeout_ms, operation);                        \
     if (!_timed_lock_##__LINE__.acquired()) {                                                  \

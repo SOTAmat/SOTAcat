@@ -58,31 +58,33 @@ radio_mode_t get_radio_mode () {
     else {
         // Cache miss or expired - query radio with timeout
         // Tier 1: Fast timeout for GET operations
-        TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "mode GET");
-        if (lock.acquired()) {
-            mode = kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
+        {
+            TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "mode GET");
+            if (lock.acquired()) {
+                mode = kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
 
-            if (mode > MODE_UNKNOWN && mode <= MODE_LAST) {
-                // Update cache
-                cached_mode      = static_cast<radio_mode_t> (mode);
-                cached_mode_time = now;
-                ESP_LOGD (TAG8, "cached new mode: %ld (%s)", mode, radio_mode_map[mode].name);
+                if (mode > MODE_UNKNOWN && mode <= MODE_LAST) {
+                    // Update cache
+                    cached_mode      = static_cast<radio_mode_t> (mode);
+                    cached_mode_time = now;
+                    ESP_LOGD (TAG8, "cached new mode: %ld (%s)", mode, radio_mode_map[mode].name);
+                }
+                else {
+                    ESP_LOGI (TAG8, "mode = %ld (%s)", mode, radio_mode_map[mode].name);
+                }
             }
             else {
-                ESP_LOGI (TAG8, "mode = %ld (%s)", mode, radio_mode_map[mode].name);
+                // Mutex timeout - return stale cache if available
+                if (cached_mode != MODE_UNKNOWN) {
+                    mode = cached_mode;
+                    ESP_LOGW (TAG8, "radio busy - returning stale cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
+                }
+                else {
+                    ESP_LOGW (TAG8, "radio busy - no cached mode available");
+                    mode = MODE_UNKNOWN;
+                }
             }
-        }
-        else {
-            // Mutex timeout - return stale cache if available
-            if (cached_mode != MODE_UNKNOWN) {
-                mode = cached_mode;
-                ESP_LOGW (TAG8, "radio busy - returning stale cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
-            }
-            else {
-                ESP_LOGW (TAG8, "radio busy - no cached mode available");
-                mode = MODE_UNKNOWN;
-            }
-        }
+        }  // TimedLock destructor runs here, after radio access is complete
     }
 
     // Ensure the mode is valid - this is really a double-check that our array

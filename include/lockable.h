@@ -2,10 +2,10 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <freertos/task.h>
 #include <mutex>  // for convenience when using std::lock_guard
 
 class Lockable {
-    bool              m_locked;
     SemaphoreHandle_t m_mutex;
     char const *      m_name;
 
@@ -22,7 +22,10 @@ class Lockable {
     void lock ();
     void unlock ();
 
-    bool locked () const { return m_locked; }
+    // Check if mutex is held by current task
+    bool locked () const {
+        return m_mutex != nullptr && xSemaphoreGetMutexHolder (m_mutex) == xTaskGetCurrentTaskHandle();
+    }
 
     // Expose mutex for timeout-based locking
     SemaphoreHandle_t get_mutex () const { return m_mutex; }
