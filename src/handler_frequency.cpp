@@ -37,7 +37,7 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
         // Cache miss or expired - query radio with timeout
         // Tier 1: Fast timeout for GET operations
         {
-            TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
+            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
             if (lock.acquired()) {
                 frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
 
@@ -91,7 +91,7 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid frequency");
 
     // Tier 2: Moderate timeout for SET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_MODERATE_MS, "frequency SET") {
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "frequency SET")) {
         bool success = kxRadio.put_to_kx ("FA", 11, freq, SC_KX_COMMUNICATION_RETRIES);
 
         if (!success)

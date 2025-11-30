@@ -27,7 +27,7 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
         long transmitting;
 
         // Tier 1: Fast timeout for GET operations
-        TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET") {
+        TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET")) {
             transmitting = kxRadio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
         }
 

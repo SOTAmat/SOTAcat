@@ -59,7 +59,7 @@ radio_mode_t get_radio_mode () {
         // Cache miss or expired - query radio with timeout
         // Tier 1: Fast timeout for GET operations
         {
-            TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "mode GET");
+            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "mode GET");
             if (lock.acquired()) {
                 mode = kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
 
@@ -130,7 +130,7 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
     radio_mode_t mode = MODE_UNKNOWN;
 
     // Tier 2: Moderate timeout for SET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_MODERATE_MS, "mode SET") {
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "mode SET")) {
         // Determine the radio mode based on the "bw" parameter
         if (!strcmp (bw, "SSB")) {
             // Get the current frequency and set the mode to LSB or USB based on the frequency

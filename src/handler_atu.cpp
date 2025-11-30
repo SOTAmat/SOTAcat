@@ -26,7 +26,7 @@ esp_err_t handler_atu_put (httpd_req_t * req) {
     const char * command = nullptr;
 
     // Tier 3: Critical timeout for ATU tuning operation
-    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "ATU tune") {
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "ATU tune")) {
         // Determine the correct command based on radio type
         switch (kxRadio.get_radio_type()) {
         case RadioType::KX3:

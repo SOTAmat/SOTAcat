@@ -1,6 +1,5 @@
 #pragma once
 
-#include "lockable.h"
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -58,23 +57,23 @@ constexpr TickType_t RADIO_LOCK_TIMEOUT_FT8_MS      = 20000;  // FT8: Long trans
  *   ```
  */
 class TimedLock {
-    Lockable &   m_lockable;
-    bool         m_acquired;
-    const char * m_operation;  // For logging
+    SemaphoreHandle_t m_mutex;
+    bool              m_acquired;
+    const char *      m_operation;  // For logging
 
   public:
     /**
      * Attempt to acquire lock with timeout
-     * @param lockable The Lockable object to lock
+     * @param mutex The FreeRTOS mutex to lock
      * @param timeout_ms Timeout in milliseconds
      * @param operation Optional operation name for logging
      */
-    TimedLock (Lockable & lockable, TickType_t timeout_ms, const char * operation = nullptr)
-        : m_lockable (lockable)
+    TimedLock (SemaphoreHandle_t mutex, TickType_t timeout_ms, const char * operation = nullptr)
+        : m_mutex (mutex)
         , m_acquired (false)
         , m_operation (operation) {
 
-        m_acquired = (xSemaphoreTake (lockable.get_mutex(), pdMS_TO_TICKS (timeout_ms)) == pdTRUE);
+        m_acquired = (xSemaphoreTake (mutex, pdMS_TO_TICKS (timeout_ms)) == pdTRUE);
 
         if (m_acquired) {
             ESP_LOGD ("TimedLock", "%s LOCKED (timed) --", m_operation ? m_operation : "unknown");
@@ -89,7 +88,7 @@ class TimedLock {
      */
     ~TimedLock() {
         if (m_acquired) {
-            m_lockable.unlock();
+            xSemaphoreGive (m_mutex);
         }
     }
 
@@ -113,11 +112,14 @@ class TimedLock {
 /**
  * Helper macro for automatic failure on timeout
  *
- * TIMED_LOCK_OR_FAIL acquires the lock and automatically returns HTTP 500 if timeout occurs.
+ * TIMED_LOCK_OR_FAIL takes a TimedLock object (usually from kxRadio.timed_lock())
+ * and automatically returns HTTP 500 if timeout occurs.
  * This is the recommended pattern for most HTTP handlers.
+ *
+ * Usage: TIMED_LOCK_OR_FAIL(req, kxRadio.timed_lock(RADIO_LOCK_TIMEOUT_FAST_MS, "operation")) { ... }
  */
-#define TIMED_LOCK_OR_FAIL(req, lockable, timeout_ms, operation)                               \
-    TimedLock _timed_lock_##__LINE__ (lockable, timeout_ms, operation);                        \
+#define TIMED_LOCK_OR_FAIL(req, timed_lock_expr)                                               \
+    TimedLock _timed_lock_##__LINE__ = timed_lock_expr;                                        \
     if (!_timed_lock_##__LINE__.acquired()) {                                                  \
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy, please retry"); \
     }                                                                                          \

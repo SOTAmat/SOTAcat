@@ -1,5 +1,6 @@
 #include "kx_radio.h"
 #include "hardware_specific.h"
+#include "timed_lock.h"
 
 #include <cstring>
 #include <driver/uart.h>
@@ -106,17 +107,27 @@ static long parse_response (const char * response, int num_digits) {
 }
 
 KXRadio::KXRadio()
-    : Lockable ("radio")
-    , m_is_connected (false) {}
+    : m_mutex (nullptr)
+    , m_is_connected (false) {
+    m_mutex = xSemaphoreCreateMutex();
+    if (!m_mutex) {
+        ESP_LOGE (TAG8, "Failed to create radio mutex");
+        abort();
+    }
+}
 
 KXRadio & KXRadio::getInstance() {
     static KXRadio instance;  // Static instance
     return instance;
 }
 
+TimedLock KXRadio::timed_lock (TickType_t timeout_ms, const char * operation) {
+    return TimedLock (m_mutex, timeout_ms, operation);
+}
+
 /*
  * Functions that form our public radio API
- * These should all assert that the Radio is locked()
+ * These should all assert that the Radio is is_locked()
  * It's an error somewhere up in the call stack if not.
  */
 
@@ -132,7 +143,7 @@ KXRadio & KXRadio::getInstance() {
 int KXRadio::connect() {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     int    baud_rates[] = {38400, 19200, 9600, 4800};
@@ -208,7 +219,7 @@ int KXRadio::connect() {
 void KXRadio::empty_kx_input_buffer (int wait_ms) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     char in_buff[64];
@@ -231,7 +242,7 @@ void KXRadio::empty_kx_input_buffer (int wait_ms) {
 long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
     ESP_LOGV (TAG8, "trace: %s(command = '%s')", __func__, command);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     char command_buff[8] = {0};
@@ -274,7 +285,7 @@ long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
 bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int tries) {
     ESP_LOGV (TAG8, "put_to_kx('%s') attempting value %ld", command, value);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     if (strlen (command) != 2 || value < 0) {
@@ -352,7 +363,7 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
 long KXRadio::get_from_kx_menu_item (uint8_t menu_item, int tries) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     put_to_kx ("MN", 3, menu_item, SC_KX_COMMUNICATION_RETRIES);  // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
@@ -379,7 +390,7 @@ long KXRadio::get_from_kx_menu_item (uint8_t menu_item, int tries) {
 bool KXRadio::put_to_kx_menu_item (uint8_t menu_item, long value, int tries) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     put_to_kx ("MN", 3, menu_item, SC_KX_COMMUNICATION_RETRIES);  // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
@@ -409,7 +420,7 @@ bool KXRadio::put_to_kx_menu_item (uint8_t menu_item, long value, int tries) {
 bool KXRadio::get_from_kx_string (const char * command, int tries, char * response, int response_size) {
     ESP_LOGV (TAG8, "trace: %s(command = '%s')", __func__, command);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     // add trailing semi-colon
@@ -433,7 +444,7 @@ bool KXRadio::get_from_kx_string (const char * command, int tries, char * respon
 bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
     ESP_LOGV (TAG8, "trace: %s(command = '%s')", __func__, command);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     uart_flush (UART_NUM);
@@ -456,7 +467,7 @@ bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
 void KXRadio::get_kx_state (kx_state_t * in_state) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     in_state->mode = (radio_mode_t)get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);        // MDn; - Get current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
@@ -481,7 +492,7 @@ void KXRadio::get_kx_state (kx_state_t * in_state) {
 void KXRadio::restore_kx_state (const kx_state_t * in_state, int tries) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     put_to_kx_menu_item (58, in_state->tun_pwr, SC_KX_COMMUNICATION_RETRIES);   // TUN PWR setting
@@ -507,7 +518,7 @@ void KXRadio::restore_kx_state (const kx_state_t * in_state, int tries) {
 void KXRadio::detect_radio_type() {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (!locked())
+    if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
     char response[17] = {0};

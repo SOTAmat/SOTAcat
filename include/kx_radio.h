@@ -1,7 +1,8 @@
 #pragma once
 
-#include "lockable.h"
-
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
 #include <stdint.h>
 
 #define SC_KX_COMMUNICATION_RETRIES 3
@@ -36,26 +37,38 @@ typedef struct {
     uint8_t      audio_peaking;
 } kx_state_t;
 
+// Forward declaration for TimedLock
+class TimedLock;
+
 /*
  * The recommended way of exclusively accessing the radio's ACC port
- * is to use a scoped lock guard, as in
- *     long result;
- *     {
- *         const std::lock_guard<Lockable> lock(kxRadio);
- *         result = kxRadio.get_from_kx("TQ", 2, 1);
+ * is to use the TIMED_LOCK_OR_FAIL macro or kxRadio.timed_lock() helper:
+ *
+ *     TIMED_LOCK_OR_FAIL(req, kxRadio.timed_lock(RADIO_LOCK_TIMEOUT_FAST_MS, "operation")) {
+ *         result = kxRadio.get_from_kx("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
  *     }
- * Where it's not possible to tightly scope access, then it is reasonable
- * to use
- *     kxRadio.lock() and kxRadio.unlock()
- * directly, taking care that they are precisely balanced.
+ *
+ * For custom timeout handling, use TimedLock directly:
+ *     {
+ *         TimedLock lock = kxRadio.timed_lock(RADIO_LOCK_TIMEOUT_FAST_MS, "operation");
+ *         if (lock.acquired()) {
+ *             result = kxRadio.get_from_kx("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
+ *         }
+ *     }
  */
 
-class KXRadio : public Lockable {
+class KXRadio {
   private:
-    bool      m_is_connected;
-    RadioType m_radio_type;
+    SemaphoreHandle_t m_mutex;
+    bool              m_is_connected;
+    RadioType         m_radio_type;
     KXRadio();
     void detect_radio_type ();
+
+    // Check if current task holds the mutex
+    bool is_locked () const {
+        return m_mutex != nullptr && xSemaphoreGetMutexHolder (m_mutex) == xTaskGetCurrentTaskHandle();
+    }
 
   public:
     static KXRadio & getInstance ();
@@ -63,6 +76,10 @@ class KXRadio : public Lockable {
     int connect ();
 
     bool is_connected () const { return m_is_connected; }
+
+    // Helper method to create a TimedLock for this radio
+    // Returns a TimedLock that can be used with TIMED_LOCK_OR_FAIL or manually
+    TimedLock timed_lock (TickType_t timeout_ms, const char * operation);
 
     void empty_kx_input_buffer (int wait_ms);
 

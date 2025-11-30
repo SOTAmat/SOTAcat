@@ -158,7 +158,7 @@ static void xmit_ft8_task (void * pvParameter) {
     }
 
     // this block encapsulates our exclusive access to the radio port
-    TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_FT8_MS, "FT8 transmission");
+    TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FT8_MS, "FT8 transmission");
     if (!lock.acquired()) {
         ESP_LOGE (TAG8, "Failed to acquire radio lock for FT8 transmission");
         ft8TaskInProgress = false;
@@ -259,7 +259,7 @@ static void cleanup_ft8_task (void * pvParameter) {
     }
 
     // Restore the radio to its prior state (including TUN PWR)
-    TimedLock lock2 (kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "FT8 cleanup");
+    TimedLock lock2 = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "FT8 cleanup");
     if (!lock2.acquired()) {
         ESP_LOGE (TAG8, "Failed to acquire radio lock for FT8 cleanup - radio state not restored");
         delete ft8ConfigInfo->kx_state;
@@ -381,7 +381,7 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     ft8_encode (packed, tones);
 
     // this block encapsulates our exclusive access to the radio port
-    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "FT8 setup") {
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "FT8 setup")) {
         // First capture the current state of the radio before changing it:
         kx_state_t * kx_state = new kx_state_t;
         kxRadio.get_kx_state (kx_state);

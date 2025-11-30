@@ -7,6 +7,7 @@
 #include "kx_radio.h"
 #include "settings.h"
 #include "setup_adc.h"
+#include "timed_lock.h"
 #include "webserver.h"
 #include "wifi.h"
 
@@ -50,7 +51,8 @@ void radio_connection_task (void * pvParameters) {
     // kxRadio is statically initialized as a singleton, but we
     // do need to connect SOTACAT to its ACC port
     {
-        const std::lock_guard<Lockable> lock (kxRadio);
+        // Use infinite timeout for initial connection during setup
+        TimedLock lock = kxRadio.timed_lock (portMAX_DELAY, "radio connect");
         kxRadio.connect();
     }
     ESP_LOGI (TAG8, "Radio connected, exiting search task.");

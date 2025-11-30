@@ -27,7 +27,7 @@ esp_err_t handler_xmit_put (httpd_req_t * req) {
     const char * command = xmit ? "TX;" : "RX;";
 
     // Tier 3: Critical timeout for TX/RX toggle
-    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "TX/RX toggle") {
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "TX/RX toggle")) {
         kxRadio.put_to_kx_command_string (command, 1);
     }
 
@@ -52,7 +52,7 @@ esp_err_t handler_msg_put (httpd_req_t * req) {
     const char * command = bank == 1 ? "SWT11;SWT19;" : "SWT11;SWT27;";
 
     // Tier 2: Quick timeout for fast SET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_QUICK_MS, "message play") {
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_QUICK_MS, "message play")) {
         kxRadio.put_to_kx_command_string (command, 1);
     }
 
@@ -75,7 +75,7 @@ esp_err_t handler_power_get (httpd_req_t * req) {
     long power;
 
     // Tier 1: Fast timeout for GET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "power GET") {
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "power GET")) {
         power = kxRadio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
     }
 
@@ -106,7 +106,7 @@ esp_err_t handler_power_put (httpd_req_t * req) {
     long desired_power = atoi (param_value);
 
     // Tier 2: Moderate timeout for SET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_MODERATE_MS, "power SET") {
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "power SET")) {
         // first set it to a known value, zero
         if (!kxRadio.put_to_kx ("PC", 3, 0, SC_KX_COMMUNICATION_RETRIES))
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
@@ -155,7 +155,7 @@ esp_err_t handler_keyer_put (httpd_req_t * req) {
     snprintf (command, sizeof (command), "KYW%s;", param_value);
 
     // Tier 3: Critical timeout for keyer operation
-    TIMED_LOCK_OR_FAIL (req, kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "keyer") {
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "keyer")) {
         radio_mode_t mode            = (radio_mode_t)kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
         long         speed_wpm       = kxRadio.get_from_kx ("KS", SC_KX_COMMUNICATION_RETRIES, 3);
         long         chars_remaining = strlen (param_value);

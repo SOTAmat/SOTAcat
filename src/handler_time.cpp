@@ -111,43 +111,6 @@ static void adjust_component (char const * selector, int diff) {
 }
 
 /**
- * Sets the time on the radio using the provided parameter value.
- *
- * @param param_value New time value as a string.
- * @return true on successful update, false on failure.
- */
-static bool set_time (char const * param_value) {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    long     time_value = atoi (param_value);  // Convert the parameter to an integer
-    time_hms client_time;
-    if (!convert_client_time (time_value, &client_time))
-        return false;
-
-    // Tier 3: Critical timeout for time setting
-    TimedLock lock (kxRadio, RADIO_LOCK_TIMEOUT_CRITICAL_MS, "time SET");
-    if (!lock.acquired()) {
-        ESP_LOGW (TAG8, "radio busy - timeout acquiring mutex for time SET");
-        return false;
-    }
-
-    time_hms radio_time;
-    kxRadio.put_to_kx ("MN", 3, 73, SC_KX_COMMUNICATION_RETRIES);  // enter time menu
-    if (!get_radio_time (&radio_time))                             // read the screen; VFO A shows the time
-        return false;
-
-    // set synced time in this order (sec, min, hrs) to be most sensitive to current time
-    if (radio_time.sec != client_time.sec)
-        adjust_component ("SWT20;", client_time.sec - radio_time.sec);
-    if (radio_time.min != client_time.min)
-        adjust_component ("SWT27;", client_time.min - radio_time.min);
-    if (radio_time.hrs != client_time.hrs)
-        adjust_component ("SWT19;", client_time.hrs - radio_time.hrs);
-    kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu
-    return true;
-}
-
-/**
  * Handles an HTTP PUT request to update the time setting on the radio.
  *
  * @param req Pointer to the HTTP request structure.  The "time" query parameter
@@ -160,8 +123,29 @@ esp_err_t handler_time_put (httpd_req_t * req) {
 
     STANDARD_DECODE_SOLE_PARAMETER (req, "time", param_value);
 
-    if (!set_time (param_value))
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set time");
+    long     time_value = atoi (param_value);  // Convert the parameter to an integer
+    time_hms client_time;
+    if (!convert_client_time (time_value, &client_time))
+        REPLY_WITH_FAILURE (req, HTTPD_400_BAD_REQUEST, "invalid time value");
+
+    // Tier 3: Critical timeout for time setting
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "time SET")) {
+        time_hms radio_time;
+        kxRadio.put_to_kx ("MN", 3, 73, SC_KX_COMMUNICATION_RETRIES);       // enter time menu
+        if (!get_radio_time (&radio_time)) {                                // read the screen; VFO A shows the time
+            kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu on error
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to read radio time");
+        }
+
+        // set synced time in this order (sec, min, hrs) to be most sensitive to current time
+        if (radio_time.sec != client_time.sec)
+            adjust_component ("SWT20;", client_time.sec - radio_time.sec);
+        if (radio_time.min != client_time.min)
+            adjust_component ("SWT27;", client_time.min - radio_time.min);
+        if (radio_time.hrs != client_time.hrs)
+            adjust_component ("SWT19;", client_time.hrs - radio_time.hrs);
+        kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu
+    }
 
     REPLY_WITH_SUCCESS();
 }
