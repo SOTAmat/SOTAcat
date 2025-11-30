@@ -163,6 +163,7 @@ int KXRadio::connect() {
         .flow_ctrl           = UART_HW_FLOWCTRL_DISABLE,
         .rx_flow_ctrl_thresh = 0,  // not used since flow_ctrl is disabled
         .source_clk          = UART_SCLK_APB,
+        .flags               = {.allow_pd = 0, .backup_before_sleep = 0},
     };
     uart_param_config (UART_NUM, &uart_config);
     uart_set_pin (UART_NUM, UART2_TX_PIN, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
