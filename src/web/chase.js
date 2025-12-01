@@ -5,7 +5,6 @@
 
 // Configuration constants - adjust these to change behavior
 const CHASE_HISTORY_DURATION_SECONDS = 3600; // 1 hour (3600 seconds)
-const CHASE_DEFAULT_MODE_FILTER = "SSB"; // Default mode filter
 const CHASE_API_SPOT_LIMIT = 500; // Maximum number of spots to fetch from API
 const CHASE_MIN_REFRESH_INTERVAL_MS = 60000; // Minimum time between API calls (60 seconds)
 const CHASE_AUTO_REFRESH_INTERVAL_MS = 60000; // Auto-refresh interval (60 seconds)
@@ -94,7 +93,7 @@ function onTypeFilterChange(type) {
 
 // Load saved mode filter from localStorage (returns 'All', 'CW', 'SSB', 'DATA', etc.)
 function loadGlobalModeFilter() {
-    const savedMode = localStorage.getItem("globalModeFilter");
+    const savedMode = localStorage.getItem("chaseModeFilter");
     ChaseState.modeFilter = savedMode !== null ? savedMode : "All";
     return ChaseState.modeFilter;
 }
@@ -102,7 +101,7 @@ function loadGlobalModeFilter() {
 // Save mode filter selection to localStorage and update ChaseState
 function saveGlobalModeFilter(mode) {
     ChaseState.modeFilter = mode;
-    localStorage.setItem("globalModeFilter", mode);
+    localStorage.setItem("chaseModeFilter", mode);
 }
 
 // Apply saved mode filter to UI dropdown and table rows
@@ -749,12 +748,6 @@ function onChaseAppearing() {
 
         // Load and apply filters
         loadGlobalModeFilter();
-
-        // Override with Chase default if not set
-        if (!ChaseState.modeFilter || ChaseState.modeFilter === "All") {
-            ChaseState.modeFilter = CHASE_DEFAULT_MODE_FILTER;
-        }
-
         loadTypeFilter();
 
         const modeSelector = document.getElementById("mode-filter");
