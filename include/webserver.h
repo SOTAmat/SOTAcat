@@ -1,6 +1,7 @@
 #pragma once
 
 #include <esp_http_server.h>
+#include <strings.h>  // for size_t
 
 extern void      start_webserver ();
 extern bool      url_decode_in_place (char * str);

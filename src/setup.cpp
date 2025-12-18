@@ -16,6 +16,7 @@
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <time.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:setup...";

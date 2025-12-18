@@ -15,6 +15,7 @@
 #include <esp_timer.h>
 #include <math.h>
 #include <memory>
+#include <sys/time.h>
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
 

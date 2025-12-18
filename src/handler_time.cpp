@@ -4,6 +4,7 @@
 #include "webserver.h"
 
 #include <memory>
+#include <time.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:hdl_time";

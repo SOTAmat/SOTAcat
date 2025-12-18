@@ -24,7 +24,7 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
     if (!kxRadio.is_connected())
         symbol = "⚫";
     else {
-        long transmitting;
+        long transmitting = -1;
 
         // Tier 1: Fast timeout for GET operations
         TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET")) {
