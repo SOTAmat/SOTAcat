@@ -3,6 +3,10 @@
 #include "hardware_specific.h"
 #include "webserver.h"
 
+#include <cstdio>
+#include <cstring>
+#include <memory>
+
 #include <esp_log.h>
 
 static const char * TAG8 = "sc:hdl_vers";
@@ -16,12 +20,22 @@ static const char * TAG8 = "sc:hdl_vers";
  */
 esp_err_t handler_version_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    const size_t MAX_VS_LEN = strlen (HW_TYPE_STR) + sizeof (":") + sizeof (BUILD_DATE_TIME) + sizeof ('-') + sizeof (SC_BUILD_TYPE) + 1;
-    char         versionString[MAX_VS_LEN];
-    snprintf (versionString, MAX_VS_LEN, "%s:%s-%s", HW_TYPE_STR, BUILD_DATE_TIME, SC_BUILD_TYPE);
+    const char * sep1 = ":";  // separator between HW_TYPE_STR and BUILD_DATE_TIME
+    const char * sep2 = "-";  // separator between BUILD_DATE_TIME and SC_BUILD_TYPE
 
-    REPLY_WITH_STRING (req, versionString, "version info");
+    const size_t max_len =
+        std::strlen (HW_TYPE_STR) +
+        std::strlen (sep1) +
+        std::strlen (BUILD_DATE_TIME) +
+        std::strlen (sep2) +
+        std::strlen (SC_BUILD_TYPE) +
+        1;  // NUL
+
+    auto versionString = std::make_unique<char[]> (max_len);
+
+    std::snprintf (versionString.get(), max_len, "%s%s%s%s%s", HW_TYPE_STR, sep1, BUILD_DATE_TIME, sep2, SC_BUILD_TYPE);
+
+    REPLY_WITH_STRING (req, versionString.get(), "version info");
 }

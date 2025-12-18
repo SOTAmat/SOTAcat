@@ -3,6 +3,9 @@
 #include "timed_lock.h"
 #include "webserver.h"
 
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <time.h>
 
@@ -39,7 +42,7 @@ inline int decode_couplet (char ten, char one) {
 static bool get_radio_time (time_hms * radio_time) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
     char buf[sizeof ("DS@@123456af;")];                                                          // sizeof arg looks like expected response
-    if (!kxRadio.get_from_kx_string ("DS", SC_KX_COMMUNICATION_RETRIES, buf, sizeof (buf) - 1))  // read time from VFO A)
+    if (!kxRadio.get_from_kx_string ("DS", SC_KX_COMMUNICATION_RETRIES, buf, sizeof (buf) - 1))  // read time from VFO A
         return false;
     buf[sizeof (buf) - 1] = '\0';
     ESP_LOGV (TAG8, "time as read on display is %s", buf);
@@ -95,20 +98,26 @@ static void adjust_component (char const * selector, int diff) {
     if (!diff)
         return;
 
-    size_t abs_diff = std::abs (diff);
-    assert (abs_diff <= 60);
-    const size_t adjustment_size             = (sizeof ("SWTnn;") - 1) + abs_diff * (sizeof ("UP;") - 1) + 1;
-    char         adjustment[adjustment_size] = {0};
-    strcat (adjustment, selector);
-    for (int ii = diff; ii > 0; --ii)
-        strcat (adjustment, "UP;");
-    for (int ii = diff; ii < 0; ++ii)
-        strcat (adjustment, "DN;");
-    ESP_LOGV (TAG8, "adjustment should be %s", adjustment);
-    kxRadio.put_to_kx_command_string (adjustment, 1);
+    const size_t num_steps = static_cast<size_t> (std::abs (diff));
+    assert (num_steps <= 60);
 
-    // empirically determined delay to allow radio to complete the action
-    vTaskDelay (pdMS_TO_TICKS (30 * abs_diff));
+    const size_t     selector_len    = std::strlen (selector);
+    constexpr size_t step_len        = sizeof ("UP;") - 1;  // 3
+    const size_t     adjustment_size = selector_len + num_steps * step_len + 1;
+    auto             adjustment      = std::make_unique<char[]> (adjustment_size);
+
+    char * buf = adjustment.get();
+
+    std::strcpy (buf, selector);
+    for (int ii = diff; ii > 0; --ii)
+        std::strcat (buf, "UP;");
+    for (int ii = diff; ii < 0; ++ii)
+        std::strcat (buf, "DN;");
+
+    ESP_LOGV (TAG8, "adjustment should be %s", buf);
+    kxRadio.put_to_kx_command_string (buf, 1);
+
+    vTaskDelay (pdMS_TO_TICKS (30 * num_steps));  // empirically determined delay to allow radio to complete the action
 }
 
 /**
