@@ -72,7 +72,7 @@ esp_err_t handler_power_get (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    long power;
+    long power = -1;
 
     // Tier 1: Fast timeout for GET operations
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "power GET")) {

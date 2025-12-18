@@ -7,8 +7,12 @@ FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.cpp)
 #target_add_binary_data(${COMPONENT_TARGET} "sclogo.jpg" TEXT)
 
 idf_component_register(
-    SRCS ${app_sources} 
-    EMBED_FILES 
+    SRCS ${app_sources}
+    INCLUDE_DIRS "../include"
+    REQUIRES esp_http_server esp_timer nvs_flash esp_wifi esp_netif
+             esp_driver_uart esp_driver_gpio esp_driver_i2c esp_adc
+             app_update
+    EMBED_FILES
         "web/index.htmlgz"
         "web/sclogo.jpg"
         "web/favicon.ico"
