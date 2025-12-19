@@ -6,8 +6,8 @@
 #include "settings.h"
 
 #include <driver/gpio.h>
-#include <math.h>
-#include <time.h>
+#include <cmath>
+#include <ctime>
 
 #include "esp_timer.h"
 #include "max17260.h"
@@ -23,7 +23,7 @@ static const char * TAG8 = "sc:idletask";
  * to prevent the idle watchdog from triggering incorrectly.
  */
 void resetActivityTimer () {
-    time (&LastUserActivityUnixTime);
+    std::time (&LastUserActivityUnixTime);
     ESP_LOGI (TAG8, "Activity timer reset");
 }
 
@@ -54,9 +54,9 @@ void idle_status_task (void * _pvParameter) {
 
         // Get the current time
         time_t now;
-        time (&now);  // Time in seconds
+        std::time (&now);  // Time in seconds
 
-        int blinks = ceil ((now - LastUserActivityUnixTime) / (AUTO_SHUTDOWN_TIME_SECONDS / 4.0));
+        int blinks = std::ceil ((now - LastUserActivityUnixTime) / (AUTO_SHUTDOWN_TIME_SECONDS / 4.0));
         ESP_LOGV (TAG8, "blinks %d", blinks);
 
         // Count USB detection as a user event
@@ -138,7 +138,7 @@ void showActivity () {
         xTaskCreate (activityLedBlinkTask, "ActivityLEDblinkControlTask", 2048, NULL, SC_TASK_PRIORITY_LOW, &showUserActivityBlinkTaskHandle);
 
     // Reset the inactivity timer to the current time, so we can remember when the user was last active.
-    time (&LastUserActivityUnixTime);
+    std::time (&LastUserActivityUnixTime);
     gpio_set_level (LED_RED, LED_ON);
 
     // Signal the LED control task to reset its wait timer

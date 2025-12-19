@@ -6,8 +6,8 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <memory>
-#include <time.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:hdl_time";
@@ -71,7 +71,7 @@ static bool convert_client_time (long int long_time, time_hms * client_time) {
     time_t my_time = static_cast<time_t> (long_time);
 
     // Convert to UTC time structure
-    struct tm * utc_time = gmtime (&my_time);
+    struct tm * utc_time = std::gmtime (&my_time);
 
     if (utc_time) {
         // Extract hours, minutes, and seconds
@@ -108,11 +108,11 @@ static void adjust_component (char const * selector, int diff) {
 
     char * buf = adjustment.get();
 
-    std::strcpy (buf, selector);
+    int written = snprintf (buf, adjustment_size, "%s", selector);
     for (int ii = diff; ii > 0; --ii)
-        std::strcat (buf, "UP;");
+        written += snprintf (buf + written, adjustment_size - written, "UP;");
     for (int ii = diff; ii < 0; ++ii)
-        std::strcat (buf, "DN;");
+        written += snprintf (buf + written, adjustment_size - written, "DN;");
 
     ESP_LOGV (TAG8, "adjustment should be %s", buf);
     kxRadio.put_to_kx_command_string (buf, 1);

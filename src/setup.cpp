@@ -16,7 +16,7 @@
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <time.h>
+#include <ctime>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:setup...";
@@ -101,7 +101,7 @@ void setup () {
     ESP_LOGI (TAG8, "current setup() task priority is %d", currentPriority);
 
     // Note the current time since our inactivity power down time will be based on this.
-    time (&LastUserActivityUnixTime);
+    std::time (&LastUserActivityUnixTime);
     // Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds.
     TaskHandle_t xSetupWatchdogHandle = NULL;
     xTaskCreate (&startup_watchdog_timer, "startup_watchdog_task", 2048, NULL, SC_TASK_PRIORITY_NORMAL, &xSetupWatchdogHandle);

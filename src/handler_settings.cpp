@@ -78,7 +78,7 @@ static esp_err_t initialize_nvs () {
  */
 static void get_nv_string (const char * key, char * value, const char * default_value, size_t size) {
     if (nvs_get_str (s_nvs_settings_handle, key, value, &size) != ESP_OK)
-        strncpy (value, default_value, size);
+        snprintf (value, size, "%s", default_value);
 }
 
 /**

@@ -13,9 +13,8 @@
 #include <driver/uart.h>
 #include <esp_task_wdt.h>
 #include <esp_timer.h>
-#include <math.h>
+#include <cmath>
 #include <memory>
-#include <sys/time.h>
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
 
@@ -59,11 +58,10 @@ static ft8_task_pack_t * ft8ConfigInfo = NULL;
  */
 static long msUntilFT8Window () {
     // Obtain the current time with microsecond precision
-    struct timeval tv_now;
-    gettimeofday (&tv_now, NULL);
+    int64_t now_us = esp_timer_get_time();
 
     // Convert current time to milliseconds using long long to avoid overflow
-    long long now_ms = (long long)(tv_now.tv_sec) * 1000LL + (tv_now.tv_usec / 1000LL);
+    long long now_ms = now_us / 1000LL;
 
     // Calculate delay until the next 15-second boundary
     long delay_ms = 15000 - (now_ms % 15000LL);
@@ -123,7 +121,7 @@ static void sendFT8Tone (long prior_frequency, long frequency, TickType_t * last
     long delta_frequency = frequency - prior_frequency;
 
     for (int step = 1; step <= EASE_STEPS; step++) {
-        long eased_frequency = prior_frequency + round (delta_frequency * ((float)step / EASE_STEPS));
+        long eased_frequency = prior_frequency + std::round (delta_frequency * ((float)step / EASE_STEPS));
         snprintf (command, sizeof (command), "FA%011ld;", eased_frequency);
 
         // Send the tone command over UART
@@ -184,14 +182,13 @@ static void xmit_ft8_task (void * pvParameter) {
     if (watchdogTime > CancelRadioFT8ModeTime)
         CancelRadioFT8ModeTime = watchdogTime;
 
-    struct timeval startTime;
-    gettimeofday (&startTime, NULL);  // Capture the current time to calculate the total time
+    int64_t startTime = esp_timer_get_time();  // Capture the current time to calculate the total time
 
     // Reset watchdog before starting time-critical FT8 transmission
     ESP_ERROR_CHECK (esp_task_wdt_reset());
 
-    uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));  // Tell the radio to turn on the CW tone
-    TickType_t lastWakeTime = xTaskGetTickCount();             // Initialize lastWakeTime
+    uart_write_bytes (UART_NUM, "SWH16;", sizeof ("SWH16;") - 1);  // Tell the radio to turn on the CW tone
+    TickType_t lastWakeTime = xTaskGetTickCount();                 // Initialize lastWakeTime
 
     // Now tell the radio to play the array of 79 tones
     // Note that the Elecraft KX2/KX3 radios do not allow fractional Hz, so we round to the nearest Hz.
@@ -210,15 +207,14 @@ static void xmit_ft8_task (void * pvParameter) {
     }
 
     // Tell the radio to turn off the CW tone
-    uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));
+    uart_write_bytes (UART_NUM, "SWH16;", sizeof ("SWH16;") - 1);
 
     // Reset watchdog after completing time-critical FT8 transmission
     ESP_ERROR_CHECK (esp_task_wdt_reset());
 
     // Stop the timer and calculate the total time
-    struct timeval endTime;
-    gettimeofday (&endTime, NULL);
-    long totalTime = (endTime.tv_sec - startTime.tv_sec) * 1000 + (endTime.tv_usec - startTime.tv_usec) / 1000;
+    int64_t endTime   = esp_timer_get_time();
+    long    totalTime = (endTime - startTime) / 1000;  // Convert microseconds to milliseconds
     ESP_LOGI (TAG8, "ft8 transmission time: %ld ms", totalTime);
     // TimedLock auto-unlocks here
 

@@ -1,5 +1,5 @@
 #include "max17260.h"
-#include <string.h>
+#include <cstring>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -137,7 +137,7 @@ esp_err_t Max17620::init (smbus_info_t * smb, max17620_setup_t * setup) {
     uint16_t data = 0;
 
     m_smb = smb;
-    memcpy (&m_setup, setup, sizeof (max17620_setup_t));
+    std::memcpy (&m_setup, setup, sizeof (max17620_setup_t));
 
     if (ESP_OK != present())
         return ESP_FAIL;

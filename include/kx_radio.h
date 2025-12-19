@@ -3,7 +3,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
-#include <stdint.h>
+#include <cstdint>
 
 #define SC_KX_COMMUNICATION_RETRIES 3
 

@@ -12,13 +12,13 @@
 #include "lwip/tcp.h"
 #include "settings.h"
 #include <atomic>
+#include <cstring>
 #include <esp_mac.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <lwip/ip4_addr.h>
 #include <mdns.h>
-#include <string.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:wifi....";
@@ -187,13 +187,13 @@ static void wifi_init_softap () {
     ap_config.pmf_cfg.capable    = true;
     ap_config.pmf_cfg.required   = false;
     ap_config.sae_pwe_h2e        = WPA3_SAE_PWE_BOTH;
-    memcpy (&wifi_config.ap, &ap_config, sizeof (wifi_ap_config_t));
+    std::memcpy (&wifi_config.ap, &ap_config, sizeof (wifi_ap_config_t));
 
     strlcpy ((char *)wifi_config.ap.ssid, g_ap_ssid, sizeof (wifi_config.ap.ssid));
-    wifi_config.ap.ssid_len = strlen (g_ap_ssid);
+    wifi_config.ap.ssid_len = std::strlen (g_ap_ssid);
     strlcpy ((char *)wifi_config.ap.password, g_ap_pass, sizeof (wifi_config.ap.password));
 
-    if (strlen (g_ap_pass) == 0) {
+    if (std::strlen (g_ap_pass) == 0) {
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;
     }
 
@@ -513,7 +513,7 @@ void wifi_task (void * pvParameters) {
                 const char * ssid     = NULL;
                 const char * password = NULL;
 
-                if (strlen (g_sta1_ssid) == 0 && strlen (g_sta2_ssid) == 0 && strlen (g_sta3_ssid) == 0) {
+                if (std::strlen (g_sta1_ssid) == 0 && std::strlen (g_sta2_ssid) == 0 && std::strlen (g_sta3_ssid) == 0) {
                     if (!sta_mode_aborted) {
                         ESP_LOGE (TAG8, "All SSIDs are empty. Aborting station mode connection attempts.");
                         sta_mode_aborted = true;
@@ -521,17 +521,17 @@ void wifi_task (void * pvParameters) {
                 }
                 else {
                     sta_mode_aborted = false;  // Reset the flag if at least one SSID is available
-                    if (current_ssid == 1 && strlen (g_sta1_ssid) > 0) {
+                    if (current_ssid == 1 && std::strlen (g_sta1_ssid) > 0) {
                         ssid         = g_sta1_ssid;
                         password     = g_sta1_pass;
                         current_ssid = 2;
                     }
-                    else if (current_ssid == 2 && strlen (g_sta2_ssid) > 0) {
+                    else if (current_ssid == 2 && std::strlen (g_sta2_ssid) > 0) {
                         ssid         = g_sta2_ssid;
                         password     = g_sta2_pass;
                         current_ssid = 3;
                     }
-                    else if (strlen (g_sta3_ssid) > 0) {
+                    else if (std::strlen (g_sta3_ssid) > 0) {
                         ssid         = g_sta3_ssid;
                         password     = g_sta3_pass;
                         current_ssid = 1;
