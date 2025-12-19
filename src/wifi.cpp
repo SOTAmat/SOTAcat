@@ -7,9 +7,7 @@
 #include "esp_task_wdt.h"
 #include "globals.h"
 #include "hardware_specific.h"
-#include "lwip/netdb.h"
 #include "lwip/sockets.h"
-#include "lwip/tcp.h"
 #include "settings.h"
 #include <atomic>
 #include <cstring>

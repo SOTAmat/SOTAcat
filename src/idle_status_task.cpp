@@ -5,13 +5,10 @@
 #include "hardware_specific.h"
 #include "settings.h"
 
-#include <driver/gpio.h>
 #include <cmath>
 #include <ctime>
+#include <driver/gpio.h>
 
-#include "esp_timer.h"
-#include "max17260.h"
-#include "smbus.h"
 #include <esp_task_wdt.h>
 
 #include <esp_log.h>

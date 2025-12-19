@@ -1,4 +1,3 @@
-// handler_atu.cpp
 #include "globals.h"
 #include "kx_radio.h"
 #include "timed_lock.h"

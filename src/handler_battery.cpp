@@ -1,6 +1,5 @@
 #include "battery_monitor.h"
 #include "globals.h"
-#include "settings.h"
 #include "webserver.h"
 
 #include <esp_log.h>

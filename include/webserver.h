@@ -1,6 +1,7 @@
 #pragma once
 
 #include <esp_http_server.h>
+#include <memory>
 #include <strings.h>  // for size_t
 
 extern void      start_webserver ();

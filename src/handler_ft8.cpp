@@ -5,16 +5,14 @@
 #include "hardware_specific.h"
 #include "idle_status_task.h"
 #include "kx_radio.h"
-#include "settings.h"
 #include "timed_lock.h"
 #include "webserver.h"
 
+#include <cmath>
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_task_wdt.h>
 #include <esp_timer.h>
-#include <cmath>
-#include <memory>
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
 

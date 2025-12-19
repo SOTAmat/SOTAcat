@@ -1,7 +1,7 @@
 #include "max17260.h"
-#include <cstring>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <cstring>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:max17260";
@@ -117,7 +117,7 @@ esp_err_t Max17620::present (void) {
 
     esp_err_t read_err = smbus_read_word (m_smb, DEVNAME, &data);
     if (read_err != ESP_OK) {
-        ESP_LOGE (TAG8, "Failed to read DEVNAME register: %s", esp_err_to_name(read_err));
+        ESP_LOGE (TAG8, "Failed to read DEVNAME register: %s", esp_err_to_name (read_err));
         return ESP_FAIL;
     }
     ESP_LOGD (TAG8, "DEVNAME register value: 0x%04x", data);

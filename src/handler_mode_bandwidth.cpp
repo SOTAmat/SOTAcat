@@ -3,10 +3,9 @@
 #include "timed_lock.h"
 #include "webserver.h"
 
-#include <memory>
+#include <esp_timer.h>
 
 #include <esp_log.h>
-#include <esp_timer.h>
 static const char * TAG8 = "sc:hdl_mode";
 
 // Mode cache to reduce radio contention under heavy load

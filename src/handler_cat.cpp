@@ -3,8 +3,6 @@
 #include "timed_lock.h"
 #include "webserver.h"
 
-#include <memory>
-
 #include <esp_log.h>
 static const char * TAG8 = "sc:hdl_cat.";
 
