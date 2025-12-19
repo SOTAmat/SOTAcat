@@ -575,11 +575,31 @@ void wifi_task (void * pvParameters) {
                 ESP_LOGI (TAG8, "All connections lost");
                 attempt_start_time = current_time;  // Reset the timer for immediate attempt
 
+                // Re-enable AP mode when STA connection is lost
+                if (!s_ap_client_connected.load()) {
+                    esp_err_t err = esp_wifi_set_mode (WIFI_MODE_APSTA);
+                    if (err == ESP_OK) {
+                        ESP_LOGI (TAG8, "AP mode re-enabled after STA disconnect");
+                    }
+                }
+
                 // Track when AP client disconnected
                 if (!s_ap_client_connected.load() && previously_connected) {
                     last_ap_disconnect_time = current_time;
                 }
                 break;
+            }
+
+            // Disable AP mode when STA is connected (reduces channel congestion)
+            if (s_sta_connected.load() && !s_ap_client_connected.load() && s_wifi_ap_started) {
+                esp_err_t err = esp_wifi_set_mode (WIFI_MODE_STA);
+                if (err == ESP_OK) {
+                    ESP_LOGI (TAG8, "AP mode disabled - STA connected, reducing channel congestion");
+                    s_wifi_ap_started = false;
+                }
+                else {
+                    ESP_LOGW (TAG8, "Failed to disable AP mode: %s", esp_err_to_name (err));
+                }
             }
 
             // Periodic connection check
