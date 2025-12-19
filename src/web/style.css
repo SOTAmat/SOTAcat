@@ -600,9 +600,10 @@ input.frequency-display {
 #table-container {
     background: var(--white);
     border-radius: var(--radius-lg);
-    overflow-x: auto;
+    overflow: auto;
     margin: var(--space-md);
     box-shadow: var(--shadow-sm);
+    max-height: calc(100vh - 220px); /* Leave room for header, controls, and tab bar */
 }
 
 .data-table,
