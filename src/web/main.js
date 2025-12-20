@@ -12,6 +12,7 @@ const INITIAL_VERSION_CHECK_DELAY_MS = 1000;
 const UTC_CLOCK_UPDATE_INTERVAL_MS = 10000;
 const BATTERY_INFO_UPDATE_INTERVAL_MS = 60000;
 const CONNECTION_STATUS_UPDATE_INTERVAL_MS = 5000;
+const VFO_POLLING_INTERVAL_MS = 3000;
 
 // ============================================================================
 // Global Application State
@@ -32,6 +33,13 @@ const AppState = {
 
     // Version checking
     versionCheckRetryTimer: null,
+
+    // VFO state (shared between CAT and Chase pages)
+    vfoFrequencyHz: null,   // null = unknown/not connected
+    vfoMode: null,
+    vfoLastUpdated: 0,
+    vfoUpdateInterval: null,
+    vfoChangeCallbacks: [], // subscribers for VFO change notifications
 };
 
 // ============================================================================
@@ -54,6 +62,101 @@ async function ensureCallSignLoaded() {
         console.warn("Failed to load callsign:", error);
     }
     return AppState.callSign;
+}
+
+// ============================================================================
+// VFO State Management Functions
+// ============================================================================
+
+// Fetch current VFO state from radio and update AppState
+// Notifies all registered callbacks if state changed
+async function fetchVfoState() {
+    if (isLocalhost) return;
+
+    try {
+        const [freqResponse, modeResponse] = await Promise.all([
+            fetch("/api/v1/frequency"),
+            fetch("/api/v1/mode"),
+        ]);
+
+        if (!freqResponse.ok || !modeResponse.ok) {
+            console.warn("[VFO] Failed to fetch VFO state");
+            return;
+        }
+
+        const newFrequency = parseInt(await freqResponse.text(), 10);
+        const newMode = (await modeResponse.text()).toUpperCase().trim();
+
+        // Check if state changed
+        const freqChanged = AppState.vfoFrequencyHz !== newFrequency;
+        const modeChanged = AppState.vfoMode !== newMode;
+
+        if (freqChanged || modeChanged) {
+            AppState.vfoFrequencyHz = newFrequency;
+            AppState.vfoMode = newMode;
+            AppState.vfoLastUpdated = Date.now();
+
+            // Notify all subscribers
+            AppState.vfoChangeCallbacks.forEach((callback) => {
+                try {
+                    callback(newFrequency, newMode);
+                } catch (error) {
+                    console.error("[VFO] Callback error:", error);
+                }
+            });
+        }
+    } catch (error) {
+        console.warn("[VFO] Error fetching VFO state:", error);
+    }
+}
+
+// Start global VFO polling (if not already running)
+function startGlobalVfoPolling() {
+    if (isLocalhost) return;
+
+    if (AppState.vfoUpdateInterval) {
+        console.log("[VFO] Polling already active");
+        return;
+    }
+
+    console.log("[VFO] Starting global VFO polling");
+
+    // Fetch immediately
+    fetchVfoState();
+
+    // Start polling interval
+    AppState.vfoUpdateInterval = setInterval(fetchVfoState, VFO_POLLING_INTERVAL_MS);
+}
+
+// Stop global VFO polling
+function stopGlobalVfoPolling() {
+    if (AppState.vfoUpdateInterval) {
+        console.log("[VFO] Stopping global VFO polling");
+        clearInterval(AppState.vfoUpdateInterval);
+        AppState.vfoUpdateInterval = null;
+    }
+}
+
+// Subscribe to VFO changes (callback receives frequency, mode)
+function subscribeToVfo(callback) {
+    if (!AppState.vfoChangeCallbacks.includes(callback)) {
+        AppState.vfoChangeCallbacks.push(callback);
+        console.log("[VFO] Subscriber added, total:", AppState.vfoChangeCallbacks.length);
+    }
+}
+
+// Unsubscribe from VFO changes
+function unsubscribeFromVfo(callback) {
+    const index = AppState.vfoChangeCallbacks.indexOf(callback);
+    if (index > -1) {
+        AppState.vfoChangeCallbacks.splice(index, 1);
+        console.log("[VFO] Subscriber removed, total:", AppState.vfoChangeCallbacks.length);
+    }
+
+    // Stop polling if no more subscribers
+    if (AppState.vfoChangeCallbacks.length === 0) {
+        stopGlobalVfoPolling();
+    }
 }
 
 // ============================================================================

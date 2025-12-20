@@ -12,6 +12,7 @@ const CHASE_AUTO_SUGGEST_THRESHOLD = 3; // Number of manual refreshes to suggest
 const CHASE_AUTO_SUGGEST_WINDOW_MS = 300000; // Time window to track refreshes (5 minutes)
 const REFRESH_TIMER_UPDATE_INTERVAL_MS = 1000; // Update refresh timer every second
 const AUTO_SUGGESTION_REVERT_TIMEOUT_MS = 5000; // Auto-suggestion revert delay
+const VFO_FREQUENCY_TOLERANCE_HZ = 100; // +/- 100 Hz for matching radio to spots
 
 // Chase page state encapsulated in a single object
 const ChaseState = {
@@ -361,6 +362,11 @@ function tuneRadioHz(frequency, mode) {
                     .then((response) => {
                         if (response.ok) {
                             console.log("Mode updated successfully");
+                            // Update global VFO state and highlight matching row
+                            AppState.vfoFrequencyHz = frequency;
+                            AppState.vfoMode = useMode;
+                            AppState.vfoLastUpdated = Date.now();
+                            updateTunedRowHighlight();
                         } else {
                             console.error("Error updating mode");
                         }
@@ -371,6 +377,68 @@ function tuneRadioHz(frequency, mode) {
             }
         })
         .catch((error) => console.error("Fetch error:", error));
+}
+
+// ============================================================================
+// VFO Row Highlighting Functions
+// ============================================================================
+
+// Normalize radio mode for comparison with spot modeType
+function normalizeRadioMode(mode) {
+    if (!mode) return null;
+    const m = mode.toUpperCase();
+    if (m === "USB" || m === "LSB") return "SSB";
+    return m;
+}
+
+// Check if radio mode is compatible with spot modeType
+function modesCompatible(radioMode, spotModeType) {
+    if (!radioMode || !spotModeType) return false;
+
+    // Direct match
+    if (radioMode === spotModeType) return true;
+
+    // DATA mode on radio matches DATA, FT8, FT4 spots
+    if (radioMode === "DATA") {
+        return ["DATA", "FT8", "FT4"].includes(spotModeType);
+    }
+
+    return false;
+}
+
+// Update row highlighting based on current VFO frequency/mode
+function updateTunedRowHighlight() {
+    const vfoHz = AppState.vfoFrequencyHz;
+    const vfoMode = AppState.vfoMode;
+
+    // Clear all highlights if VFO state unknown
+    if (!vfoHz || !vfoMode) {
+        document.querySelectorAll("#chase-table tbody tr.tuned-row").forEach((row) => {
+            row.classList.remove("tuned-row");
+        });
+        return;
+    }
+
+    const normalizedVfoMode = normalizeRadioMode(vfoMode);
+
+    document.querySelectorAll("#chase-table tbody tr").forEach((row) => {
+        const rowHz = parseInt(row.dataset.hertz, 10);
+        const rowModeType = row.dataset.modeType;
+
+        if (!rowHz || !rowModeType) {
+            row.classList.remove("tuned-row");
+            return;
+        }
+
+        const freqMatch = Math.abs(rowHz - vfoHz) <= VFO_FREQUENCY_TOLERANCE_HZ;
+        const modeMatch = modesCompatible(normalizedVfoMode, rowModeType);
+
+        if (freqMatch && modeMatch) {
+            row.classList.add("tuned-row");
+        } else {
+            row.classList.remove("tuned-row");
+        }
+    });
 }
 
 // ============================================================================
@@ -422,6 +490,10 @@ async function updateChaseTable() {
         const isMySpot = index < mySpots.length;
         const row = newTbody.insertRow();
         const modeType = spot.modeType;
+
+        // Add data attributes for VFO matching
+        row.dataset.hertz = spot.hertz || 0;
+        row.dataset.modeType = modeType;
 
         // Add classes for filtering
         row.classList.add(`row-mode-${modeType}`);
@@ -544,6 +616,9 @@ async function updateChaseTable() {
     console.info("Chase table updated");
 
     setTimeout(applyTableFilters, 0);
+
+    // Highlight row matching current VFO frequency/mode
+    updateTunedRowHighlight();
 }
 
 // ============================================================================
@@ -745,6 +820,10 @@ function onChaseAppearing() {
     // Load callsign for spot pinning (non-blocking)
     ensureCallSignLoaded();
 
+    // Subscribe to VFO changes and start polling for row highlighting
+    subscribeToVfo(updateTunedRowHighlight);
+    startGlobalVfoPolling();
+
     // Start the refresh timer
     startRefreshTimer();
 
@@ -861,6 +940,9 @@ function onChaseAppearing() {
 // Called when Chase tab is hidden
 function onChaseLeaving() {
     console.info("Chase tab leaving");
+
+    // Unsubscribe from VFO changes (this also stops polling if no other subscribers)
+    unsubscribeFromVfo(updateTunedRowHighlight);
 
     // Stop the refresh timer display
     stopRefreshTimer();

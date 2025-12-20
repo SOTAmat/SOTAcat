@@ -657,6 +657,22 @@ tbody tr:active {
     font-weight: 600;
 }
 
+/* Currently tuned row - matches radio VFO frequency/mode */
+.tuned-row {
+    background: rgba(34, 139, 230, 0.12) !important;
+    border-left: 4px solid var(--primary) !important;
+}
+
+.tuned-row td:first-child {
+    padding-left: calc(var(--space-sm) - 4px);
+}
+
+/* my-spot-row takes precedence over tuned-row for background */
+.my-spot-row.tuned-row {
+    background: #fffbeb !important;
+    border-left: 4px solid #f59e0b !important;
+}
+
 /* Mode cells */
 .mode-cell {
     padding: var(--space-xs) var(--space-sm);
