@@ -16,7 +16,7 @@ Tests that measure web server performance, response times, and reliability.
     - 6 JavaScript files (about.js, cat.js, chase.js, chase_api.js, main.js, settings.js)
     - 1 CSS file (style.css)
     - 2 Images (favicon.ico, sclogo.jpg)
-    - 5 API endpoints (version, connectionStatus, batteryPercent, batteryVoltage, settings)
+    - 5 API endpoints (version, connectionStatus, batteryPercent, rssi, settings)
 
 ## Setup
 

@@ -35,7 +35,7 @@ These are GET endpoints that don't require radio connection:
 - ✅ `/api/v1/version` - Firmware version
 - ✅ `/api/v1/connectionStatus` - Radio connection status
 - ✅ `/api/v1/batteryPercent` - Battery percentage
-- ✅ `/api/v1/batteryVoltage` - Battery voltage
+- ✅ `/api/v1/rssi` - WiFi signal strength
 - ✅ `/api/v1/settings` - Device settings
 
 ## Radio-Connected Endpoints

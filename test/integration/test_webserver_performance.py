@@ -222,7 +222,7 @@ class WebServerTester:
             "/api/v1/version",
             "/api/v1/connectionStatus",
             "/api/v1/batteryPercent",
-            "/api/v1/batteryVoltage",
+            "/api/v1/rssi",
             "/api/v1/settings",
         ]
 
