@@ -35,6 +35,28 @@ const AppState = {
 };
 
 // ============================================================================
+// User Settings Functions
+// ============================================================================
+
+// Load user callsign into AppState if not already loaded
+// Returns the callsign (or empty string if not set)
+async function ensureCallSignLoaded() {
+    if (AppState.callSign) {
+        return AppState.callSign;
+    }
+    try {
+        const response = await fetch("/api/v1/callsign");
+        const data = await response.json();
+        if (data.callsign) {
+            AppState.callSign = data.callsign.toUpperCase();
+        }
+    } catch (error) {
+        console.warn("Failed to load callsign:", error);
+    }
+    return AppState.callSign;
+}
+
+// ============================================================================
 // Environment Detection
 // ============================================================================
 

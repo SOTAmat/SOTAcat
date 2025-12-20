@@ -41,24 +41,9 @@ async function syncTime() {
 
 // Load saved callsign from device and populate input field
 async function loadCallSign() {
-    try {
-        const response = await fetch("/api/v1/callsign");
-        const data = await response.json();
-        const callSignInput = document.getElementById("callsign");
-
-        if (data.callsign) {
-            callSignInput.value = data.callsign.toUpperCase();
-            AppState.callSign = data.callsign.toUpperCase();
-        } else {
-            callSignInput.value = "";
-            AppState.callSign = "";
-        }
-    } catch (error) {
-        console.error("Failed to load call sign:", error);
-        const callSignInput = document.getElementById("callsign");
-        callSignInput.value = "";
-        AppState.callSign = "";
-    }
+    await ensureCallSignLoaded();
+    const callSignInput = document.getElementById("callsign");
+    callSignInput.value = AppState.callSign || "";
 }
 
 // Save operator callsign to device (validates A-Z, 0-9, and / only)

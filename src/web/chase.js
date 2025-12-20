@@ -391,16 +391,46 @@ async function updateChaseTable() {
         return 0;
     });
 
+    // Separate user's own spots (if callsign is set) to pin them at top
+    // Match handles prefixes (S5/KC6X) and suffixes (KC6X/P, KC6X/M)
+    const userCall = AppState.callSign ? AppState.callSign.toUpperCase() : "";
+    let mySpots = [];
+    let otherSpots = [];
+
+    if (userCall) {
+        data.forEach((spot) => {
+            // Split by "/" and check if any component matches user's callsign
+            const callParts = spot.activatorCallsign ? spot.activatorCallsign.toUpperCase().split("/") : [];
+            const isMySpot = callParts.includes(userCall);
+            if (isMySpot) {
+                mySpots.push(spot);
+            } else {
+                otherSpots.push(spot);
+            }
+        });
+    } else {
+        otherSpots = data;
+    }
+
+    // Combine: user's spots first (frozen at top), then others
+    const orderedData = [...mySpots, ...otherSpots];
+
     const tbody = document.querySelector("#chase-table tbody");
     const newTbody = document.createElement("tbody");
 
-    data.forEach((spot) => {
+    orderedData.forEach((spot, index) => {
+        const isMySpot = index < mySpots.length;
         const row = newTbody.insertRow();
         const modeType = spot.modeType;
 
         // Add classes for filtering
         row.classList.add(`row-mode-${modeType}`);
         row.classList.add(`row-type-${spot.sig}`); // Type-based class for filtering
+
+        // Mark user's own spots with special class for frozen styling
+        if (isMySpot) {
+            row.classList.add("my-spot-row");
+        }
 
         // Make entire row clickable to tune radio (except for links)
         row.style.cursor = "pointer";
@@ -711,6 +741,9 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
 // Called when Chase tab becomes visible
 function onChaseAppearing() {
     console.info("Chase tab appearing");
+
+    // Load callsign for spot pinning (non-blocking)
+    ensureCallSignLoaded();
 
     // Start the refresh timer
     startRefreshTimer();

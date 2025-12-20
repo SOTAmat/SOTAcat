@@ -643,6 +643,20 @@ tbody tr:active {
     background: var(--gray-2);
 }
 
+/* User's own spot row (frozen at top) */
+.my-spot-row {
+    position: sticky;
+    top: 41px; /* Height of header row */
+    z-index: 9; /* Below header (z-index: 10), above other rows */
+    background: #fffbeb !important; /* Light gold/amber background */
+    border-bottom: 2px solid #f59e0b !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.my-spot-row td {
+    font-weight: 600;
+}
+
 /* Mode cells */
 .mode-cell {
     padding: var(--space-xs) var(--space-sm);
