@@ -609,6 +609,7 @@ function onSettingsAppearing() {
     loadCallSign();
     loadGpsLocation();
     attachSettingsEventListeners();
+    fetchAndUpdateElement("/api/v1/version", "build-version");
 }
 
 // Called when Settings tab is hidden
