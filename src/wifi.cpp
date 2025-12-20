@@ -33,6 +33,7 @@ static int               retry_count        = 0;
 static esp_netif_t *     sta_netif;
 static esp_netif_t *     ap_netif;
 static std::atomic<bool> mdns_started{false};
+static std::atomic<int8_t> s_rssi{0};
 
 #define WIFI_CONNECT_TIMEOUT_MS          6000  // Slightly increased for mobile hotspots
 #define WIFI_STATE_TRANSITION_TIMEOUT_MS 3000
@@ -610,7 +611,8 @@ void wifi_task (void * pvParameters) {
                     esp_err_t        err = esp_wifi_sta_get_ap_info (&ap_info);
 
                     if (err == ESP_OK) {
-                        ESP_LOGI (TAG8, "WiFi still connected to SSID: %s, RSSI: %d", ap_info.ssid, ap_info.rssi);
+                        s_rssi.store (ap_info.rssi);
+                        ESP_LOGI (TAG8, "WiFi still connected to SSID: %s, RSSI: %d", ap_info.ssid, get_rssi());
                     }
                     else {
                         ESP_LOGW (TAG8, "Failed to get AP info, error: %s", esp_err_to_name (err));
@@ -719,4 +721,8 @@ void start_wifi_task (TaskNotifyConfig * config) {
 
 bool is_wifi_connected () {
     return wifi_connected.load();
+}
+
+int8_t get_rssi () {
+    return s_rssi.load();
 }

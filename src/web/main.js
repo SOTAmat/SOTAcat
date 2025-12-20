@@ -204,11 +204,11 @@ function refreshUTCClock() {
     document.getElementById("current-utc-time").textContent = utcTime.slice(17, 22);
 }
 
-// Update battery percentage and voltage display
+// Update battery percentage and WiFi signal strength display
 function updateBatteryInfo() {
     if (isLocalhost) return;
     fetchAndUpdateElement("/api/v1/batteryPercent", "battery-percent");
-    fetchAndUpdateElement("/api/v1/batteryVoltage", "battery-voltage");
+    fetchAndUpdateElement("/api/v1/rssi", "wifi-rssi");
 }
 
 // Update WiFi connection status display
