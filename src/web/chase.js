@@ -267,6 +267,11 @@ function scheduleNextAutoRefresh() {
 function getFrequencyBand(frequencyHz) {
     const freqMHz = frequencyHz / 1000000;
 
+    // VLF/LF bands
+    if (freqMHz >= 0.1357 && freqMHz <= 0.1378) return "2200m";
+    if (freqMHz >= 0.472 && freqMHz <= 0.479) return "600m";
+
+    // HF bands
     if (freqMHz >= 1.8 && freqMHz <= 2.0) return "160m";
     if (freqMHz >= 3.5 && freqMHz <= 4.0) return "80m";
     if (freqMHz >= 5.3 && freqMHz <= 5.4) return "60m";
@@ -276,13 +281,29 @@ function getFrequencyBand(frequencyHz) {
     if (freqMHz >= 18.068 && freqMHz <= 18.168) return "17m";
     if (freqMHz >= 21.0 && freqMHz <= 21.45) return "15m";
     if (freqMHz >= 24.89 && freqMHz <= 24.99) return "12m";
+    if (freqMHz >= 26.965 && freqMHz <= 27.405) return "11m";
     if (freqMHz >= 28.0 && freqMHz <= 29.7) return "10m";
+
+    // VHF bands
+    if (freqMHz >= 40.66 && freqMHz <= 40.70) return "8m";
     if (freqMHz >= 50.0 && freqMHz <= 54.0) return "6m";
+    if (freqMHz >= 54.0 && freqMHz <= 69.9) return "5m";
+    if (freqMHz >= 70.0 && freqMHz <= 70.5) return "4m";
     if (freqMHz >= 144.0 && freqMHz <= 148.0) return "2m";
+    if (freqMHz >= 222.0 && freqMHz <= 225.0) return "1p25m";
+
+    // UHF bands
     if (freqMHz >= 420.0 && freqMHz <= 450.0) return "70cm";
     if (freqMHz >= 1240.0 && freqMHz <= 1300.0) return "23cm";
 
-    // Return null for frequencies outside amateur bands
+    // Microwave bands
+    if (freqMHz >= 2400.0 && freqMHz <= 2450.0) return "2p4GHz";
+    if (freqMHz >= 5650.0 && freqMHz <= 5925.0) return "5p8GHz";
+    if (freqMHz >= 10000.0 && freqMHz <= 10500.0) return "10GHz";
+    if (freqMHz >= 24000.0 && freqMHz <= 24250.0) return "24GHz";
+    if (freqMHz >= 47000.0 && freqMHz <= 47200.0) return "47GHz";
+    if (freqMHz >= 76000.0 && freqMHz <= 77500.0) return "76GHz";
+
     return null;
 }
 
