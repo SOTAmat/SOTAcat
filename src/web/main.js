@@ -757,18 +757,18 @@ function normalizeVersion(versionString) {
 
     if (versionString.includes("-Release")) {
         // Manifest format parsing
-        year = parseInt(match[1]);
-        month = parseInt(match[2]);
-        day = parseInt(match[3]);
-        hour = parseInt(match[4]);
-        minute = parseInt(match[5]);
+        year = parseInt(match[1], 10);
+        month = parseInt(match[2], 10);
+        day = parseInt(match[3], 10);
+        hour = parseInt(match[4], 10);
+        minute = parseInt(match[5], 10);
     } else {
         // Device format parsing
-        year = 2000 + parseInt(match[1]);
-        month = parseInt(match[2]);
-        day = parseInt(match[3]);
-        hour = parseInt(match[4] || "0");
-        minute = parseInt(match[5] || "0");
+        year = 2000 + parseInt(match[1], 10);
+        month = parseInt(match[2], 10);
+        day = parseInt(match[3], 10);
+        hour = parseInt(match[4] || "0", 10);
+        minute = parseInt(match[5] || "0", 10);
     }
 
     // Adjust month after parsing (JS months are 0-based)
@@ -800,7 +800,7 @@ function shouldCheckVersion() {
         return true;
     }
 
-    const lastCheckDate = new Date(parseInt(lastCheck));
+    const lastCheckDate = new Date(parseInt(lastCheck, 10));
     const now = new Date();
     const daysSinceLastCheck = (now - lastCheckDate) / (1000 * 60 * 60 * 24);
 

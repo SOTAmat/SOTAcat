@@ -451,7 +451,7 @@ async function getCurrentVfoState() {
 
         // Update frequency if it has changed
         if (frequency) {
-            const newFreq = parseInt(frequency);
+            const newFreq = parseInt(frequency, 10);
             if (newFreq !== AppState.vfoFrequencyHz) {
                 AppState.vfoFrequencyHz = newFreq;
                 CatState.lastFrequencyChange = Date.now(); // Track that frequency changed
@@ -510,7 +510,7 @@ async function startVfoUpdates() {
         const mode = modeResponse.ok ? await modeResponse.text() : null;
 
         if (frequency) {
-            AppState.vfoFrequencyHz = parseInt(frequency);
+            AppState.vfoFrequencyHz = parseInt(frequency, 10);
             updateFrequencyDisplay();
             updateBandDisplay();
             console.log("Initial frequency loaded:", AppState.vfoFrequencyHz);
@@ -687,7 +687,7 @@ function attachCatEventListeners() {
     // Frequency adjustment buttons
     document.querySelectorAll(".btn-freq[data-freq-delta]").forEach((button) => {
         button.addEventListener("click", () => {
-            const delta = parseInt(button.getAttribute("data-freq-delta"));
+            const delta = parseInt(button.getAttribute("data-freq-delta"), 10);
             adjustFrequency(delta);
         });
     });
@@ -733,7 +733,7 @@ function attachCatEventListeners() {
     // Message playback buttons
     document.querySelectorAll(".btn-msg[data-msg-slot]").forEach((button) => {
         button.addEventListener("click", () => {
-            const slot = parseInt(button.getAttribute("data-msg-slot"));
+            const slot = parseInt(button.getAttribute("data-msg-slot"), 10);
             playMsg(slot);
         });
     });
