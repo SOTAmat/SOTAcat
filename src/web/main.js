@@ -25,6 +25,16 @@ const HF_MAX_FREQUENCY_HZ = 29700000; // 10m band upper edge (29.7 MHz) - KX2 li
 // const HF_MAX_FREQUENCY_HZ = 54000000; // 6m band upper edge (54 MHz) - KX3 limit
 
 // ============================================================================
+// Polling Control
+// ============================================================================
+// Prevent request pile-up during tab transitions and slow network conditions
+
+let pollingPaused = false; // Pause all polling during tab switches
+let connectionStatusController = null; // AbortController for connection status requests
+let batteryController = null; // AbortController for battery/rssi requests
+let vfoController = null; // AbortController for VFO (frequency/mode) requests
+
+// ============================================================================
 // Global Application State
 // ============================================================================
 
@@ -268,11 +278,14 @@ function parseMultiPeriodFrequency(multiPeriod) {
 // Notifies all registered callbacks if state changed
 async function fetchVfoState() {
     if (isLocalhost) return;
+    if (pollingPaused) return;
+    if (vfoController) return; // Skip if previous request still in-flight
 
+    vfoController = new AbortController();
     try {
         const [freqResponse, modeResponse] = await Promise.all([
-            fetch("/api/v1/frequency"),
-            fetch("/api/v1/mode"),
+            fetch("/api/v1/frequency", { signal: vfoController.signal }),
+            fetch("/api/v1/mode", { signal: vfoController.signal }),
         ]);
 
         if (!freqResponse.ok || !modeResponse.ok) {
@@ -302,7 +315,10 @@ async function fetchVfoState() {
             });
         }
     } catch (error) {
+        if (error.name === "AbortError") return; // Expected when polling paused
         console.warn("[VFO] Error fetching VFO state:", error);
+    } finally {
+        vfoController = null;
     }
 }
 
@@ -401,16 +417,56 @@ function refreshUTCClock() {
 }
 
 // Update battery percentage and WiFi signal strength display
-function updateBatteryInfo() {
+async function updateBatteryInfo() {
     if (isLocalhost) return;
-    fetchAndUpdateElement("/api/v1/batteryPercent", "battery-percent");
-    fetchAndUpdateElement("/api/v1/rssi", "wifi-rssi");
+    if (pollingPaused) return;
+    if (batteryController) return; // Skip if previous request still in-flight
+
+    batteryController = new AbortController();
+    try {
+        const [batteryResponse, rssiResponse] = await Promise.all([
+            fetch("/api/v1/batteryPercent", { signal: batteryController.signal }),
+            fetch("/api/v1/rssi", { signal: batteryController.signal }),
+        ]);
+
+        if (batteryResponse.ok) {
+            document.getElementById("battery-percent").textContent = await batteryResponse.text();
+        }
+        if (rssiResponse.ok) {
+            document.getElementById("wifi-rssi").textContent = await rssiResponse.text();
+        }
+    } catch (error) {
+        if (error.name === "AbortError") return;
+        document.getElementById("battery-percent").textContent = "??";
+        document.getElementById("wifi-rssi").textContent = "??";
+    } finally {
+        batteryController = null;
+    }
 }
 
 // Update WiFi connection status display
-function updateConnectionStatus() {
+async function updateConnectionStatus() {
     if (isLocalhost) return;
-    fetchAndUpdateElement("/api/v1/connectionStatus", "connection-status");
+    if (pollingPaused) return;
+    if (connectionStatusController) return; // Skip if previous request still in-flight
+
+    connectionStatusController = new AbortController();
+    try {
+        const response = await fetch("/api/v1/connectionStatus", {
+            signal: connectionStatusController.signal,
+        });
+
+        if (response.ok) {
+            document.getElementById("connection-status").textContent = await response.text();
+        } else {
+            document.getElementById("connection-status").textContent = "??";
+        }
+    } catch (error) {
+        if (error.name === "AbortError") return;
+        document.getElementById("connection-status").textContent = "??";
+    } finally {
+        connectionStatusController = null;
+    }
 }
 
 // ============================================================================
@@ -493,6 +549,9 @@ async function loadTabScriptIfNeeded(tabName) {
 async function openTab(tabName) {
     console.log(`Switching to tab: ${tabName}`);
 
+    // Pause polling during tab transition to prioritize page load
+    pollingPaused = true;
+
     try {
         // Clean up current tab logic
         cleanupCurrentTab();
@@ -553,6 +612,9 @@ async function openTab(tabName) {
         alert(
             `Error switching tabs: ${error.message}\nPlease try once more, or reload the page if the issue persists.`
         );
+    } finally {
+        // Resume polling after tab transition completes (or fails)
+        pollingPaused = false;
     }
 }
 
