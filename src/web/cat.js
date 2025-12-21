@@ -27,9 +27,10 @@ const CatState = {
 };
 
 // ============================================================================
-// Timing Constants
+// Constants
 // ============================================================================
 
+// Timing constants (milliseconds)
 const VISUAL_FEEDBACK_DURATION_MS = 200;
 const FREQUENCY_UPDATE_DEBOUNCE_MS = 300;
 const MODE_CHECK_DELAY_MS = 400;
@@ -37,7 +38,8 @@ const MODE_CHECK_DELAY_MS = 400;
 const ERROR_RESET_STABILITY_MS = 10000;
 const ATU_FEEDBACK_DURATION_MS = 1000;
 
-// BAND_PLAN is now defined in main.js
+// Frequency constants defined in main.js: BAND_PLAN, DEFAULT_FREQUENCY_HZ,
+// LSB_USB_BOUNDARY_HZ, HF_MIN_FREQUENCY_HZ, HF_MAX_FREQUENCY_HZ
 
 // ============================================================================
 // Message/Audio Playback Functions
@@ -112,7 +114,7 @@ function sendKeys(message) {
 function updateFrequencyDisplay() {
     const display = document.getElementById("current-frequency");
     if (display) {
-        display.textContent = formatFrequency(AppState.vfoFrequencyHz || 14225000);
+        display.textContent = formatFrequency(AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ);
         // Brief visual feedback
         display.style.color = "var(--success)";
         setTimeout(() => {
@@ -156,7 +158,7 @@ function updateBandDisplay() {
     document.querySelectorAll(".btn-band").forEach((btn) => btn.classList.remove("active"));
 
     // Determine which band the current frequency falls into
-    const currentBand = getBandFromFrequency(AppState.vfoFrequencyHz || 14225000);
+    const currentBand = getBandFromFrequency(AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ);
 
     if (currentBand) {
         // Find and activate the corresponding band button
@@ -182,7 +184,7 @@ function enableFrequencyEditing() {
     if (!display || !input) return;
 
     // Store original value for restoration on cancel
-    const originalFrequency = AppState.vfoFrequencyHz || 14225000;
+    const originalFrequency = AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ;
 
     // Flag to prevent double-processing (when both Enter and blur fire)
     let isProcessing = false;
@@ -237,7 +239,7 @@ function enableFrequencyEditing() {
         input.style.display = "none";
         display.style.display = "";
         if (modeDisplay) modeDisplay.style.display = "";
-        display.textContent = formatFrequency(AppState.vfoFrequencyHz || 14225000);
+        display.textContent = formatFrequency(AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ);
 
         // Remove event listeners
         input.removeEventListener("blur", confirmInput);
@@ -321,10 +323,10 @@ function setFrequency(frequencyHz) {
 
 // Adjust frequency by specified delta in Hz (positive or negative)
 function adjustFrequency(deltaHz) {
-    const newFrequency = (AppState.vfoFrequencyHz || 14225000) + deltaHz;
+    const newFrequency = (AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ) + deltaHz;
 
-    // Basic bounds checking (1.8 MHz to 29.7 MHz)
-    if (newFrequency >= 1800000 && newFrequency <= 29700000) {
+    // Basic bounds checking for HF range
+    if (newFrequency >= HF_MIN_FREQUENCY_HZ && newFrequency <= HF_MAX_FREQUENCY_HZ) {
         setFrequency(newFrequency);
     } else {
         console.warn("Frequency out of bounds:", newFrequency);
@@ -339,7 +341,7 @@ async function setMode(mode) {
 
     // Handle SSB mode selection based on frequency
     if (mode === "SSB") {
-        actualMode = (AppState.vfoFrequencyHz || 14225000) < 10000000 ? "LSB" : "USB";
+        actualMode = (AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ) < LSB_USB_BOUNDARY_HZ ? "LSB" : "USB";
     }
 
     const url = `/api/v1/mode?bw=${actualMode}`;

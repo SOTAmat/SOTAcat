@@ -15,6 +15,16 @@ const CONNECTION_STATUS_UPDATE_INTERVAL_MS = 5000;
 const VFO_POLLING_INTERVAL_MS = 3000;
 
 // ============================================================================
+// Frequency Constants
+// ============================================================================
+
+const LSB_USB_BOUNDARY_HZ = 10000000; // 10 MHz - below is LSB, above is USB
+const DEFAULT_FREQUENCY_HZ = 14225000; // 20m band - fallback when VFO state unknown
+const HF_MIN_FREQUENCY_HZ = 1800000;  // 160m band lower edge (1.8 MHz)
+const HF_MAX_FREQUENCY_HZ = 29700000; // 10m band upper edge (29.7 MHz) - KX2 limit
+// const HF_MAX_FREQUENCY_HZ = 54000000; // 6m band upper edge (54 MHz) - KX3 limit
+
+// ============================================================================
 // Global Application State
 // ============================================================================
 

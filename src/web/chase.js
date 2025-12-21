@@ -329,7 +329,7 @@ function shouldSuggestAutoRefresh() {
 function tuneRadioHz(frequency, mode) {
     let useMode = mode.toUpperCase();
     if (useMode == "SSB") {
-        if (frequency < 10000000) useMode = "LSB";
+        if (frequency < LSB_USB_BOUNDARY_HZ) useMode = "LSB";
         else useMode = "USB";
     }
 
