@@ -65,6 +65,192 @@ async function ensureCallSignLoaded() {
 }
 
 // ============================================================================
+// Frequency Utilities (shared across CAT and Chase pages)
+// ============================================================================
+
+// Complete band plan: VLF through microwave (27 bands)
+// Bands with 'initial' property are available on CAT page band buttons
+const BAND_PLAN = {
+    "2200m": { min: 135700, max: 137800 },
+    "600m": { min: 472000, max: 479000 },
+    "160m": { min: 1800000, max: 2000000 },
+    "80m": { min: 3500000, max: 4000000 },
+    "60m": { min: 5300000, max: 5400000 },
+    "40m": { min: 7000000, max: 7300000, initial: 7175000 },
+    "30m": { min: 10100000, max: 10150000 },
+    "20m": { min: 14000000, max: 14350000, initial: 14225000 },
+    "17m": { min: 18068000, max: 18168000, initial: 18110000 },
+    "15m": { min: 21000000, max: 21450000, initial: 21275000 },
+    "12m": { min: 24890000, max: 24990000, initial: 24930000 },
+    "11m": { min: 26965000, max: 27405000 },
+    "10m": { min: 28000000, max: 29700000, initial: 28300000 },
+    "8m": { min: 40660000, max: 40700000 },
+    "6m": { min: 50000000, max: 54000000 },
+    "5m": { min: 54000000, max: 69900000 },
+    "4m": { min: 70000000, max: 70500000 },
+    "2m": { min: 144000000, max: 148000000 },
+    "1p25m": { min: 222000000, max: 225000000 },
+    "70cm": { min: 420000000, max: 450000000 },
+    "23cm": { min: 1240000000, max: 1300000000 },
+    "2p4GHz": { min: 2400000000, max: 2450000000 },
+    "5p8GHz": { min: 5650000000, max: 5925000000 },
+    "10GHz": { min: 10000000000, max: 10500000000 },
+    "24GHz": { min: 24000000000, max: 24250000000 },
+    "47GHz": { min: 47000000000, max: 47200000000 },
+    "76GHz": { min: 76000000000, max: 77500000000 },
+};
+
+// Determine which amateur band a frequency falls into (returns '40m', '20m', etc., or null)
+function getBandFromFrequency(frequencyHz) {
+    for (const [band, plan] of Object.entries(BAND_PLAN)) {
+        if (frequencyHz >= plan.min && frequencyHz <= plan.max) {
+            return band;
+        }
+    }
+    return null;
+}
+
+// Format frequency from Hz to human-readable XX.XXX.XXX MHz format
+function formatFrequency(frequencyHz) {
+    const mhz = frequencyHz / 1000000;
+    const formatted = mhz.toFixed(6);
+    const parts = formatted.split(".");
+    const wholePart = parts[0];
+    const decimalPart = parts[1];
+
+    // Insert periods for readability: XX.XXX.XXX
+    if (decimalPart && decimalPart.length >= 3) {
+        return `${wholePart}.${decimalPart.substring(0, 3)}.${decimalPart.substring(3)}`;
+    }
+    return formatted;
+}
+
+/**
+ * Parse user frequency input into Hz
+ * Supports various formats:
+ * - Pure integers: 7225 -> 7.225 MHz, 14225 -> 14.225 MHz, 282 -> 28.200 MHz
+ * - Single decimal: 7.225 -> 7.225 MHz, 14.070 -> 14.070 MHz
+ * - Multi-period: 14.208.1 -> 14.208100 MHz
+ *
+ * Returns an object: { success: boolean, frequencyHz: number, band: string, error: string }
+ */
+function parseFrequencyInput(input) {
+    const cleaned = input.trim();
+
+    if (!cleaned) {
+        return { success: false, error: "Empty input" };
+    }
+
+    // Convert commas to periods (treat them as equivalent separators)
+    const normalized = cleaned.replace(/,/g, ".");
+
+    // Allow only digits and periods/commas
+    if (!/^[0-9.,]+$/.test(cleaned)) {
+        return { success: false, error: "Invalid characters (only digits, periods, and commas allowed)" };
+    }
+
+    // Count periods (after normalization)
+    const periodCount = (normalized.match(/\./g) || []).length;
+
+    let frequencyHz;
+
+    if (periodCount === 0) {
+        // Pure integer input - interpret intelligently
+        frequencyHz = parseIntegerFrequency(normalized);
+    } else if (periodCount === 1) {
+        // Single decimal - treat as MHz
+        const mhz = parseFloat(normalized);
+        if (isNaN(mhz)) {
+            return { success: false, error: "Invalid decimal format" };
+        }
+        frequencyHz = Math.round(mhz * 1000000);
+    } else {
+        // Multi-period format - treat periods as grouping separators
+        frequencyHz = parseMultiPeriodFrequency(normalized);
+    }
+
+    if (frequencyHz === null) {
+        return { success: false, error: "Could not parse frequency" };
+    }
+
+    // Validate against band plan
+    const band = getBandFromFrequency(frequencyHz);
+    if (!band) {
+        return {
+            success: false,
+            error: `Frequency ${(frequencyHz / 1000000).toFixed(3)} MHz not in any supported band`,
+        };
+    }
+
+    return { success: true, frequencyHz, band };
+}
+
+/**
+ * Parse integer frequency inputs intelligently
+ * Examples: 7225 -> 7.225 MHz, 14225 -> 14.225 MHz, 282 -> 28.200 MHz
+ */
+function parseIntegerFrequency(intStr) {
+    const num = parseInt(intStr, 10);
+    if (isNaN(num)) return null;
+
+    // Try different interpretations and see which fits a band
+    const candidates = [];
+
+    // Interpretation 1: Last 3 digits are kHz
+    if (num >= 1000) {
+        const mhz = Math.floor(num / 1000);
+        const khz = num % 1000;
+        candidates.push(mhz * 1000000 + khz * 1000);
+    }
+
+    // Interpretation 2: Direct MHz (for smaller numbers)
+    candidates.push(num * 1000000);
+
+    // Interpretation 3: Last 2 digits are 10s of kHz (e.g., 282 -> 28.2 MHz)
+    if (num >= 100) {
+        const mhz = Math.floor(num / 10);
+        const tenKhz = num % 10;
+        candidates.push(mhz * 1000000 + tenKhz * 100000);
+    }
+
+    // Try to find a candidate that fits a known band
+    for (const freqHz of candidates) {
+        if (getBandFromFrequency(freqHz)) {
+            return freqHz;
+        }
+    }
+
+    // If none match, return the first interpretation (most common)
+    return candidates[0] || null;
+}
+
+/**
+ * Parse multi-period format like 14.208.1 -> 14.208100 MHz
+ */
+function parseMultiPeriodFrequency(multiPeriod) {
+    const parts = multiPeriod.split(".");
+
+    if (parts.length < 2) return null;
+
+    const wholeMhz = parseInt(parts[0], 10);
+    if (isNaN(wholeMhz)) return null;
+
+    // Concatenate all decimal parts
+    let decimalStr = parts.slice(1).join("");
+
+    // Pad to 6 decimal places (1 Hz resolution)
+    decimalStr = decimalStr.padEnd(6, "0");
+
+    // Take only first 6 digits
+    decimalStr = decimalStr.substring(0, 6);
+
+    const decimalHz = parseInt(decimalStr, 10);
+    if (isNaN(decimalHz)) return null;
+
+    return wholeMhz * 1000000 + decimalHz;
+}
+
+// ============================================================================
 // VFO State Management Functions
 // ============================================================================
 

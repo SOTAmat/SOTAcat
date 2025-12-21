@@ -27,10 +27,9 @@ const CatState = {
 };
 
 // ============================================================================
-// Constants and Band Plan
+// Timing Constants
 // ============================================================================
 
-// Timing constants (milliseconds)
 const VISUAL_FEEDBACK_DURATION_MS = 200;
 const FREQUENCY_UPDATE_DEBOUNCE_MS = 300;
 const MODE_CHECK_DELAY_MS = 400;
@@ -38,40 +37,7 @@ const MODE_CHECK_DELAY_MS = 400;
 const ERROR_RESET_STABILITY_MS = 10000;
 const ATU_FEEDBACK_DURATION_MS = 1000;
 
-// ARRL Band Plan with frequency ranges in Hz
-// Using conservative band edges to increase compatibility across license classes
-const BAND_PLAN = {
-    "40m": {
-        min: 7000000, // 7.000 MHz
-        max: 7300000, // 7.300 MHz
-        initial: 7175000, // 7.175 MHz (existing default)
-    },
-    "20m": {
-        min: 14000000, // 14.000 MHz
-        max: 14350000, // 14.350 MHz
-        initial: 14225000, // 14.225 MHz (existing default)
-    },
-    "17m": {
-        min: 18068000, // 18.068 MHz
-        max: 18168000, // 18.168 MHz
-        initial: 18110000, // 18.110 MHz (existing default)
-    },
-    "15m": {
-        min: 21000000, // 21.000 MHz
-        max: 21450000, // 21.450 MHz
-        initial: 21275000, // 21.275 MHz (existing default)
-    },
-    "12m": {
-        min: 24890000, // 24.890 MHz
-        max: 24990000, // 24.990 MHz
-        initial: 24930000, // 24.930 MHz (existing default)
-    },
-    "10m": {
-        min: 28000000, // 28.000 MHz
-        max: 29700000, // 29.700 MHz
-        initial: 28300000, // 28.300 MHz (existing default)
-    },
-};
+// BAND_PLAN is now defined in main.js
 
 // ============================================================================
 // Message/Audio Playback Functions
@@ -134,167 +100,9 @@ function sendKeys(message) {
     fetch(url, { method: "PUT" }).catch((error) => console.error("Fetch error:", error));
 }
 
-// ============================================================================
-// Frequency Formatting and Parsing Functions
-// ============================================================================
-
-// Format frequency from Hz to human-readable XX.XXX.XXX MHz format (returns string)
-function formatFrequency(frequencyHz) {
-    // Convert Hz to MHz and format as XX.XXX.XXX
-    const mhz = frequencyHz / 1000000;
-    const formatted = mhz.toFixed(6);
-    const parts = formatted.split(".");
-    const wholePart = parts[0];
-    const decimalPart = parts[1];
-
-    // Insert periods for readability: XX.XXX.XXX
-    if (decimalPart && decimalPart.length >= 3) {
-        return `${wholePart}.${decimalPart.substring(0, 3)}.${decimalPart.substring(3)}`;
-    }
-    return formatted;
-}
-
-/**
- * Parse user frequency input into Hz
- * Supports various formats:
- * - Pure integers: 7225 -> 7.225 MHz, 14225 -> 14.225 MHz, 282 -> 28.200 MHz
- * - Single decimal: 7.225 -> 7.225 MHz, 14.070 -> 14.070 MHz
- * - Multi-period: 14.208.1 -> 14.208100 MHz
- *
- * Returns an object: { success: boolean, frequencyHz: number, error: string }
- */
-function parseFrequencyInput(input) {
-    // Clean the input
-    const cleaned = input.trim();
-
-    if (!cleaned) {
-        return { success: false, error: "Empty input" };
-    }
-
-    // Convert commas to periods (treat them as equivalent separators)
-    const normalized = cleaned.replace(/,/g, ".");
-
-    // Allow only digits and periods/commas
-    if (!/^[0-9.,]+$/.test(cleaned)) {
-        return { success: false, error: "Invalid characters (only digits, periods, and commas allowed)" };
-    }
-
-    // Count periods (after normalization)
-    const periodCount = (normalized.match(/\./g) || []).length;
-
-    let frequencyHz;
-
-    if (periodCount === 0) {
-        // Pure integer input - interpret intelligently
-        frequencyHz = parseIntegerFrequency(normalized);
-    } else if (periodCount === 1) {
-        // Single decimal - treat as MHz
-        const mhz = parseFloat(normalized);
-        if (isNaN(mhz)) {
-            return { success: false, error: "Invalid decimal format" };
-        }
-        frequencyHz = Math.round(mhz * 1000000);
-    } else {
-        // Multi-period format - treat periods as grouping separators
-        frequencyHz = parseMultiPeriodFrequency(normalized);
-    }
-
-    if (frequencyHz === null) {
-        return { success: false, error: "Could not parse frequency" };
-    }
-
-    // Validate against band plan
-    const band = getBandFromFrequency(frequencyHz);
-    if (!band) {
-        return {
-            success: false,
-            error: `Frequency ${(frequencyHz / 1000000).toFixed(3)} MHz not in any supported band`,
-        };
-    }
-
-    return { success: true, frequencyHz, band };
-}
-
-/**
- * Parse integer frequency inputs intelligently
- * Examples:
- * - 7225 -> 7.225 MHz (40m)
- * - 14225 -> 14.225 MHz (20m)
- * - 28085 -> 28.085 MHz (10m)
- * - 282 -> 28.200 MHz (10m)
- */
-function parseIntegerFrequency(intStr) {
-    const num = parseInt(intStr, 10);
-    if (isNaN(num)) return null;
-
-    // Try different interpretations and see which fits a band
-    const candidates = [];
-
-    // Interpretation 1: Last 3 digits are kHz
-    if (num >= 1000) {
-        const mhz = Math.floor(num / 1000);
-        const khz = num % 1000;
-        candidates.push(mhz * 1000000 + khz * 1000);
-    }
-
-    // Interpretation 2: Direct MHz (for smaller numbers)
-    candidates.push(num * 1000000);
-
-    // Interpretation 3: Last 2 digits are 10s of kHz (e.g., 282 -> 28.2 MHz)
-    if (num >= 100) {
-        const mhz = Math.floor(num / 10);
-        const tenKhz = num % 10;
-        candidates.push(mhz * 1000000 + tenKhz * 100000);
-    }
-
-    // Try to find a candidate that fits a known band
-    for (const freqHz of candidates) {
-        if (getBandFromFrequency(freqHz)) {
-            return freqHz;
-        }
-    }
-
-    // If none match, return the first interpretation (most common)
-    return candidates[0] || null;
-}
-
-/**
- * Parse multi-period format like 14.208.1 -> 14.208100 MHz
- * The first part is the MHz whole number, subsequent parts are decimal digits
- */
-function parseMultiPeriodFrequency(multiPeriod) {
-    // Split by periods and concatenate
-    const parts = multiPeriod.split(".");
-
-    if (parts.length < 2) return null;
-
-    const wholeMhz = parseInt(parts[0], 10);
-    if (isNaN(wholeMhz)) return null;
-
-    // Concatenate all decimal parts
-    let decimalStr = parts.slice(1).join("");
-
-    // Pad to 6 decimal places (1 Hz resolution)
-    decimalStr = decimalStr.padEnd(6, "0");
-
-    // Take only first 6 digits
-    decimalStr = decimalStr.substring(0, 6);
-
-    const decimalHz = parseInt(decimalStr, 10);
-    if (isNaN(decimalHz)) return null;
-
-    return wholeMhz * 1000000 + decimalHz;
-}
-
-// Determine which amateur band a frequency falls into (returns '40m', '20m', etc., or null)
-function getBandFromFrequency(frequencyHz) {
-    for (const [band, plan] of Object.entries(BAND_PLAN)) {
-        if (frequencyHz >= plan.min && frequencyHz <= plan.max) {
-            return band;
-        }
-    }
-    return null; // Frequency doesn't match any of our supported bands
-}
+// Frequency utilities (BAND_PLAN, formatFrequency, parseFrequencyInput,
+// parseIntegerFrequency, parseMultiPeriodFrequency, getBandFromFrequency)
+// are now defined in main.js
 
 // ============================================================================
 // VFO Display Functions
