@@ -24,14 +24,14 @@ async function syncTime() {
         const response = await fetch(`/api/v1/time?time=${now}`, { method: "PUT" });
 
         if (response.status === 204) {
-            console.log("Time sync successful");
+            Log.debug("Settings", "Time sync successful");
             return; // No content, sync was successful
         } else if (!response.ok) {
             const data = await response.json();
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
-        console.error("Time sync failed:", error.message);
+        Log.error("Settings", "Time sync failed:", error.message);
     }
 }
 
@@ -78,7 +78,7 @@ async function saveCallSign() {
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
-        console.error("Error:", error);
+        Log.error("Settings", "Failed to save call sign:", error);
         alert("Failed to save call sign.");
     }
 }
@@ -107,7 +107,7 @@ async function clearCallSign() {
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
-        console.error("Error:", error);
+        Log.error("Settings", "Failed to clear call sign:", error);
         alert("Failed to clear call sign.");
     }
 }
@@ -130,7 +130,7 @@ async function loadGpsLocation() {
             gpsLocationInput.placeholder = `e.g. ${latitude}, ${longitude}`;
         }
     } catch (error) {
-        console.error("Failed to load GPS location:", error);
+        Log.error("Settings", "Failed to load GPS location:", error);
         const gpsLocationInput = document.getElementById("gps-location");
         gpsLocationInput.placeholder = "Could not fetch location";
     }
@@ -177,7 +177,7 @@ async function saveGpsLocation() {
                 throw new Error(data.error || "Unknown error");
             }
         } catch (error) {
-            console.error("Error:", error);
+            Log.error("Settings", "Failed to save GPS location:", error);
             alert("Failed to save GPS location.");
         }
     } else {
@@ -215,7 +215,7 @@ async function clearGpsLocation() {
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
-        console.error("Error:", error);
+        Log.error("Settings", "Failed to clear GPS location:", error);
         alert("Failed to clear GPS location.");
     }
 }
@@ -284,13 +284,13 @@ async function fetchSettings() {
         document.getElementById("ap-ssid").value = data.ap_ssid;
         document.getElementById("ap-pass").value = data.ap_pass;
     } catch (error) {
-        console.error("Failed to fetch settings:", error);
+        Log.error("Settings", "Failed to fetch settings:", error);
     }
 }
 
 // Save WiFi settings to device (causes immediate device reboot)
 async function saveSettings() {
-    console.log("Saving settings...");
+    Log.debug("Settings", "Saving settings...");
     if (isLocalhost) return;
 
     const settings = {
@@ -313,7 +313,7 @@ async function saveSettings() {
 
         // If the response is OK but empty (likely due to reboot), assume success
         if (response.ok) {
-            console.log("Success:", response);
+            Log.debug("Settings", "Settings saved successfully");
             alert(
                 "Settings saved successfully!\nYour SOTAcat is rebooting with the new settings.\nPlease restart your browser."
             );
@@ -326,11 +326,11 @@ async function saveSettings() {
     } catch (error) {
         // If the error is a network error (likely due to reboot), ignore it
         if (error.message.includes("NetworkError")) {
-            console.warn("Ignoring expected network error due to reboot.");
+            Log.warn("Settings", "Ignoring expected network error due to reboot.");
             return;
         }
 
-        console.error("Error:", error);
+        Log.error("Settings", "Failed to save settings:", error);
         alert("Failed to save settings.");
     }
 }
@@ -459,7 +459,7 @@ async function uploadFirmware() {
         }
         throw new Error(errorData.error || "Unknown error occurred");
     } catch (error) {
-        console.error("Firmware upload error:", error);
+        Log.error("Settings", "Firmware upload error:", error);
         otaStatus.innerHTML = `Firmware upload failed: ${error.message}`;
         alert(`Firmware upload failed: ${error.message}`);
 
@@ -481,7 +481,7 @@ async function manualCheckFirmwareVersion() {
             alert(result);
         }
     } catch (error) {
-        console.error("[Manual Version Check] Error:", error);
+        Log.error("Settings", "Manual version check error:", error);
         alert("Error checking for firmware updates. Please try again later.");
     }
 }
@@ -614,7 +614,7 @@ function onSettingsAppearing() {
 
 // Called when Settings tab is hidden
 function onSettingsLeaving() {
-    console.info("Settings tab leaving");
+    Log.info("Settings", "tab leaving");
     // Clean up document-level event listener to prevent memory leaks
     document.removeEventListener("click", handleClickOutsidePopup);
 

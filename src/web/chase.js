@@ -256,7 +256,7 @@ function scheduleNextAutoRefresh() {
 
     // Schedule the refresh
     ChaseState.autoRefreshTimeoutId = setTimeout(() => {
-        console.log("Auto-refresh triggered");
+        Log.debug("Chase", "Auto-refresh triggered");
         refreshChaseJson(true, true); // force=true, isAutoRefresh=true
     }, CHASE_AUTO_REFRESH_INTERVAL_MS);
 
@@ -283,9 +283,9 @@ function trackManualRefresh() {
     // If we're now suggesting, set a timer to revert after 5 seconds
     if (shouldSuggest && !ChaseState.suggestionRevertTimeoutId) {
         // Only set the timeout if we don't already have one active
-        console.log("Setting 5-second revert timer for auto-refresh suggestion");
+        Log.debug("Chase", "Setting 5-second revert timer for auto-refresh suggestion");
         ChaseState.suggestionRevertTimeoutId = setTimeout(() => {
-            console.log('Reverting auto-refresh suggestion back to "Refresh Now"');
+            Log.debug("Chase", "Reverting auto-refresh suggestion");
             ChaseState.manualRefreshTimes = [];
             updateRefreshButtonLabel();
             ChaseState.suggestionRevertTimeoutId = null;
@@ -302,17 +302,17 @@ function updateRefreshButtonLabel() {
 
     if (ChaseState.autoRefreshEnabled) {
         // Auto-refresh is enabled
-        console.log("Button state: Disable Auto-Refresh");
+        Log.debug("Chase", "Button state: Disable Auto-Refresh");
         refreshButton.textContent = "Disable Auto-Refresh";
         refreshButton.classList.add("btn-auto-refresh-active");
     } else if (shouldSuggestAutoRefresh()) {
         // Suggest enabling auto-refresh
-        console.log("Button state: Enable Auto-Refresh?");
+        Log.debug("Chase", "Button state: Enable Auto-Refresh?");
         refreshButton.textContent = "Enable Auto-Refresh?";
         refreshButton.classList.remove("btn-auto-refresh-active");
     } else {
         // Normal manual refresh
-        console.log("Button state: Refresh Now");
+        Log.debug("Chase", "Button state: Refresh Now");
         refreshButton.textContent = "Refresh Now";
         refreshButton.classList.remove("btn-auto-refresh-active");
     }
@@ -326,36 +326,40 @@ function shouldSuggestAutoRefresh() {
 }
 
 // Tune radio to specified frequency (Hz) and mode (adjusts SSB sideband based on frequency)
-function tuneRadioHz(frequency, mode) {
+async function tuneRadioHz(frequency, mode) {
     let useMode = mode.toUpperCase();
     if (useMode == "SSB") {
         if (frequency < LSB_USB_BOUNDARY_HZ) useMode = "LSB";
         else useMode = "USB";
     }
 
-    fetch(`/api/v1/frequency?frequency=${frequency}`, { method: "PUT" })
-        .then((response) => {
-            if (response.ok) {
-                console.log("Frequency updated successfully");
-                fetch(`/api/v1/mode?bw=${useMode}`, { method: "PUT" })
-                    .then((response) => {
-                        if (response.ok) {
-                            console.log("Mode updated successfully");
-                            // Update global VFO state and highlight matching row
-                            AppState.vfoFrequencyHz = frequency;
-                            AppState.vfoMode = useMode;
-                            AppState.vfoLastUpdated = Date.now();
-                            updateTunedRowHighlight();
-                        } else {
-                            console.error("Error updating mode");
-                        }
-                    })
-                    .catch((error) => console.error("Fetch error:", error));
-            } else {
-                console.error("Error updating frequency");
-            }
-        })
-        .catch((error) => console.error("Fetch error:", error));
+    try {
+        const freqResponse = await fetch(`/api/v1/frequency?frequency=${frequency}`, { method: "PUT" });
+
+        if (!freqResponse.ok) {
+            Log.error("Chase", "Frequency update failed");
+            return;
+        }
+
+        Log.debug("Chase", "Frequency updated:", frequency);
+
+        const modeResponse = await fetch(`/api/v1/mode?bw=${useMode}`, { method: "PUT" });
+
+        if (!modeResponse.ok) {
+            Log.error("Chase", "Mode update failed");
+            return;
+        }
+
+        Log.debug("Chase", "Mode updated:", useMode);
+
+        // Update global VFO state and highlight matching row
+        AppState.vfoFrequencyHz = frequency;
+        AppState.vfoMode = useMode;
+        AppState.vfoLastUpdated = Date.now();
+        updateTunedRowHighlight();
+    } catch (error) {
+        Log.error("Chase", "Tune radio error:", error);
+    }
 }
 
 // ============================================================================
@@ -428,7 +432,7 @@ function updateTunedRowHighlight() {
 async function updateChaseTable() {
     const data = await AppState.latestChaseJson;
     if (data == null) {
-        console.info("Chase Json is null");
+        Log.info("Chase", "Json is null");
         return;
     }
 
@@ -592,7 +596,7 @@ async function updateChaseTable() {
     });
 
     tbody.parentNode.replaceChild(newTbody, tbody);
-    console.info("Chase table updated");
+    Log.info("Chase", "table updated");
 
     setTimeout(applyTableFilters, 0);
 
@@ -608,13 +612,13 @@ async function updateChaseTable() {
 function applyTableFilters() {
     const tableBody = document.querySelector("#chase-table tbody");
     if (!tableBody) {
-        console.warn("Chase table body not found, cannot apply filters");
+        Log.warn("Chase", "Table body not found, cannot apply filters");
         return;
     }
 
     const allRows = tableBody.querySelectorAll("tr");
     if (allRows.length === 0) {
-        console.warn("No rows in Chase table, skipping filter application");
+        Log.warn("Chase", "No rows in table, skipping filter application");
         return;
     }
 
@@ -622,7 +626,7 @@ function applyTableFilters() {
     const selectedMode = ChaseState.modeFilter || "All";
     const selectedType = ChaseState.typeFilter || "All";
 
-    console.log(`Applying Chase filters - Mode: ${selectedMode}, Type: ${selectedType}, Rows: ${allRows.length}`);
+    Log.debug("Chase", `Applying filters - Mode: ${selectedMode}, Type: ${selectedType}, Rows: ${allRows.length}`);
 
     let visibleRows = 0;
     let hiddenRows = 0;
@@ -671,7 +675,7 @@ function applyTableFilters() {
         }
     });
 
-    console.log(`Chase filter applied: ${visibleRows} visible rows, ${hiddenRows} hidden rows`);
+    Log.debug("Chase", `Filter applied: ${visibleRows} visible, ${hiddenRows} hidden`);
 }
 
 // ============================================================================
@@ -714,9 +718,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
     const timeSinceLastFetch = now - ChaseState.lastRefreshTime;
 
     if (!force && timeSinceLastFetch < CHASE_MIN_REFRESH_INTERVAL_MS) {
-        console.info(
-            `Chase rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`
-        );
+        Log.info("Chase", `rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`);
         if (typeof updateChaseTable === "function") {
             updateChaseTable();
         }
@@ -731,7 +733,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
             refreshButton.classList.add("btn-disabled");
         }
 
-        console.log("Fetching Chase data from Spothole API");
+        Log.debug("Chase", "Fetching data from Spothole API");
         ChaseState.lastRefreshTime = Date.now();
 
         // Build fetch options
@@ -751,12 +753,12 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
         const spots = await fetchAndProcessSpots(fetchOptions, location, true);
 
         AppState.latestChaseJson = spots;
-        console.info(`Chase Json updated: ${spots.length} spots`);
+        Log.info("Chase", `Json updated: ${spots.length} spots`);
 
         if (typeof updateChaseTable === "function") {
             updateChaseTable();
         } else {
-            console.error("updateChaseTable function not found");
+            Log.error("Chase", "updateChaseTable function not found");
         }
 
         // Update refresh complete time and restart timer
@@ -768,7 +770,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
             scheduleNextAutoRefresh();
         }
     } catch (error) {
-        console.error("Error fetching or processing Chase data:", error);
+        Log.error("Chase", "Error fetching or processing data:", error);
         // Show error to user if this was a manual refresh
         if (force && !isAutoRefresh) {
             alert("Failed to fetch spots from Spothole API. Please check your internet connection and try again.");
@@ -794,7 +796,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
 
 // Called when Chase tab becomes visible
 function onChaseAppearing() {
-    console.info("Chase tab appearing");
+    Log.info("Chase", "tab appearing");
 
     // Load callsign for spot pinning (non-blocking)
     ensureCallSignLoaded();
@@ -901,10 +903,10 @@ function onChaseAppearing() {
 
     // Load data
     if (AppState.latestChaseJson != null) {
-        console.log("Chase tab appearing: Using existing data");
+        Log.debug("Chase", "tab appearing: Using existing data");
         updateChaseTable();
     } else {
-        console.log("Chase tab appearing: Fetching new data");
+        Log.debug("Chase", "tab appearing: Fetching new data");
         refreshChaseJson(true);
     }
 
@@ -918,7 +920,7 @@ function onChaseAppearing() {
 
 // Called when Chase tab is hidden
 function onChaseLeaving() {
-    console.info("Chase tab leaving");
+    Log.info("Chase", "tab leaving");
 
     // Unsubscribe from VFO changes (this also stops polling if no other subscribers)
     unsubscribeFromVfo(updateTunedRowHighlight);

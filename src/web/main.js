@@ -35,6 +35,23 @@ let batteryController = null; // AbortController for battery/rssi requests
 let vfoController = null; // AbortController for VFO (frequency/mode) requests
 
 // ============================================================================
+// Logging Utilities
+// ============================================================================
+// Unified logging with consistent context prefixes
+
+const Log = {
+    debug: (ctx, ...args) => console.log(`[${ctx}]`, ...args),
+    info: (ctx, ...args) => console.log(`[${ctx}]`, ...args),
+    warn: (ctx, ...args) => console.warn(`[${ctx}]`, ...args),
+    error: (ctx, ...args) => console.error(`[${ctx}]`, ...args),
+};
+
+// Fire-and-forget fetch for commands that don't need response handling
+function fetchQuiet(url, options = {}, context = "Fetch") {
+    return fetch(url, options).catch((err) => Log.error(context, url, err.message));
+}
+
+// ============================================================================
 // Global Application State
 // ============================================================================
 
@@ -79,7 +96,7 @@ async function ensureCallSignLoaded() {
             AppState.callSign = data.callsign.toUpperCase();
         }
     } catch (error) {
-        console.warn("Failed to load callsign:", error);
+        Log.warn("App", "Failed to load callsign:", error);
     }
     return AppState.callSign;
 }
@@ -289,7 +306,7 @@ async function fetchVfoState() {
         ]);
 
         if (!freqResponse.ok || !modeResponse.ok) {
-            console.warn("[VFO] Failed to fetch VFO state");
+            Log.warn("VFO", "Failed to fetch VFO state");
             return;
         }
 
@@ -310,13 +327,13 @@ async function fetchVfoState() {
                 try {
                     callback(newFrequency, newMode);
                 } catch (error) {
-                    console.error("[VFO] Callback error:", error);
+                    Log.error("VFO", "Callback error:", error);
                 }
             });
         }
     } catch (error) {
         if (error.name === "AbortError") return; // Expected when polling paused
-        console.warn("[VFO] Error fetching VFO state:", error);
+        Log.warn("VFO", "Error fetching VFO state:", error);
     } finally {
         vfoController = null;
     }
@@ -327,11 +344,11 @@ function startGlobalVfoPolling() {
     if (isLocalhost) return;
 
     if (AppState.vfoUpdateInterval) {
-        console.log("[VFO] Polling already active");
+        Log.debug("VFO", "Polling already active");
         return;
     }
 
-    console.log("[VFO] Starting global VFO polling");
+    Log.debug("VFO", "Starting global VFO polling");
 
     // Fetch immediately
     fetchVfoState();
@@ -343,7 +360,7 @@ function startGlobalVfoPolling() {
 // Stop global VFO polling
 function stopGlobalVfoPolling() {
     if (AppState.vfoUpdateInterval) {
-        console.log("[VFO] Stopping global VFO polling");
+        Log.debug("VFO", "Stopping global VFO polling");
         clearInterval(AppState.vfoUpdateInterval);
         AppState.vfoUpdateInterval = null;
     }
@@ -353,7 +370,7 @@ function stopGlobalVfoPolling() {
 function subscribeToVfo(callback) {
     if (!AppState.vfoChangeCallbacks.includes(callback)) {
         AppState.vfoChangeCallbacks.push(callback);
-        console.log("[VFO] Subscriber added, total:", AppState.vfoChangeCallbacks.length);
+        Log.debug("VFO", "Subscriber added, total:", AppState.vfoChangeCallbacks.length);
     }
 }
 
@@ -362,7 +379,7 @@ function unsubscribeFromVfo(callback) {
     const index = AppState.vfoChangeCallbacks.indexOf(callback);
     if (index > -1) {
         AppState.vfoChangeCallbacks.splice(index, 1);
-        console.log("[VFO] Subscriber removed, total:", AppState.vfoChangeCallbacks.length);
+        Log.debug("VFO", "Subscriber removed, total:", AppState.vfoChangeCallbacks.length);
     }
 
     // Stop polling if no more subscribers
@@ -480,7 +497,7 @@ function cleanupCurrentTab() {
         const tabNameCapitalized = AppState.currentTabName.charAt(0).toUpperCase() + AppState.currentTabName.slice(1);
         const onLeavingFunctionName = `on${tabNameCapitalized}Leaving`;
         if (typeof window[onLeavingFunctionName] === "function") {
-            console.log(`Calling ${onLeavingFunctionName} function`);
+            Log.debug("Tab", `Calling ${onLeavingFunctionName}`);
             window[onLeavingFunctionName]();
         }
     }
@@ -503,21 +520,21 @@ const loadedTabScripts = new Set();
 // Load tab-specific JavaScript file if not already loaded (tabName: 'chase', 'cat', 'settings', 'about')
 async function loadTabScriptIfNeeded(tabName) {
     const scriptPath = `${tabName}.js`;
-    console.log(`Checking if script needs to be loaded: ${scriptPath}`);
+    Log.debug("Script", `Checking: ${scriptPath}`);
 
     if (loadedTabScripts.has(scriptPath)) {
         // Script already loaded, resolve immediately
-        console.log(`Script ${scriptPath} already loaded, skipping`);
+        Log.debug("Script", `Already loaded: ${scriptPath}`);
         return;
     }
 
-    console.log(`Loading script: ${scriptPath}`);
+    Log.debug("Script", `Loading: ${scriptPath}`);
 
     try {
         const response = await fetch(scriptPath);
 
         if (!response.ok) {
-            console.warn(`Script ${scriptPath} fetch failed with status: ${response.status}`);
+            Log.warn("Script", `Fetch failed: ${scriptPath} (${response.status})`);
             // If the script doesn't need to be loaded (e.g., not found), resolve the promise
             return;
         }
@@ -527,12 +544,12 @@ async function loadTabScriptIfNeeded(tabName) {
             const scriptTag = document.createElement("script");
             scriptTag.src = scriptPath;
             scriptTag.onload = () => {
-                console.log(`Script ${scriptPath} loaded successfully`);
+                Log.debug("Script", `Loaded: ${scriptPath}`);
                 loadedTabScripts.add(scriptPath);
                 resolve();
             };
             scriptTag.onerror = (error) => {
-                console.error(`Error loading script ${scriptPath}:`, error);
+                Log.error("Script", `Load error: ${scriptPath}`, error);
                 reject(error);
             };
 
@@ -540,14 +557,14 @@ async function loadTabScriptIfNeeded(tabName) {
             document.body.appendChild(scriptTag);
         });
     } catch (error) {
-        console.error(`Error fetching script ${scriptPath}:`, error);
+        Log.error("Script", `Fetch error: ${scriptPath}`, error);
         throw error;
     }
 }
 
 // Switch to a different tab (tabName: 'chase', 'cat', 'settings', 'about')
 async function openTab(tabName) {
-    console.log(`Switching to tab: ${tabName}`);
+    Log.debug("Tab", `Switching to: ${tabName}`);
 
     // Pause polling during tab transition to prioritize page load
     pollingPaused = true;
@@ -563,21 +580,21 @@ async function openTab(tabName) {
 
         // Set the new current tab name
         AppState.currentTabName = tabName.toLowerCase();
-        console.log(`Current tab set to: ${AppState.currentTabName}`);
+        Log.debug("Tab", `Current tab: ${AppState.currentTabName}`);
 
         // Find and highlight the active tab
         const tabButton = document.getElementById(AppState.currentTabName + "-tab-button");
         if (tabButton) {
             tabButton.classList.add("tabActive");
         } else {
-            console.error(`Tab button for ${AppState.currentTabName} not found`);
+            Log.error("Tab", `Button not found: ${AppState.currentTabName}`);
         }
 
         // Save the active tab to localStorage
         saveActiveTab(AppState.currentTabName);
 
         const contentPath = `${AppState.currentTabName}.html`;
-        console.log(`Fetching content from: ${contentPath}`);
+        Log.debug("Tab", `Fetching: ${contentPath}`);
 
         const response = await fetch(contentPath);
         if (!response.ok) {
@@ -586,28 +603,28 @@ async function openTab(tabName) {
 
         const text = await response.text();
         document.getElementById("content-area").innerHTML = text;
-        console.log(`Content for ${AppState.currentTabName} loaded`);
+        Log.debug("Tab", `Content loaded: ${AppState.currentTabName}`);
 
         await loadTabScriptIfNeeded(AppState.currentTabName);
 
         // Once the script is loaded, call the onAppearing function
         const tabNameCapitalized = AppState.currentTabName.charAt(0).toUpperCase() + AppState.currentTabName.slice(1);
         const onAppearingFunctionName = `on${tabNameCapitalized}Appearing`;
-        console.log(`Calling ${onAppearingFunctionName} function`);
+        Log.debug("Tab", `Calling ${onAppearingFunctionName}`);
 
         if (typeof window[onAppearingFunctionName] === "function") {
             try {
                 window[onAppearingFunctionName]();
             } catch (error) {
-                console.error(`Error in ${onAppearingFunctionName}:`, error);
+                Log.error("Tab", `Error in ${onAppearingFunctionName}:`, error);
                 throw error;
             }
         } else {
-            console.warn(`Function ${onAppearingFunctionName} not found`);
+            Log.warn("Tab", `Function not found: ${onAppearingFunctionName}`);
         }
-        console.log(`Tab switch to ${AppState.currentTabName} complete`);
+        Log.debug("Tab", `Switch complete: ${AppState.currentTabName}`);
     } catch (error) {
-        console.error(`Error during tab switch to ${AppState.currentTabName}:`, error);
+        Log.error("Tab", `Switch failed: ${AppState.currentTabName}`, error);
         // Attempt recovery by reloading the current tab
         alert(
             `Error switching tabs: ${error.message}\nPlease try once more, or reload the page if the issue persists.`
@@ -624,30 +641,30 @@ async function openTab(tabName) {
 
 // Initialize the application when DOM is loaded
 document.addEventListener("DOMContentLoaded", function () {
-    console.log("DOMContentLoaded event fired");
+    Log.debug("App", "DOMContentLoaded");
 
     // Ensure all tab buttons use the same click handler
     document.querySelectorAll(".tabBar button").forEach((button) => {
         button.addEventListener("click", function (event) {
             event.preventDefault();
             const tabName = this.getAttribute("data-tab");
-            console.log(`Tab button clicked: ${tabName}`);
+            Log.debug("Tab", `Button clicked: ${tabName}`);
             openTab(tabName);
         });
     });
 
     // Get the active tab from localStorage
     const activeTab = loadActiveTab();
-    console.log("Active tab from localStorage:", activeTab);
+    Log.debug("App", "Active tab from storage:", activeTab);
 
     // Initialize or open any tab in the UI
     openTab(activeTab);
 
     // Schedule version check after page loads
     setTimeout(() => {
-        console.log("[Version Check] Executing initial version check");
+        Log.debug("Version", "Executing initial check");
         checkFirmwareVersion().catch((error) => {
-            console.log("[Version Check] Initial version check failed:", error);
+            Log.warn("Version", "Initial check failed:", error);
             // Retry timer will be started automatically by checkFirmwareVersion
         });
     }, INITIAL_VERSION_CHECK_DELAY_MS);
@@ -694,7 +711,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 async function getLocation() {
     // First check if there's a GPS location override from the backend
     if (AppState.gpsOverride) {
-        console.log("Using cached GPS location override");
+        Log.debug("GPS", "Using cached location override");
         return AppState.gpsOverride;
     }
 
@@ -702,12 +719,12 @@ async function getLocation() {
         const response = await fetch("/api/v1/gps");
         const data = await response.json();
         if (data.gps_lat && data.gps_lon) {
-            console.log("Using GPS location override from NVRAM");
+            Log.debug("GPS", "Using override from NVRAM");
             AppState.gpsOverride = { latitude: parseFloat(data.gps_lat), longitude: parseFloat(data.gps_lon) };
             return AppState.gpsOverride;
         }
     } catch (error) {
-        console.error("Failed to fetch GPS override:", error);
+        Log.error("GPS", "Failed to fetch override:", error);
     }
 
     // Otherwise, use IP-based geolocation
@@ -738,7 +755,7 @@ async function getLocation() {
             throw new Error(position.message || "Failed to fetch location from IP-API");
         }
     } catch (error) {
-        console.error("Error retrieving location: ", error);
+        Log.error("GPS", "Error retrieving location:", error);
         throw error; // Propagate the error to be handled by the caller
     }
 }
@@ -752,7 +769,7 @@ function clearDistanceCache() {
     for (const key in distanceCache) {
         delete distanceCache[key];
     }
-    console.log("Distance cache cleared for location change");
+    Log.debug("GPS", "Distance cache cleared for location change");
 }
 
 // ============================================================================
@@ -774,15 +791,15 @@ function startVersionCheckRetryTimer() {
         clearInterval(AppState.versionCheckRetryTimer);
     }
 
-    console.log("[Version Check] Starting retry timer (will retry every 15 minutes)");
+    Log.debug("Version", "Starting retry timer (will retry every 15 minutes)");
     AppState.versionCheckRetryTimer = setInterval(async () => {
-        console.log("[Version Check] Retry timer triggered - attempting version check");
+        Log.debug("Version", "Retry timer triggered - attempting version check");
         try {
             await checkFirmwareVersion(false); // false = automatic check
             // If we get here, the check succeeded, so stop retrying
             stopVersionCheckRetryTimer();
         } catch (error) {
-            console.log("[Version Check] Retry failed:", error.message);
+            Log.debug("Version", "Retry failed:", error.message);
             // Keep retrying
         }
     }, VERSION_CHECK_RETRY_INTERVAL_MS);
@@ -791,7 +808,7 @@ function startVersionCheckRetryTimer() {
 // Stop retry timer
 function stopVersionCheckRetryTimer() {
     if (AppState.versionCheckRetryTimer) {
-        console.log("[Version Check] Stopping retry timer");
+        Log.debug("Version", "Stopping retry timer");
         clearInterval(AppState.versionCheckRetryTimer);
         AppState.versionCheckRetryTimer = null;
     }
@@ -799,14 +816,14 @@ function stopVersionCheckRetryTimer() {
 
 // Parse version string to Unix timestamp (returns seconds since epoch, or null on failure)
 function normalizeVersion(versionString) {
-    console.log("[Version Check] Parsing version string:", versionString);
+    Log.debug("Version", "Parsing version string:", versionString);
 
     // Extract date and time components from version string
     let match;
     if (versionString.includes("-Release")) {
         // Handle manifest format (e.g., "2024-11-29_11:37-Release")
         match = versionString.match(/(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2})/);
-        console.log("[Version Check] Manifest format detected, match:", match);
+        Log.debug("Version", "Manifest format detected, match:", match);
     } else if (versionString.includes(":")) {
         // Handle device format (e.g., "AB6D_1:241129:2346-R")
         const parts = versionString.split(":");
@@ -817,11 +834,11 @@ function normalizeVersion(versionString) {
                 match = [...match, timeMatch[1], timeMatch[2]];
             }
         }
-        console.log("[Version Check] Device format detected, match:", match);
+        Log.debug("Version", "Device format detected, match:", match);
     }
 
     if (!match) {
-        console.log("[Version Check] Failed to match version pattern");
+        Log.debug("Version", "Failed to match version pattern");
         return null;
     }
 
@@ -847,7 +864,7 @@ function normalizeVersion(versionString) {
     const originalMonth = month; // Save for logging
     month = month - 1;
 
-    console.log("[Version Check] Parsed components:", {
+    Log.debug("Version", "Parsed components:", {
         year,
         originalMonth,
         day,
@@ -858,7 +875,7 @@ function normalizeVersion(versionString) {
     const date = new Date(Date.UTC(year, month, day, hour, minute));
     const timestamp = date.getTime() / 1000;
 
-    console.log("[Version Check] Resulting timestamp:", timestamp, "Date:", date.toISOString());
+    Log.debug("Version", "Resulting timestamp:", timestamp, "Date:", date.toISOString());
 
     return timestamp;
 }
@@ -866,9 +883,9 @@ function normalizeVersion(versionString) {
 // Check if enough time has passed since last version check (returns boolean)
 function shouldCheckVersion() {
     const lastCheck = localStorage.getItem(VERSION_CHECK_STORAGE_KEY);
-    console.log("[Version Check] Last check timestamp:", lastCheck);
+    Log.debug("Version", "Last check timestamp:", lastCheck);
     if (!lastCheck) {
-        console.log("[Version Check] No previous check found, returning true");
+        Log.debug("Version", "No previous check found, returning true");
         return true;
     }
 
@@ -876,18 +893,18 @@ function shouldCheckVersion() {
     const now = new Date();
     const daysSinceLastCheck = (now - lastCheckDate) / (1000 * 60 * 60 * 24);
 
-    console.log("[Version Check] Days since last check:", daysSinceLastCheck);
-    console.log("[Version Check] Check interval:", VERSION_CHECK_INTERVAL_DAYS);
+    Log.debug("Version", "Days since last check:", daysSinceLastCheck);
+    Log.debug("Version", "Check interval:", VERSION_CHECK_INTERVAL_DAYS);
     const shouldCheck = daysSinceLastCheck >= VERSION_CHECK_INTERVAL_DAYS;
-    console.log("[Version Check] Should check?", shouldCheck);
+    Log.debug("Version", "Should check?", shouldCheck);
     return shouldCheck;
 }
 
 // Perform version check (manualCheck: boolean - true for user-initiated, false for automatic)
 async function checkFirmwareVersion(manualCheck = false) {
-    console.log("[Version Check] Starting version check");
+    Log.debug("Version", "Starting version check");
     if (!manualCheck && !shouldCheckVersion()) {
-        console.log("[Version Check] Skipping check due to interval");
+        Log.debug("Version", "Skipping check due to interval");
         return;
     }
 
@@ -896,24 +913,24 @@ async function checkFirmwareVersion(manualCheck = false) {
         const timeoutId = setTimeout(() => controller.abort(), VERSION_CHECK_TIMEOUT_MS);
 
         // Get current version from device
-        console.log("[Version Check] Fetching current version from device");
+        Log.debug("Version", "Fetching current version from device");
         const response = await fetch("/api/v1/version", {
             signal: controller.signal,
         });
         if (!response.ok) {
             const error = `Failed to get current version from device (HTTP ${response.status})`;
-            console.warn("[Version Check]", error);
+            Log.warn("Version", error);
             if (manualCheck) {
                 throw new Error(error);
             }
             return;
         }
         const currentVersion = await response.text();
-        console.log("[Version Check] Current device version:", currentVersion);
+        Log.debug("Version", "Current device version:", currentVersion);
         const currentBuildTime = normalizeVersion(currentVersion);
         if (!currentBuildTime) {
             const error = `Failed to parse current version format: ${currentVersion}`;
-            console.error("[Version Check]", error);
+            Log.error("Version", error);
             if (manualCheck) {
                 throw new Error(error);
             }
@@ -923,7 +940,7 @@ async function checkFirmwareVersion(manualCheck = false) {
         // Fetch manifest (CORS required to read response body)
         // Add timestamp to URL to bypass cache
         const cacheBustUrl = `${MANIFEST_URL}?t=${Date.now()}`;
-        console.log("[Version Check] Fetching manifest from:", cacheBustUrl);
+        Log.debug("Version", "Fetching manifest from:", cacheBustUrl);
         let manifestResponse;
         try {
             manifestResponse = await fetch(cacheBustUrl, {
@@ -935,7 +952,7 @@ async function checkFirmwareVersion(manualCheck = false) {
             });
         } catch (fetchError) {
             const error = `Failed to fetch manifest from server: ${fetchError.message}`;
-            console.warn("[Version Check]", error);
+            Log.warn("Version", error);
             if (manualCheck) {
                 throw new Error(error);
             }
@@ -944,7 +961,7 @@ async function checkFirmwareVersion(manualCheck = false) {
 
         if (!manifestResponse.ok) {
             const error = `Failed to fetch manifest from server (HTTP ${manifestResponse.status})`;
-            console.warn("[Version Check]", error);
+            Log.warn("Version", error);
             if (manualCheck) {
                 throw new Error(error);
             }
@@ -956,7 +973,7 @@ async function checkFirmwareVersion(manualCheck = false) {
             manifest = await manifestResponse.json();
         } catch (e) {
             const error = `Invalid JSON in manifest: ${e.message}`;
-            console.warn("[Version Check]", error);
+            Log.warn("Version", error);
             if (manualCheck) {
                 throw new Error(error);
             }
@@ -969,7 +986,7 @@ async function checkFirmwareVersion(manualCheck = false) {
         const latestVersion = normalizeVersion(manifest.version);
         if (!latestVersion) {
             const error = `Invalid version format in manifest: ${manifest.version}`;
-            console.warn("[Version Check]", error);
+            Log.warn("Version", error);
             if (manualCheck) {
                 throw new Error(error);
             }
@@ -977,8 +994,8 @@ async function checkFirmwareVersion(manualCheck = false) {
         }
 
         // Compare versions using Unix timestamps
-        console.info("[Version Check] Latest version timestamp:", new Date(latestVersion * 1000).toISOString());
-        console.info("[Version Check] Current version timestamp:", new Date(currentBuildTime * 1000).toISOString());
+        Log.info("Version", "Latest version timestamp:", new Date(latestVersion * 1000).toISOString());
+        Log.info("Version", "Current version timestamp:", new Date(currentBuildTime * 1000).toISOString());
 
         // Handle different cases for manual vs automatic checks
         let shouldUpdateTimestamp = false;
@@ -1011,7 +1028,7 @@ async function checkFirmwareVersion(manualCheck = false) {
                     shouldUpdateTimestamp = true;
                 } else {
                     // User dismissed - don't update timestamp so we'll notify again tomorrow
-                    console.log("[Version Check] User dismissed update notification - will retry tomorrow");
+                    Log.debug("Version", "User dismissed update notification - will retry tomorrow");
                 }
             } else {
                 // No update needed - update timestamp
@@ -1022,17 +1039,17 @@ async function checkFirmwareVersion(manualCheck = false) {
         // Only update timestamp if appropriate
         if (shouldUpdateTimestamp) {
             localStorage.setItem(VERSION_CHECK_STORAGE_KEY, Date.now().toString());
-            console.log("[Version Check] Updated last check timestamp");
+            Log.debug("Version", "Updated last check timestamp");
         }
 
         // Always track successful completion (even if we don't update the check timestamp)
         localStorage.setItem(VERSION_CHECK_SUCCESS_KEY, Date.now().toString());
-        console.log("[Version Check] Version check completed successfully");
+        Log.debug("Version", "Version check completed successfully");
 
         // Stop retry timer on successful check
         stopVersionCheckRetryTimer();
     } catch (error) {
-        console.log("[Version Check] Error during version check:", error.message);
+        Log.debug("Version", "Error during version check:", error.message);
 
         // Start retry timer for failed automatic checks
         if (!manualCheck) {

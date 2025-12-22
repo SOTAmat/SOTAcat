@@ -48,7 +48,7 @@ const ATU_FEEDBACK_DURATION_MS = 1000;
 // Play pre-recorded message from specified memory bank slot (1-3)
 function playMsg(slot) {
     const url = `/api/v1/msg?bank=${slot}`;
-    fetch(url, { method: "PUT" }).catch((error) => console.error("Fetch error:", error));
+    fetchQuiet(url, { method: "PUT" }, "CAT");
 }
 
 // ============================================================================
@@ -58,7 +58,7 @@ function playMsg(slot) {
 // Send transmit state change request to radio (state: 0=RX, 1=TX)
 function sendXmitRequest(state) {
     const url = `/api/v1/xmit?state=${state}`;
-    fetch(url, { method: "PUT" }).catch((error) => console.error("Fetch error:", error));
+    fetchQuiet(url, { method: "PUT" }, "CAT");
 }
 
 // Toggle transmit state on/off
@@ -84,7 +84,7 @@ function setPowerMinMax(maximum) {
     // KX3 max power is 15w, KX2 will accept that and gracefully set 10w instead
     // On both radios, actual power may be lower than requested, depending on mode, battery, etc.
     const url = `/api/v1/power?power=${maximum ? "15" : "0"}`;
-    fetch(url, { method: "PUT" }).catch((error) => console.error("Fetch error:", error));
+    fetchQuiet(url, { method: "PUT" }, "CAT");
 }
 
 // ============================================================================
@@ -99,7 +99,7 @@ function sendKeys(message) {
     }
 
     const url = `/api/v1/keyer?message=${message}`;
-    fetch(url, { method: "PUT" }).catch((error) => console.error("Fetch error:", error));
+    fetchQuiet(url, { method: "PUT" }, "CAT");
 }
 
 // Frequency utilities (BAND_PLAN, formatFrequency, parseFrequencyInput,
@@ -165,10 +165,10 @@ function updateBandDisplay() {
         const bandButton = document.getElementById(`btn-${currentBand}`);
         if (bandButton) {
             bandButton.classList.add("active");
-            console.log(`Band display updated: ${currentBand} active`);
+            Log.debug("CAT", `Band display updated: ${currentBand} active`);
         }
     } else {
-        console.log("Current frequency not in any supported band range");
+        Log.debug("CAT", "Current frequency not in any supported band range");
     }
 }
 
@@ -215,10 +215,10 @@ function enableFrequencyEditing() {
             // Valid frequency - apply it
             setFrequency(result.frequencyHz);
             exitEditMode();
-            console.log(`Frequency set to ${result.frequencyHz} Hz (${result.band})`);
+            Log.debug("CAT", `Frequency set to ${result.frequencyHz} Hz (${result.band})`);
         } else {
             // Invalid frequency - show error
-            console.error("Invalid frequency input:", result.error);
+            Log.error("CAT", "Invalid frequency input:", result.error);
             alert(result.error);
             exitEditMode();
         }
@@ -276,7 +276,7 @@ function notifyVfoSubscribers() {
         try {
             callback(AppState.vfoFrequencyHz, AppState.vfoMode);
         } catch (error) {
-            console.error("[CAT] VFO callback error:", error);
+            Log.error("CAT", "VFO callback error:", error);
         }
     });
 }
@@ -305,14 +305,14 @@ function setFrequency(frequencyHz) {
             const response = await fetch(url, { method: "PUT" });
 
             if (response.ok) {
-                console.log("Frequency updated successfully:", frequencyHz);
+                Log.debug("CAT", "Frequency updated:", frequencyHz);
             } else {
-                console.error("Error updating frequency");
+                Log.error("CAT", "Frequency update failed");
                 // Revert display on error
                 getCurrentVfoState();
             }
         } catch (error) {
-            console.error("Fetch error:", error);
+            Log.error("CAT", "Frequency fetch error:", error);
             // Revert display on error
             getCurrentVfoState();
         } finally {
@@ -329,7 +329,7 @@ function adjustFrequency(deltaHz) {
     if (newFrequency >= HF_MIN_FREQUENCY_HZ && newFrequency <= HF_MAX_FREQUENCY_HZ) {
         setFrequency(newFrequency);
     } else {
-        console.warn("Frequency out of bounds:", newFrequency);
+        Log.warn("CAT", "Frequency out of bounds:", newFrequency);
     }
 }
 
@@ -354,14 +354,14 @@ async function setMode(mode) {
             AppState.vfoLastUpdated = Date.now();
             updateModeDisplay();
             notifyVfoSubscribers();
-            console.log("Mode updated successfully:", actualMode);
+            Log.debug("CAT", "Mode updated:", actualMode);
         } else {
-            console.error("Error updating mode");
+            Log.error("CAT", "Mode update failed");
             // Revert display on error
             getCurrentVfoState();
         }
     } catch (error) {
-        console.error("Fetch error:", error);
+        Log.error("CAT", "Mode fetch error:", error);
         // Revert display on error
         getCurrentVfoState();
     }
@@ -404,7 +404,7 @@ function selectBand(band) {
                 }
                 // If not in SSB mode (AM, FM, DATA, CW, etc.), leave mode unchanged
             } catch (error) {
-                console.error("Error checking current mode:", error);
+                Log.error("CAT", "Error checking current mode:", error);
             }
         }, MODE_CHECK_DELAY_MS);
     }
@@ -423,7 +423,7 @@ async function getCurrentVfoState() {
 
     // Back off if we've had consecutive errors
     if (CatState.consecutiveErrors > 2) {
-        console.log("Backing off due to errors, skipping poll");
+        Log.debug("CAT", "Backing off due to errors, skipping poll");
         return;
     }
 
@@ -459,7 +459,7 @@ async function getCurrentVfoState() {
                 CatState.lastFrequencyChange = Date.now(); // Track that frequency changed
                 updateFrequencyDisplay();
                 updateBandDisplay(); // Update band button active state
-                console.log("Frequency updated from radio:", AppState.vfoFrequencyHz);
+                Log.debug("CAT", "Frequency updated from radio:", AppState.vfoFrequencyHz);
                 changed = true;
             }
         }
@@ -470,7 +470,7 @@ async function getCurrentVfoState() {
             if (newMode !== AppState.vfoMode) {
                 AppState.vfoMode = newMode;
                 updateModeDisplay();
-                console.log("Mode updated from radio:", AppState.vfoMode);
+                Log.debug("CAT", "Mode updated from radio:", AppState.vfoMode);
                 changed = true;
             }
         }
@@ -482,7 +482,7 @@ async function getCurrentVfoState() {
         }
     } catch (error) {
         CatState.consecutiveErrors++;
-        console.error(`Error getting VFO state (${CatState.consecutiveErrors} consecutive):`, error);
+        Log.error("CAT", `VFO state error (${CatState.consecutiveErrors} consecutive):`, error);
         // After 3 consecutive errors, we'll back off automatically
     } finally {
         CatState.isUpdatingVfo = false;
@@ -515,18 +515,18 @@ async function startVfoUpdates() {
             AppState.vfoFrequencyHz = parseInt(frequency, 10);
             updateFrequencyDisplay();
             updateBandDisplay();
-            console.log("Initial frequency loaded:", AppState.vfoFrequencyHz);
+            Log.debug("CAT", "Initial frequency loaded:", AppState.vfoFrequencyHz);
         }
         if (mode) {
             AppState.vfoMode = mode.toUpperCase();
             updateModeDisplay();
-            console.log("Initial mode loaded:", AppState.vfoMode);
+            Log.debug("CAT", "Initial mode loaded:", AppState.vfoMode);
         }
         // Notify subscribers of initial state
         AppState.vfoLastUpdated = Date.now();
         notifyVfoSubscribers();
     } catch (error) {
-        console.error("Error loading initial VFO state:", error);
+        Log.error("CAT", "Error loading initial VFO state:", error);
     } finally {
         CatState.isUpdatingVfo = false;
 
@@ -539,7 +539,7 @@ async function startVfoUpdates() {
                 CatState.consecutiveErrors > 0 &&
                 Date.now() - CatState.lastFrequencyChange > ERROR_RESET_STABILITY_MS
             ) {
-                console.log("System stable, resetting error counter");
+                Log.debug("CAT", "System stable, resetting error counter");
                 CatState.consecutiveErrors = 0;
             }
         }, VFO_POLLING_INTERVAL_MS);
@@ -567,26 +567,26 @@ function stopVfoUpdates() {
 // ============================================================================
 
 // Initiate ATU auto-tune cycle
-function tuneAtu() {
-    const url = "/api/v1/atu";
-    fetch(url, { method: "PUT" })
-        .then((response) => {
-            if (response.ok) {
-                // Visual feedback
-                const atuBtn = document.querySelector(".btn-tune");
-                if (atuBtn) {
-                    atuBtn.style.background = "var(--success)";
-                    setTimeout(() => {
-                        atuBtn.style.background = "";
-                    }, ATU_FEEDBACK_DURATION_MS);
-                }
-            } else {
-                console.error("Error initiating ATU tune");
-            }
-        })
-        .catch((error) => {
-            console.error("Fetch error:", error);
-        });
+async function tuneAtu() {
+    try {
+        const response = await fetch("/api/v1/atu", { method: "PUT" });
+
+        if (!response.ok) {
+            Log.error("CAT", "ATU tune failed");
+            return;
+        }
+
+        // Visual feedback
+        const atuBtn = document.querySelector(".btn-tune");
+        if (atuBtn) {
+            atuBtn.style.background = "var(--success)";
+            setTimeout(() => {
+                atuBtn.style.background = "";
+            }, ATU_FEEDBACK_DURATION_MS);
+        }
+    } catch (error) {
+        Log.error("CAT", "ATU fetch error:", error);
+    }
 }
 
 // ============================================================================
@@ -664,12 +664,12 @@ function launchSOTAmat() {
 // Attach all CAT page event listeners
 function attachCatEventListeners() {
     // Only attach once to prevent memory leaks
-    console.log(`attachCatEventListeners called, flag is: ${CatState.catEventListenersAttached}`);
+    Log.debug("CAT", `attachCatEventListeners called, flag: ${CatState.catEventListenersAttached}`);
     if (CatState.catEventListenersAttached) {
-        console.log("Skipping event listener attachment - already attached");
+        Log.debug("CAT", "Event listeners already attached, skipping");
         return;
     }
-    console.log("Attaching CAT event listeners to DOM");
+    Log.debug("CAT", "Attaching event listeners to DOM");
     CatState.catEventListenersAttached = true;
 
     // Section toggle handlers
@@ -764,7 +764,7 @@ function attachCatEventListeners() {
 
 // Called when CAT tab becomes visible
 function onCatAppearing() {
-    console.info("CAT tab appearing");
+    Log.info("CAT", "tab appearing");
     loadInputValues();
     loadCollapsibleStates();
 
@@ -783,7 +783,7 @@ function onCatAppearing() {
 
 // Called when CAT tab is hidden
 function onCatLeaving() {
-    console.info("CAT tab leaving");
+    Log.info("CAT", "tab leaving");
     stopVfoUpdates();
 
     // Reset event listener flags so they can be reattached when returning to this tab
