@@ -643,6 +643,9 @@ async function openTab(tabName) {
 document.addEventListener("DOMContentLoaded", function () {
     Log.debug("App", "DOMContentLoaded");
 
+    // Process any geolocation callback parameters from HTTPS bridge redirect
+    processGeolocationCallback();
+
     // Ensure all tab buttons use the same click handler
     document.querySelectorAll(".tabBar button").forEach((button) => {
         button.addEventListener("click", function (event) {
@@ -685,6 +688,86 @@ setInterval(updateBatteryInfo, BATTERY_INFO_UPDATE_INTERVAL_MS);
 // Connection status - update every 5 seconds
 updateConnectionStatus();
 setInterval(updateConnectionStatus, CONNECTION_STATUS_UPDATE_INTERVAL_MS);
+
+// ============================================================================
+// Geolocation Bridge Callback Handling
+// ============================================================================
+
+// Process incoming geolocation parameters from HTTPS bridge redirect
+function processGeolocationCallback() {
+    const params = new URLSearchParams(window.location.search);
+
+    // Check for successful geolocation
+    const geoLat = params.get("geo_lat");
+    const geoLon = params.get("geo_lon");
+    const geoAccuracy = params.get("geo_accuracy");
+
+    if (geoLat && geoLon) {
+        Log.info("GPS", `Received location from bridge: ${geoLat}, ${geoLon} (accuracy: ${geoAccuracy}m)`);
+        saveGeolocationFromBridge(geoLat, geoLon, geoAccuracy);
+        cleanUrlParams();
+        return true;
+    }
+
+    // Check for geolocation error
+    const geoError = params.get("geo_error");
+    const geoMessage = params.get("geo_message");
+
+    if (geoError) {
+        Log.warn("GPS", `Geolocation bridge error: ${geoError} - ${geoMessage}`);
+        if (geoError !== "cancelled") {
+            alert(`Could not get browser location: ${geoMessage || geoError}`);
+        }
+        cleanUrlParams();
+        return true;
+    }
+
+    return false;
+}
+
+// Save geolocation received from bridge to ESP32
+async function saveGeolocationFromBridge(lat, lon, accuracy) {
+    const settings = {
+        gps_lat: lat,
+        gps_lon: lon,
+    };
+
+    try {
+        const response = await fetch("/api/v1/gps", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(settings),
+        });
+
+        if (response.ok) {
+            // Invalidate location cache
+            AppState.gpsOverride = null;
+            clearDistanceCache();
+            AppState.latestChaseJson = null;
+
+            const accuracyNote = accuracy ? ` (accuracy: ~${accuracy}m)` : "";
+            alert(`Browser location saved: ${lat}, ${lon}${accuracyNote}\n\nThis will be used for distance calculations.`);
+
+            // Update the GPS input field if on settings page
+            const gpsInput = document.getElementById("gps-location");
+            if (gpsInput) {
+                gpsInput.value = `${lat}, ${lon}`;
+            }
+        } else {
+            const data = await response.json();
+            throw new Error(data.error || "Unknown error");
+        }
+    } catch (error) {
+        Log.error("GPS", "Failed to save browser location:", error);
+        alert("Failed to save browser location. Please try again.");
+    }
+}
+
+// Remove query parameters from URL without page reload
+function cleanUrlParams() {
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+}
 
 // ============================================================================
 // Geolocation and Distance Functions

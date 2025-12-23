@@ -204,11 +204,15 @@ static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, co
 static esp_err_t dynamic_file_handler (httpd_req_t * req) {
     const char * requested_path = req->uri;
 
+    // Ignore any query string when matching assets
+    size_t path_length = strcspn (requested_path, "?");
+
     bool                  found_file = false;
     const asset_entry_t * asset_ptr  = asset_map;
 
     while (asset_ptr->uri != NULL && !found_file)
-        if (strcmp (requested_path, asset_ptr->uri) == 0)
+        if (strlen (asset_ptr->uri) == path_length &&
+            strncmp (requested_path, asset_ptr->uri, path_length) == 0)
             found_file = true;
         else
             ++asset_ptr;

@@ -116,6 +116,20 @@ async function clearCallSign() {
 // GPS Location Override Functions
 // ============================================================================
 
+// HTTPS bridge URL for browser geolocation (GitHub Pages)
+const GEOLOCATION_BRIDGE_URL = "https://sotamat.github.io/SOTAcat/geolocation/";
+
+// Launch HTTPS geolocation bridge with return path to current page
+function launchGeolocationBridge() {
+    // Get current URL without query params (clean base for return)
+    const currentUrl = window.location.href.split("?")[0];
+    const encodedReturnPath = encodeURIComponent(currentUrl);
+    const bridgeUrl = `${GEOLOCATION_BRIDGE_URL}?returnpath=${encodedReturnPath}`;
+
+    // Navigate to bridge (not popup - we want to leave the page temporarily)
+    window.location.href = bridgeUrl;
+}
+
 // Load GPS location override from device or show current location as placeholder
 async function loadGpsLocation() {
     try {
@@ -535,6 +549,11 @@ function attachSettingsEventListeners() {
     }
 
     // GPS buttons
+    const getBrowserLocationBtn = document.getElementById("get-browser-location-button");
+    if (getBrowserLocationBtn) {
+        getBrowserLocationBtn.addEventListener("click", launchGeolocationBridge);
+    }
+
     const clearGpsBtn = document.getElementById("clear-gps-button");
     if (clearGpsBtn) {
         clearGpsBtn.addEventListener("click", clearGpsLocation);
