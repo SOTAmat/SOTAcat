@@ -745,10 +745,10 @@ async function saveGeolocationFromBridge(lat, lon, accuracy) {
             clearDistanceCache();
             AppState.latestChaseJson = null;
 
-            const accuracyNote = accuracy ? ` (accuracy: ~${accuracy}m)` : "";
-            alert(`Browser location saved: ${lat}, ${lon}${accuracyNote}\n\nThis will be used for distance calculations.`);
+            const accuracyNote = accuracy ? ` ±${accuracy}m` : "";
+            alert(`Location saved: (${lat}, ${lon})${accuracyNote}`);
 
-            // Update the GPS input field if on settings page
+            // Update input field if on settings page
             const gpsInput = document.getElementById("gps-location");
             if (gpsInput) {
                 gpsInput.value = `${lat}, ${lon}`;
@@ -759,7 +759,7 @@ async function saveGeolocationFromBridge(lat, lon, accuracy) {
         }
     } catch (error) {
         Log.error("GPS", "Failed to save browser location:", error);
-        alert("Failed to save browser location. Please try again.");
+        alert("Failed to get location. Please try again.");
     }
 }
 
@@ -772,6 +772,9 @@ function cleanUrlParams() {
 // ============================================================================
 // Geolocation and Distance Functions
 // ============================================================================
+
+// Default location: KPH Maritime Radio Station, Point Reyes, CA
+const DEFAULT_LOCATION = { latitude: 38.0522, longitude: -122.9694 };
 
 // Calculate distance between two points using Haversine formula (returns distance in km)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -790,57 +793,29 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-// Get user location from GPS override or IP-based geolocation (returns {latitude, longitude})
+// Get user location from NVRAM or default to KPH (returns {latitude, longitude})
 async function getLocation() {
-    // First check if there's a GPS location override from the backend
+    // Return cached location if available
     if (AppState.gpsOverride) {
-        Log.debug("GPS", "Using cached location override");
         return AppState.gpsOverride;
     }
 
+    // Try to fetch from NVRAM
     try {
         const response = await fetch("/api/v1/gps");
         const data = await response.json();
         if (data.gps_lat && data.gps_lon) {
-            Log.debug("GPS", "Using override from NVRAM");
+            Log.debug("GPS", "Using location from NVRAM");
             AppState.gpsOverride = { latitude: parseFloat(data.gps_lat), longitude: parseFloat(data.gps_lon) };
             return AppState.gpsOverride;
         }
     } catch (error) {
-        Log.error("GPS", "Failed to fetch override:", error);
+        Log.warn("GPS", "Failed to fetch from NVRAM:", error);
     }
 
-    // Otherwise, use IP-based geolocation
-    // Unfortunately, the geolocation API is only available in HTTPS
-    //
-    //  return new Promise((resolve, reject) => {
-    //      navigator.geolocation.getCurrentPosition(position => {
-    //          const { latitude, longitude } = position.coords;
-    //          resolve({ latitude, longitude });
-    //      }, error => {
-    //          console.error("Error getting location", error);
-    //          reject(error);
-    //      });
-    //  });
-    // So, we'll use a less accurate, but more available alternative
-    try {
-        // Use fetch API to get location from IP. Note: Ensure CORS policies are handled if calling from the browser.
-        const response = await fetch("http://ip-api.com/json/?fields=status,message,lat,lon", {
-            mode: "cors", // This might be required for CORS requests if the server supports it.
-        });
-        const position = await response.json();
-        if (response.ok && position.status === "success") {
-            // Extract latitude and longitude from the successful response
-            const { lat: latitude, lon: longitude } = position;
-            return { latitude, longitude };
-        } else {
-            // Handle error status or unsuccessful fetch operation
-            throw new Error(position.message || "Failed to fetch location from IP-API");
-        }
-    } catch (error) {
-        Log.error("GPS", "Error retrieving location:", error);
-        throw error; // Propagate the error to be handled by the caller
-    }
+    // Fall back to default location (KPH)
+    Log.debug("GPS", "Using default location (KPH)");
+    return DEFAULT_LOCATION;
 }
 
 // Distance cache for reference lookups

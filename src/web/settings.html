@@ -28,25 +28,20 @@
         </div>
     </div>
 
-    <!-- GPS Location Card -->
+    <!-- Location Card -->
     <div class="settings-card">
-        <h2>GPS Location Override</h2>
-        <p class="settings-info">
-            Override automatic IP-based location detection for more accurate distance calculations
-        </p>
+        <h2>Location</h2>
+        <p class="settings-info">For distance calculations</p>
         <div class="input-group-vertical">
             <input
                 type="text"
                 id="gps-location"
-                placeholder="e.g. 37.93389, -122.01136"
+                placeholder="latitude, longitude"
                 pattern="^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$"
             />
-            <button id="get-browser-location-button" class="btn-primary" style="margin-bottom: 8px;">
-                Get Browser Location
-            </button>
             <div class="button-group">
-                <button id="clear-gps-button" class="btn-secondary">Clear</button>
-                <button id="save-gps-button" class="btn-primary">Save Location</button>
+                <button id="get-browser-location-button" class="btn-primary">Locate Me</button>
+                <button id="save-gps-button" class="btn-secondary" disabled>Manual Save</button>
             </div>
         </div>
     </div>

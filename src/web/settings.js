@@ -130,80 +130,74 @@ function launchGeolocationBridge() {
     window.location.href = bridgeUrl;
 }
 
-// Load GPS location override from device or show current location as placeholder
+// Track the original GPS value to detect changes
+let originalGpsValue = "";
+
+// Load GPS location from device and display
 async function loadGpsLocation() {
+    const gpsLocationInput = document.getElementById("gps-location");
+    const saveGpsBtn = document.getElementById("save-gps-button");
+
     try {
         const response = await fetch("/api/v1/gps");
         const data = await response.json();
-        const gpsLocationInput = document.getElementById("gps-location");
 
         if (data.gps_lat && data.gps_lon) {
             gpsLocationInput.value = `${data.gps_lat}, ${data.gps_lon}`;
+            gpsLocationInput.placeholder = "latitude, longitude";
         } else {
-            const { latitude, longitude } = await getLocation();
-            gpsLocationInput.placeholder = `e.g. ${latitude}, ${longitude}`;
+            gpsLocationInput.value = "";
+            gpsLocationInput.placeholder = "default: 38.0522, -122.9694";
         }
     } catch (error) {
         Log.error("Settings", "Failed to load GPS location:", error);
-        const gpsLocationInput = document.getElementById("gps-location");
-        gpsLocationInput.placeholder = "Could not fetch location";
+        gpsLocationInput.value = "";
+        gpsLocationInput.placeholder = "default: 38.0522, -122.9694";
+    }
+
+    // Store original value and reset save button
+    originalGpsValue = gpsLocationInput.value;
+    if (saveGpsBtn) {
+        saveGpsBtn.disabled = true;
+        saveGpsBtn.className = "btn-secondary";
     }
 }
 
-// Save GPS location override to device (format: "latitude, longitude")
+// Enable save button when GPS input changes from original value
+function onGpsInputChange() {
+    const gpsLocationInput = document.getElementById("gps-location");
+    const saveGpsBtn = document.getElementById("save-gps-button");
+
+    if (saveGpsBtn) {
+        const hasChanged = gpsLocationInput.value !== originalGpsValue;
+        saveGpsBtn.disabled = !hasChanged;
+        if (hasChanged) {
+            saveGpsBtn.className = "btn-primary";
+        } else {
+            saveGpsBtn.className = "btn-secondary";
+        }
+    }
+}
+
+// Save GPS location to device (format: "latitude, longitude")
 async function saveGpsLocation() {
     const gpsLocationInput = document.getElementById("gps-location");
+    const saveGpsBtn = document.getElementById("save-gps-button");
+    const value = gpsLocationInput.value.trim();
 
     // Validate the input using regex
     const gpsPattern = /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/;
-    if (!gpsPattern.test(gpsLocationInput.value) && gpsLocationInput.value.trim() !== "") {
-        alert("Please enter a valid GPS location in the format: latitude, longitude (e.g. 37.93389, -122.01136)");
+    if (!gpsPattern.test(value)) {
+        alert("Enter coordinates as: latitude, longitude\nExample: 37.93389, -122.01136");
         return;
     }
 
     // Parse the input to get clean latitude and longitude values
-    if (gpsLocationInput.value.trim() !== "") {
-        const [latitude, longitude] = gpsLocationInput.value.split(",").map((coord) => parseFloat(coord.trim()));
+    const [latitude, longitude] = value.split(",").map((coord) => parseFloat(coord.trim()));
 
-        const settings = {
-            gps_lat: latitude.toString(),
-            gps_lon: longitude.toString(),
-        };
-
-        try {
-            const response = await fetch("/api/v1/gps", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(settings),
-            });
-
-            if (response.ok) {
-                // Invalidate the cache in main.js
-                AppState.gpsOverride = null;
-                // Clear the distance cache to force recalculation with new location
-                clearDistanceCache();
-                // Force refresh of spots data with new location
-                AppState.latestChaseJson = null;
-
-                alert("GPS location override saved. The new location will be used for distance calculations.");
-            } else {
-                const data = await response.json();
-                throw new Error(data.error || "Unknown error");
-            }
-        } catch (error) {
-            Log.error("Settings", "Failed to save GPS location:", error);
-            alert("Failed to save GPS location.");
-        }
-    } else {
-        alert("Please enter a valid GPS location or use the Clear Override button to remove the override.");
-    }
-}
-
-// Clear GPS location override from device and reload
-async function clearGpsLocation() {
     const settings = {
-        gps_lat: "",
-        gps_lon: "",
+        gps_lat: latitude.toString(),
+        gps_lon: longitude.toString(),
     };
 
     try {
@@ -214,23 +208,26 @@ async function clearGpsLocation() {
         });
 
         if (response.ok) {
-            // Invalidate the cache in main.js
+            // Invalidate caches
             AppState.gpsOverride = null;
-            // Clear the input field
-            loadGpsLocation();
-            // Clear the distance cache to force recalculation with default location
             clearDistanceCache();
-            // Force refresh of spots data with new location
             AppState.latestChaseJson = null;
 
-            alert("GPS location override cleared. Automatic location detection will be used.");
+            // Update original value and reset save button
+            originalGpsValue = gpsLocationInput.value;
+            if (saveGpsBtn) {
+                saveGpsBtn.disabled = true;
+                saveGpsBtn.className = "btn-secondary";
+            }
+
+            alert(`Location saved: (${latitude}, ${longitude})`);
         } else {
             const data = await response.json();
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
-        Log.error("Settings", "Failed to clear GPS location:", error);
-        alert("Failed to clear GPS location.");
+        Log.error("Settings", "Failed to save GPS location:", error);
+        alert("Failed to save location.");
     }
 }
 
@@ -548,15 +545,15 @@ function attachSettingsEventListeners() {
         });
     }
 
-    // GPS buttons
+    // GPS input and buttons
+    const gpsLocationInput = document.getElementById("gps-location");
+    if (gpsLocationInput) {
+        gpsLocationInput.addEventListener("input", onGpsInputChange);
+    }
+
     const getBrowserLocationBtn = document.getElementById("get-browser-location-button");
     if (getBrowserLocationBtn) {
         getBrowserLocationBtn.addEventListener("click", launchGeolocationBridge);
-    }
-
-    const clearGpsBtn = document.getElementById("clear-gps-button");
-    if (clearGpsBtn) {
-        clearGpsBtn.addEventListener("click", clearGpsLocation);
     }
 
     const saveGpsBtn = document.getElementById("save-gps-button");
