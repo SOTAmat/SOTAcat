@@ -39,11 +39,35 @@ async function syncTime() {
 // Callsign Management Functions
 // ============================================================================
 
+// Track the original callsign value to detect changes
+let originalCallSignValue = "";
+
 // Load saved callsign from device and populate input field
 async function loadCallSign() {
     await ensureCallSignLoaded();
     const callSignInput = document.getElementById("callsign");
+    const saveCallSignBtn = document.getElementById("save-callsign-button");
+
     callSignInput.value = AppState.callSign || "";
+
+    // Store original value and reset save button
+    originalCallSignValue = callSignInput.value;
+    if (saveCallSignBtn) {
+        saveCallSignBtn.disabled = true;
+        saveCallSignBtn.className = "btn-secondary";
+    }
+}
+
+// Enable save button when callsign input changes from original value
+function onCallSignInputChange() {
+    const callSignInput = document.getElementById("callsign");
+    const saveCallSignBtn = document.getElementById("save-callsign-button");
+
+    if (saveCallSignBtn) {
+        const hasChanged = callSignInput.value !== originalCallSignValue;
+        saveCallSignBtn.disabled = !hasChanged;
+        saveCallSignBtn.className = hasChanged ? "btn-primary" : "btn-secondary";
+    }
 }
 
 // Save operator callsign to device (validates A-Z, 0-9, and / only)
@@ -72,6 +96,15 @@ async function saveCallSign() {
         if (response.ok) {
             // Update the global AppState
             AppState.callSign = callSign;
+
+            // Update original value and reset save button
+            originalCallSignValue = callSignInput.value;
+            const saveCallSignBtn = document.getElementById("save-callsign-button");
+            if (saveCallSignBtn) {
+                saveCallSignBtn.disabled = true;
+                saveCallSignBtn.className = "btn-secondary";
+            }
+
             alert("Call sign saved successfully.");
         } else {
             const data = await response.json();
@@ -80,35 +113,6 @@ async function saveCallSign() {
     } catch (error) {
         Log.error("Settings", "Failed to save call sign:", error);
         alert("Failed to save call sign.");
-    }
-}
-
-// Clear saved callsign from device and reload
-async function clearCallSign() {
-    const settings = {
-        callsign: "",
-    };
-
-    try {
-        const response = await fetch("/api/v1/callsign", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(settings),
-        });
-
-        if (response.ok) {
-            // Update the global AppState
-            AppState.callSign = "";
-            // Clear the input field
-            loadCallSign();
-            alert("Call sign cleared.");
-        } else {
-            const data = await response.json();
-            throw new Error(data.error || "Unknown error");
-        }
-    } catch (error) {
-        Log.error("Settings", "Failed to clear call sign:", error);
-        alert("Failed to clear call sign.");
     }
 }
 
@@ -525,23 +529,19 @@ function attachSettingsEventListeners() {
         syncTimeBtn.addEventListener("click", syncTime);
     }
 
-    // Call sign buttons
-    const clearCallSignBtn = document.getElementById("clear-callsign-button");
-    if (clearCallSignBtn) {
-        clearCallSignBtn.addEventListener("click", clearCallSign);
-    }
-
     const saveCallSignBtn = document.getElementById("save-callsign-button");
     if (saveCallSignBtn) {
         saveCallSignBtn.addEventListener("click", saveCallSign);
     }
 
-    // Call sign input - enforce uppercase and valid characters
+    // Call sign input - enforce uppercase, valid characters, and track changes
     const callSignInput = document.getElementById("callsign");
     if (callSignInput) {
         callSignInput.addEventListener("input", function () {
             // Convert to uppercase and filter to only allow A-Z, 0-9, and /
             this.value = this.value.toUpperCase().replace(/[^A-Z0-9\/]/g, "");
+            // Update save button state based on changes
+            onCallSignInputChange();
         });
     }
 
