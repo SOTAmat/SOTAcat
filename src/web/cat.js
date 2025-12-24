@@ -756,6 +756,31 @@ function attachCatEventListeners() {
             }
         });
     });
+
+    // CW input validation - enable/disable Send buttons based on input content
+    ["message-1", "message-2", "message-3"].forEach((inputId) => {
+        const input = document.getElementById(inputId);
+        const button = document.querySelector(`.btn-send[data-message-input="${inputId}"]`);
+        if (input && button) {
+            // Update button state when input changes
+            input.addEventListener("input", () => {
+                const hasContent = input.value.trim().length > 0;
+                button.disabled = !hasContent;
+            });
+        }
+    });
+}
+
+// Update Send button states based on current input values
+// Called on tab appear after loading saved values
+function updateSendButtonStates() {
+    ["message-1", "message-2", "message-3"].forEach((inputId) => {
+        const input = document.getElementById(inputId);
+        const button = document.querySelector(`.btn-send[data-message-input="${inputId}"]`);
+        if (input && button) {
+            button.disabled = input.value.trim().length === 0;
+        }
+    });
 }
 
 // ============================================================================
@@ -777,6 +802,9 @@ function onCatAppearing() {
 
     // Attach event listeners for all controls
     attachCatEventListeners();
+
+    // Update Send button states based on loaded input values
+    updateSendButtonStates();
 
     startVfoUpdates();
 }

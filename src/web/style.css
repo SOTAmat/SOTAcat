@@ -220,14 +220,13 @@ a {
     cursor: not-allowed;
 }
 
-.btn-disabled {
-    background: var(--gray-4) !important;
-}
-
 /* Button color variants */
 .btn-primary {
     background: var(--primary);
     color: var(--white);
+}
+.btn-primary:hover:not(:disabled) {
+    background: var(--primary-dark);
 }
 .btn-primary:active:not(:disabled) {
     background: var(--primary-dark);
@@ -236,6 +235,9 @@ a {
 .btn-secondary {
     background: var(--gray-2);
     color: var(--text-primary);
+}
+.btn-secondary:hover:not(:disabled) {
+    background: var(--gray-3);
 }
 .btn-secondary:active:not(:disabled) {
     background: var(--gray-3);
@@ -247,6 +249,9 @@ a {
     min-height: var(--touch-target-sm);
     font-size: var(--text-sm);
 }
+.btn-refresh:hover:not(:disabled) {
+    background: var(--primary-dark);
+}
 .btn-refresh:active:not(:disabled) {
     background: var(--primary-dark);
 }
@@ -254,6 +259,9 @@ a {
 .btn-auto-refresh-active {
     background: var(--success) !important;
     box-shadow: 0 0 0 3px rgba(64, 192, 87, 0.2);
+}
+.btn-auto-refresh-active:hover:not(:disabled) {
+    background: #37a34a !important;
 }
 .btn-auto-refresh-active:active:not(:disabled) {
     background: #37a34a !important;
@@ -270,6 +278,9 @@ a {
     height: 32px;
     min-height: 32px;
 }
+.btn-info:hover:not(:disabled) {
+    background: rgba(34, 139, 230, 0.1);
+}
 
 .btn-close {
     background: none;
@@ -280,6 +291,10 @@ a {
     width: 32px;
     height: 32px;
     min-height: 32px;
+}
+.btn-close:hover:not(:disabled) {
+    background: var(--gray-2);
+    color: var(--gray-8);
 }
 
 /* Button size variants */
@@ -388,9 +403,15 @@ input.frequency-display {
     background: var(--danger);
     color: var(--white);
 }
+.btn-freq.down:hover:not(:disabled) {
+    background: #e03131;
+}
 .btn-freq.up {
     background: var(--success);
     color: var(--white);
+}
+.btn-freq.up:hover:not(:disabled) {
+    background: #37a34a;
 }
 
 .btn-band,
@@ -400,11 +421,19 @@ input.frequency-display {
     border: 2px solid transparent;
     padding: 0;
 }
+.btn-band:hover:not(:disabled):not(.active),
+.btn-mode:hover:not(:disabled):not(.active) {
+    background: var(--gray-4);
+}
 .btn-band.active,
 .btn-mode.active {
     background: var(--primary);
     color: var(--white);
     border-color: var(--primary-dark);
+}
+.btn-band.active:hover:not(:disabled),
+.btn-mode.active:hover:not(:disabled) {
+    background: var(--primary-dark);
 }
 
 .btn-power {
@@ -413,17 +442,26 @@ input.frequency-display {
     font-size: var(--text-sm);
     padding: 0;
 }
+.btn-power:hover:not(:disabled) {
+    background: var(--gray-7);
+}
 
 .btn-tune {
     background: var(--warning);
     color: var(--gray-9);
     padding: 0;
 }
+.btn-tune:hover:not(:disabled) {
+    background: #e9a100;
+}
 
 .btn-msg {
     background: var(--gray-7);
     color: var(--white);
     padding: 0;
+}
+.btn-msg:hover:not(:disabled) {
+    background: var(--gray-6);
 }
 
 .btn-xmit {
@@ -432,9 +470,15 @@ input.frequency-display {
     font-weight: 700;
     padding: 0;
 }
+.btn-xmit:hover:not(:disabled):not(.active) {
+    background: var(--gray-7);
+}
 .btn-xmit.active {
     background: var(--danger);
     animation: pulse 1.5s infinite;
+}
+.btn-xmit.active:hover:not(:disabled) {
+    background: #e03131;
 }
 
 @keyframes pulse {
@@ -452,7 +496,10 @@ input.frequency-display {
     background: var(--primary);
     color: var(--white);
 }
-.btn-send:active {
+.btn-send:hover:not(:disabled) {
+    background: var(--primary-dark);
+}
+.btn-send:active:not(:disabled) {
     background: var(--primary-dark);
 }
 
@@ -468,7 +515,11 @@ input.frequency-display {
     gap: var(--space-sm);
     box-shadow: var(--shadow-md);
 }
-.btn-sotamat:active {
+.btn-sotamat:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--primary-dark), #145591);
+    box-shadow: var(--shadow-lg);
+}
+.btn-sotamat:active:not(:disabled) {
     transform: scale(0.98);
     box-shadow: var(--shadow-sm);
 }
@@ -1053,6 +1104,10 @@ tbody tr:active {
     justify-content: center;
     font-weight: 700;
     flex-shrink: 0;
+}
+
+.step-number-disabled {
+    background: var(--gray-5);
 }
 
 .step-content {

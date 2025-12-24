@@ -19,7 +19,7 @@
             />
             <div class="button-group">
                 <button id="get-browser-location-button" class="btn-primary">Locate Me</button>
-                <button id="save-gps-button" class="btn-secondary" disabled>Manual Save</button>
+                <button id="save-gps-button" class="btn-secondary" disabled>Save Location</button>
             </div>
         </div>
     </div>
@@ -214,7 +214,7 @@
                 </label>
             </div>
 
-            <button type="submit" class="btn-primary btn-large">Save and Reboot</button>
+            <button type="submit" id="save-wifi-button" class="btn-secondary btn-large" disabled>Save and Reboot</button>
         </form>
     </div>
 
@@ -251,10 +251,10 @@
             </div>
 
             <div class="step">
-                <span class="step-number">4</span>
+                <span class="step-number step-number-disabled" id="upload-step-number">4</span>
                 <div class="step-content">
                     <p>Install firmware to SOTACAT</p>
-                    <button class="btn-primary" id="upload-button" disabled>Install Firmware</button>
+                    <button class="btn-secondary" id="upload-button" disabled>Install Firmware</button>
                 </div>
             </div>
         </div>

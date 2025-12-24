@@ -283,6 +283,50 @@ function togglePasswordVisibility(inputId) {
 // WiFi Settings Functions
 // ============================================================================
 
+// Track the original WiFi values to detect changes
+let originalWifiValues = {};
+
+// WiFi field IDs for change tracking
+const WIFI_FIELD_IDS = [
+    "sta1-ssid",
+    "sta1-pass",
+    "sta2-ssid",
+    "sta2-pass",
+    "sta3-ssid",
+    "sta3-pass",
+    "ap-ssid",
+    "ap-pass",
+];
+
+// Store current WiFi values as the original baseline
+function storeOriginalWifiValues() {
+    originalWifiValues = {};
+    WIFI_FIELD_IDS.forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) {
+            originalWifiValues[id] = element.value;
+        }
+    });
+}
+
+// Check if any WiFi field has changed from original value
+function hasWifiChanged() {
+    return WIFI_FIELD_IDS.some((id) => {
+        const element = document.getElementById(id);
+        return element && element.value !== originalWifiValues[id];
+    });
+}
+
+// Update WiFi save button state based on whether values have changed
+function updateWifiSaveButton() {
+    const saveWifiBtn = document.getElementById("save-wifi-button");
+    if (saveWifiBtn) {
+        const hasChanged = hasWifiChanged();
+        saveWifiBtn.disabled = !hasChanged;
+        saveWifiBtn.className = hasChanged ? "btn-primary btn-large" : "btn-secondary btn-large";
+    }
+}
+
 // Fetch WiFi settings from device
 async function fetchSettings() {
     if (isLocalhost) return;
@@ -298,6 +342,10 @@ async function fetchSettings() {
         document.getElementById("sta3-pass").value = data.sta3_pass;
         document.getElementById("ap-ssid").value = data.ap_ssid;
         document.getElementById("ap-pass").value = data.ap_pass;
+
+        // Store original values and reset save button
+        storeOriginalWifiValues();
+        updateWifiSaveButton();
     } catch (error) {
         Log.error("Settings", "Failed to fetch settings:", error);
     }
@@ -404,18 +452,27 @@ function onSubmitSettings(event) {
 // Firmware Upload Functions
 // ============================================================================
 
-// Update upload button text when file is selected
+// Update upload button and step number when file is selected
 function updateButtonText() {
     const fileInput = document.getElementById("ota-file");
     const uploadButton = document.getElementById("upload-button");
+    const stepNumber = document.getElementById("upload-step-number");
 
     if (fileInput.files.length > 0) {
         const fileName = fileInput.files[0].name;
         uploadButton.textContent = `Upload ${fileName}`;
-        uploadButton.disabled = false; // Enable the button once a file is selected
+        uploadButton.disabled = false;
+        uploadButton.className = "btn-primary";
+        if (stepNumber) {
+            stepNumber.classList.remove("step-number-disabled");
+        }
     } else {
         uploadButton.textContent = "Upload Firmware";
-        uploadButton.disabled = true; // Keep the button disabled if no file is selected
+        uploadButton.disabled = true;
+        uploadButton.className = "btn-secondary";
+        if (stepNumber) {
+            stepNumber.classList.add("step-number-disabled");
+        }
     }
 }
 
@@ -461,9 +518,8 @@ async function uploadFirmware() {
             return;
         }
 
-        // Handle error response
-        uploadButton.disabled = false;
-        uploadButton.textContent = "Upload Firmware";
+        // Handle error response - re-sync button with file input state
+        updateButtonText();
 
         const text = await response.text();
         let errorData;
@@ -478,9 +534,8 @@ async function uploadFirmware() {
         otaStatus.innerHTML = `Firmware upload failed: ${error.message}`;
         alert(`Firmware upload failed: ${error.message}`);
 
-        // Reset button state
-        uploadButton.disabled = false;
-        uploadButton.textContent = "Upload Firmware";
+        // Re-sync button with file input state
+        updateButtonText();
     }
 }
 
@@ -578,6 +633,14 @@ function attachSettingsEventListeners() {
             const targetId = this.getAttribute("data-target");
             togglePasswordVisibility(targetId);
         });
+    });
+
+    // WiFi field change tracking
+    WIFI_FIELD_IDS.forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener("input", updateWifiSaveButton);
+        }
     });
 
     // Firmware update buttons

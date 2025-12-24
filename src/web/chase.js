@@ -730,7 +730,6 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
         if (refreshButton) {
             refreshButton.textContent = "Refreshing...";
             refreshButton.disabled = true;
-            refreshButton.classList.add("btn-disabled");
         }
 
         Log.debug("Chase", "Fetching data from Spothole API");
@@ -785,7 +784,6 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
         if (refreshButton) {
             updateRefreshButtonLabel();
             refreshButton.disabled = false;
-            refreshButton.classList.remove("btn-disabled");
         }
     }
 }
