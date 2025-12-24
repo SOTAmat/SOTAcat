@@ -39,9 +39,10 @@ extern char g_gps_lon[MAX_GPS_LON_SIZE];
 extern char g_callsign[MAX_CALLSIGN_SIZE];
 
 // Tune targets - URLs to open when tuning (e.g., WebSDR, KiwiSDR)
+// Format: [{"url": "...", "enabled": true}, ...]
 #define MAX_TUNE_TARGETS      5
 #define MAX_TUNE_TARGET_SIZE  256
-#define MAX_TUNE_TARGETS_JSON 1400  // 5 URLs * 256 chars + JSON overhead
+#define MAX_TUNE_TARGETS_JSON 1600  // 5 URLs * 256 chars + JSON object overhead
 extern char g_tune_targets[MAX_TUNE_TARGETS_JSON];
 extern bool g_tune_targets_mobile;
 

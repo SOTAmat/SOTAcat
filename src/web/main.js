@@ -88,17 +88,33 @@ const AppState = {
 // User Settings Functions
 // ============================================================================
 
-// Load tune targets into AppState if not already loaded
-async function ensureTuneTargetsLoaded() {
-    if (AppState.tuneTargets !== null) {
-        return; // Already loaded
-    }
+// Normalize tune targets from API response (handles both old string[] and new object[] formats)
+function normalizeTuneTargets(targets) {
+    if (!targets || !Array.isArray(targets)) return [];
 
+    return targets.map((item) => {
+        if (typeof item === "string") {
+            // Old format: convert string to object, default enabled=true
+            return { url: item, enabled: true };
+        } else if (typeof item === "object" && item !== null) {
+            // New format: ensure both fields exist
+            return {
+                url: item.url || "",
+                enabled: item.enabled !== false, // default to true if not specified
+            };
+        }
+        return { url: "", enabled: true };
+    });
+}
+
+// Load tune targets into AppState - called at app startup for Safari compatibility
+// IMPORTANT: Must be called early so openTuneTargets can be synchronous
+async function loadTuneTargetsAsync() {
     try {
         const response = await fetch("/api/v1/tuneTargets");
         if (response.ok) {
             const data = await response.json();
-            AppState.tuneTargets = data.targets || [];
+            AppState.tuneTargets = normalizeTuneTargets(data.targets);
             AppState.tuneTargetsMobile = data.mobile || false;
             Log.debug("App", "Tune targets loaded:", AppState.tuneTargets.length);
         } else {
@@ -119,11 +135,11 @@ function isMobileBrowser() {
 
 // Open tune target URLs with frequency and mode substitution
 // Called when tuning the radio to also open WebSDR/KiwiSDR tabs
-async function openTuneTargets(frequencyHz, mode) {
-    await ensureTuneTargetsLoaded();
-
+// IMPORTANT: This function is SYNCHRONOUS to preserve user gesture for Safari popup blocker
+function openTuneTargets(frequencyHz, mode) {
+    // If targets not loaded yet, skip (they load at app startup)
     if (!AppState.tuneTargets || AppState.tuneTargets.length === 0) {
-        return; // No tune targets configured
+        return; // No tune targets configured or not loaded yet
     }
 
     // Check mobile permission
@@ -135,17 +151,17 @@ async function openTuneTargets(frequencyHz, mode) {
     // Calculate frequency in different units
     const frequencyKHz = frequencyHz / 1000;
     const frequencyMHz = frequencyHz / 1000000;
-    const modeUpper = mode.toUpperCase();
     const modeLower = mode.toLowerCase();
 
-    // Open each target URL
-    AppState.tuneTargets.forEach((urlTemplate, index) => {
-        if (!urlTemplate || urlTemplate.trim() === "") {
+    // Open each ENABLED target URL
+    AppState.tuneTargets.forEach((target, index) => {
+        // Skip disabled targets or empty URLs
+        if (!target.enabled || !target.url || target.url.trim() === "") {
             return;
         }
 
         // Substitute placeholders
-        let finalUrl = urlTemplate;
+        let finalUrl = target.url;
         finalUrl = finalUrl.replace(/<FREQ-HZ>/gi, frequencyHz);
         finalUrl = finalUrl.replace(/<FREQ-KHZ>/gi, frequencyKHz);
         finalUrl = finalUrl.replace(/<FREQ-MHZ>/gi, frequencyMHz);
@@ -157,18 +173,23 @@ async function openTuneTargets(frequencyHz, mode) {
         try {
             // Check if we have an existing window reference that's still open
             if (AppState.tuneTargetWindows[index] && !AppState.tuneTargetWindows[index].closed) {
-                // Navigate existing window
-                AppState.tuneTargetWindows[index].location.href = finalUrl;
-                Log.debug("App", `Navigating tune target ${index} to:`, finalUrl);
+                // Try to navigate existing window - may fail cross-origin on Safari
+                try {
+                    AppState.tuneTargetWindows[index].location.href = finalUrl;
+                    Log.debug("App", `Navigating tune target ${index} to:`, finalUrl);
+                } catch (navError) {
+                    // Cross-origin navigation blocked - open fresh
+                    Log.debug("App", `Tune target ${index} cross-origin, opening fresh`);
+                    AppState.tuneTargetWindows[index] = window.open(finalUrl, windowName);
+                }
             } else {
-                // Open new window in background
+                // Open new window
                 AppState.tuneTargetWindows[index] = window.open(finalUrl, windowName);
                 Log.debug("App", `Opened tune target ${index}:`, finalUrl);
             }
         } catch (error) {
-            // Cross-origin or popup blocked - try opening fresh
-            Log.warn("App", `Tune target ${index} window error, opening fresh:`, error);
-            AppState.tuneTargetWindows[index] = window.open(finalUrl, windowName);
+            // Popup blocked or other error
+            Log.warn("App", `Tune target ${index} error:`, error.message);
         }
     });
 }
@@ -735,6 +756,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Process any geolocation callback parameters from HTTPS bridge redirect
     processGeolocationCallback();
+
+    // Preload tune targets at startup (required for Safari popup blocker compatibility)
+    // This must happen early so openTuneTargets() can be synchronous
+    loadTuneTargetsAsync();
 
     // Ensure all tab buttons use the same click handler
     document.querySelectorAll(".tabBar button").forEach((button) => {

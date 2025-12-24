@@ -243,8 +243,28 @@ async function saveGpsLocation() {
 const MAX_TUNE_TARGETS = 5;
 
 // Track original tune targets state for change detection
+// Format: [{url: "...", enabled: true}, ...]
 let originalTuneTargets = [];
 let originalTuneTargetsMobile = false;
+
+// Normalize tune targets from API response (handles both old string[] and new object[] formats)
+function normalizeTuneTargets(targets) {
+    if (!targets || !Array.isArray(targets)) return [];
+
+    return targets.map((item) => {
+        if (typeof item === "string") {
+            // Old format: convert string to object, default enabled=true
+            return { url: item, enabled: true };
+        } else if (typeof item === "object" && item !== null) {
+            // New format: ensure both fields exist
+            return {
+                url: item.url || "",
+                enabled: item.enabled !== false, // default to true if not specified
+            };
+        }
+        return { url: "", enabled: true };
+    });
+}
 
 // Load tune targets from device
 async function loadTuneTargets() {
@@ -256,7 +276,7 @@ async function loadTuneTargets() {
         const response = await fetch("/api/v1/tuneTargets");
         if (response.ok) {
             const data = await response.json();
-            originalTuneTargets = data.targets || [];
+            originalTuneTargets = normalizeTuneTargets(data.targets);
             originalTuneTargetsMobile = data.mobile || false;
 
             // Populate the UI
@@ -282,52 +302,37 @@ async function loadTuneTargets() {
     updateExampleButtonStates();
 }
 
-// Render the tune targets list UI
+// Render the tune targets list UI from originalTuneTargets
 function renderTuneTargetsList() {
     const listContainer = document.getElementById("tune-targets-list");
     if (!listContainer) return;
 
-    listContainer.innerHTML = "";
+    // Use originalTuneTargets as the source (loaded from device)
+    // If empty, show one blank row for user to add
+    const targets = originalTuneTargets.length > 0 ? originalTuneTargets : [{ url: "", enabled: true }];
 
-    const targets = getCurrentTuneTargets();
-
-    targets.forEach((url, index) => {
-        const row = document.createElement("div");
-        row.className = "tune-target-row";
-
-        const input = document.createElement("input");
-        input.type = "text";
-        input.className = "tune-target-input";
-        input.placeholder = "e.g., http://websdr.example.com/?tune=<FREQ-KHZ><MODE>";
-        input.value = url;
-        input.maxLength = 255;
-        input.dataset.index = index;
-        input.addEventListener("input", onTuneTargetInputChange);
-
-        const removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.className = "btn-icon btn-remove";
-        removeBtn.textContent = "−";
-        removeBtn.title = "Remove target";
-        removeBtn.addEventListener("click", () => removeTuneTarget(index));
-
-        row.appendChild(input);
-        row.appendChild(removeBtn);
-        listContainer.appendChild(row);
-    });
-
-    updateAddButtonState();
+    renderTuneTargetsFromArray(targets);
 }
 
 // Get current tune targets from the UI
+// Returns array of {url, enabled} objects
 function getCurrentTuneTargets() {
-    const inputs = document.querySelectorAll(".tune-target-input");
+    const rows = document.querySelectorAll(".tune-target-row");
     const targets = [];
-    inputs.forEach((input) => {
-        targets.push(input.value);
+
+    rows.forEach((row) => {
+        const input = row.querySelector(".tune-target-input");
+        const toggle = row.querySelector(".toggle-switch input");
+        if (input) {
+            targets.push({
+                url: input.value,
+                enabled: toggle ? toggle.checked : true,
+            });
+        }
     });
-    // If empty, return an array with one empty string to show at least one input
-    return targets.length > 0 ? targets : [""];
+
+    // If empty, return an array with one empty target to show at least one input
+    return targets.length > 0 ? targets : [{ url: "", enabled: true }];
 }
 
 // Add a new tune target input
@@ -335,7 +340,7 @@ function addTuneTarget() {
     const targets = getCurrentTuneTargets();
     if (targets.length >= MAX_TUNE_TARGETS) return;
 
-    targets.push("");
+    targets.push({ url: "", enabled: true });
     renderTuneTargetsFromArray(targets);
     updateTuneTargetsSaveButton();
     updateExampleButtonStates();
@@ -346,7 +351,7 @@ function removeTuneTarget(index) {
     const targets = getCurrentTuneTargets();
     if (targets.length <= 1) {
         // Don't remove the last one, just clear it
-        targets[0] = "";
+        targets[0] = { url: "", enabled: true };
     } else {
         targets.splice(index, 1);
     }
@@ -355,26 +360,45 @@ function removeTuneTarget(index) {
     updateExampleButtonStates();
 }
 
-// Render tune targets list from an array
+// Render tune targets list from an array of {url, enabled} objects
 function renderTuneTargetsFromArray(targets) {
     const listContainer = document.getElementById("tune-targets-list");
     if (!listContainer) return;
 
     listContainer.innerHTML = "";
 
-    targets.forEach((url, index) => {
+    targets.forEach((target, index) => {
         const row = document.createElement("div");
         row.className = "tune-target-row";
 
+        // Toggle switch for enable/disable
+        const toggleLabel = document.createElement("label");
+        toggleLabel.className = "toggle-switch";
+        toggleLabel.title = target.enabled ? "Enabled - click to disable" : "Disabled - click to enable";
+
+        const toggleInput = document.createElement("input");
+        toggleInput.type = "checkbox";
+        toggleInput.checked = target.enabled;
+        toggleInput.dataset.index = index;
+        toggleInput.addEventListener("change", onTuneTargetToggleChange);
+
+        const toggleSlider = document.createElement("span");
+        toggleSlider.className = "toggle-slider";
+
+        toggleLabel.appendChild(toggleInput);
+        toggleLabel.appendChild(toggleSlider);
+
+        // URL input
         const input = document.createElement("input");
         input.type = "text";
         input.className = "tune-target-input";
         input.placeholder = "e.g., http://websdr.example.com/?tune=<FREQ-KHZ><MODE>";
-        input.value = url;
+        input.value = target.url;
         input.maxLength = 255;
         input.dataset.index = index;
         input.addEventListener("input", onTuneTargetInputChange);
 
+        // Remove button
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
         removeBtn.className = "btn-icon btn-remove";
@@ -382,6 +406,7 @@ function renderTuneTargetsFromArray(targets) {
         removeBtn.title = "Remove target";
         removeBtn.addEventListener("click", () => removeTuneTarget(index));
 
+        row.appendChild(toggleLabel);
         row.appendChild(input);
         row.appendChild(removeBtn);
         listContainer.appendChild(row);
@@ -405,6 +430,16 @@ function onTuneTargetInputChange() {
     updateExampleButtonStates();
 }
 
+// Handle tune target toggle switch change
+function onTuneTargetToggleChange(event) {
+    // Update the title to reflect new state
+    const toggleLabel = event.target.closest(".toggle-switch");
+    if (toggleLabel) {
+        toggleLabel.title = event.target.checked ? "Enabled - click to disable" : "Disabled - click to enable";
+    }
+    updateTuneTargetsSaveButton();
+}
+
 // Handle mobile checkbox change
 function onTuneTargetsMobileChange() {
     updateTuneTargetsSaveButton();
@@ -412,18 +447,20 @@ function onTuneTargetsMobileChange() {
 
 // Check if tune targets have changed from original
 function haveTuneTargetsChanged() {
-    const currentTargets = getCurrentTuneTargets().filter((t) => t.trim() !== "");
+    const currentTargets = getCurrentTuneTargets().filter((t) => t.url.trim() !== "");
     const mobileCheckbox = document.getElementById("tune-targets-mobile");
     const currentMobile = mobileCheckbox ? mobileCheckbox.checked : false;
 
     // Compare mobile setting
     if (currentMobile !== originalTuneTargetsMobile) return true;
 
-    // Compare targets arrays
-    if (currentTargets.length !== originalTuneTargets.length) return true;
+    // Compare targets arrays (compare as objects)
+    const originalNonEmpty = originalTuneTargets.filter((t) => t.url.trim() !== "");
+    if (currentTargets.length !== originalNonEmpty.length) return true;
 
     for (let i = 0; i < currentTargets.length; i++) {
-        if (currentTargets[i] !== originalTuneTargets[i]) return true;
+        if (currentTargets[i].url !== originalNonEmpty[i].url) return true;
+        if (currentTargets[i].enabled !== originalNonEmpty[i].enabled) return true;
     }
 
     return false;
@@ -450,16 +487,16 @@ function addExampleTuneTarget(url) {
     }
 
     // Check if URL already exists
-    if (targets.includes(url)) {
+    if (targets.some((t) => t.url === url)) {
         alert("This URL is already in your tune targets.");
         return;
     }
 
     // If there's only one empty target, replace it; otherwise append
-    if (targets.length === 1 && targets[0].trim() === "") {
-        targets[0] = url;
+    if (targets.length === 1 && targets[0].url.trim() === "") {
+        targets[0] = { url: url, enabled: true };
     } else {
-        targets.push(url);
+        targets.push({ url: url, enabled: true });
     }
 
     renderTuneTargetsFromArray(targets);
@@ -474,8 +511,8 @@ function updateExampleButtonStates() {
 
     exampleButtons.forEach((btn) => {
         const url = btn.dataset.url;
-        const alreadyAdded = targets.includes(url);
-        const atMax = targets.filter((t) => t.trim() !== "").length >= MAX_TUNE_TARGETS;
+        const alreadyAdded = targets.some((t) => t.url === url);
+        const atMax = targets.filter((t) => t.url.trim() !== "").length >= MAX_TUNE_TARGETS;
 
         btn.disabled = alreadyAdded || atMax;
         btn.textContent = alreadyAdded ? "added" : "+ add";
@@ -484,7 +521,7 @@ function updateExampleButtonStates() {
 
 // Save tune targets to device
 async function saveTuneTargets() {
-    const targets = getCurrentTuneTargets().filter((t) => t.trim() !== "");
+    const targets = getCurrentTuneTargets().filter((t) => t.url.trim() !== "");
     const mobileCheckbox = document.getElementById("tune-targets-mobile");
     const mobile = mobileCheckbox ? mobileCheckbox.checked : false;
 
@@ -502,8 +539,11 @@ async function saveTuneTargets() {
 
         if (response.ok) {
             // Update original values
-            originalTuneTargets = targets;
+            originalTuneTargets = [...targets];
             originalTuneTargetsMobile = mobile;
+
+            // Invalidate the AppState cache so main.js reloads the updated targets
+            AppState.tuneTargets = null;
 
             // Reset save button
             const saveBtn = document.getElementById("save-tune-targets-button");
