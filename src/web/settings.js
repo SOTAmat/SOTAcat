@@ -236,6 +236,312 @@ async function saveGpsLocation() {
 }
 
 // ============================================================================
+// Tune Targets Functions
+// ============================================================================
+
+// Maximum number of tune targets allowed
+const MAX_TUNE_TARGETS = 5;
+
+// Track original tune targets state for change detection
+let originalTuneTargets = [];
+let originalTuneTargetsMobile = false;
+
+// Load tune targets from device
+async function loadTuneTargets() {
+    const listContainer = document.getElementById("tune-targets-list");
+    const mobileCheckbox = document.getElementById("tune-targets-mobile");
+    const saveBtn = document.getElementById("save-tune-targets-button");
+
+    try {
+        const response = await fetch("/api/v1/tuneTargets");
+        if (response.ok) {
+            const data = await response.json();
+            originalTuneTargets = data.targets || [];
+            originalTuneTargetsMobile = data.mobile || false;
+
+            // Populate the UI
+            renderTuneTargetsList();
+            if (mobileCheckbox) {
+                mobileCheckbox.checked = originalTuneTargetsMobile;
+            }
+        }
+    } catch (error) {
+        Log.error("Settings", "Failed to load tune targets:", error);
+        originalTuneTargets = [];
+        originalTuneTargetsMobile = false;
+        renderTuneTargetsList();
+    }
+
+    // Reset save button
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.className = "btn-secondary";
+    }
+
+    // Update example button states
+    updateExampleButtonStates();
+}
+
+// Render the tune targets list UI
+function renderTuneTargetsList() {
+    const listContainer = document.getElementById("tune-targets-list");
+    if (!listContainer) return;
+
+    listContainer.innerHTML = "";
+
+    const targets = getCurrentTuneTargets();
+
+    targets.forEach((url, index) => {
+        const row = document.createElement("div");
+        row.className = "tune-target-row";
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "tune-target-input";
+        input.placeholder = "e.g., http://websdr.example.com/?tune=<FREQ-KHZ><MODE>";
+        input.value = url;
+        input.maxLength = 255;
+        input.dataset.index = index;
+        input.addEventListener("input", onTuneTargetInputChange);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon btn-remove";
+        removeBtn.textContent = "−";
+        removeBtn.title = "Remove target";
+        removeBtn.addEventListener("click", () => removeTuneTarget(index));
+
+        row.appendChild(input);
+        row.appendChild(removeBtn);
+        listContainer.appendChild(row);
+    });
+
+    updateAddButtonState();
+}
+
+// Get current tune targets from the UI
+function getCurrentTuneTargets() {
+    const inputs = document.querySelectorAll(".tune-target-input");
+    const targets = [];
+    inputs.forEach((input) => {
+        targets.push(input.value);
+    });
+    // If empty, return an array with one empty string to show at least one input
+    return targets.length > 0 ? targets : [""];
+}
+
+// Add a new tune target input
+function addTuneTarget() {
+    const targets = getCurrentTuneTargets();
+    if (targets.length >= MAX_TUNE_TARGETS) return;
+
+    targets.push("");
+    renderTuneTargetsFromArray(targets);
+    updateTuneTargetsSaveButton();
+    updateExampleButtonStates();
+}
+
+// Remove a tune target by index
+function removeTuneTarget(index) {
+    const targets = getCurrentTuneTargets();
+    if (targets.length <= 1) {
+        // Don't remove the last one, just clear it
+        targets[0] = "";
+    } else {
+        targets.splice(index, 1);
+    }
+    renderTuneTargetsFromArray(targets);
+    updateTuneTargetsSaveButton();
+    updateExampleButtonStates();
+}
+
+// Render tune targets list from an array
+function renderTuneTargetsFromArray(targets) {
+    const listContainer = document.getElementById("tune-targets-list");
+    if (!listContainer) return;
+
+    listContainer.innerHTML = "";
+
+    targets.forEach((url, index) => {
+        const row = document.createElement("div");
+        row.className = "tune-target-row";
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "tune-target-input";
+        input.placeholder = "e.g., http://websdr.example.com/?tune=<FREQ-KHZ><MODE>";
+        input.value = url;
+        input.maxLength = 255;
+        input.dataset.index = index;
+        input.addEventListener("input", onTuneTargetInputChange);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn-icon btn-remove";
+        removeBtn.textContent = "−";
+        removeBtn.title = "Remove target";
+        removeBtn.addEventListener("click", () => removeTuneTarget(index));
+
+        row.appendChild(input);
+        row.appendChild(removeBtn);
+        listContainer.appendChild(row);
+    });
+
+    updateAddButtonState();
+}
+
+// Update add button state based on count
+function updateAddButtonState() {
+    const addBtn = document.getElementById("add-tune-target-button");
+    const targets = getCurrentTuneTargets();
+    if (addBtn) {
+        addBtn.disabled = targets.length >= MAX_TUNE_TARGETS;
+    }
+}
+
+// Handle tune target input change
+function onTuneTargetInputChange() {
+    updateTuneTargetsSaveButton();
+    updateExampleButtonStates();
+}
+
+// Handle mobile checkbox change
+function onTuneTargetsMobileChange() {
+    updateTuneTargetsSaveButton();
+}
+
+// Check if tune targets have changed from original
+function haveTuneTargetsChanged() {
+    const currentTargets = getCurrentTuneTargets().filter((t) => t.trim() !== "");
+    const mobileCheckbox = document.getElementById("tune-targets-mobile");
+    const currentMobile = mobileCheckbox ? mobileCheckbox.checked : false;
+
+    // Compare mobile setting
+    if (currentMobile !== originalTuneTargetsMobile) return true;
+
+    // Compare targets arrays
+    if (currentTargets.length !== originalTuneTargets.length) return true;
+
+    for (let i = 0; i < currentTargets.length; i++) {
+        if (currentTargets[i] !== originalTuneTargets[i]) return true;
+    }
+
+    return false;
+}
+
+// Update save button state
+function updateTuneTargetsSaveButton() {
+    const saveBtn = document.getElementById("save-tune-targets-button");
+    if (saveBtn) {
+        const hasChanged = haveTuneTargetsChanged();
+        saveBtn.disabled = !hasChanged;
+        saveBtn.className = hasChanged ? "btn-primary" : "btn-secondary";
+    }
+}
+
+// Add an example URL to the tune targets list
+function addExampleTuneTarget(url) {
+    const targets = getCurrentTuneTargets();
+
+    // Check if already at max
+    if (targets.length >= MAX_TUNE_TARGETS) {
+        alert(`Maximum of ${MAX_TUNE_TARGETS} tune targets allowed.`);
+        return;
+    }
+
+    // Check if URL already exists
+    if (targets.includes(url)) {
+        alert("This URL is already in your tune targets.");
+        return;
+    }
+
+    // If there's only one empty target, replace it; otherwise append
+    if (targets.length === 1 && targets[0].trim() === "") {
+        targets[0] = url;
+    } else {
+        targets.push(url);
+    }
+
+    renderTuneTargetsFromArray(targets);
+    updateTuneTargetsSaveButton();
+    updateExampleButtonStates();
+}
+
+// Update example button states based on current targets
+function updateExampleButtonStates() {
+    const targets = getCurrentTuneTargets();
+    const exampleButtons = document.querySelectorAll(".btn-add-example");
+
+    exampleButtons.forEach((btn) => {
+        const url = btn.dataset.url;
+        const alreadyAdded = targets.includes(url);
+        const atMax = targets.filter((t) => t.trim() !== "").length >= MAX_TUNE_TARGETS;
+
+        btn.disabled = alreadyAdded || atMax;
+        btn.textContent = alreadyAdded ? "added" : "+ add";
+    });
+}
+
+// Save tune targets to device
+async function saveTuneTargets() {
+    const targets = getCurrentTuneTargets().filter((t) => t.trim() !== "");
+    const mobileCheckbox = document.getElementById("tune-targets-mobile");
+    const mobile = mobileCheckbox ? mobileCheckbox.checked : false;
+
+    const payload = {
+        targets: targets,
+        mobile: mobile,
+    };
+
+    try {
+        const response = await fetch("/api/v1/tuneTargets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+            // Update original values
+            originalTuneTargets = targets;
+            originalTuneTargetsMobile = mobile;
+
+            // Reset save button
+            const saveBtn = document.getElementById("save-tune-targets-button");
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.className = "btn-secondary";
+            }
+
+            alert("Tune targets saved successfully.");
+        } else {
+            const data = await response.json();
+            throw new Error(data.error || "Unknown error");
+        }
+    } catch (error) {
+        Log.error("Settings", "Failed to save tune targets:", error);
+        alert("Failed to save tune targets.");
+    }
+}
+
+// ============================================================================
+// Tune Targets Help Popup Functions
+// ============================================================================
+
+// Toggle Tune Targets help popup
+function toggleTuneTargetsHelp() {
+    const popup = document.getElementById("tune-targets-help-popup");
+    const isVisible = popup.style.display !== "none";
+
+    if (isVisible) {
+        popup.style.display = "none";
+        document.body.style.overflow = ""; // Restore scrolling
+    } else {
+        popup.style.display = "block";
+        document.body.style.overflow = "hidden"; // Prevent background scrolling
+    }
+}
+
+// ============================================================================
 // WiFi Help Popup Functions
 // ============================================================================
 
@@ -255,17 +561,32 @@ function toggleWifiHelp() {
 
 // Close popup when clicking outside of it
 function handleClickOutsidePopup(event) {
-    const popup = document.getElementById("wifi-help-popup");
-    const helpButton = document.getElementById("wifi-help-button");
+    // Handle WiFi help popup
+    const wifiPopup = document.getElementById("wifi-help-popup");
+    const wifiHelpButton = document.getElementById("wifi-help-button");
 
     if (
-        popup &&
-        popup.style.display === "block" &&
-        !popup.contains(event.target) &&
-        helpButton &&
-        !helpButton.contains(event.target)
+        wifiPopup &&
+        wifiPopup.style.display === "block" &&
+        !wifiPopup.contains(event.target) &&
+        wifiHelpButton &&
+        !wifiHelpButton.contains(event.target)
     ) {
         toggleWifiHelp();
+    }
+
+    // Handle Tune Targets help popup
+    const tuneTargetsPopup = document.getElementById("tune-targets-help-popup");
+    const tuneTargetsHelpButton = document.getElementById("tune-targets-help-button");
+
+    if (
+        tuneTargetsPopup &&
+        tuneTargetsPopup.style.display === "block" &&
+        !tuneTargetsPopup.contains(event.target) &&
+        tuneTargetsHelpButton &&
+        !tuneTargetsHelpButton.contains(event.target)
+    ) {
+        toggleTuneTargetsHelp();
     }
 }
 
@@ -627,6 +948,17 @@ function attachSettingsEventListeners() {
         wifiHelpCloseBtn.addEventListener("click", toggleWifiHelp);
     }
 
+    // Tune Targets help buttons
+    const tuneTargetsHelpBtn = document.getElementById("tune-targets-help-button");
+    if (tuneTargetsHelpBtn) {
+        tuneTargetsHelpBtn.addEventListener("click", toggleTuneTargetsHelp);
+    }
+
+    const tuneTargetsHelpCloseBtn = document.getElementById("tune-targets-help-close-button");
+    if (tuneTargetsHelpCloseBtn) {
+        tuneTargetsHelpCloseBtn.addEventListener("click", toggleTuneTargetsHelp);
+    }
+
     // Password visibility toggles
     document.querySelectorAll(".password-visibility-toggle").forEach((checkbox) => {
         checkbox.addEventListener("change", function () {
@@ -675,6 +1007,32 @@ function attachSettingsEventListeners() {
 
     // Click outside popup to close
     document.addEventListener("click", handleClickOutsidePopup);
+
+    // Tune targets buttons and checkbox
+    const addTuneTargetBtn = document.getElementById("add-tune-target-button");
+    if (addTuneTargetBtn) {
+        addTuneTargetBtn.addEventListener("click", addTuneTarget);
+    }
+
+    const saveTuneTargetsBtn = document.getElementById("save-tune-targets-button");
+    if (saveTuneTargetsBtn) {
+        saveTuneTargetsBtn.addEventListener("click", saveTuneTargets);
+    }
+
+    const tuneTargetsMobileCheckbox = document.getElementById("tune-targets-mobile");
+    if (tuneTargetsMobileCheckbox) {
+        tuneTargetsMobileCheckbox.addEventListener("change", onTuneTargetsMobileChange);
+    }
+
+    // Example "add" buttons
+    document.querySelectorAll(".btn-add-example").forEach((btn) => {
+        btn.addEventListener("click", function () {
+            const url = this.dataset.url;
+            if (url) {
+                addExampleTuneTarget(url);
+            }
+        });
+    });
 }
 
 // ============================================================================
@@ -687,6 +1045,7 @@ function onSettingsAppearing() {
     if (!submitSettingsAttached) attachSubmitSettings();
     loadCallSign();
     loadGpsLocation();
+    loadTuneTargets();
     attachSettingsEventListeners();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }

@@ -333,6 +333,9 @@ async function tuneRadioHz(frequency, mode) {
         else useMode = "USB";
     }
 
+    // Open tune targets (WebSDR, KiwiSDR, etc.) - don't await, run in parallel
+    openTuneTargets(frequency, useMode);
+
     try {
         const freqResponse = await fetch(`/api/v1/frequency?frequency=${frequency}`, { method: "PUT" });
 

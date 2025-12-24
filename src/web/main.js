@@ -77,11 +77,101 @@ const AppState = {
     vfoLastUpdated: 0,
     vfoUpdateInterval: null,
     vfoChangeCallbacks: [], // subscribers for VFO change notifications
+
+    // Tune targets (WebSDR, KiwiSDR URLs)
+    tuneTargets: null,         // null = not loaded, [] = loaded but empty
+    tuneTargetsMobile: false,
+    tuneTargetWindows: [],     // references to opened windows
 };
 
 // ============================================================================
 // User Settings Functions
 // ============================================================================
+
+// Load tune targets into AppState if not already loaded
+async function ensureTuneTargetsLoaded() {
+    if (AppState.tuneTargets !== null) {
+        return; // Already loaded
+    }
+
+    try {
+        const response = await fetch("/api/v1/tuneTargets");
+        if (response.ok) {
+            const data = await response.json();
+            AppState.tuneTargets = data.targets || [];
+            AppState.tuneTargetsMobile = data.mobile || false;
+            Log.debug("App", "Tune targets loaded:", AppState.tuneTargets.length);
+        } else {
+            AppState.tuneTargets = [];
+            AppState.tuneTargetsMobile = false;
+        }
+    } catch (error) {
+        Log.warn("App", "Failed to load tune targets:", error);
+        AppState.tuneTargets = [];
+        AppState.tuneTargetsMobile = false;
+    }
+}
+
+// Check if we're running on a mobile browser
+function isMobileBrowser() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Open tune target URLs with frequency and mode substitution
+// Called when tuning the radio to also open WebSDR/KiwiSDR tabs
+async function openTuneTargets(frequencyHz, mode) {
+    await ensureTuneTargetsLoaded();
+
+    if (!AppState.tuneTargets || AppState.tuneTargets.length === 0) {
+        return; // No tune targets configured
+    }
+
+    // Check mobile permission
+    if (isMobileBrowser() && !AppState.tuneTargetsMobile) {
+        Log.debug("App", "Tune targets blocked: mobile browser and mobile access not enabled");
+        return;
+    }
+
+    // Calculate frequency in different units
+    const frequencyKHz = frequencyHz / 1000;
+    const frequencyMHz = frequencyHz / 1000000;
+    const modeUpper = mode.toUpperCase();
+    const modeLower = mode.toLowerCase();
+
+    // Open each target URL
+    AppState.tuneTargets.forEach((urlTemplate, index) => {
+        if (!urlTemplate || urlTemplate.trim() === "") {
+            return;
+        }
+
+        // Substitute placeholders
+        let finalUrl = urlTemplate;
+        finalUrl = finalUrl.replace(/<FREQ-HZ>/gi, frequencyHz);
+        finalUrl = finalUrl.replace(/<FREQ-KHZ>/gi, frequencyKHz);
+        finalUrl = finalUrl.replace(/<FREQ-MHZ>/gi, frequencyMHz);
+        finalUrl = finalUrl.replace(/<MODE>/gi, modeLower);
+
+        // Get or create window for this target
+        const windowName = `_sotacat_tune_${index}`;
+
+        try {
+            // Check if we have an existing window reference that's still open
+            if (AppState.tuneTargetWindows[index] && !AppState.tuneTargetWindows[index].closed) {
+                // Navigate existing window
+                AppState.tuneTargetWindows[index].location.href = finalUrl;
+                Log.debug("App", `Navigating tune target ${index} to:`, finalUrl);
+            } else {
+                // Open new window in background
+                AppState.tuneTargetWindows[index] = window.open(finalUrl, windowName);
+                Log.debug("App", `Opened tune target ${index}:`, finalUrl);
+            }
+        } catch (error) {
+            // Cross-origin or popup blocked - try opening fresh
+            Log.warn("App", `Tune target ${index} window error, opening fresh:`, error);
+            AppState.tuneTargetWindows[index] = window.open(finalUrl, windowName);
+        }
+    });
+}
 
 // Load user callsign into AppState if not already loaded
 // Returns the callsign (or empty string if not set)

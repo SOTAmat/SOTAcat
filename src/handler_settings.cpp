@@ -42,6 +42,12 @@ char              g_gps_lon[MAX_GPS_LON_SIZE];
 static const char s_callsign_key[] = "callsign";
 char              g_callsign[MAX_CALLSIGN_SIZE];
 
+// Tune targets - URLs to open when tuning (e.g., WebSDR, KiwiSDR)
+static const char s_tune_targets_key[]        = "tune_targets";
+char              g_tune_targets[MAX_TUNE_TARGETS_JSON];
+static const char s_tune_targets_mobile_key[] = "tune_mobile";
+bool              g_tune_targets_mobile       = false;
+
 /**
  * Handle to our Non-Volatile Storage while we're in communication with it.
  */
@@ -104,6 +110,18 @@ static void populate_settings () {
     GET_NV_STRING (gps_lat, "");
     GET_NV_STRING (gps_lon, "");
     GET_NV_STRING (callsign, "");
+
+    // Load tune targets (stored as JSON array string)
+    size_t tune_targets_size = sizeof (g_tune_targets);
+    if (nvs_get_str (s_nvs_settings_handle, s_tune_targets_key, g_tune_targets, &tune_targets_size) != ESP_OK)
+        g_tune_targets[0] = '\0';
+
+    // Load tune targets mobile setting
+    uint8_t mobile_val = 0;
+    if (nvs_get_u8 (s_nvs_settings_handle, s_tune_targets_mobile_key, &mobile_val) == ESP_OK)
+        g_tune_targets_mobile = (mobile_val != 0);
+    else
+        g_tune_targets_mobile = false;
 }
 
 /**
@@ -415,4 +433,95 @@ esp_err_t handler_callsign_settings_post (httpd_req_t * req) {
     populate_settings();
 
     return retrieve_and_send_callsign_settings (req);
+}
+
+// ====================================================================================================
+// Tune Targets Settings
+// ====================================================================================================
+
+static std::shared_ptr<char[]> get_tune_targets_json () {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    // Return JSON: {"targets": [...], "mobile": true/false}
+    size_t required_size = 32 + sizeof (g_tune_targets);
+    const char format[]  = "{\"targets\":%s,\"mobile\":%s}";
+
+    std::shared_ptr<char[]> buf (new char[required_size]);
+    // If g_tune_targets is empty, use empty array
+    const char * targets = (g_tune_targets[0] == '\0') ? "[]" : g_tune_targets;
+    snprintf (buf.get(), required_size, format, targets, g_tune_targets_mobile ? "true" : "false");
+
+    return buf;
+}
+
+static esp_err_t retrieve_and_send_tune_targets (httpd_req_t * req) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    httpd_resp_set_type (req, "application/json");
+    auto settings_json = get_tune_targets_json();
+    return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t handler_tune_targets_get (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    return retrieve_and_send_tune_targets (req);
+}
+
+esp_err_t handler_tune_targets_post (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    if (!buf)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+
+    char * unsafe_buf = buf.get();
+
+    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
+    if (ret <= 0) {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408 (req);
+        }
+        return ESP_FAIL;
+    }
+
+    unsafe_buf[req->content_len] = '\0';
+
+    // Parse JSON to extract "targets" array and "mobile" boolean
+    // Expected format: {"targets": ["url1", "url2"], "mobile": true}
+
+    // Find targets array
+    char * targets_start = strstr (unsafe_buf, "\"targets\"");
+    if (targets_start) {
+        char * array_start = strchr (targets_start, '[');
+        if (array_start) {
+            char * array_end = strchr (array_start, ']');
+            if (array_end) {
+                size_t array_len = array_end - array_start + 1;
+                if (array_len < sizeof (g_tune_targets)) {
+                    strncpy (g_tune_targets, array_start, array_len);
+                    g_tune_targets[array_len] = '\0';
+                    nvs_set_str (s_nvs_settings_handle, s_tune_targets_key, g_tune_targets);
+                    ESP_LOGI (TAG8, "Stored tune targets: %s", g_tune_targets);
+                }
+            }
+        }
+    }
+
+    // Find mobile boolean
+    char * mobile_start = strstr (unsafe_buf, "\"mobile\"");
+    if (mobile_start) {
+        g_tune_targets_mobile = (strstr (mobile_start, "true") != nullptr);
+        nvs_set_u8 (s_nvs_settings_handle, s_tune_targets_mobile_key, g_tune_targets_mobile ? 1 : 0);
+        ESP_LOGI (TAG8, "Stored tune targets mobile: %s", g_tune_targets_mobile ? "true" : "false");
+    }
+
+    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
+
+    return retrieve_and_send_tune_targets (req);
 }

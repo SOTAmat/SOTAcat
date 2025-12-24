@@ -1077,6 +1077,138 @@ tbody tr:active {
     margin-bottom: var(--space-sm);
 }
 
+/* Tune Targets */
+.tune-targets-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.tune-target-row {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.tune-target-input {
+    flex: 1;
+    min-height: var(--touch-target);
+    padding: 0 var(--space-md);
+    border: 1px solid var(--gray-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    background: var(--white);
+}
+
+.tune-target-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(34, 139, 230, 0.1);
+}
+
+.btn-icon {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    padding: 0;
+    border: 1px solid var(--gray-3);
+    border-radius: var(--radius-md);
+    background: var(--white);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover:not(:disabled) {
+    background: var(--gray-0);
+    border-color: var(--gray-4);
+}
+
+.btn-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-icon.btn-remove {
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.btn-icon.btn-remove:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.tune-targets-buttons {
+    justify-content: flex-end;
+    margin-bottom: var(--space-md);
+}
+
+.settings-help code {
+    background: var(--gray-1);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-family: monospace;
+}
+
+.tune-target-examples {
+    background: var(--gray-0);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.tune-target-examples > .settings-info {
+    margin-bottom: var(--space-sm);
+    font-weight: 600;
+}
+
+.tune-target-example {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xs);
+    flex-wrap: wrap;
+}
+
+.tune-target-example code {
+    background: var(--white);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-family: monospace;
+    border: 1px solid var(--gray-2);
+    flex: 1;
+    min-width: 200px;
+    word-break: break-all;
+}
+
+.btn-add-example {
+    padding: 4px 10px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--primary);
+    background: var(--white);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-add-example:hover {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.btn-add-example:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Firmware Update Steps */
 .firmware-steps {
     display: flex;

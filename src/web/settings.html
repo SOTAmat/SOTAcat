@@ -218,6 +218,99 @@
         </form>
     </div>
 
+    <!-- Tune Targets Card -->
+    <div class="settings-card">
+        <h2>
+            Tune Targets
+            <button type="button" id="tune-targets-help-button" class="btn-info">
+                <span class="info-icon">ⓘ</span>
+            </button>
+        </h2>
+        <p class="settings-info">
+            When you tune to a frequency, also open these URLs in background browser tabs.
+            Useful for WebSDR, KiwiSDR, or other remote receivers.
+        </p>
+
+        <!-- Tune Targets Help Popup -->
+        <div id="tune-targets-help-popup" class="help-popup" style="display: none">
+            <div class="help-popup-content">
+                <div class="help-popup-header">
+                    <h3>Tune Targets Help</h3>
+                    <button type="button" id="tune-targets-help-close-button" class="btn-close">×</button>
+                </div>
+                <div class="help-popup-body">
+                    <p>
+                        <strong>What are Tune Targets?</strong> When you click on a spot in the Chase table to tune
+                        your radio, SOTACAT can simultaneously open one or more web-based SDR receivers in background
+                        browser tabs, tuned to the same frequency. This lets you monitor your signal on a remote
+                        receiver, check propagation, or listen via WebSDR when local conditions are poor.
+                    </p>
+                    <p>
+                        <strong>How it works:</strong> Each tune target is a URL template containing placeholders
+                        that get replaced with the actual frequency and mode when you tune. For example,
+                        <code>&lt;FREQ-KHZ&gt;</code> becomes <code>14074</code> and <code>&lt;MODE&gt;</code>
+                        becomes <code>usb</code>.
+                    </p>
+                    <p>
+                        <strong>Available placeholders:</strong>
+                    </p>
+                    <ul>
+                        <li><code>&lt;FREQ-HZ&gt;</code> — Frequency in Hertz (e.g., 14074000)</li>
+                        <li><code>&lt;FREQ-KHZ&gt;</code> — Frequency in kilohertz (e.g., 14074)</li>
+                        <li><code>&lt;FREQ-MHZ&gt;</code> — Frequency in megahertz (e.g., 14.074)</li>
+                        <li><code>&lt;MODE&gt;</code> — Mode in lowercase (e.g., usb, lsb, cw, am)</li>
+                    </ul>
+                    <p>
+                        <strong>Supported SDR types:</strong> Most web-based SDRs work. The two most common formats are:
+                    </p>
+                    <ul>
+                        <li><strong>WebSDR</strong> (PA3FWM) — Uses <code>?tune=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code></li>
+                        <li><strong>KiwiSDR</strong> — Uses <code>?f=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code></li>
+                    </ul>
+                    <p>
+                        <strong>Mobile browsers:</strong> Opening background tabs can be problematic on phones due to
+                        popup blockers. Check "Enable on mobile browsers" if you want to use tune targets on your
+                        phone, but be aware some browsers may block the popups.
+                    </p>
+                    <p>
+                        <strong>Tips:</strong> You can add up to 5 tune targets. Each opens in its own reusable tab,
+                        so clicking different spots updates the existing tabs rather than opening new ones. Use the
+                        example buttons below to quickly add popular SDR receivers.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="tune-target-examples">
+            <p class="settings-info">Examples:</p>
+            <div class="tune-target-example">
+                <code>http://websdr1.kfsdr.com:8901/?tune=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code>
+                <button type="button" class="btn-add-example" data-url="http://websdr1.kfsdr.com:8901/?tune=<FREQ-KHZ><MODE>">+ add</button>
+            </div>
+            <div class="tune-target-example">
+                <code>http://kphsdr.com:8074/?f=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code>
+                <button type="button" class="btn-add-example" data-url="http://kphsdr.com:8074/?f=<FREQ-KHZ><MODE>">+ add</button>
+            </div>
+        </div>
+
+        <div id="tune-targets-list" class="tune-targets-list">
+            <!-- Dynamic list of URL inputs will be populated by JavaScript -->
+        </div>
+
+        <div class="button-group tune-targets-buttons">
+            <button type="button" id="add-tune-target-button" class="btn-icon" title="Add empty target">+</button>
+        </div>
+
+        <label class="checkbox-label">
+            <input type="checkbox" id="tune-targets-mobile" />
+            <span>Enable on mobile browsers</span>
+        </label>
+
+        <div class="button-group">
+            <button id="save-tune-targets-button" class="btn-secondary" disabled>Save Tune Targets</button>
+        </div>
+    </div>
+
     <!-- Firmware Update Card -->
     <div class="settings-card">
         <h2>Firmware Update</h2>
