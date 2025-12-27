@@ -266,30 +266,40 @@ function normalizeTuneTargets(targets) {
     });
 }
 
-// Load tune targets from device
+// Load tune targets from device (falls back to AppState if device unavailable)
 async function loadTuneTargets() {
-    const listContainer = document.getElementById("tune-targets-list");
     const mobileCheckbox = document.getElementById("tune-targets-mobile");
     const saveBtn = document.getElementById("save-tune-targets-button");
 
+    let loadedFromDevice = false;
     try {
         const response = await fetch("/api/v1/tuneTargets");
         if (response.ok) {
             const data = await response.json();
             originalTuneTargets = normalizeTuneTargets(data.targets);
             originalTuneTargetsMobile = data.mobile || false;
-
-            // Populate the UI
-            renderTuneTargetsList();
-            if (mobileCheckbox) {
-                mobileCheckbox.checked = originalTuneTargetsMobile;
-            }
+            loadedFromDevice = true;
         }
     } catch (error) {
-        Log.error("Settings", "Failed to load tune targets:", error);
-        originalTuneTargets = [];
-        originalTuneTargetsMobile = false;
-        renderTuneTargetsList();
+        Log.warn("Settings", "Device unavailable for tune targets load:", error);
+    }
+
+    // Fall back to AppState if device unavailable (may have session or cached data)
+    if (!loadedFromDevice) {
+        if (AppState.tuneTargets && AppState.tuneTargets.length > 0) {
+            originalTuneTargets = [...AppState.tuneTargets];
+            originalTuneTargetsMobile = AppState.tuneTargetsMobile || false;
+            Log.debug("Settings", "Using tune targets from session state");
+        } else {
+            originalTuneTargets = [];
+            originalTuneTargetsMobile = false;
+        }
+    }
+
+    // Populate the UI
+    renderTuneTargetsList();
+    if (mobileCheckbox) {
+        mobileCheckbox.checked = originalTuneTargetsMobile;
     }
 
     // Reset save button
@@ -519,7 +529,7 @@ function updateExampleButtonStates() {
     });
 }
 
-// Save tune targets to device
+// Save tune targets to device (falls back to session-only if device unavailable)
 async function saveTuneTargets() {
     const targets = getCurrentTuneTargets().filter((t) => t.url.trim() !== "");
     const mobileCheckbox = document.getElementById("tune-targets-mobile");
@@ -530,6 +540,7 @@ async function saveTuneTargets() {
         mobile: mobile,
     };
 
+    let savedToDevice = false;
     try {
         const response = await fetch("/api/v1/tuneTargets", {
             method: "POST",
@@ -538,28 +549,29 @@ async function saveTuneTargets() {
         });
 
         if (response.ok) {
-            // Update original values
-            originalTuneTargets = [...targets];
-            originalTuneTargetsMobile = mobile;
-
-            // Invalidate the AppState cache so main.js reloads the updated targets
-            AppState.tuneTargets = null;
-
-            // Reset save button
-            const saveBtn = document.getElementById("save-tune-targets-button");
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.className = "btn-secondary";
-            }
-
-            alert("Tune targets saved successfully.");
-        } else {
-            const data = await response.json();
-            throw new Error(data.error || "Unknown error");
+            savedToDevice = true;
         }
     } catch (error) {
-        Log.error("Settings", "Failed to save tune targets:", error);
-        alert("Failed to save tune targets.");
+        Log.warn("Settings", "Device unavailable for tune targets save:", error);
+    }
+
+    // Always update session state (AppState) so targets work for this session
+    originalTuneTargets = [...targets];
+    originalTuneTargetsMobile = mobile;
+    AppState.tuneTargets = normalizeTuneTargets(targets);
+    AppState.tuneTargetsMobile = mobile;
+
+    // Reset save button
+    const saveBtn = document.getElementById("save-tune-targets-button");
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.className = "btn-secondary";
+    }
+
+    if (savedToDevice) {
+        alert("Tune targets saved.");
+    } else {
+        alert("Tune targets saved for this session (device unavailable).");
     }
 }
 

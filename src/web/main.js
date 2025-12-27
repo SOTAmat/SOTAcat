@@ -109,6 +109,7 @@ function normalizeTuneTargets(targets) {
 
 // Load tune targets into AppState - called at app startup for Safari compatibility
 // IMPORTANT: Must be called early so openTuneTargets can be synchronous
+// Falls back to localStorage cache when hardware API is unavailable (e.g., local dev)
 async function loadTuneTargetsAsync() {
     try {
         const response = await fetch("/api/v1/tuneTargets");
@@ -116,13 +117,46 @@ async function loadTuneTargetsAsync() {
             const data = await response.json();
             AppState.tuneTargets = normalizeTuneTargets(data.targets);
             AppState.tuneTargetsMobile = data.mobile || false;
-            Log.debug("App", "Tune targets loaded:", AppState.tuneTargets.length);
+            // Cache to localStorage for offline/local dev use
+            saveTuneTargetsToLocalStorage(AppState.tuneTargets, AppState.tuneTargetsMobile);
+            Log.debug("App", "Tune targets loaded from API:", AppState.tuneTargets.length);
+        } else {
+            // API returned error - fall back to localStorage
+            loadTuneTargetsFromLocalStorage();
+        }
+    } catch (error) {
+        Log.warn("App", "Failed to load tune targets from API:", error);
+        // Fall back to localStorage cache
+        loadTuneTargetsFromLocalStorage();
+    }
+}
+
+// Save tune targets to localStorage for offline/local dev use
+function saveTuneTargetsToLocalStorage(targets, mobile) {
+    try {
+        localStorage.setItem("tuneTargets", JSON.stringify(targets));
+        localStorage.setItem("tuneTargetsMobile", mobile.toString());
+    } catch (error) {
+        Log.warn("App", "Failed to cache tune targets to localStorage:", error);
+    }
+}
+
+// Load tune targets from localStorage cache
+function loadTuneTargetsFromLocalStorage() {
+    try {
+        const cached = localStorage.getItem("tuneTargets");
+        const cachedMobile = localStorage.getItem("tuneTargetsMobile");
+        if (cached) {
+            AppState.tuneTargets = normalizeTuneTargets(JSON.parse(cached));
+            AppState.tuneTargetsMobile = cachedMobile === "true";
+            Log.debug("App", "Tune targets loaded from localStorage cache:", AppState.tuneTargets.length);
         } else {
             AppState.tuneTargets = [];
             AppState.tuneTargetsMobile = false;
+            Log.debug("App", "No cached tune targets in localStorage");
         }
     } catch (error) {
-        Log.warn("App", "Failed to load tune targets:", error);
+        Log.warn("App", "Failed to load tune targets from localStorage:", error);
         AppState.tuneTargets = [];
         AppState.tuneTargetsMobile = false;
     }
