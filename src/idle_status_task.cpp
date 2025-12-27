@@ -62,6 +62,10 @@ void idle_status_task (void * _pvParameter) {
             blinks = 1;
         }
 
+        // Inactivity shutdown: blinks > 4 means idle time exceeded AUTO_SHUTDOWN_TIME_SECONDS.
+        // When USB is connected, blinks is set to 1 above, so this block is never entered.
+        // If battery is sufficient, we reset timers instead of shutting down (allows indefinite
+        // operation when charging via USB, since battery stays above threshold).
         if (blinks > 4) {
             if (get_battery_percentage() < BATTERY_SHUTOFF_PERCENTAGE) {
                 gpio_set_level (LED_BLUE, LED_ON);
