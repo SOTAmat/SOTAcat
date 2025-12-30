@@ -126,7 +126,8 @@ function onModeFilterChange(mode) {
 // Load auto-refresh preference from localStorage
 function loadAutoRefreshEnabled() {
     const saved = localStorage.getItem("chaseAutoRefreshEnabled");
-    ChaseState.autoRefreshEnabled = saved === "true";
+    // Default to false (disabled) when no saved preference exists
+    ChaseState.autoRefreshEnabled = saved !== null ? saved === "true" : false;
     return ChaseState.autoRefreshEnabled;
 }
 

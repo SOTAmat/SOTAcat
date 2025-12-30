@@ -985,8 +985,8 @@ function clearDistanceCache() {
 
 // Version check configuration constants
 const VERSION_CHECK_INTERVAL_DAYS = 1.0;
-const VERSION_CHECK_STORAGE_KEY = "sotacat_version_check";
-const VERSION_CHECK_SUCCESS_KEY = "sotacat_version_check_success";
+const VERSION_CHECK_STORAGE_KEY = "sotacatVersionCheck";
+const VERSION_CHECK_SUCCESS_KEY = "sotacatVersionCheckSuccess";
 const MANIFEST_URL = "https://sotamat.com/wp-content/uploads/manifest.json";
 const VERSION_CHECK_TIMEOUT_MS = 5000;
 const VERSION_CHECK_RETRY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes

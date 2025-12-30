@@ -291,8 +291,16 @@ async function loadTuneTargets() {
             originalTuneTargetsMobile = AppState.tuneTargetsMobile || false;
             Log.debug("Settings", "Using tune targets from session state");
         } else {
-            originalTuneTargets = [];
-            originalTuneTargetsMobile = false;
+            // Try localStorage cache as last resort
+            loadTuneTargetsFromLocalStorage();
+            if (AppState.tuneTargets && AppState.tuneTargets.length > 0) {
+                originalTuneTargets = [...AppState.tuneTargets];
+                originalTuneTargetsMobile = AppState.tuneTargetsMobile || false;
+                Log.debug("Settings", "Using tune targets from localStorage cache");
+            } else {
+                originalTuneTargets = [];
+                originalTuneTargetsMobile = false;
+            }
         }
     }
 
@@ -560,6 +568,9 @@ async function saveTuneTargets() {
     originalTuneTargetsMobile = mobile;
     AppState.tuneTargets = normalizeTuneTargets(targets);
     AppState.tuneTargetsMobile = mobile;
+
+    // Also save to localStorage as a cache (write-through)
+    saveTuneTargetsToLocalStorage(AppState.tuneTargets, AppState.tuneTargetsMobile);
 
     // Reset save button
     const saveBtn = document.getElementById("save-tune-targets-button");

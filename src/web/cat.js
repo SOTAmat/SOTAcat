@@ -595,32 +595,40 @@ async function tuneAtu() {
 
 // Load saved CW message text from localStorage
 function loadInputValues() {
-    document.getElementById("message-1").value = localStorage.getItem("message1") || "";
-    document.getElementById("message-2").value = localStorage.getItem("message2") || "";
-    document.getElementById("message-3").value = localStorage.getItem("message3") || "";
+    document.getElementById("cw-message-1").value = localStorage.getItem("catCWMessage1") || "";
+    document.getElementById("cw-message-2").value = localStorage.getItem("catCWMessage2") || "";
+    document.getElementById("cw-message-3").value = localStorage.getItem("catCWMessage3") || "";
 }
 
 // Save CW message text to localStorage
 function saveInputValues() {
-    localStorage.setItem("message1", document.getElementById("message-1").value);
-    localStorage.setItem("message2", document.getElementById("message-2").value);
-    localStorage.setItem("message3", document.getElementById("message-3").value);
+    localStorage.setItem("catCWMessage1", document.getElementById("cw-message-1").value);
+    localStorage.setItem("catCWMessage2", document.getElementById("cw-message-2").value);
+    localStorage.setItem("catCWMessage3", document.getElementById("cw-message-3").value);
 }
+
+// Mapping from DOM section IDs to localStorage keys
+const SECTION_STORAGE_KEYS = {
+    "tune-section": "catTuneSectionExpanded",
+    "spot-section": "catSpotSectionExpanded",
+    "transmit-section": "catTransmitSectionExpanded",
+};
 
 // Toggle collapsible section visibility (sectionId: 'tune-section', 'spot-section', 'transmit-section')
 function toggleSection(sectionId) {
     const content = document.getElementById(sectionId);
     const iconId = sectionId.replace("-section", "-icon");
     const icon = document.getElementById(iconId);
+    const storageKey = SECTION_STORAGE_KEYS[sectionId];
 
     if (content.style.display === "none") {
         content.style.display = "block";
         icon.innerHTML = "&#9660;"; // Down triangle
-        localStorage.setItem(sectionId + "_expanded", "true");
+        localStorage.setItem(storageKey, "true");
     } else {
         content.style.display = "none";
         icon.innerHTML = "&#9654;"; // Right triangle
-        localStorage.setItem(sectionId + "_expanded", "false");
+        localStorage.setItem(storageKey, "false");
     }
 }
 
@@ -628,7 +636,8 @@ function toggleSection(sectionId) {
 function loadCollapsibleStates() {
     const sections = ["tune-section", "spot-section", "transmit-section"];
     sections.forEach((sectionId) => {
-        const savedState = localStorage.getItem(sectionId + "_expanded");
+        const storageKey = SECTION_STORAGE_KEYS[sectionId];
+        const savedState = localStorage.getItem(storageKey);
         const content = document.getElementById(sectionId);
         const iconId = sectionId.replace("-section", "-icon");
         const icon = document.getElementById(iconId);
@@ -758,7 +767,7 @@ function attachCatEventListeners() {
     });
 
     // CW input validation - enable/disable Send buttons based on input content
-    ["message-1", "message-2", "message-3"].forEach((inputId) => {
+    ["cw-message-1", "cw-message-2", "cw-message-3"].forEach((inputId) => {
         const input = document.getElementById(inputId);
         const button = document.querySelector(`.btn-send[data-message-input="${inputId}"]`);
         if (input && button) {
@@ -774,7 +783,7 @@ function attachCatEventListeners() {
 // Update Send button states based on current input values
 // Called on tab appear after loading saved values
 function updateSendButtonStates() {
-    ["message-1", "message-2", "message-3"].forEach((inputId) => {
+    ["cw-message-1", "cw-message-2", "cw-message-3"].forEach((inputId) => {
         const input = document.getElementById(inputId);
         const button = document.querySelector(`.btn-send[data-message-input="${inputId}"]`);
         if (input && button) {
@@ -795,9 +804,9 @@ function onCatAppearing() {
 
     if (!CatState.messageInputListenersAttached) {
         CatState.messageInputListenersAttached = true;
-        document.getElementById("message-1").addEventListener("input", saveInputValues);
-        document.getElementById("message-2").addEventListener("input", saveInputValues);
-        document.getElementById("message-3").addEventListener("input", saveInputValues);
+        document.getElementById("cw-message-1").addEventListener("input", saveInputValues);
+        document.getElementById("cw-message-2").addEventListener("input", saveInputValues);
+        document.getElementById("cw-message-3").addEventListener("input", saveInputValues);
     }
 
     // Attach event listeners for all controls
