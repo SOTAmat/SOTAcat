@@ -741,8 +741,6 @@ tbody tr:active {
 .mode-cell-FM {
     background: var(--success);
 }
-.mode-cell-FT8,
-.mode-cell-FT4,
 .mode-cell-DATA {
     background: var(--warning);
     color: var(--gray-9);

@@ -193,9 +193,15 @@ function spothole_transformSpots(spotsData, location) {
             modeType = "SSB";
         }
 
-        if (!["CW", "SSB", "AM", "FM", "FT8", "FT4", "DATA"].includes(modeType)) {
-            // Check for common data modes
-            if (["PSK31", "RTTY", "MFSK", "JT65", "JT9", "FT8", "FT4", "PKT"].includes(modeType)) {
+        if (!["CW", "SSB", "AM", "FM", "DATA"].includes(modeType)) {
+            // Check for data modes (from Spothole /api/v1/options + legacy WSJT modes)
+            const dataModes = [
+                "RTTY", "PSK", "PSK31", "BPSK", "BPSK31",  // RTTY and PSK variants
+                "FT8", "FT4", "JT65", "JT9", "JS8",        // WSJT-X and JS8Call
+                "MFSK", "MFSK32", "OLIVIA",                // MFSK variants
+                "HELL", "SSTV", "PKT", "MSK144",           // Other digital modes
+            ];
+            if (dataModes.includes(modeType)) {
                 modeType = "DATA";
             } else {
                 modeType = "OTHER";

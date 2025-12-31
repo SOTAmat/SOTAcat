@@ -382,15 +382,8 @@ function normalizeRadioMode(mode) {
 function modesCompatible(radioMode, spotModeType) {
     if (!radioMode || !spotModeType) return false;
 
-    // Direct match
-    if (radioMode === spotModeType) return true;
-
-    // DATA mode on radio matches DATA, FT8, FT4 spots
-    if (radioMode === "DATA") {
-        return ["DATA", "FT8", "FT4"].includes(spotModeType);
-    }
-
-    return false;
+    // Direct match (all data modes are now classified as "DATA")
+    return radioMode === spotModeType;
 }
 
 // Update row highlighting based on current VFO frequency/mode
@@ -643,11 +636,6 @@ function applyTableFilters() {
         // Mode filter
         if (selectedMode === "All") {
             modeMatch = true;
-        } else if (selectedMode === "DATA") {
-            modeMatch =
-                row.classList.contains("row-mode-DATA") ||
-                row.classList.contains("row-mode-FT8") ||
-                row.classList.contains("row-mode-FT4");
         } else {
             modeMatch = row.classList.contains(`row-mode-${selectedMode}`);
         }
