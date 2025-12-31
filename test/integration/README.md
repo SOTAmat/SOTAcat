@@ -1,25 +1,29 @@
 # Integration Tests for SOTAcat
 
-This directory contains integration tests that run against a live SOTAcat device.
+This directory contains integration tests for the SOTAcat firmware and UI.
 
 ## Test Types
 
-### Performance Tests
-Tests that measure web server performance, response times, and reliability.
+### Device Tests (require live SOTAcat device)
 
 - **`test_webserver_performance.py`** - Performance test suite
-  - Requires: Python 3, requests, zeroconf (installed via `make setup`)
   - Measures: mDNS resolution, TTFB, full page load, error rates
-  - Usage: `make test` or `./test_webserver_performance.py --host sotacat.local`
-  - **Tests ALL 20 endpoints:**
-    - 6 HTML pages (/, /index.html, /about.html, /cat.html, /chase.html, /settings.html)
-    - 6 JavaScript files (about.js, cat.js, chase.js, chase_api.js, main.js, settings.js)
-    - 1 CSS file (style.css)
-    - 2 Images (favicon.ico, sclogo.jpg)
-    - 5 API endpoints (version, connectionStatus, batteryPercent, rssi, settings)
+  - Tests all 20 endpoints (HTML, JS, CSS, images, API)
+
+- **`test_mutex_stress.py`** - Multi-client stress test
+  - Tests concurrent access handling
+
+### UI Tests (can run offline with mock server)
+
+- **`test_ui.py`** - Browser-based UI tests using Playwright
+  - Tests page loads, element presence, tab navigation
+  - Tests form inputs and interactions
+  - Checks for JavaScript errors
+  - Can run against mock server OR real device
 
 ## Setup
 
+### For Device Tests
 ```bash
 # From test/integration directory
 make setup
@@ -30,10 +34,37 @@ python3 -m venv .venv
 .venv/bin/pip install requests zeroconf
 ```
 
+### For UI Tests
+```bash
+# Install Playwright (one-time)
+pipx run --spec playwright playwright install chromium
+```
+
 ## Running Tests
 
-### Quick smoke test
+### UI Tests (with mock server - no device needed)
 ```bash
+# Auto-start mock server and run UI tests
+./run_tests.py --ui --mock
+
+# With visible browser
+./run_tests.py --ui --mock --headed
+
+# Or run directly with pipx
+cd ../mock_server && pipx run server.py &
+pipx run ../integration/test_ui.py --base-url http://localhost:8080
+```
+
+### UI Tests (against real device)
+```bash
+./run_tests.py --ui --host sotacat.local
+# Or:
+pipx run test_ui.py --base-url http://sotacat.local
+```
+
+### Device Tests
+```bash
+# Quick smoke test
 make test
 # Or with IP address:
 make test HOST=192.168.1.100
