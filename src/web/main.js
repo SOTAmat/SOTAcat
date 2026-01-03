@@ -67,6 +67,7 @@ const AppState = {
 
     // User settings
     callSign: "",
+    licenseClass: null,  // null = not loaded, "" = loaded but not set
 
     // Version checking
     versionCheckRetryTimer: null,
@@ -244,6 +245,23 @@ async function ensureCallSignLoaded() {
         Log.warn("App", "Failed to load callsign:", error);
     }
     return AppState.callSign;
+}
+
+// Load user license class into AppState if not already loaded
+// Returns the license class (or empty string if not set)
+async function ensureLicenseClassLoaded() {
+    if (AppState.licenseClass !== null) {
+        return AppState.licenseClass;
+    }
+    try {
+        const response = await fetch("/api/v1/license");
+        const data = await response.json();
+        AppState.licenseClass = (data.license || "").toUpperCase();
+    } catch (error) {
+        Log.warn("App", "Failed to load license class:", error);
+        AppState.licenseClass = "";
+    }
+    return AppState.licenseClass;
 }
 
 // ============================================================================

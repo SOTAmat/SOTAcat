@@ -36,7 +36,7 @@ const FCC_HF_PRIVILEGES = {
     "80m": [
         { min: 3500000, max: 3600000, modes: ["CW", "DATA"], classes: ["E", "G"] },
         { min: 3600000, max: 3700000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },
-        { min: 3700000, max: 3800000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
+        { min: 3700000, max: 3800000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },  // General has NO privileges 3.6-3.8
         { min: 3800000, max: 4000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
     ],
     "60m": [
@@ -182,14 +182,27 @@ function getSignalUpperEdge(frequencyHz, radioMode, bandwidth) {
 
 /**
  * Find the privilege segment containing a frequency
+ * Uses >= min and < max for all segments except the last (which uses <= max)
+ * This ensures boundary frequencies belong to the higher segment
  * @param {number} frequencyHz - Frequency in Hz
  * @param {Array} segments - Array of privilege segments for a band
  * @returns {Object|null} Matching segment or null
  */
 function findPrivilegeSegment(frequencyHz, segments) {
-    for (const segment of segments) {
-        if (frequencyHz >= segment.min && frequencyHz <= segment.max) {
-            return segment;
+    for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        const isLastSegment = i === segments.length - 1;
+
+        // Use < max for all except last segment (which uses <= max)
+        // This ensures boundary frequencies (e.g., 7.125) belong to the higher segment
+        if (isLastSegment) {
+            if (frequencyHz >= segment.min && frequencyHz <= segment.max) {
+                return segment;
+            }
+        } else {
+            if (frequencyHz >= segment.min && frequencyHz < segment.max) {
+                return segment;
+            }
         }
     }
     return null;
@@ -280,26 +293,32 @@ function checkPrivileges(frequencyHz, radioMode, userLicenseClass) {
     const upperEdgeSegment = findPrivilegeSegment(upperEdge, bandPrivileges);
 
     if (!lowerEdgeSegment || lowerEdge < bandPrivileges[0].min) {
-        result.edgeWarning = "Signal extends below band";
+        result.edgeWarning = "Signal extends out of band";
     } else if (
         !upperEdgeSegment ||
         upperEdge > bandPrivileges[bandPrivileges.length - 1].max
     ) {
-        result.edgeWarning = "Signal extends above band";
+        result.edgeWarning = "Signal extends out of band";
     } else if (lowerEdgeSegment !== segment || upperEdgeSegment !== segment) {
-        // Signal spans multiple segments - check if privileges differ
-        const lowerClasses = new Set(lowerEdgeSegment.classes);
-        const upperClasses = new Set(upperEdgeSegment.classes);
-        const currentClasses = new Set(segment.classes);
+        // Signal spans multiple segments - check mode and privileges
 
-        // If user's class isn't in all segments, warn
-        if (
-            userLicenseClass &&
-            (!lowerClasses.has(userLicenseClass) ||
-                !upperClasses.has(userLicenseClass))
-        ) {
-            result.edgeWarning = "Signal spans privilege boundary";
+        // First check if mode is allowed in all edge segments
+        const lowerModeAllowed = lowerEdgeSegment.modes.includes(modeCategory);
+        const upperModeAllowed = upperEdgeSegment.modes.includes(modeCategory);
+
+        if (!lowerModeAllowed || !upperModeAllowed) {
+            const modeNames = { CW: "CW", DATA: "Data", PHONE: "Phone" };
+            result.edgeWarning = `Signal extends into non-${modeNames[modeCategory].toLowerCase()} segment`;
             result.userCanTransmit = false;
+        } else if (userLicenseClass) {
+            // Mode is allowed, check if user's class has privileges in all segments
+            const lowerHasPriv = lowerEdgeSegment.classes.includes(userLicenseClass);
+            const upperHasPriv = upperEdgeSegment.classes.includes(userLicenseClass);
+
+            if (!lowerHasPriv || !upperHasPriv) {
+                result.edgeWarning = "Signal spans privilege boundary";
+                result.userCanTransmit = false;
+            }
         }
     }
 
@@ -333,9 +352,9 @@ function getLicenseClassStatus(frequencyHz, radioMode) {
 }
 
 /**
- * Get user's license class from localStorage
+ * Get user's license class from AppState
  * @returns {string|null} License class ('T', 'G', 'E') or null
  */
 function getUserLicenseClass() {
-    return localStorage.getItem("sotacat_licenseClass") || null;
+    return AppState.licenseClass || null;
 }

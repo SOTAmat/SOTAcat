@@ -43,17 +43,18 @@ async function syncTime() {
 let originalCallSignValue = "";
 let originalLicenseClass = "";
 
-// Load saved callsign from device and license class from localStorage
+// Load saved callsign and license class from device
 async function loadCallSign() {
     await ensureCallSignLoaded();
+    await ensureLicenseClassLoaded();
     const callSignInput = document.getElementById("callsign");
     const licenseSelect = document.getElementById("license-class");
     const saveCallSignBtn = document.getElementById("save-callsign-button");
 
     callSignInput.value = AppState.callSign || "";
 
-    // Load license class from localStorage
-    const savedLicense = localStorage.getItem("sotacat_licenseClass") || "";
+    // Load license class from AppState (loaded from device)
+    const savedLicense = AppState.licenseClass || "";
     if (licenseSelect) {
         licenseSelect.value = savedLicense;
     }
@@ -82,7 +83,7 @@ function onCallSignInputChange() {
     }
 }
 
-// Save operator callsign to device and license class to localStorage
+// Save operator callsign and license class to device
 async function saveCallSign() {
     const callSignInput = document.getElementById("callsign");
     const licenseSelect = document.getElementById("license-class");
@@ -96,42 +97,45 @@ async function saveCallSign() {
         return;
     }
 
-    const settings = {
-        callsign: callSign,
-    };
-
     try {
-        const response = await fetch("/api/v1/callsign", {
+        // Save callsign to device
+        const callsignResponse = await fetch("/api/v1/callsign", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(settings),
+            body: JSON.stringify({ callsign: callSign }),
         });
 
-        if (response.ok) {
-            // Update the global AppState
-            AppState.callSign = callSign;
-
-            // Save license class to localStorage
-            if (licenseClass) {
-                localStorage.setItem("sotacat_licenseClass", licenseClass);
-            } else {
-                localStorage.removeItem("sotacat_licenseClass");
-            }
-
-            // Update original values and reset save button
-            originalCallSignValue = callSignInput.value;
-            originalLicenseClass = licenseClass;
-            const saveCallSignBtn = document.getElementById("save-callsign-button");
-            if (saveCallSignBtn) {
-                saveCallSignBtn.disabled = true;
-                saveCallSignBtn.className = "btn-secondary";
-            }
-
-            alert("Settings saved successfully.");
-        } else {
-            const data = await response.json();
-            throw new Error(data.error || "Unknown error");
+        if (!callsignResponse.ok) {
+            const data = await callsignResponse.json();
+            throw new Error(data.error || "Failed to save callsign");
         }
+
+        // Save license class to device
+        const licenseResponse = await fetch("/api/v1/license", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ license: licenseClass }),
+        });
+
+        if (!licenseResponse.ok) {
+            const data = await licenseResponse.json();
+            throw new Error(data.error || "Failed to save license class");
+        }
+
+        // Update the global AppState
+        AppState.callSign = callSign;
+        AppState.licenseClass = licenseClass;
+
+        // Update original values and reset save button
+        originalCallSignValue = callSignInput.value;
+        originalLicenseClass = licenseClass;
+        const saveCallSignBtn = document.getElementById("save-callsign-button");
+        if (saveCallSignBtn) {
+            saveCallSignBtn.disabled = true;
+            saveCallSignBtn.className = "btn-secondary";
+        }
+
+        alert("Settings saved successfully.");
     } catch (error) {
         Log.error("Settings", "Failed to save settings:", error);
         alert("Failed to save settings.");

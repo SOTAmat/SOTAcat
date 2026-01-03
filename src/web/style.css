@@ -335,7 +335,7 @@ a {
 .license-badges {
     display: flex;
     gap: var(--space-xs);
-    margin-top: var(--space-xs);
+    margin-left: var(--space-md);
 }
 
 .license-badge {
@@ -381,13 +381,16 @@ a {
     opacity: 0.8;
 }
 
-/* VFO warning states */
+/* VFO warning states - prominent background + thick border */
+/* Use pre-blended solid colors for mobile compatibility (blended with --gray-9 #212529) */
 .vfo-display.warning-mode {
-    border-color: var(--warning);
+    background: #3d3520;  /* warning yellow blended with gray-9 */
+    border: 3px solid var(--warning);
 }
 
 .vfo-display.warning-privilege {
-    border-color: var(--danger);
+    background: #4a2a2d;  /* danger red blended with gray-9 */
+    border: 3px solid var(--danger);
 }
 
 /* Warning message */

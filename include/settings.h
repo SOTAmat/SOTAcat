@@ -38,6 +38,9 @@ extern char g_gps_lon[MAX_GPS_LON_SIZE];
 #define MAX_CALLSIGN_SIZE 16
 extern char g_callsign[MAX_CALLSIGN_SIZE];
 
+#define MAX_LICENSE_CLASS_SIZE 4  // "T", "G", "E", or ""
+extern char g_license_class[MAX_LICENSE_CLASS_SIZE];
+
 // Tune targets - URLs to open when tuning (e.g., WebSDR, KiwiSDR)
 // Format: [{"url": "...", "enabled": true}, ...]
 #define MAX_TUNE_TARGETS      5
@@ -54,5 +57,7 @@ esp_err_t handler_gps_settings_get (httpd_req_t * req);
 esp_err_t handler_gps_settings_post (httpd_req_t * req);
 esp_err_t handler_callsign_settings_get (httpd_req_t * req);
 esp_err_t handler_callsign_settings_post (httpd_req_t * req);
+esp_err_t handler_license_settings_get (httpd_req_t * req);
+esp_err_t handler_license_settings_post (httpd_req_t * req);
 esp_err_t handler_tune_targets_get (httpd_req_t * req);
 esp_err_t handler_tune_targets_post (httpd_req_t * req);

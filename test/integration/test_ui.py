@@ -344,6 +344,50 @@ class SOTAcatUITests:
         assert input_el.input_value() == 'W1AW', "Callsign input should accept text"
 
     # =========================================================================
+    # License Privilege Badge Tests
+    # =========================================================================
+
+    def test_license_badges_exist(self):
+        """License class badges (T/G/E) exist on CAT page"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="cat"]')
+        time.sleep(0.5)
+        badge_t = self.page.locator('#badge-T')
+        badge_g = self.page.locator('#badge-G')
+        badge_e = self.page.locator('#badge-E')
+        assert badge_t.count() > 0, "Technician badge should exist"
+        assert badge_g.count() > 0, "General badge should exist"
+        assert badge_e.count() > 0, "Extra badge should exist"
+
+    def test_vfo_warning_element_exists(self):
+        """VFO warning element exists"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="cat"]')
+        time.sleep(0.5)
+        warning = self.page.locator('#vfo-warning')
+        assert warning.count() > 0, "VFO warning element should exist"
+
+    def test_license_class_dropdown_exists(self):
+        """License class dropdown exists in Settings"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        license_select = self.page.locator('#license-class')
+        assert license_select.count() > 0, "License class dropdown should exist"
+
+    def test_license_class_options(self):
+        """License class dropdown has correct options"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        options = self.page.locator('#license-class option')
+        assert options.count() >= 4, "Should have at least 4 options (none, T, G, E)"
+
+    # =========================================================================
     # JavaScript Error Check
     # =========================================================================
 
@@ -407,6 +451,13 @@ class SOTAcatUITests:
             print("\nInteraction Tests:")
             self.run_test("CW message input accepts text", self.test_cw_message_input_accepts_text)
             self.run_test("Callsign input accepts text", self.test_callsign_input_accepts_text)
+
+            # License privilege tests
+            print("\nLicense Privilege Tests:")
+            self.run_test("License badges exist", self.test_license_badges_exist)
+            self.run_test("VFO warning element exists", self.test_vfo_warning_element_exists)
+            self.run_test("License class dropdown exists", self.test_license_class_dropdown_exists)
+            self.run_test("License class options", self.test_license_class_options)
 
             # Final JS error check
             print("\nJavaScript Error Check:")

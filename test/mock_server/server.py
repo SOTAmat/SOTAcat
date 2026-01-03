@@ -52,6 +52,7 @@ DEFAULT_STATE = {
 
     # User settings (persisted to NVRAM on real device)
     "callsign": "N0CALL",
+    "license": "G",  # License class: T, G, E, or empty
     "gps_lat": "38.0522",
     "gps_lon": "-122.9694",
 
@@ -138,6 +139,19 @@ class MockSOTAcatServer:
             if 'callsign' in data:
                 self.state["callsign"] = data["callsign"].upper()
                 print(f"[MOCK] Callsign set to {self.state['callsign']}")
+            return '', 200
+
+        # License class
+        @self.app.route('/api/v1/license', methods=['GET'])
+        def get_license():
+            return jsonify({"license": self.state["license"]})
+
+        @self.app.route('/api/v1/license', methods=['POST'])
+        def set_license():
+            data = request.get_json() or {}
+            if 'license' in data:
+                self.state["license"] = data["license"].upper()
+                print(f"[MOCK] License set to {self.state['license']}")
             return '', 200
 
         # GPS
