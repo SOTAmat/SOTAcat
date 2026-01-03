@@ -315,9 +315,94 @@ a {
     margin-bottom: var(--space-lg);
     text-align: center;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    border: 2px solid transparent;
+    transition: border-color 0.2s ease;
+}
+
+/* Main frequency + mode row */
+.vfo-main {
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-md);
+}
+
+/* License class badges */
+.license-badges {
+    display: flex;
+    gap: var(--space-xs);
+    margin-top: var(--space-xs);
+}
+
+.license-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--gray-6);
+    background: transparent;
+    border: 2px solid var(--gray-7);
+    transition: all 0.2s ease;
+}
+
+/* Badge states */
+.license-badge.allowed {
+    color: var(--success);
+    border-color: var(--success);
+}
+
+.license-badge.denied {
+    color: var(--gray-6);
+    border-color: var(--gray-7);
+    opacity: 0.5;
+}
+
+/* User's own license class - slightly more prominent */
+.license-badge.user-class {
+    font-weight: 800;
+}
+
+.license-badge.user-class.allowed {
+    box-shadow: 0 0 0 2px rgba(64, 192, 87, 0.3);
+}
+
+.license-badge.user-class.denied {
+    color: var(--danger);
+    border-color: var(--danger);
+    opacity: 0.8;
+}
+
+/* VFO warning states */
+.vfo-display.warning-mode {
+    border-color: var(--warning);
+}
+
+.vfo-display.warning-privilege {
+    border-color: var(--danger);
+}
+
+/* Warning message */
+.vfo-warning {
+    font-size: var(--text-xs);
+    color: var(--warning);
+    min-height: 1em;
+}
+
+.vfo-warning:empty {
+    display: none;
+}
+
+.vfo-display.warning-privilege .vfo-warning {
+    color: var(--danger);
 }
 
 .frequency-display {
@@ -543,9 +628,26 @@ input.frequency-display {
     align-items: center;
 }
 
+/* Callsign and license class side by side */
+.callsign-license-row {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.callsign-license-row input {
+    flex: 1;
+}
+
+.callsign-license-row .select-control {
+    min-width: 90px;
+    flex-shrink: 0;
+}
+
 .input-row input,
 .input-grid input,
-.input-group-vertical input {
+.input-group-vertical input,
+.callsign-license-row input {
     flex: 1;
     min-height: var(--touch-target);
     padding: 0 var(--space-md);

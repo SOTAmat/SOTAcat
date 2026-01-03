@@ -18,6 +18,7 @@ idf_component_register(
         "web/favicon.ico"
         "web/style.cssgz"
         "web/main.jsgz"
+        "web/bandprivileges.jsgz"
         "web/chase.htmlgz"
         "web/chase.jsgz"
         "web/chase_api.jsgz"

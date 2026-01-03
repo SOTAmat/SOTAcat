@@ -172,6 +172,66 @@ function updateBandDisplay() {
     }
 }
 
+// Update license privilege badges and VFO warning states
+function updatePrivilegeDisplay() {
+    const vfoDisplay = document.getElementById("vfo-display");
+    const warningEl = document.getElementById("vfo-warning");
+    const badgeT = document.getElementById("badge-T");
+    const badgeG = document.getElementById("badge-G");
+    const badgeE = document.getElementById("badge-E");
+
+    if (!vfoDisplay || !badgeT || !badgeG || !badgeE) return;
+
+    const frequencyHz = AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ;
+    const mode = AppState.vfoMode || "USB";
+    const userLicense = getUserLicenseClass();
+
+    // Check privileges using bandprivileges.js functions
+    const status = checkPrivileges(frequencyHz, mode, userLicense);
+    const classStatus = getLicenseClassStatus(frequencyHz, mode);
+
+    // Update badge states
+    const badges = { T: badgeT, G: badgeG, E: badgeE };
+    for (const [cls, badge] of Object.entries(badges)) {
+        // Remove all state classes
+        badge.classList.remove("allowed", "denied", "user-class");
+
+        // Add allowed/denied based on whether this class can TX here
+        if (classStatus[cls]) {
+            badge.classList.add("allowed");
+        } else {
+            badge.classList.add("denied");
+        }
+
+        // Mark user's own license class
+        if (cls === userLicense) {
+            badge.classList.add("user-class");
+        }
+    }
+
+    // Update VFO container warning states
+    vfoDisplay.classList.remove("warning-mode", "warning-privilege");
+
+    if (!status.inBand) {
+        vfoDisplay.classList.add("warning-privilege");
+    } else if (!status.modeAllowed) {
+        vfoDisplay.classList.add("warning-mode");
+    } else if (userLicense && !status.userCanTransmit) {
+        vfoDisplay.classList.add("warning-privilege");
+    }
+
+    // Update warning message
+    if (warningEl) {
+        if (status.warning) {
+            warningEl.textContent = status.warning;
+        } else if (status.edgeWarning) {
+            warningEl.textContent = status.edgeWarning;
+        } else {
+            warningEl.textContent = "";
+        }
+    }
+}
+
 // ============================================================================
 // Frequency Editing Functions
 // ============================================================================
@@ -295,6 +355,7 @@ function setFrequency(frequencyHz) {
     AppState.vfoLastUpdated = Date.now();
     updateFrequencyDisplay();
     updateBandDisplay();
+    updatePrivilegeDisplay();
     notifyVfoSubscribers();
 
     // Debounce frequency updates to avoid flooding the radio
@@ -353,6 +414,7 @@ async function setMode(mode) {
             AppState.vfoMode = actualMode;
             AppState.vfoLastUpdated = Date.now();
             updateModeDisplay();
+            updatePrivilegeDisplay();
             notifyVfoSubscribers();
             Log.debug("CAT", "Mode updated:", actualMode);
         } else {
@@ -478,6 +540,7 @@ async function getCurrentVfoState() {
         // Notify subscribers if anything changed
         if (changed) {
             AppState.vfoLastUpdated = Date.now();
+            updatePrivilegeDisplay();
             notifyVfoSubscribers();
         }
     } catch (error) {
@@ -522,6 +585,8 @@ async function startVfoUpdates() {
             updateModeDisplay();
             Log.debug("CAT", "Initial mode loaded:", AppState.vfoMode);
         }
+        // Update privilege display with initial state
+        updatePrivilegeDisplay();
         // Notify subscribers of initial state
         AppState.vfoLastUpdated = Date.now();
         notifyVfoSubscribers();

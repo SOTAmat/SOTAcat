@@ -17,6 +17,7 @@ static const char * TAG8 = "sc:webserve";
 
 DECLARE_ASSET (about_htmlgz)
 DECLARE_ASSET (about_jsgz)
+DECLARE_ASSET (bandprivileges_jsgz)
 DECLARE_ASSET (cat_htmlgz)
 DECLARE_ASSET (cat_jsgz)
 DECLARE_ASSET (chase_api_jsgz)
@@ -57,13 +58,14 @@ static const asset_entry_t asset_map[] = {
     {"/chase.html",    chase_htmlgz_srt,    chase_htmlgz_end,    "text/html",       true,  300  },
     {"/settings.html", settings_htmlgz_srt, settings_htmlgz_end, "text/html",       true,  300  },
     // JS/CSS - medium cache (versioned with firmware)
-    {"/about.js",      about_jsgz_srt,      about_jsgz_end,      "text/javascript", true,  3600 }, // 1 hour
-    {"/cat.js",        cat_jsgz_srt,        cat_jsgz_end,        "text/javascript", true,  3600 },
-    {"/chase.js",      chase_jsgz_srt,      chase_jsgz_end,      "text/javascript", true,  3600 },
-    {"/chase_api.js",  chase_api_jsgz_srt,  chase_api_jsgz_end,  "text/javascript", true,  3600 },
-    {"/main.js",       main_jsgz_srt,       main_jsgz_end,       "text/javascript", true,  3600 },
-    {"/settings.js",   settings_jsgz_srt,   settings_jsgz_end,   "text/javascript", true,  3600 },
-    {"/style.css",     style_cssgz_srt,     style_cssgz_end,     "text/css",        true,  3600 },
+    {"/about.js",           about_jsgz_srt,           about_jsgz_end,           "text/javascript", true,  3600 }, // 1 hour
+    {"/bandprivileges.js",  bandprivileges_jsgz_srt,  bandprivileges_jsgz_end,  "text/javascript", true,  3600 },
+    {"/cat.js",             cat_jsgz_srt,             cat_jsgz_end,             "text/javascript", true,  3600 },
+    {"/chase.js",           chase_jsgz_srt,           chase_jsgz_end,           "text/javascript", true,  3600 },
+    {"/chase_api.js",       chase_api_jsgz_srt,       chase_api_jsgz_end,       "text/javascript", true,  3600 },
+    {"/main.js",            main_jsgz_srt,            main_jsgz_end,            "text/javascript", true,  3600 },
+    {"/settings.js",        settings_jsgz_srt,        settings_jsgz_end,        "text/javascript", true,  3600 },
+    {"/style.css",          style_cssgz_srt,          style_cssgz_end,          "text/css",        true,  3600 },
     // Images - long cache (never change)
     {"/favicon.ico",   favicon_ico_srt,     favicon_ico_end,     "image/x-icon",    false, 86400}, // 1 day
     {"/sclogo.jpg",    sclogo_jpg_srt,      sclogo_jpg_end,      "image/jpeg",      false, 86400},

@@ -8,17 +8,25 @@
 
         <div class="section-content" id="tune-section">
             <!-- VFO Display -->
-            <div class="vfo-display">
-                <div class="frequency-display" id="current-frequency">14.225.000</div>
-                <input
-                    type="text"
-                    class="frequency-display"
-                    id="frequency-input"
-                    inputmode="decimal"
-                    pattern="[0-9.,]*"
-                    style="display: none"
-                />
-                <div class="mode-display" id="current-mode">USB</div>
+            <div class="vfo-display" id="vfo-display">
+                <div class="vfo-main">
+                    <div class="frequency-display" id="current-frequency">14.225.000</div>
+                    <input
+                        type="text"
+                        class="frequency-display"
+                        id="frequency-input"
+                        inputmode="decimal"
+                        pattern="[0-9.,]*"
+                        style="display: none"
+                    />
+                    <div class="mode-display" id="current-mode">USB</div>
+                </div>
+                <div class="license-badges" id="license-badges">
+                    <span class="license-badge" id="badge-T" title="Technician">T</span>
+                    <span class="license-badge" id="badge-G" title="General">G</span>
+                    <span class="license-badge" id="badge-E" title="Extra">E</span>
+                </div>
+                <div class="vfo-warning" id="vfo-warning"></div>
             </div>
 
             <!-- Frequency Controls - Logical 2x3 Grid -->

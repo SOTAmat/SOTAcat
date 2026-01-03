@@ -24,23 +24,31 @@
         </div>
     </div>
 
-    <!-- Call Sign Card -->
+    <!-- Call Sign & License Card -->
     <div class="settings-card">
-        <h2>Call Sign</h2>
-        <p class="settings-info">Enter your amateur radio call sign</p>
+        <h2>Call Sign & License</h2>
+        <p class="settings-info">Your amateur radio call sign and FCC license class</p>
         <div class="input-group-vertical">
-            <input
-                type="text"
-                id="callsign"
-                placeholder="e.g. W1AW"
-                pattern="^[A-Z0-9\/]*$"
-                inputmode="text"
-                autocapitalize="characters"
-                style="text-transform: uppercase"
-                maxlength="15"
-            />
+            <div class="callsign-license-row">
+                <input
+                    type="text"
+                    id="callsign"
+                    placeholder="e.g. W1AW"
+                    pattern="^[A-Z0-9\/]*$"
+                    inputmode="text"
+                    autocapitalize="characters"
+                    style="text-transform: uppercase"
+                    maxlength="15"
+                />
+                <select id="license-class" class="select-control">
+                    <option value="">--</option>
+                    <option value="T">Tech</option>
+                    <option value="G">General</option>
+                    <option value="E">Extra</option>
+                </select>
+            </div>
             <div class="button-group">
-                <button id="save-callsign-button" class="btn-secondary" disabled>Save Call Sign</button>
+                <button id="save-callsign-button" class="btn-secondary" disabled>Save</button>
             </div>
         </div>
     </div>

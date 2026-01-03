@@ -36,46 +36,60 @@ async function syncTime() {
 }
 
 // ============================================================================
-// Callsign Management Functions
+// Callsign & License Class Management Functions
 // ============================================================================
 
-// Track the original callsign value to detect changes
+// Track the original values to detect changes
 let originalCallSignValue = "";
+let originalLicenseClass = "";
 
-// Load saved callsign from device and populate input field
+// Load saved callsign from device and license class from localStorage
 async function loadCallSign() {
     await ensureCallSignLoaded();
     const callSignInput = document.getElementById("callsign");
+    const licenseSelect = document.getElementById("license-class");
     const saveCallSignBtn = document.getElementById("save-callsign-button");
 
     callSignInput.value = AppState.callSign || "";
 
-    // Store original value and reset save button
+    // Load license class from localStorage
+    const savedLicense = localStorage.getItem("sotacat_licenseClass") || "";
+    if (licenseSelect) {
+        licenseSelect.value = savedLicense;
+    }
+
+    // Store original values and reset save button
     originalCallSignValue = callSignInput.value;
+    originalLicenseClass = savedLicense;
     if (saveCallSignBtn) {
         saveCallSignBtn.disabled = true;
         saveCallSignBtn.className = "btn-secondary";
     }
 }
 
-// Enable save button when callsign input changes from original value
+// Enable save button when callsign or license class changes from original value
 function onCallSignInputChange() {
     const callSignInput = document.getElementById("callsign");
+    const licenseSelect = document.getElementById("license-class");
     const saveCallSignBtn = document.getElementById("save-callsign-button");
 
     if (saveCallSignBtn) {
-        const hasChanged = callSignInput.value !== originalCallSignValue;
+        const callSignChanged = callSignInput.value !== originalCallSignValue;
+        const licenseChanged = licenseSelect && licenseSelect.value !== originalLicenseClass;
+        const hasChanged = callSignChanged || licenseChanged;
         saveCallSignBtn.disabled = !hasChanged;
         saveCallSignBtn.className = hasChanged ? "btn-primary" : "btn-secondary";
     }
 }
 
-// Save operator callsign to device (validates A-Z, 0-9, and / only)
+// Save operator callsign to device and license class to localStorage
 async function saveCallSign() {
     const callSignInput = document.getElementById("callsign");
+    const licenseSelect = document.getElementById("license-class");
     const callSign = callSignInput.value.toUpperCase().trim();
+    const licenseClass = licenseSelect ? licenseSelect.value : "";
 
-    // Validate the input using regex - uppercase letters, numbers, and slashes only
+    // Validate the callsign using regex - uppercase letters, numbers, and slashes only
     const callSignPattern = /^[A-Z0-9\/]*$/;
     if (!callSignPattern.test(callSign) && callSign !== "") {
         alert("Call sign can only contain uppercase letters, numbers, and slashes (/)");
@@ -97,22 +111,30 @@ async function saveCallSign() {
             // Update the global AppState
             AppState.callSign = callSign;
 
-            // Update original value and reset save button
+            // Save license class to localStorage
+            if (licenseClass) {
+                localStorage.setItem("sotacat_licenseClass", licenseClass);
+            } else {
+                localStorage.removeItem("sotacat_licenseClass");
+            }
+
+            // Update original values and reset save button
             originalCallSignValue = callSignInput.value;
+            originalLicenseClass = licenseClass;
             const saveCallSignBtn = document.getElementById("save-callsign-button");
             if (saveCallSignBtn) {
                 saveCallSignBtn.disabled = true;
                 saveCallSignBtn.className = "btn-secondary";
             }
 
-            alert("Call sign saved successfully.");
+            alert("Settings saved successfully.");
         } else {
             const data = await response.json();
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
-        Log.error("Settings", "Failed to save call sign:", error);
-        alert("Failed to save call sign.");
+        Log.error("Settings", "Failed to save settings:", error);
+        alert("Failed to save settings.");
     }
 }
 
@@ -982,6 +1004,12 @@ function attachSettingsEventListeners() {
             // Update save button state based on changes
             onCallSignInputChange();
         });
+    }
+
+    // License class select - track changes
+    const licenseClassSelect = document.getElementById("license-class");
+    if (licenseClassSelect) {
+        licenseClassSelect.addEventListener("change", onCallSignInputChange);
     }
 
     // GPS input and buttons
