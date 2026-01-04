@@ -970,15 +970,7 @@ async function manualCheckFirmwareVersion() {
 // Event Handler Attachment
 // ============================================================================
 
-let submitSettingsAttached = false;
 let settingsEventListenersAttached = false;
-
-// Attach WiFi settings form submit handler (called once)
-function attachSubmitSettings() {
-    const wifiForm = document.getElementById("wifi-settings");
-    wifiForm.addEventListener("submit", onSubmitSettings);
-    submitSettingsAttached = true;
-}
 
 // Attach all Settings page event listeners
 function attachSettingsEventListeners() {
@@ -987,6 +979,12 @@ function attachSettingsEventListeners() {
         return;
     }
     settingsEventListenersAttached = true;
+
+    // WiFi settings form submit
+    const wifiForm = document.getElementById("wifi-settings");
+    if (wifiForm) {
+        wifiForm.addEventListener("submit", onSubmitSettings);
+    }
 
     // Sync time button
     const syncTimeBtn = document.getElementById("sync-time-button");
@@ -1137,11 +1135,10 @@ function attachSettingsEventListeners() {
 // Called when Settings tab becomes visible
 function onSettingsAppearing() {
     fetchSettings();
-    if (!submitSettingsAttached) attachSubmitSettings();
+    attachSettingsEventListeners();
     loadCallSign();
     loadGpsLocation();
     loadTuneTargets();
-    attachSettingsEventListeners();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }
 
@@ -1151,8 +1148,7 @@ function onSettingsLeaving() {
     // Clean up document-level event listener to prevent memory leaks
     document.removeEventListener("click", handleClickOutsidePopup);
 
-    // Reset event listener flags so they can be reattached when returning to this tab
+    // Reset event listener flag so it can be reattached when returning to this tab
     // (necessary because DOM is recreated on each tab switch)
-    submitSettingsAttached = false;
     settingsEventListenersAttached = false;
 }

@@ -781,6 +781,93 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
 }
 
 // ============================================================================
+// Event Handler Attachment
+// ============================================================================
+
+// Attach all Chase page event listeners
+function attachChaseEventListeners() {
+    // Only attach once to prevent memory leaks
+    if (ChaseState.chaseEventListenersAttached) {
+        return;
+    }
+    ChaseState.chaseEventListenersAttached = true;
+
+    const refreshButton = document.getElementById("refresh-button");
+    if (refreshButton) {
+        refreshButton.addEventListener("click", () => {
+            if (ChaseState.autoRefreshEnabled) {
+                // Currently in auto-refresh mode - turn it off
+                stopAutoRefresh();
+            } else if (shouldSuggestAutoRefresh()) {
+                // Suggesting auto-refresh - turn it on
+                startAutoRefresh();
+                // Also do an immediate refresh
+                refreshChaseJson(true);
+            } else {
+                // Normal manual refresh
+                refreshChaseJson(true);
+            }
+        });
+    }
+
+    // Update button label to reflect current state
+    updateRefreshButtonLabel();
+
+    // Load all saved settings
+    loadSortState();
+
+    // Load and apply filters
+    loadGlobalModeFilter();
+    loadTypeFilter();
+
+    const modeSelector = document.getElementById("mode-filter");
+    if (modeSelector) {
+        modeSelector.onchange = function () {
+            onModeFilterChange(this.value);
+        };
+    }
+
+    const typeSelector = document.getElementById("type-filter");
+    if (typeSelector) {
+        typeSelector.onchange = function () {
+            onTypeFilterChange(this.value);
+        };
+    }
+
+    // Set up column sorting
+    const headers = document.querySelectorAll("#chase-table th");
+    headers.forEach((header) => {
+        const sortSpan = header.querySelector("span[data-sort-field]");
+        if (sortSpan) {
+            header.replaceWith(header.cloneNode(true));
+            const newHeader = document
+                .querySelector(
+                    `#chase-table th span[data-sort-field='${sortSpan.getAttribute("data-sort-field")}']`
+                )
+                .closest("th");
+
+            newHeader.addEventListener("click", function () {
+                const clickedSortField = sortSpan.getAttribute("data-sort-field");
+                if (clickedSortField === ChaseState.lastSortField) {
+                    ChaseState.descending = !ChaseState.descending;
+                } else {
+                    ChaseState.lastSortField = clickedSortField;
+                    ChaseState.descending = true;
+                }
+                ChaseState.sortField = clickedSortField;
+                saveSortState();
+                updateSortIndicators(
+                    document.querySelectorAll("#chase-table th"),
+                    ChaseState.sortField,
+                    ChaseState.descending
+                );
+                updateChaseTable();
+            });
+        }
+    });
+}
+
+// ============================================================================
 // Page Lifecycle
 // ============================================================================
 
@@ -801,84 +888,8 @@ function onChaseAppearing() {
     // Load auto-refresh preference
     loadAutoRefreshEnabled();
 
-    // Attach refresh button event listener (only once to prevent memory leaks)
-    if (!ChaseState.chaseEventListenersAttached) {
-        ChaseState.chaseEventListenersAttached = true;
-
-        const refreshButton = document.getElementById("refresh-button");
-        if (refreshButton) {
-            refreshButton.addEventListener("click", () => {
-                if (ChaseState.autoRefreshEnabled) {
-                    // Currently in auto-refresh mode - turn it off
-                    stopAutoRefresh();
-                } else if (shouldSuggestAutoRefresh()) {
-                    // Suggesting auto-refresh - turn it on
-                    startAutoRefresh();
-                    // Also do an immediate refresh
-                    refreshChaseJson(true);
-                } else {
-                    // Normal manual refresh
-                    refreshChaseJson(true);
-                }
-            });
-        }
-
-        // Update button label to reflect current state
-        updateRefreshButtonLabel();
-
-        // Load all saved settings
-        loadSortState();
-
-        // Load and apply filters
-        loadGlobalModeFilter();
-        loadTypeFilter();
-
-        const modeSelector = document.getElementById("mode-filter");
-        if (modeSelector) {
-            modeSelector.onchange = function () {
-                onModeFilterChange(this.value);
-            };
-        }
-
-        const typeSelector = document.getElementById("type-filter");
-        if (typeSelector) {
-            typeSelector.onchange = function () {
-                onTypeFilterChange(this.value);
-            };
-        }
-
-        // Set up column sorting
-        const headers = document.querySelectorAll("#chase-table th");
-        headers.forEach((header) => {
-            const sortSpan = header.querySelector("span[data-sort-field]");
-            if (sortSpan) {
-                header.replaceWith(header.cloneNode(true));
-                const newHeader = document
-                    .querySelector(
-                        `#chase-table th span[data-sort-field='${sortSpan.getAttribute("data-sort-field")}']`
-                    )
-                    .closest("th");
-
-                newHeader.addEventListener("click", function () {
-                    const clickedSortField = sortSpan.getAttribute("data-sort-field");
-                    if (clickedSortField === ChaseState.lastSortField) {
-                        ChaseState.descending = !ChaseState.descending;
-                    } else {
-                        ChaseState.lastSortField = clickedSortField;
-                        ChaseState.descending = true;
-                    }
-                    ChaseState.sortField = clickedSortField;
-                    saveSortState();
-                    updateSortIndicators(
-                        document.querySelectorAll("#chase-table th"),
-                        ChaseState.sortField,
-                        ChaseState.descending
-                    );
-                    updateChaseTable();
-                });
-            }
-        });
-    }
+    // Attach event listeners for all controls
+    attachChaseEventListeners();
 
     // Set filter dropdown values (do this every time for state consistency)
     const modeSelector = document.getElementById("mode-filter");

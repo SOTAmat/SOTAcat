@@ -22,7 +22,6 @@ const CatState = {
     lastFrequencyChange: 0,
 
     // UI state
-    messageInputListenersAttached: false,
     catEventListenersAttached: false,
 };
 
@@ -831,15 +830,15 @@ function attachCatEventListeners() {
         });
     });
 
-    // CW input validation - enable/disable Send buttons based on input content
+    // CW input validation - enable/disable Send buttons and persist values
     ["cw-message-1", "cw-message-2", "cw-message-3"].forEach((inputId) => {
         const input = document.getElementById(inputId);
         const button = document.querySelector(`.btn-send[data-message-input="${inputId}"]`);
         if (input && button) {
-            // Update button state when input changes
             input.addEventListener("input", () => {
                 const hasContent = input.value.trim().length > 0;
                 button.disabled = !hasContent;
+                saveInputValues();
             });
         }
     });
@@ -867,13 +866,6 @@ function onCatAppearing() {
     loadInputValues();
     loadCollapsibleStates();
 
-    if (!CatState.messageInputListenersAttached) {
-        CatState.messageInputListenersAttached = true;
-        document.getElementById("cw-message-1").addEventListener("input", saveInputValues);
-        document.getElementById("cw-message-2").addEventListener("input", saveInputValues);
-        document.getElementById("cw-message-3").addEventListener("input", saveInputValues);
-    }
-
     // Attach event listeners for all controls
     attachCatEventListeners();
 
@@ -888,8 +880,7 @@ function onCatLeaving() {
     Log.info("CAT", "tab leaving");
     stopVfoUpdates();
 
-    // Reset event listener flags so they can be reattached when returning to this tab
+    // Reset event listener flag so they can be reattached when returning to this tab
     // (necessary because DOM is recreated on each tab switch)
     CatState.catEventListenersAttached = false;
-    CatState.messageInputListenersAttached = false;
 }
