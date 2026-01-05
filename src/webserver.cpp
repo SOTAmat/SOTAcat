@@ -30,6 +30,8 @@ DECLARE_ASSET (sclogo_jpg)
 DECLARE_ASSET (settings_htmlgz)
 DECLARE_ASSET (settings_jsgz)
 DECLARE_ASSET (style_cssgz)
+DECLARE_ASSET (wrx_htmlgz)
+DECLARE_ASSET (wrx_jsgz)
 
 /**
  * Structure to map web URI to embedded binary asset locations.
@@ -57,6 +59,7 @@ static const asset_entry_t asset_map[] = {
     {"/cat.html",      cat_htmlgz_srt,      cat_htmlgz_end,      "text/html",       true,  300  },
     {"/chase.html",    chase_htmlgz_srt,    chase_htmlgz_end,    "text/html",       true,  300  },
     {"/settings.html", settings_htmlgz_srt, settings_htmlgz_end, "text/html",       true,  300  },
+    {"/wrx.html",      wrx_htmlgz_srt,      wrx_htmlgz_end,      "text/html",       true,  300  },
     // JS/CSS - medium cache (versioned with firmware)
     {"/about.js",           about_jsgz_srt,           about_jsgz_end,           "text/javascript", true,  3600 }, // 1 hour
     {"/bandprivileges.js",  bandprivileges_jsgz_srt,  bandprivileges_jsgz_end,  "text/javascript", true,  3600 },
@@ -65,6 +68,7 @@ static const asset_entry_t asset_map[] = {
     {"/chase_api.js",       chase_api_jsgz_srt,       chase_api_jsgz_end,       "text/javascript", true,  3600 },
     {"/main.js",            main_jsgz_srt,            main_jsgz_end,            "text/javascript", true,  3600 },
     {"/settings.js",        settings_jsgz_srt,        settings_jsgz_end,        "text/javascript", true,  3600 },
+    {"/wrx.js",             wrx_jsgz_srt,             wrx_jsgz_end,             "text/javascript", true,  3600 },
     {"/style.css",          style_cssgz_srt,          style_cssgz_end,          "text/css",        true,  3600 },
     // Images - long cache (never change)
     {"/favicon.ico",   favicon_ico_srt,     favicon_ico_end,     "image/x-icon",    false, 86400}, // 1 day
