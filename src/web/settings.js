@@ -64,7 +64,7 @@ async function loadCallSign() {
     originalLicenseClass = savedLicense;
     if (saveCallSignBtn) {
         saveCallSignBtn.disabled = true;
-        saveCallSignBtn.className = "btn-secondary";
+        saveCallSignBtn.className = "btn btn-secondary";
     }
 }
 
@@ -79,7 +79,7 @@ function onCallSignInputChange() {
         const licenseChanged = licenseSelect && licenseSelect.value !== originalLicenseClass;
         const hasChanged = callSignChanged || licenseChanged;
         saveCallSignBtn.disabled = !hasChanged;
-        saveCallSignBtn.className = hasChanged ? "btn-primary" : "btn-secondary";
+        saveCallSignBtn.className = hasChanged ? "btn btn-primary" : "btn btn-secondary";
     }
 }
 
@@ -132,7 +132,7 @@ async function saveCallSign() {
         const saveCallSignBtn = document.getElementById("save-callsign-button");
         if (saveCallSignBtn) {
             saveCallSignBtn.disabled = true;
-            saveCallSignBtn.className = "btn-secondary";
+            saveCallSignBtn.className = "btn btn-secondary";
         }
 
         alert("Settings saved successfully.");
@@ -189,7 +189,7 @@ async function loadGpsLocation() {
     originalGpsValue = gpsLocationInput.value;
     if (saveGpsBtn) {
         saveGpsBtn.disabled = true;
-        saveGpsBtn.className = "btn-secondary";
+        saveGpsBtn.className = "btn btn-secondary";
     }
 }
 
@@ -202,9 +202,9 @@ function onGpsInputChange() {
         const hasChanged = gpsLocationInput.value !== originalGpsValue;
         saveGpsBtn.disabled = !hasChanged;
         if (hasChanged) {
-            saveGpsBtn.className = "btn-primary";
+            saveGpsBtn.className = "btn btn-primary";
         } else {
-            saveGpsBtn.className = "btn-secondary";
+            saveGpsBtn.className = "btn btn-secondary";
         }
     }
 }
@@ -247,7 +247,7 @@ async function saveGpsLocation() {
             originalGpsValue = gpsLocationInput.value;
             if (saveGpsBtn) {
                 saveGpsBtn.disabled = true;
-                saveGpsBtn.className = "btn-secondary";
+                saveGpsBtn.className = "btn btn-secondary";
             }
 
             alert(`Location saved: (${latitude}, ${longitude})`);
@@ -339,7 +339,7 @@ async function loadTuneTargets() {
     // Reset save button
     if (saveBtn) {
         saveBtn.disabled = true;
-        saveBtn.className = "btn-secondary";
+        saveBtn.className = "btn btn-secondary";
     }
 
     // Update example button states
@@ -445,7 +445,7 @@ function renderTuneTargetsFromArray(targets) {
         // Remove button
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
-        removeBtn.className = "btn-icon btn-remove";
+        removeBtn.className = "btn btn-icon btn-remove";
         removeBtn.textContent = "−";
         removeBtn.title = "Remove target";
         removeBtn.addEventListener("click", () => removeTuneTarget(index));
@@ -516,7 +516,7 @@ function updateTuneTargetsSaveButton() {
     if (saveBtn) {
         const hasChanged = haveTuneTargetsChanged();
         saveBtn.disabled = !hasChanged;
-        saveBtn.className = hasChanged ? "btn-primary" : "btn-secondary";
+        saveBtn.className = hasChanged ? "btn btn-primary" : "btn btn-secondary";
     }
 }
 
@@ -602,7 +602,7 @@ async function saveTuneTargets() {
     const saveBtn = document.getElementById("save-tune-targets-button");
     if (saveBtn) {
         saveBtn.disabled = true;
-        saveBtn.className = "btn-secondary";
+        saveBtn.className = "btn btn-secondary";
     }
 
     if (savedToDevice) {
@@ -733,7 +733,7 @@ function updateWifiSaveButton() {
     if (saveWifiBtn) {
         const hasChanged = hasWifiChanged();
         saveWifiBtn.disabled = !hasChanged;
-        saveWifiBtn.className = hasChanged ? "btn-primary btn-large" : "btn-secondary btn-large";
+        saveWifiBtn.className = hasChanged ? "btn btn-primary btn-large" : "btn btn-secondary btn-large";
     }
 }
 
@@ -872,14 +872,14 @@ function updateButtonText() {
         const fileName = fileInput.files[0].name;
         uploadButton.textContent = `Upload ${fileName}`;
         uploadButton.disabled = false;
-        uploadButton.className = "btn-primary";
+        uploadButton.className = "btn btn-primary";
         if (stepNumber) {
             stepNumber.classList.remove("step-number-disabled");
         }
     } else {
         uploadButton.textContent = "Upload Firmware";
         uploadButton.disabled = true;
-        uploadButton.className = "btn-secondary";
+        uploadButton.className = "btn btn-secondary";
         if (stepNumber) {
             stepNumber.classList.add("step-number-disabled");
         }

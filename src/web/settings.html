@@ -3,7 +3,7 @@
     <div class="settings-card">
         <h2>Clock Sync</h2>
         <p class="settings-info">Synchronize your KX radio clock with your phone</p>
-        <button id="sync-time-button" class="btn-primary">Sync Clock Now</button>
+        <button id="sync-time-button" class="btn btn-primary">Sync Clock Now</button>
     </div>
 
     <!-- Location Card -->
@@ -18,8 +18,8 @@
                 pattern="^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$"
             />
             <div class="button-group">
-                <button id="get-browser-location-button" class="btn-primary">Locate Me</button>
-                <button id="save-gps-button" class="btn-secondary" disabled>Save Location</button>
+                <button id="get-browser-location-button" class="btn btn-primary">Locate Me</button>
+                <button id="save-gps-button" class="btn btn-secondary" disabled>Save Location</button>
             </div>
         </div>
     </div>
@@ -48,7 +48,7 @@
                 </select>
             </div>
             <div class="button-group">
-                <button id="save-callsign-button" class="btn-secondary" disabled>Save</button>
+                <button id="save-callsign-button" class="btn btn-secondary" disabled>Save</button>
             </div>
         </div>
     </div>
@@ -57,7 +57,7 @@
     <div class="settings-card">
         <h2>
             WiFi Configuration
-            <button type="button" id="wifi-help-button" class="btn-info">
+            <button type="button" id="wifi-help-button" class="btn btn-info">
                 <span class="info-icon">ⓘ</span>
             </button>
         </h2>
@@ -68,7 +68,7 @@
             <div class="help-popup-content">
                 <div class="help-popup-header">
                     <h3>WiFi Configuration Help</h3>
-                    <button type="button" id="wifi-help-close-button" class="btn-close">×</button>
+                    <button type="button" id="wifi-help-close-button" class="btn btn-close">×</button>
                 </div>
                 <div class="help-popup-body">
                     <p>
@@ -222,7 +222,7 @@
                 </label>
             </div>
 
-            <button type="submit" id="save-wifi-button" class="btn-secondary btn-large" disabled>Save and Reboot</button>
+            <button type="submit" id="save-wifi-button" class="btn btn-secondary btn-large" disabled>Save and Reboot</button>
         </form>
     </div>
 
@@ -230,7 +230,7 @@
     <div class="settings-card">
         <h2>
             Tune Targets
-            <button type="button" id="tune-targets-help-button" class="btn-info">
+            <button type="button" id="tune-targets-help-button" class="btn btn-info">
                 <span class="info-icon">ⓘ</span>
             </button>
         </h2>
@@ -244,7 +244,7 @@
             <div class="help-popup-content">
                 <div class="help-popup-header">
                     <h3>Tune Targets Help</h3>
-                    <button type="button" id="tune-targets-help-close-button" class="btn-close">×</button>
+                    <button type="button" id="tune-targets-help-close-button" class="btn btn-close">×</button>
                 </div>
                 <div class="help-popup-body">
                     <p>
@@ -306,7 +306,7 @@
         </div>
 
         <div class="button-group tune-targets-buttons">
-            <button type="button" id="add-tune-target-button" class="btn-icon" title="Add empty target">+</button>
+            <button type="button" id="add-tune-target-button" class="btn btn-icon" title="Add empty target">+</button>
         </div>
 
         <label class="checkbox-label">
@@ -315,7 +315,7 @@
         </label>
 
         <div class="button-group">
-            <button id="save-tune-targets-button" class="btn-secondary" disabled>Save Tune Targets</button>
+            <button id="save-tune-targets-button" class="btn btn-secondary" disabled>Save Tune Targets</button>
         </div>
     </div>
 
@@ -330,7 +330,7 @@
                 <span class="step-number">1</span>
                 <div class="step-content">
                     <p>Check for available updates</p>
-                    <button id="check-updates-button" class="btn-secondary">Check Updates</button>
+                    <button id="check-updates-button" class="btn btn-secondary">Check Updates</button>
                 </div>
             </div>
 
@@ -338,7 +338,7 @@
                 <span class="step-number">2</span>
                 <div class="step-content">
                     <p>Download firmware to your device</p>
-                    <button id="download-firmware-button" class="btn-secondary">Download Firmware</button>
+                    <button id="download-firmware-button" class="btn btn-secondary">Download Firmware</button>
                 </div>
             </div>
 
@@ -346,7 +346,7 @@
                 <span class="step-number">3</span>
                 <div class="step-content">
                     <p>Select downloaded firmware file</p>
-                    <button id="select-file-button" class="btn-secondary">Select File</button>
+                    <button id="select-file-button" class="btn btn-secondary">Select File</button>
                     <input type="file" id="ota-file" accept=".bin" style="display: none" />
                 </div>
             </div>
@@ -355,7 +355,7 @@
                 <span class="step-number step-number-disabled" id="upload-step-number">4</span>
                 <div class="step-content">
                     <p>Install firmware to SOTACAT</p>
-                    <button class="btn-secondary" id="upload-button" disabled>Install Firmware</button>
+                    <button class="btn btn-secondary" id="upload-button" disabled>Install Firmware</button>
                 </div>
             </div>
         </div>

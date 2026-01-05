@@ -5,8 +5,11 @@
     --primary-dark: #1971c2;
     --primary-light: #4dabf7;
     --success: #40c057;
+    --success-dark: #37a34a;
     --danger: #fa5252;
+    --danger-dark: #e03131;
     --warning: #fab005;
+    --warning-dark: #e9a100;
     --dark: #212529;
     --gray-9: #212529;
     --gray-8: #343a40;
@@ -29,6 +32,14 @@
     --text-secondary: var(--gray-6);
     --text-on-dark: var(--white);
     --border: var(--gray-3);
+
+    /* Warning state backgrounds (pre-blended with --gray-9 for mobile) */
+    --bg-warning-blend: #3d3520;
+    --bg-danger-blend: #4a2a2d;
+
+    /* My-spot row highlight */
+    --bg-my-spot: #fffbeb;
+    --border-my-spot: #f59e0b;
 
     /* Typography */
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -60,6 +71,9 @@
     /* Touch Targets */
     --touch-target: 48px;
     --touch-target-sm: 40px;
+
+    /* Table Layout */
+    --table-header-height: 41px;
 }
 
 /* =========================== Reset & Base */
@@ -192,8 +206,8 @@ a {
 
 /* =========================== Consolidated Button System */
 
-/* Base button styles - applies to ALL buttons with btn- classes */
-[class*="btn-"] {
+/* Base button styles - requires .btn class on element */
+.btn {
     border: none;
     border-radius: var(--radius-md);
     font-weight: 600;
@@ -210,23 +224,26 @@ a {
 }
 
 /* Active state for all buttons */
-[class*="btn-"]:active:not(:disabled) {
+.btn:active:not(:disabled) {
     transform: scale(0.95);
 }
 
 /* Disabled state for all buttons */
-[class*="btn-"]:disabled {
-    opacity: 0.5;
+.btn:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* Focus-visible for keyboard navigation */
+.btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 /* Button color variants */
 .btn-primary {
     background: var(--primary);
     color: var(--white);
-}
-.btn-primary:hover:not(:disabled) {
-    background: var(--primary-dark);
 }
 .btn-primary:active:not(:disabled) {
     background: var(--primary-dark);
@@ -235,9 +252,6 @@ a {
 .btn-secondary {
     background: var(--gray-2);
     color: var(--text-primary);
-}
-.btn-secondary:hover:not(:disabled) {
-    background: var(--gray-3);
 }
 .btn-secondary:active:not(:disabled) {
     background: var(--gray-3);
@@ -249,22 +263,16 @@ a {
     min-height: var(--touch-target-sm);
     font-size: var(--text-sm);
 }
-.btn-refresh:hover:not(:disabled) {
-    background: var(--primary-dark);
-}
 .btn-refresh:active:not(:disabled) {
     background: var(--primary-dark);
 }
 
 .btn-auto-refresh-active {
-    background: var(--success) !important;
+    background: var(--success);
     box-shadow: 0 0 0 3px rgba(64, 192, 87, 0.2);
 }
-.btn-auto-refresh-active:hover:not(:disabled) {
-    background: #37a34a !important;
-}
 .btn-auto-refresh-active:active:not(:disabled) {
-    background: #37a34a !important;
+    background: var(--success-dark);
 }
 
 .btn-info {
@@ -278,9 +286,6 @@ a {
     height: 32px;
     min-height: 32px;
 }
-.btn-info:hover:not(:disabled) {
-    background: rgba(34, 139, 230, 0.1);
-}
 
 .btn-close {
     background: none;
@@ -291,10 +296,6 @@ a {
     width: 32px;
     height: 32px;
     min-height: 32px;
-}
-.btn-close:hover:not(:disabled) {
-    background: var(--gray-2);
-    color: var(--gray-8);
 }
 
 /* Button size variants */
@@ -382,14 +383,13 @@ a {
 }
 
 /* VFO warning states - prominent background + thick border */
-/* Use pre-blended solid colors for mobile compatibility (blended with --gray-9 #212529) */
 .vfo-display.warning-mode {
-    background: #3d3520;  /* warning yellow blended with gray-9 */
+    background: var(--bg-warning-blend);
     border: 3px solid var(--warning);
 }
 
 .vfo-display.warning-privilege {
-    background: #4a2a2d;  /* danger red blended with gray-9 */
+    background: var(--bg-danger-blend);
     border: 3px solid var(--danger);
 }
 
@@ -491,15 +491,9 @@ input.frequency-display {
     background: var(--danger);
     color: var(--white);
 }
-.btn-freq.down:hover:not(:disabled) {
-    background: #e03131;
-}
 .btn-freq.up {
     background: var(--success);
     color: var(--white);
-}
-.btn-freq.up:hover:not(:disabled) {
-    background: #37a34a;
 }
 
 .btn-band,
@@ -509,19 +503,11 @@ input.frequency-display {
     border: 2px solid transparent;
     padding: 0;
 }
-.btn-band:hover:not(:disabled):not(.active),
-.btn-mode:hover:not(:disabled):not(.active) {
-    background: var(--gray-4);
-}
 .btn-band.active,
 .btn-mode.active {
     background: var(--primary);
     color: var(--white);
     border-color: var(--primary-dark);
-}
-.btn-band.active:hover:not(:disabled),
-.btn-mode.active:hover:not(:disabled) {
-    background: var(--primary-dark);
 }
 
 .btn-power {
@@ -530,26 +516,17 @@ input.frequency-display {
     font-size: var(--text-sm);
     padding: 0;
 }
-.btn-power:hover:not(:disabled) {
-    background: var(--gray-7);
-}
 
 .btn-tune {
     background: var(--warning);
     color: var(--gray-9);
     padding: 0;
 }
-.btn-tune:hover:not(:disabled) {
-    background: #e9a100;
-}
 
 .btn-msg {
     background: var(--gray-7);
     color: var(--white);
     padding: 0;
-}
-.btn-msg:hover:not(:disabled) {
-    background: var(--gray-6);
 }
 
 .btn-xmit {
@@ -558,15 +535,9 @@ input.frequency-display {
     font-weight: 700;
     padding: 0;
 }
-.btn-xmit:hover:not(:disabled):not(.active) {
-    background: var(--gray-7);
-}
 .btn-xmit.active {
     background: var(--danger);
     animation: pulse 1.5s infinite;
-}
-.btn-xmit.active:hover:not(:disabled) {
-    background: #e03131;
 }
 
 @keyframes pulse {
@@ -584,9 +555,6 @@ input.frequency-display {
     background: var(--primary);
     color: var(--white);
 }
-.btn-send:hover:not(:disabled) {
-    background: var(--primary-dark);
-}
 .btn-send:active:not(:disabled) {
     background: var(--primary-dark);
 }
@@ -602,10 +570,6 @@ input.frequency-display {
     font-weight: 700;
     gap: var(--space-sm);
     box-shadow: var(--shadow-md);
-}
-.btn-sotamat:hover:not(:disabled) {
-    background: linear-gradient(135deg, var(--primary-dark), #145591);
-    box-shadow: var(--shadow-lg);
 }
 .btn-sotamat:active:not(:disabled) {
     transform: scale(0.98);
@@ -799,34 +763,34 @@ tbody tr:active {
     background: var(--gray-2);
 }
 
-/* User's own spot row (frozen at top) */
-.my-spot-row {
-    position: sticky;
-    top: 41px; /* Height of header row */
-    z-index: 9; /* Below header (z-index: 10), above other rows */
-    background: #fffbeb !important; /* Light gold/amber background */
-    border-bottom: 2px solid #f59e0b !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.my-spot-row td {
-    font-weight: 600;
-}
-
 /* Currently tuned row - matches radio VFO frequency/mode */
 .tuned-row {
-    background: rgba(34, 139, 230, 0.12) !important;
-    border-left: 4px solid var(--primary) !important;
+    background: rgba(34, 139, 230, 0.12);
+    border-left: 4px solid var(--primary);
 }
 
 .tuned-row td:first-child {
     padding-left: calc(var(--space-sm) - 4px);
 }
 
-/* my-spot-row takes precedence over tuned-row for background */
-.my-spot-row.tuned-row {
-    background: #fffbeb !important;
-    border-left: 4px solid #f59e0b !important;
+/* User's own spot row (frozen at top) - higher specificity than .tuned-row */
+#chase-table .my-spot-row {
+    position: sticky;
+    top: var(--table-header-height);
+    z-index: 9; /* Below header (z-index: 10), above other rows */
+    background: var(--bg-my-spot);
+    border-bottom: 2px solid var(--border-my-spot);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#chase-table .my-spot-row td {
+    font-weight: 600;
+}
+
+/* my-spot-row takes precedence over tuned-row */
+#chase-table .my-spot-row.tuned-row {
+    background: var(--bg-my-spot);
+    border-left: 4px solid var(--border-my-spot);
 }
 
 /* Mode cells */
@@ -932,87 +896,87 @@ tbody tr:active {
     border-radius: var(--radius-sm);
 }
 
-/* Band-specific colors adapted from QRZ.com */
+/* Band-specific colors adapted from QRZ.com - 0.35 opacity for outdoor visibility */
 .band-160m {
-    background-color: rgba(124, 252, 0, 0.25);
+    background-color: rgba(124, 252, 0, 0.35);
 }
 .band-80m {
-    background-color: rgba(229, 80, 229, 0.25);
+    background-color: rgba(229, 80, 229, 0.35);
 }
 .band-60m {
-    background-color: rgba(0, 0, 139, 0.25);
+    background-color: rgba(0, 0, 139, 0.35);
 }
 .band-40m {
-    background-color: rgba(89, 89, 255, 0.25);
+    background-color: rgba(89, 89, 255, 0.35);
 }
 .band-30m {
-    background-color: rgba(98, 217, 98, 0.25);
+    background-color: rgba(98, 217, 98, 0.35);
 }
 .band-20m {
-    background-color: rgba(242, 196, 12, 0.25);
+    background-color: rgba(242, 196, 12, 0.35);
 }
 .band-17m {
-    background-color: rgba(242, 242, 97, 0.3);
+    background-color: rgba(242, 242, 97, 0.4);
 }
 .band-15m {
-    background-color: rgba(204, 161, 102, 0.25);
+    background-color: rgba(204, 161, 102, 0.35);
 }
 .band-12m {
-    background-color: rgba(178, 34, 34, 0.25);
+    background-color: rgba(178, 34, 34, 0.35);
 }
 .band-10m {
-    background-color: rgba(255, 105, 180, 0.25);
+    background-color: rgba(255, 105, 180, 0.35);
 }
 .band-6m {
-    background-color: rgba(255, 0, 0, 0.25);
+    background-color: rgba(255, 0, 0, 0.35);
 }
 .band-2m {
-    background-color: rgba(255, 20, 147, 0.25);
+    background-color: rgba(255, 20, 147, 0.35);
 }
 .band-70cm {
-    background-color: rgba(153, 153, 0, 0.25);
+    background-color: rgba(153, 153, 0, 0.35);
 }
 .band-23cm {
-    background-color: rgba(90, 184, 199, 0.25);
+    background-color: rgba(90, 184, 199, 0.35);
 }
 .band-2200m {
-    background-color: rgba(255, 69, 0, 0.25);
+    background-color: rgba(255, 69, 0, 0.35);
 }
 .band-600m {
-    background-color: rgba(30, 144, 255, 0.25);
+    background-color: rgba(30, 144, 255, 0.35);
 }
 .band-11m {
-    background-color: rgba(0, 255, 0, 0.25);
+    background-color: rgba(0, 255, 0, 0.35);
 }
 .band-8m {
-    background-color: rgba(127, 0, 241, 0.25);
+    background-color: rgba(127, 0, 241, 0.35);
 }
 .band-5m {
-    background-color: rgba(224, 224, 224, 0.25);
+    background-color: rgba(224, 224, 224, 0.35);
 }
 .band-4m {
-    background-color: rgba(204, 0, 68, 0.25);
+    background-color: rgba(204, 0, 68, 0.35);
 }
 .band-1p25m {
-    background-color: rgba(204, 255, 0, 0.25);
+    background-color: rgba(204, 255, 0, 0.35);
 }
 .band-2p4GHz {
-    background-color: rgba(255, 127, 80, 0.25);
+    background-color: rgba(255, 127, 80, 0.35);
 }
 .band-5p8GHz {
-    background-color: rgba(204, 0, 153, 0.25);
+    background-color: rgba(204, 0, 153, 0.35);
 }
 .band-10GHz {
-    background-color: rgba(105, 105, 105, 0.25);
+    background-color: rgba(105, 105, 105, 0.35);
 }
 .band-24GHz {
-    background-color: rgba(243, 237, 198, 0.25);
+    background-color: rgba(243, 237, 198, 0.35);
 }
 .band-47GHz {
-    background-color: rgba(255, 231, 134, 0.25);
+    background-color: rgba(255, 231, 134, 0.35);
 }
 .band-76GHz {
-    background-color: rgba(186, 249, 216, 0.25);
+    background-color: rgba(186, 249, 216, 0.35);
 }
 
 /* Ensure link text remains visible with band colors */
@@ -1037,12 +1001,6 @@ tbody tr:active {
     font-size: 0.85em;
     font-weight: 400;
     opacity: 0.75;
-}
-
-/* Chase table row hover effect - indicate clickable rows */
-#chase-table tbody tr:hover {
-    background-color: var(--gray-1);
-    transition: background-color 0.15s ease;
 }
 
 /* Sort indicators */
@@ -1279,11 +1237,6 @@ tbody tr:active {
     justify-content: center;
 }
 
-.btn-icon:hover:not(:disabled) {
-    background: var(--gray-0);
-    border-color: var(--gray-4);
-}
-
 .btn-icon:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1292,10 +1245,6 @@ tbody tr:active {
 .btn-icon.btn-remove {
     color: var(--danger);
     border-color: var(--danger);
-}
-
-.btn-icon.btn-remove:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.1);
 }
 
 .tune-targets-buttons {
@@ -1353,11 +1302,6 @@ tbody tr:active {
     border-radius: var(--radius-sm);
     cursor: pointer;
     white-space: nowrap;
-}
-
-.btn-add-example:hover {
-    background: var(--primary);
-    color: var(--white);
 }
 
 .btn-add-example:disabled {
@@ -1649,6 +1593,86 @@ tbody tr:active {
     .mode-grid,
     .xmit-controls {
         gap: var(--space-md);
+    }
+}
+
+/* Only apply hover effects on devices that support hover (mouse/trackpad) */
+@media (hover: hover) {
+    /* Primary buttons */
+    .btn-primary:hover:not(:disabled) {
+        background: var(--primary-dark);
+    }
+    .btn-secondary:hover:not(:disabled) {
+        background: var(--gray-3);
+    }
+    .btn-refresh:hover:not(:disabled) {
+        background: var(--primary-dark);
+    }
+    .btn-auto-refresh-active:hover:not(:disabled) {
+        background: var(--success-dark);
+    }
+
+    /* Icon buttons */
+    .btn-info:hover:not(:disabled) {
+        background: rgba(34, 139, 230, 0.1);
+    }
+    .btn-close:hover:not(:disabled) {
+        background: var(--gray-2);
+        color: var(--gray-8);
+    }
+    .btn-icon:hover:not(:disabled) {
+        background: var(--gray-0);
+        border-color: var(--gray-4);
+    }
+    .btn-icon.btn-remove:hover:not(:disabled) {
+        background: rgba(250, 82, 82, 0.1);
+    }
+    .btn-add-example:hover {
+        background: var(--primary);
+        color: var(--white);
+    }
+
+    /* CAT page controls */
+    .btn-freq.down:hover:not(:disabled) {
+        background: var(--danger-dark);
+    }
+    .btn-freq.up:hover:not(:disabled) {
+        background: var(--success-dark);
+    }
+    .btn-band:hover:not(:disabled):not(.active),
+    .btn-mode:hover:not(:disabled):not(.active) {
+        background: var(--gray-4);
+    }
+    .btn-band.active:hover:not(:disabled),
+    .btn-mode.active:hover:not(:disabled) {
+        background: var(--primary-dark);
+    }
+    .btn-power:hover:not(:disabled) {
+        background: var(--gray-7);
+    }
+    .btn-tune:hover:not(:disabled) {
+        background: var(--warning-dark);
+    }
+    .btn-msg:hover:not(:disabled) {
+        background: var(--gray-6);
+    }
+    .btn-xmit:hover:not(:disabled):not(.active) {
+        background: var(--gray-7);
+    }
+    .btn-xmit.active:hover:not(:disabled) {
+        background: var(--danger-dark);
+    }
+    .btn-send:hover:not(:disabled) {
+        background: var(--primary-dark);
+    }
+    .btn-sotamat:hover:not(:disabled) {
+        background: linear-gradient(135deg, var(--primary-dark), #145591);
+        box-shadow: var(--shadow-lg);
+    }
+
+    /* Chase table */
+    #chase-table tbody tr:hover {
+        background-color: var(--gray-1);
     }
 }
 
