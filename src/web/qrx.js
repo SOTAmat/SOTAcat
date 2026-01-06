@@ -148,6 +148,91 @@ async function saveGpsLocation() {
 }
 
 // ============================================================================
+// Reference Functions (SOTA/POTA/X-OTA)
+// ============================================================================
+
+const REFERENCE_STORAGE_KEY = "qrxReference";
+const REFERENCE_PATTERN = /^[A-Z0-9/@-]*$/;
+
+// Track the original reference value to detect changes
+let originalReferenceValue = "";
+
+// Load reference from localStorage
+function loadReference() {
+    const referenceInput = document.getElementById("reference-input");
+    const saveBtn = document.getElementById("save-reference-button");
+
+    if (referenceInput) {
+        const stored = localStorage.getItem(REFERENCE_STORAGE_KEY) || "";
+        referenceInput.value = stored;
+        originalReferenceValue = stored;
+    }
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.className = "btn btn-secondary";
+    }
+}
+
+// Handle reference input changes - auto-uppercase and filter invalid chars
+function onReferenceInputChange() {
+    const referenceInput = document.getElementById("reference-input");
+    const saveBtn = document.getElementById("save-reference-button");
+
+    if (referenceInput) {
+        // Auto-uppercase and filter invalid characters
+        const cleaned = referenceInput.value.toUpperCase().replace(/[^A-Z0-9/@-]/g, "");
+        if (referenceInput.value !== cleaned) {
+            referenceInput.value = cleaned;
+        }
+
+        // Enable save button if value changed from original
+        if (saveBtn) {
+            const hasChanged = referenceInput.value !== originalReferenceValue;
+            saveBtn.disabled = !hasChanged;
+            saveBtn.className = hasChanged ? "btn btn-primary" : "btn btn-secondary";
+        }
+    }
+}
+
+// Save reference to localStorage
+function saveReference() {
+    const referenceInput = document.getElementById("reference-input");
+    const saveBtn = document.getElementById("save-reference-button");
+
+    if (referenceInput) {
+        const value = referenceInput.value.trim();
+        localStorage.setItem(REFERENCE_STORAGE_KEY, value);
+        originalReferenceValue = value;
+        Log.debug("QRX", "Reference saved:", value);
+    }
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.className = "btn btn-secondary";
+    }
+}
+
+// Clear reference from input and localStorage
+function clearReference() {
+    const referenceInput = document.getElementById("reference-input");
+    const saveBtn = document.getElementById("save-reference-button");
+
+    if (referenceInput) {
+        referenceInput.value = "";
+    }
+
+    localStorage.removeItem(REFERENCE_STORAGE_KEY);
+    originalReferenceValue = "";
+    Log.debug("QRX", "Reference cleared");
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.className = "btn btn-secondary";
+    }
+}
+
+// ============================================================================
 // Event Handler Attachment
 // ============================================================================
 
@@ -180,6 +265,22 @@ function attachQrxEventListeners() {
     if (saveGpsBtn) {
         saveGpsBtn.addEventListener("click", saveGpsLocation);
     }
+
+    // Reference input and buttons
+    const referenceInput = document.getElementById("reference-input");
+    if (referenceInput) {
+        referenceInput.addEventListener("input", onReferenceInputChange);
+    }
+
+    const saveReferenceBtn = document.getElementById("save-reference-button");
+    if (saveReferenceBtn) {
+        saveReferenceBtn.addEventListener("click", saveReference);
+    }
+
+    const clearReferenceBtn = document.getElementById("clear-reference-button");
+    if (clearReferenceBtn) {
+        clearReferenceBtn.addEventListener("click", clearReference);
+    }
 }
 
 // ============================================================================
@@ -191,6 +292,7 @@ function onQrxAppearing() {
     Log.info("QRX", "tab appearing");
     attachQrxEventListeners();
     loadGpsLocation();
+    loadReference();
 }
 
 // Called when QRX tab is hidden

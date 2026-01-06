@@ -318,6 +318,33 @@ class SOTAcatUITests:
         save_btn = self.page.locator('#save-gps-button')
         assert save_btn.count() > 0, "Save Location button should exist"
 
+    def test_qrx_reference_input(self):
+        """QRX page has reference input"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        ref_input = self.page.locator('#reference-input')
+        assert ref_input.count() > 0, "Reference input should exist"
+
+    def test_qrx_save_reference_button(self):
+        """QRX page has Save reference button"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        save_btn = self.page.locator('#save-reference-button')
+        assert save_btn.count() > 0, "Save reference button should exist"
+
+    def test_qrx_clear_reference_button(self):
+        """QRX page has Clear reference button"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        clear_btn = self.page.locator('#clear-reference-button')
+        assert clear_btn.count() > 0, "Clear reference button should exist"
+
     # =========================================================================
     # Chase Page Element Tests
     # =========================================================================
@@ -500,6 +527,9 @@ class SOTAcatUITests:
             self.run_test("GPS location input", self.test_qrx_gps_location_input)
             self.run_test("Locate Me button", self.test_qrx_locate_me_button)
             self.run_test("Save Location button", self.test_qrx_save_location_button)
+            self.run_test("Reference input", self.test_qrx_reference_input)
+            self.run_test("Save reference button", self.test_qrx_save_reference_button)
+            self.run_test("Clear reference button", self.test_qrx_clear_reference_button)
 
             # Chase page elements
             print("\nChase Page Elements:")
