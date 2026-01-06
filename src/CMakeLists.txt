@@ -28,8 +28,8 @@ idf_component_register(
         "web/settings.jsgz"
         "web/about.htmlgz"
         "web/about.jsgz"
-        "web/wrx.htmlgz"
-        "web/wrx.jsgz"
+        "web/qrx.htmlgz"
+        "web/qrx.jsgz"
         )
 
 # Apply compile definitions to this component

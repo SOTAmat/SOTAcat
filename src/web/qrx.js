@@ -1,5 +1,5 @@
 // ============================================================================
-// WRX Page Logic
+// QRX Page Logic
 // ============================================================================
 // Handles radio setup utilities: time sync and GPS location management
 
@@ -17,14 +17,14 @@ async function syncTime() {
         const response = await fetch(`/api/v1/time?time=${now}`, { method: "PUT" });
 
         if (response.status === 204) {
-            Log.debug("WRX", "Time sync successful");
+            Log.debug("QRX", "Time sync successful");
             return; // No content, sync was successful
         } else if (!response.ok) {
             const data = await response.json();
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
-        Log.error("WRX", "Time sync failed:", error.message);
+        Log.error("QRX", "Time sync failed:", error.message);
     }
 }
 
@@ -66,7 +66,7 @@ async function loadGpsLocation() {
             gpsLocationInput.placeholder = "default: 38.0522, -122.9694";
         }
     } catch (error) {
-        Log.error("WRX", "Failed to load GPS location:", error);
+        Log.error("QRX", "Failed to load GPS location:", error);
         gpsLocationInput.value = "";
         gpsLocationInput.placeholder = "default: 38.0522, -122.9694";
     }
@@ -142,7 +142,7 @@ async function saveGpsLocation() {
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
-        Log.error("WRX", "Failed to save GPS location:", error);
+        Log.error("QRX", "Failed to save GPS location:", error);
         alert("Failed to save location.");
     }
 }
@@ -151,13 +151,13 @@ async function saveGpsLocation() {
 // Event Handler Attachment
 // ============================================================================
 
-let wrxEventListenersAttached = false;
+let qrxEventListenersAttached = false;
 
-function attachWrxEventListeners() {
-    if (wrxEventListenersAttached) {
+function attachQrxEventListeners() {
+    if (qrxEventListenersAttached) {
         return;
     }
-    wrxEventListenersAttached = true;
+    qrxEventListenersAttached = true;
 
     // Sync time button
     const syncTimeBtn = document.getElementById("sync-time-button");
@@ -186,16 +186,16 @@ function attachWrxEventListeners() {
 // Page Lifecycle
 // ============================================================================
 
-// Called when WRX tab becomes visible
-function onWrxAppearing() {
-    Log.info("WRX", "tab appearing");
-    attachWrxEventListeners();
+// Called when QRX tab becomes visible
+function onQrxAppearing() {
+    Log.info("QRX", "tab appearing");
+    attachQrxEventListeners();
     loadGpsLocation();
 }
 
-// Called when WRX tab is hidden
-function onWrxLeaving() {
-    Log.info("WRX", "tab leaving");
+// Called when QRX tab is hidden
+function onQrxLeaving() {
+    Log.info("QRX", "tab leaving");
     // Reset event listener flag so they can be reattached when returning
-    wrxEventListenersAttached = false;
+    qrxEventListenersAttached = false;
 }

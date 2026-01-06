@@ -155,26 +155,26 @@ class SOTAcatUITests:
         tab = self.page.locator('[data-tab="about"]')
         assert tab.count() > 0, "About tab should exist"
 
-    def test_wrx_tab_exists(self):
-        """WRX tab is present and clickable"""
+    def test_qrx_tab_exists(self):
+        """QRX tab is present and clickable"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        tab = self.page.locator('[data-tab="wrx"]')
-        assert tab.count() > 0, "WRX tab should exist"
+        tab = self.page.locator('[data-tab="qrx"]')
+        assert tab.count() > 0, "QRX tab should exist"
 
     # =========================================================================
     # Tab Navigation Tests
     # =========================================================================
 
-    def test_switch_to_wrx_tab(self):
-        """Can switch to WRX tab"""
+    def test_switch_to_qrx_tab(self):
+        """Can switch to QRX tab"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="wrx"]')
+        self.page.click('[data-tab="qrx"]')
         time.sleep(0.5)  # Allow tab transition and content load
-        # Check that WRX-specific element is visible (sync time button)
+        # Check that QRX-specific element is visible (sync time button)
         sync_btn = self.page.locator('#sync-time-button')
-        assert sync_btn.is_visible(), "WRX content should be visible (sync time button)"
+        assert sync_btn.is_visible(), "QRX content should be visible (sync time button)"
 
     def test_switch_to_cat_tab(self):
         """Can switch to CAT tab"""
@@ -279,41 +279,41 @@ class SOTAcatUITests:
         assert targets.count() > 0, "Tune targets list should exist"
 
     # =========================================================================
-    # WRX Page Element Tests
+    # QRX Page Element Tests
     # =========================================================================
 
-    def test_wrx_sync_time_button(self):
-        """WRX page has sync time button"""
+    def test_qrx_sync_time_button(self):
+        """QRX page has sync time button"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="wrx"]')
+        self.page.click('[data-tab="qrx"]')
         time.sleep(0.5)
         sync_btn = self.page.locator('#sync-time-button')
         assert sync_btn.count() > 0, "Sync time button should exist"
 
-    def test_wrx_gps_location_input(self):
-        """WRX page has GPS location input"""
+    def test_qrx_gps_location_input(self):
+        """QRX page has GPS location input"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="wrx"]')
+        self.page.click('[data-tab="qrx"]')
         time.sleep(0.5)
         gps_input = self.page.locator('#gps-location')
         assert gps_input.count() > 0, "GPS location input should exist"
 
-    def test_wrx_locate_me_button(self):
-        """WRX page has Locate Me button"""
+    def test_qrx_locate_me_button(self):
+        """QRX page has Locate Me button"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="wrx"]')
+        self.page.click('[data-tab="qrx"]')
         time.sleep(0.5)
         locate_btn = self.page.locator('#get-browser-location-button')
         assert locate_btn.count() > 0, "Locate Me button should exist"
 
-    def test_wrx_save_location_button(self):
-        """WRX page has Save Location button"""
+    def test_qrx_save_location_button(self):
+        """QRX page has Save Location button"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="wrx"]')
+        self.page.click('[data-tab="qrx"]')
         time.sleep(0.5)
         save_btn = self.page.locator('#save-gps-button')
         assert save_btn.count() > 0, "Save Location button should exist"
@@ -468,7 +468,7 @@ class SOTAcatUITests:
             # Page load tests
             print("\nPage Load Tests:")
             self.run_test("Index page loads", self.test_index_loads)
-            self.run_test("WRX tab exists", self.test_wrx_tab_exists)
+            self.run_test("QRX tab exists", self.test_qrx_tab_exists)
             self.run_test("Chase tab exists", self.test_chase_tab_exists)
             self.run_test("CAT tab exists", self.test_cat_tab_exists)
             self.run_test("Settings tab exists", self.test_settings_tab_exists)
@@ -476,7 +476,7 @@ class SOTAcatUITests:
 
             # Tab navigation
             print("\nTab Navigation Tests:")
-            self.run_test("Switch to WRX tab", self.test_switch_to_wrx_tab)
+            self.run_test("Switch to QRX tab", self.test_switch_to_qrx_tab)
             self.run_test("Switch to CAT tab", self.test_switch_to_cat_tab)
             self.run_test("Switch to Settings tab", self.test_switch_to_settings_tab)
             self.run_test("Switch to About tab", self.test_switch_to_about_tab)
@@ -494,12 +494,12 @@ class SOTAcatUITests:
             self.run_test("WiFi section", self.test_settings_wifi_section)
             self.run_test("Tune targets section", self.test_settings_tune_targets_section)
 
-            # WRX page elements
-            print("\nWRX Page Elements:")
-            self.run_test("Sync time button", self.test_wrx_sync_time_button)
-            self.run_test("GPS location input", self.test_wrx_gps_location_input)
-            self.run_test("Locate Me button", self.test_wrx_locate_me_button)
-            self.run_test("Save Location button", self.test_wrx_save_location_button)
+            # QRX page elements
+            print("\nQRX Page Elements:")
+            self.run_test("Sync time button", self.test_qrx_sync_time_button)
+            self.run_test("GPS location input", self.test_qrx_gps_location_input)
+            self.run_test("Locate Me button", self.test_qrx_locate_me_button)
+            self.run_test("Save Location button", self.test_qrx_save_location_button)
 
             # Chase page elements
             print("\nChase Page Elements:")
