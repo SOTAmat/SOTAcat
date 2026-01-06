@@ -730,6 +730,88 @@ function launchSOTAmat() {
     window.open(newHref, "_blank");
 }
 
+// SOTAmat SMS spotting number
+const SOTAMAT_SMS_NUMBER = "+16017682628";
+
+// SOTA reference pattern: XX/YY-NNN (e.g., W6/HC-298, VK3/VE-123)
+const SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;
+
+// POTA reference pattern: XX-NNNN (e.g., US-1234, VE-0001)
+const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;
+
+// Check if reference is a valid SOTA or POTA reference
+function isValidSpotReference(ref) {
+    if (!ref) return false;
+    return SOTA_REF_PATTERN.test(ref) || POTA_REF_PATTERN.test(ref);
+}
+
+// Determine if reference is SOTA (vs POTA)
+function isSotaReference(ref) {
+    return SOTA_REF_PATTERN.test(ref);
+}
+
+// Update spot action buttons enabled state based on reference validity
+function updateSpotButtonStates() {
+    const ref = localStorage.getItem("qrxReference") || "";
+    const isValid = isValidSpotReference(ref);
+
+    const sotamatBtn = document.getElementById("sotamat-button");
+    const smsSpotBtn = document.getElementById("sms-spot-button");
+    const smsQrtBtn = document.getElementById("sms-qrt-button");
+
+    if (sotamatBtn) sotamatBtn.disabled = !isValid;
+    if (smsSpotBtn) smsSpotBtn.disabled = !isValid;
+    if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
+
+    Log.debug("Spot", `Spot buttons ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
+}
+
+// Build SMS URI for spotting current activation
+// SOTA uses "sm" command, POTA uses "psm" command
+function buildSpotSmsUri() {
+    const ref = localStorage.getItem("qrxReference") || "";
+    if (!isValidSpotReference(ref)) return null;
+
+    const cmd = isSotaReference(ref) ? "sm" : "psm";
+    const freqMhz = ((AppState.vfoFrequencyHz || 14285000) / 1000000).toFixed(4);
+    const mode = (AppState.vfoMode || "SSB").toLowerCase();
+
+    const message = `${cmd} ${ref} ${freqMhz} ${mode}`;
+    return `sms:${SOTAMAT_SMS_NUMBER}?body=${encodeURIComponent(message)}`;
+}
+
+// Build SMS URI for QRT (end of activation)
+// SOTA uses "sm" command, POTA uses "psm" command
+function buildQrtSmsUri() {
+    const ref = localStorage.getItem("qrxReference") || "";
+    if (!isValidSpotReference(ref)) return null;
+
+    const cmd = isSotaReference(ref) ? "sm" : "psm";
+    const freqMhz = ((AppState.vfoFrequencyHz || 14285000) / 1000000).toFixed(4);
+    const mode = (AppState.vfoMode || "SSB").toLowerCase();
+
+    const message = `${cmd} ${ref} ${freqMhz} ${mode} QRT`;
+    return `sms:${SOTAMAT_SMS_NUMBER}?body=${encodeURIComponent(message)}`;
+}
+
+// Open SMS app with spot message
+function sendSpotSms() {
+    const uri = buildSpotSmsUri();
+    if (uri) {
+        Log.info("Spot", "Opening SMS for spot:", uri);
+        window.location.href = uri;
+    }
+}
+
+// Open SMS app with QRT message
+function sendQrtSms() {
+    const uri = buildQrtSmsUri();
+    if (uri) {
+        Log.info("Spot", "Opening SMS for QRT:", uri);
+        window.location.href = uri;
+    }
+}
+
 // ============================================================================
 // Event Handler Attachment
 // ============================================================================
@@ -805,6 +887,18 @@ function attachSpotEventListeners() {
         sotamatBtn.addEventListener("click", launchSOTAmat);
     }
 
+    // SMS spot button
+    const smsSpotBtn = document.getElementById("sms-spot-button");
+    if (smsSpotBtn) {
+        smsSpotBtn.addEventListener("click", sendSpotSms);
+    }
+
+    // SMS QRT button
+    const smsQrtBtn = document.getElementById("sms-qrt-button");
+    if (smsQrtBtn) {
+        smsQrtBtn.addEventListener("click", sendQrtSms);
+    }
+
     // Message playback buttons
     document.querySelectorAll(".btn-msg[data-msg-slot]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -871,6 +965,9 @@ function onSpotAppearing() {
 
     // Update Send button states based on loaded input values
     updateSendButtonStates();
+
+    // Update spot action buttons based on reference validity
+    updateSpotButtonStates();
 
     startVfoUpdates();
 }

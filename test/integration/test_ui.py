@@ -247,6 +247,69 @@ class SOTAcatUITests:
         bands = self.page.locator('.btn-band')
         assert bands.count() >= 5, "Should have multiple band buttons"
 
+    def test_spot_sms_spot_button(self):
+        """SPOT page has SMS spot button"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="spot"]')
+        time.sleep(0.5)
+        sms_spot = self.page.locator('#sms-spot-button')
+        assert sms_spot.count() > 0, "SMS spot button should exist"
+
+    def test_spot_sms_qrt_button(self):
+        """SPOT page has SMS QRT button"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="spot"]')
+        time.sleep(0.5)
+        sms_qrt = self.page.locator('#sms-qrt-button')
+        assert sms_qrt.count() > 0, "SMS QRT button should exist"
+
+    def test_spot_buttons_disabled_without_reference(self):
+        """Spot buttons are disabled when no reference is set"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        # Clear any existing reference
+        self.page.evaluate("localStorage.removeItem('qrxReference')")
+        self.page.click('[data-tab="spot"]')
+        time.sleep(0.5)
+        sotamat = self.page.locator('#sotamat-button')
+        sms_spot = self.page.locator('#sms-spot-button')
+        sms_qrt = self.page.locator('#sms-qrt-button')
+        assert sotamat.is_disabled(), "SOTAmat button should be disabled without reference"
+        assert sms_spot.is_disabled(), "SMS spot button should be disabled without reference"
+        assert sms_qrt.is_disabled(), "SMS QRT button should be disabled without reference"
+
+    def test_spot_buttons_enabled_with_sota_reference(self):
+        """Spot buttons are enabled with valid SOTA reference"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        # Set a valid SOTA reference
+        self.page.evaluate("localStorage.setItem('qrxReference', 'W6/HC-298')")
+        self.page.click('[data-tab="spot"]')
+        time.sleep(0.5)
+        sotamat = self.page.locator('#sotamat-button')
+        sms_spot = self.page.locator('#sms-spot-button')
+        sms_qrt = self.page.locator('#sms-qrt-button')
+        assert not sotamat.is_disabled(), "SOTAmat button should be enabled with SOTA reference"
+        assert not sms_spot.is_disabled(), "SMS spot button should be enabled with SOTA reference"
+        assert not sms_qrt.is_disabled(), "SMS QRT button should be enabled with SOTA reference"
+
+    def test_spot_buttons_enabled_with_pota_reference(self):
+        """Spot buttons are enabled with valid POTA reference"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        # Set a valid POTA reference
+        self.page.evaluate("localStorage.setItem('qrxReference', 'US-1234')")
+        self.page.click('[data-tab="spot"]')
+        time.sleep(0.5)
+        sotamat = self.page.locator('#sotamat-button')
+        sms_spot = self.page.locator('#sms-spot-button')
+        sms_qrt = self.page.locator('#sms-qrt-button')
+        assert not sotamat.is_disabled(), "SOTAmat button should be enabled with POTA reference"
+        assert not sms_spot.is_disabled(), "SMS spot button should be enabled with POTA reference"
+        assert not sms_qrt.is_disabled(), "SMS QRT button should be enabled with POTA reference"
+
     # =========================================================================
     # Settings Page Element Tests
     # =========================================================================
@@ -514,6 +577,11 @@ class SOTAcatUITests:
             self.run_test("Mode display", self.test_spot_mode_display)
             self.run_test("CW message inputs", self.test_spot_cw_message_inputs)
             self.run_test("Band buttons", self.test_spot_band_buttons)
+            self.run_test("SMS spot button", self.test_spot_sms_spot_button)
+            self.run_test("SMS QRT button", self.test_spot_sms_qrt_button)
+            self.run_test("Spot buttons disabled without ref", self.test_spot_buttons_disabled_without_reference)
+            self.run_test("Spot buttons enabled with SOTA ref", self.test_spot_buttons_enabled_with_sota_reference)
+            self.run_test("Spot buttons enabled with POTA ref", self.test_spot_buttons_enabled_with_pota_reference)
 
             # Settings page elements
             print("\nSettings Page Elements:")

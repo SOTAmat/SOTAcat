@@ -559,25 +559,21 @@ input.frequency-display {
     background: var(--primary-dark);
 }
 
-/* SOTAMAT Button */
-.btn-sotamat {
-    width: 100%;
-    min-height: calc(var(--touch-target) * 1.2);
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    color: var(--white);
-    border-radius: var(--radius-xl);
-    font-size: var(--text-lg);
-    font-weight: 700;
+/* Spot Actions Grid */
+.spot-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--space-sm);
-    box-shadow: var(--shadow-md);
-}
-.btn-sotamat:active:not(:disabled) {
-    transform: scale(0.98);
-    box-shadow: var(--shadow-sm);
 }
 
-.icon-sotamat {
-    font-size: var(--text-xl);
+.btn-spot {
+    background: var(--primary);
+    color: var(--white);
+    font-weight: 600;
+    padding: 0;
+}
+.btn-spot:active:not(:disabled) {
+    background: var(--primary-dark);
 }
 
 /* =========================== Form Elements */
@@ -1665,9 +1661,8 @@ tbody tr:active {
     .btn-send:hover:not(:disabled) {
         background: var(--primary-dark);
     }
-    .btn-sotamat:hover:not(:disabled) {
-        background: linear-gradient(135deg, var(--primary-dark), #145591);
-        box-shadow: var(--shadow-lg);
+    .btn-spot:hover:not(:disabled) {
+        background: var(--primary-dark);
     }
 
     /* Chase table */
