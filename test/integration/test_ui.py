@@ -134,12 +134,12 @@ class SOTAcatUITests:
         tab = self.page.locator('[data-tab="chase"]')
         assert tab.count() > 0, "Chase tab should exist"
 
-    def test_cat_tab_exists(self):
-        """CAT tab is present and clickable"""
+    def test_spot_tab_exists(self):
+        """SPOT tab is present and clickable"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        tab = self.page.locator('[data-tab="cat"]')
-        assert tab.count() > 0, "CAT tab should exist"
+        tab = self.page.locator('[data-tab="spot"]')
+        assert tab.count() > 0, "SPOT tab should exist"
 
     def test_settings_tab_exists(self):
         """Settings tab is present and clickable"""
@@ -176,15 +176,15 @@ class SOTAcatUITests:
         sync_btn = self.page.locator('#sync-time-button')
         assert sync_btn.is_visible(), "QRX content should be visible (sync time button)"
 
-    def test_switch_to_cat_tab(self):
-        """Can switch to CAT tab"""
+    def test_switch_to_spot_tab(self):
+        """Can switch to SPOT tab"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="cat"]')
+        self.page.click('[data-tab="spot"]')
         time.sleep(0.5)  # Allow tab transition and content load
-        # Check that CAT-specific element is visible (frequency display)
+        # Check that SPOT-specific element is visible (frequency display)
         freq = self.page.locator('#current-frequency')
-        assert freq.is_visible(), "CAT content should be visible (frequency display)"
+        assert freq.is_visible(), "SPOT content should be visible (frequency display)"
 
     def test_switch_to_settings_tab(self):
         """Can switch to Settings tab"""
@@ -207,42 +207,42 @@ class SOTAcatUITests:
         assert version.is_visible(), "About content should be visible (version display)"
 
     # =========================================================================
-    # CAT Page Element Tests
+    # SPOT Page Element Tests
     # =========================================================================
 
-    def test_cat_frequency_display(self):
-        """CAT page has frequency display"""
+    def test_spot_frequency_display(self):
+        """SPOT page has frequency display"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="cat"]')
+        self.page.click('[data-tab="spot"]')
         time.sleep(0.5)
         freq = self.page.locator('#current-frequency')
         assert freq.count() > 0, "Frequency display should exist"
 
-    def test_cat_mode_display(self):
-        """CAT page has mode display"""
+    def test_spot_mode_display(self):
+        """SPOT page has mode display"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="cat"]')
+        self.page.click('[data-tab="spot"]')
         time.sleep(0.5)
         mode = self.page.locator('#current-mode')
         assert mode.count() > 0, "Mode display should exist"
 
-    def test_cat_cw_message_inputs(self):
-        """CAT page has CW message inputs"""
+    def test_spot_cw_message_inputs(self):
+        """SPOT page has CW message inputs"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="cat"]')
+        self.page.click('[data-tab="spot"]')
         time.sleep(0.5)
         for i in range(1, 4):
             input_el = self.page.locator(f'#cw-message-{i}')
             assert input_el.count() > 0, f"CW message input {i} should exist"
 
-    def test_cat_band_buttons(self):
-        """CAT page has band selection buttons"""
+    def test_spot_band_buttons(self):
+        """SPOT page has band selection buttons"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="cat"]')
+        self.page.click('[data-tab="spot"]')
         time.sleep(0.5)
         bands = self.page.locator('.btn-band')
         assert bands.count() >= 5, "Should have multiple band buttons"
@@ -384,7 +384,7 @@ class SOTAcatUITests:
         """CW message input accepts text"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="cat"]')
+        self.page.click('[data-tab="spot"]')
         time.sleep(0.5)
         input_el = self.page.locator('#cw-message-1')
         input_el.fill('CQ CQ CQ')
@@ -405,10 +405,10 @@ class SOTAcatUITests:
     # =========================================================================
 
     def test_license_badges_exist(self):
-        """License class badges (T/G/E) exist on CAT page"""
+        """License class badges (T/G/E) exist on SPOT page"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="cat"]')
+        self.page.click('[data-tab="spot"]')
         time.sleep(0.5)
         badge_t = self.page.locator('#badge-T')
         badge_g = self.page.locator('#badge-G')
@@ -421,7 +421,7 @@ class SOTAcatUITests:
         """VFO warning element exists"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="cat"]')
+        self.page.click('[data-tab="spot"]')
         time.sleep(0.5)
         warning = self.page.locator('#vfo-warning')
         assert warning.count() > 0, "VFO warning element should exist"
@@ -470,23 +470,23 @@ class SOTAcatUITests:
             self.run_test("Index page loads", self.test_index_loads)
             self.run_test("QRX tab exists", self.test_qrx_tab_exists)
             self.run_test("Chase tab exists", self.test_chase_tab_exists)
-            self.run_test("CAT tab exists", self.test_cat_tab_exists)
+            self.run_test("SPOT tab exists", self.test_spot_tab_exists)
             self.run_test("Settings tab exists", self.test_settings_tab_exists)
             self.run_test("About tab exists", self.test_about_tab_exists)
 
             # Tab navigation
             print("\nTab Navigation Tests:")
             self.run_test("Switch to QRX tab", self.test_switch_to_qrx_tab)
-            self.run_test("Switch to CAT tab", self.test_switch_to_cat_tab)
+            self.run_test("Switch to SPOT tab", self.test_switch_to_spot_tab)
             self.run_test("Switch to Settings tab", self.test_switch_to_settings_tab)
             self.run_test("Switch to About tab", self.test_switch_to_about_tab)
 
-            # CAT page elements
-            print("\nCAT Page Elements:")
-            self.run_test("Frequency display", self.test_cat_frequency_display)
-            self.run_test("Mode display", self.test_cat_mode_display)
-            self.run_test("CW message inputs", self.test_cat_cw_message_inputs)
-            self.run_test("Band buttons", self.test_cat_band_buttons)
+            # SPOT page elements
+            print("\nSPOT Page Elements:")
+            self.run_test("Frequency display", self.test_spot_frequency_display)
+            self.run_test("Mode display", self.test_spot_mode_display)
+            self.run_test("CW message inputs", self.test_spot_cw_message_inputs)
+            self.run_test("Band buttons", self.test_spot_band_buttons)
 
             # Settings page elements
             print("\nSettings Page Elements:")

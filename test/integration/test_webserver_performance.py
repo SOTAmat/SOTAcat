@@ -199,13 +199,13 @@ class WebServerTester:
             "/",
             "/index.html",
             "/about.html",
-            "/cat.html",
+            "/spot.html",
             "/chase.html",
             "/settings.html",
 
             # JavaScript files
             "/about.js",
-            "/cat.js",
+            "/spot.js",
             "/chase.js",
             "/chase_api.js",
             "/main.js",

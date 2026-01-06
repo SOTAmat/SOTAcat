@@ -162,8 +162,8 @@ a {
 
 /* =========================== Card Components */
 
-/* CAT Page Container */
-.cat-container {
+/* Spot Page Container */
+.spot-container {
     max-width: 1200px; /* Medium width for comfortable button/control sizing */
     margin: 0 auto;
 }
