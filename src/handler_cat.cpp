@@ -23,7 +23,13 @@ esp_err_t handler_xmit_put (httpd_req_t * req) {
     ESP_LOGI (TAG8, "setting xmit to '%s'", param_value);
 
     long         xmit    = atoi (param_value);  // Convert the parameter to an integer
-    const char * command = xmit ? "TX;" : "RX;";
+    const char * command = nullptr;
+    if (kxRadio.get_radio_type() == RadioType::KH1) {
+        command = xmit ? "HK1;" : "HK0;";
+    }
+    else {
+        command = xmit ? "TX;" : "RX;";
+    }
 
     {
         const std::lock_guard<Lockable> lock (kxRadio);
@@ -48,7 +54,13 @@ esp_err_t handler_msg_put (httpd_req_t * req) {
     ESP_LOGI (TAG8, "playing message bank '%s'", param_value);
 
     long         bank    = atoi (param_value);  // Convert the parameter to an integer
-    const char * command = bank == 1 ? "SWT11;SWT19;" : "SWT11;SWT27;";
+    const char * command;
+    if (kxRadio.get_radio_type() == RadioType::KH1) {
+        command = bank == 1 ? "SW4T;SW1T" : "SW4T;SW2T;";
+    }
+    else {
+        command = bank == 1 ? "SWT11;SWT19;" : "SWT11;SWT27;";
+    }
 
     {
         const std::lock_guard<Lockable> lock (kxRadio);
@@ -101,9 +113,14 @@ esp_err_t handler_power_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "power", param_value);
     ESP_LOGI (TAG8, "setting power to '%s'", param_value);
 
-    long desired_power = atoi (param_value);
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
+    const std::lock_guard<Lockable> lock (kxRadio);
+
+    if (kxRadio.get_radio_type() == RadioType::KH1) {
+        if (!kxRadio.set_kh1_power (atoi (param_value)))
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
+    }
+    else {
+        long desired_power = atoi (param_value);
         // first set it to a known value, zero
         if (!kxRadio.put_to_kx ("PC", 3, 0, SC_KX_COMMUNICATION_RETRIES))
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
@@ -141,6 +158,11 @@ esp_err_t handler_keyer_put (httpd_req_t * req) {
     showActivity();
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    if (kxRadio.get_radio_type() == RadioType::KH1) {
+        ESP_LOGE (TAG8, "Morse keying not supported on KH1");
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "Morse keying not supported on KH1");
+    }
 
     STANDARD_DECODE_SOLE_PARAMETER (req, "message", param_value);
 
