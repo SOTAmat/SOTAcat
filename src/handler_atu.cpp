@@ -37,6 +37,10 @@ esp_err_t handler_atu_put (httpd_req_t * req) {
             command = "SWT20;";
             ESP_LOGI (TAG8, "Initiating ATU tune on KX2");
             break;
+        case RadioType::KH1:
+            command = "SW3T;";
+            ESP_LOGI (TAG8, "Initiating ATU tune on KH1");
+            break;
         default:
             ESP_LOGE (TAG8, "Unknown radio type, cannot initiate ATU tune");
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Unknown radio type");
