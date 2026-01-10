@@ -451,6 +451,52 @@ function parseMultiPeriodFrequency(multiPeriod) {
 }
 
 // ============================================================================
+// Ham2K Polo Deep Link Utilities (shared across CAT and Chase pages)
+// ============================================================================
+
+// Map SOTAcat mode to Polo-compatible mode string
+function mapModeForPolo(mode) {
+    if (!mode) return null;
+    const upperMode = mode.toUpperCase();
+    // Map USB/LSB to SSB for Polo
+    if (upperMode === "USB" || upperMode === "LSB") return "SSB";
+    // CW modes
+    if (upperMode === "CW" || upperMode === "CW_R") return "CW";
+    // Pass through standard modes
+    if (["FM", "AM", "DATA", "FT8", "FT4"].includes(upperMode)) return upperMode;
+    return upperMode; // Default: pass through as-is
+}
+
+// Build Ham2K Polo deep link URL from parameters
+// All parameters are optional - only non-null/non-empty values are included
+// Parameters: myRef, mySig, myCall, theirRef, theirSig, theirCall, freq, mode, time
+function buildPoloDeepLink(params) {
+    const baseUrl = "com.ham2k.polo://qso";
+    const validParams = [
+        "myRef",
+        "mySig",
+        "myCall",
+        "theirRef",
+        "theirSig",
+        "theirCall",
+        "freq",
+        "mode",
+        "time",
+    ];
+
+    const queryParts = [];
+    for (const key of validParams) {
+        const value = params[key];
+        if (value !== null && value !== undefined && value !== "") {
+            queryParts.push(`${key}=${encodeURIComponent(value)}`);
+        }
+    }
+
+    if (queryParts.length === 0) return null;
+    return `${baseUrl}?${queryParts.join("&")}`;
+}
+
+// ============================================================================
 // VFO State Management Functions
 // ============================================================================
 

@@ -419,6 +419,138 @@ function updateTunedRowHighlight() {
             row.classList.remove("tuned-row");
         }
     });
+
+    // Update Polo button state based on whether a spot is tuned
+    updatePoloButtonState();
+}
+
+// ============================================================================
+// Ham2K Polo Deep Link Integration
+// ============================================================================
+// Note: buildPoloDeepLink() and mapModeForPolo() are defined in main.js
+
+// SOTA reference pattern for getSigFromReference
+const CHASE_SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;
+// POTA reference pattern
+const CHASE_POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;
+
+// Derive sig from reference format (for user's own activation reference)
+function getChaseUserSigFromReference(ref) {
+    if (!ref) return null;
+    if (CHASE_SOTA_REF_PATTERN.test(ref)) return "sota";
+    if (CHASE_POTA_REF_PATTERN.test(ref)) return "pota";
+    if (/^[A-Z]{2,4}FF-\d{4}$/i.test(ref)) return "wwff";
+    return null;
+}
+
+// Valid Polo sig types (lowercase)
+const VALID_POLO_SIGS = ["sota", "pota", "wwff", "gma", "wca", "zlota", "iota"];
+
+// Check if a sig type is valid for Polo
+function isValidPoloSig(sig) {
+    if (!sig) return false;
+    return VALID_POLO_SIGS.includes(sig.toLowerCase());
+}
+
+// Get data from the currently tuned row (if any)
+function getTunedSpotData() {
+    const tunedRow = document.querySelector("#chase-table tbody tr.tuned-row");
+    if (!tunedRow) {
+        Log.debug("Chase", "No tuned row found");
+        return null;
+    }
+
+    const data = {
+        activatorCallsign: tunedRow.dataset.activatorCallsign || "",
+        locationId: tunedRow.dataset.locationId || "",
+        sig: tunedRow.dataset.sig || "",
+        hertz: parseInt(tunedRow.dataset.hertz, 10) || 0,
+        modeType: tunedRow.dataset.modeType || "",
+    };
+    Log.debug("Chase", "Tuned spot data:", JSON.stringify(data));
+    return data;
+}
+
+// Check if tuned spot is valid for Polo logging (xOTA with valid ref)
+function isTunedSpotValidForPolo() {
+    const tunedSpot = getTunedSpotData();
+    if (!tunedSpot) return false;
+
+    // Must have a valid sig type (not Cluster)
+    if (!isValidPoloSig(tunedSpot.sig)) return false;
+
+    // Must have a reference (not empty or "-")
+    if (!tunedSpot.locationId || tunedSpot.locationId === "-") return false;
+
+    return true;
+}
+
+// Update Polo button enabled state based on whether a valid xOTA spot is tuned
+function updatePoloButtonState() {
+    const poloBtn = document.getElementById("polo-chase-button");
+    if (!poloBtn) return;
+
+    poloBtn.disabled = !isTunedSpotValidForPolo();
+}
+
+// Build Polo deep link for Chase page (their activation, optionally my activation for S2S)
+function buildPoloChaseLink() {
+    const tunedSpot = getTunedSpotData();
+    if (!tunedSpot) {
+        Log.debug("Chase", "buildPoloChaseLink: no tuned spot");
+        return null;
+    }
+
+    // Validate spot is suitable for Polo
+    if (!isValidPoloSig(tunedSpot.sig)) {
+        Log.debug("Chase", "buildPoloChaseLink: invalid sig:", tunedSpot.sig);
+        return null;
+    }
+    if (!tunedSpot.locationId || tunedSpot.locationId === "-") {
+        Log.debug("Chase", "buildPoloChaseLink: invalid locationId:", tunedSpot.locationId);
+        return null;
+    }
+
+    // Their data from the tuned spot
+    const theirCall = tunedSpot.activatorCallsign;
+    const theirRef = tunedSpot.locationId;
+    const theirSig = tunedSpot.sig.toLowerCase();
+    const freq = tunedSpot.hertz;
+    const mode = mapModeForPolo(tunedSpot.modeType);
+
+    // Check if user has their own activation reference (S2S/P2P scenario)
+    const myRef = localStorage.getItem("qrxReference") || "";
+    const mySig = getChaseUserSigFromReference(myRef);
+
+    const params = {
+        theirCall: theirCall,
+        theirRef: theirRef,
+        theirSig: theirSig,
+        freq: freq,
+        mode: mode,
+    };
+
+    // Include user's activation reference if set (S2S/P2P)
+    if (myRef && mySig) {
+        params.myRef = myRef;
+        params.mySig = mySig;
+    }
+
+    Log.info("Chase", "Polo params:", JSON.stringify(params));
+    return buildPoloDeepLink(params);
+}
+
+// Launch Ham2K Polo app for logging chase QSO
+function launchPoloChase() {
+    const url = buildPoloChaseLink();
+    if (url) {
+        Log.info("Chase", "Launching Polo for chase:", url);
+        // Use location.href for mobile deep link compatibility
+        window.location.href = url;
+    } else {
+        Log.warn("Chase", "Cannot launch Polo - no valid xOTA spot tuned");
+        alert("Cannot launch Polo - tune to a SOTA/POTA spot first");
+    }
 }
 
 // ============================================================================
@@ -471,9 +603,12 @@ async function updateChaseTable() {
         const row = newTbody.insertRow();
         const modeType = spot.modeType;
 
-        // Add data attributes for VFO matching
+        // Add data attributes for VFO matching and Polo deep linking
         row.dataset.hertz = spot.hertz || 0;
         row.dataset.modeType = modeType;
+        row.dataset.activatorCallsign = spot.activatorCallsign || "";
+        row.dataset.locationId = spot.locationID || "";
+        row.dataset.sig = spot.sig || "";
 
         // Add classes for filtering
         row.classList.add(`row-mode-${modeType}`);
@@ -694,7 +829,6 @@ function updateSortIndicators(headers, sortField, descending) {
 async function refreshChaseJson(force, isAutoRefresh = false) {
     // Get refresh button for UI feedback
     const refreshButton = document.getElementById("refresh-button");
-    const originalText = refreshButton?.textContent;
 
     // Track manual refreshes for smart suggestions (but not auto-refreshes)
     if (!isAutoRefresh) {
@@ -812,6 +946,12 @@ function attachChaseEventListeners() {
 
     // Update button label to reflect current state
     updateRefreshButtonLabel();
+
+    // Polo chase button
+    const poloChaseBtn = document.getElementById("polo-chase-button");
+    if (poloChaseBtn) {
+        poloChaseBtn.addEventListener("click", launchPoloChase);
+    }
 
     // Load all saved settings
     loadSortState();

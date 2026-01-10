@@ -758,10 +758,12 @@ function updateSpotButtonStates() {
     const sotamatBtn = document.getElementById("sotamat-button");
     const smsSpotBtn = document.getElementById("sms-spot-button");
     const smsQrtBtn = document.getElementById("sms-qrt-button");
+    const poloSpotBtn = document.getElementById("polo-spot-button");
 
     if (sotamatBtn) sotamatBtn.disabled = !isValid;
     if (smsSpotBtn) smsSpotBtn.disabled = !isValid;
     if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
+    if (poloSpotBtn) poloSpotBtn.disabled = !isValid;
 
     Log.debug("Spot", `Spot buttons ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
 }
@@ -809,6 +811,55 @@ function sendQrtSms() {
     if (uri) {
         Log.info("Spot", "Opening SMS for QRT:", uri);
         window.location.href = uri;
+    }
+}
+
+// ============================================================================
+// Ham2K Polo Deep Link Integration
+// ============================================================================
+// Note: buildPoloDeepLink() and mapModeForPolo() are defined in main.js
+
+// Derive sig (activation type) from reference format
+// Returns lowercase sig for Polo: 'sota', 'pota', 'wwff', etc.
+function getSigFromReference(ref) {
+    if (!ref) return null;
+    // SOTA: XX/YY-NNN (e.g., W6/HC-298, VK3/VE-123)
+    if (SOTA_REF_PATTERN.test(ref)) return "sota";
+    // POTA: XX-NNNN (e.g., US-1234, VE-0001)
+    if (POTA_REF_PATTERN.test(ref)) return "pota";
+    // WWFF: XXFF-NNNN (e.g., VKFF-0001, ONFF-0123)
+    if (/^[A-Z]{2,4}FF-\d{4}$/i.test(ref)) return "wwff";
+    // GMA: XX/YY-NNN (same format as SOTA but different program)
+    // Note: We can't distinguish GMA from SOTA by format alone
+    return null;
+}
+
+// Build Polo deep link for Spot page (my activation)
+function buildPoloSpotLink() {
+    const myRef = localStorage.getItem("qrxReference") || "";
+    if (!isValidSpotReference(myRef)) return null;
+
+    const mySig = getSigFromReference(myRef);
+    const freq = AppState.vfoFrequencyHz || null;
+    const mode = mapModeForPolo(AppState.vfoMode);
+
+    return buildPoloDeepLink({
+        myRef: myRef,
+        mySig: mySig,
+        freq: freq,
+        mode: mode,
+    });
+}
+
+// Launch Ham2K Polo app for logging my activation
+function launchPoloSpot() {
+    const url = buildPoloSpotLink();
+    if (url) {
+        Log.info("Spot", "Launching Polo for spot:", url);
+        // Use location.href for mobile deep link compatibility
+        window.location.href = url;
+    } else {
+        Log.warn("Spot", "Cannot launch Polo - no valid reference set");
     }
 }
 
@@ -897,6 +948,12 @@ function attachSpotEventListeners() {
     const smsQrtBtn = document.getElementById("sms-qrt-button");
     if (smsQrtBtn) {
         smsQrtBtn.addEventListener("click", sendQrtSms);
+    }
+
+    // Polo spot button
+    const poloSpotBtn = document.getElementById("polo-spot-button");
+    if (poloSpotBtn) {
+        poloSpotBtn.addEventListener("click", launchPoloSpot);
     }
 
     // Message playback buttons
