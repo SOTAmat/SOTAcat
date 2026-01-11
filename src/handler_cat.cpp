@@ -21,12 +21,12 @@ esp_err_t handler_xmit_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "state", param_value);
     ESP_LOGI (TAG8, "setting xmit to '%s'", param_value);
 
-    long         xmit    = atoi (param_value);  // Convert the parameter to an integer
-    const char * command = xmit ? "TX;" : "RX;";
+    long xmit = atoi (param_value);  // Convert the parameter to an integer
 
     // Tier 3: Critical timeout for TX/RX toggle
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "TX/RX toggle")) {
-        kxRadio.put_to_kx_command_string (command, 1);
+        if (!kxRadio.set_xmit_state (xmit != 0))
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to set xmit");
     }
 
     REPLY_WITH_SUCCESS();
@@ -46,12 +46,12 @@ esp_err_t handler_msg_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "bank", param_value);
     ESP_LOGI (TAG8, "playing message bank '%s'", param_value);
 
-    long         bank    = atoi (param_value);  // Convert the parameter to an integer
-    const char * command = bank == 1 ? "SWT11;SWT19;" : "SWT11;SWT27;";
+    long bank = atoi (param_value);  // Convert the parameter to an integer
 
     // Tier 2: Quick timeout for fast SET operations
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_QUICK_MS, "message play")) {
-        kxRadio.put_to_kx_command_string (command, 1);
+        if (!kxRadio.play_message_bank (bank))
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to play message bank");
     }
 
     REPLY_WITH_SUCCESS();
@@ -74,7 +74,8 @@ esp_err_t handler_power_get (httpd_req_t * req) {
 
     // Tier 1: Fast timeout for GET operations
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "power GET")) {
-        power = kxRadio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
+        if (!kxRadio.get_power (power))
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "power read not supported");
     }
 
     char power_string[8];
@@ -105,22 +106,7 @@ esp_err_t handler_power_put (httpd_req_t * req) {
 
     // Tier 2: Moderate timeout for SET operations
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "power SET")) {
-        // first set it to a known value, zero
-        if (!kxRadio.put_to_kx ("PC", 3, 0, SC_KX_COMMUNICATION_RETRIES))
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
-
-        if (!desired_power)
-            REPLY_WITH_SUCCESS();  // wanted zero - we're done
-
-        // now try setting to desired value
-        kxRadio.put_to_kx ("PC", 3, desired_power, 0);
-
-        // if the read result doesn't match the desired value, then ensure it has at least changed (from zero above)
-        long power = kxRadio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
-
-        if (power != desired_power)
-            ESP_LOGI (TAG8, "requested power '%s', acquired only %ld", param_value, power);
-        if (power == 0)
+        if (!kxRadio.set_power (desired_power))
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
     }
 
@@ -149,38 +135,12 @@ esp_err_t handler_keyer_put (httpd_req_t * req) {
     url_decode_in_place (param_value);
     ESP_LOGI (TAG8, "keying message '%s'", param_value);
 
-    char command[256];
-    snprintf (command, sizeof (command), "KYW%s;", param_value);
-
     // Tier 3: Critical timeout for keyer operation
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "keyer")) {
-        radio_mode_t mode            = (radio_mode_t)kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
-        long         speed_wpm       = kxRadio.get_from_kx ("KS", SC_KX_COMMUNICATION_RETRIES, 3);
-        long         chars_remaining = strlen (param_value);
-
-        if (mode != MODE_CW)
-            kxRadio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);
-        kxRadio.put_to_kx_command_string (command, 1);
-
-        /**
-         * NOTE: Ideally, we'd have a do-while loop here looking at the
-         * remaining queue of characters to be transmitted, and looping to delay
-         * further if there are any. Regrettably, the response format of the
-         * relevant "TBX;" command is of variable length since it shows the
-         * count of characters (good) and also what they are (bad). The
-         * combination is bad for us, because we currently don't have an
-         * accommodation in the uart communications for variable-length
-         * responses. But we're conservative enough in this current
-         * implementation that we come quite close to being contemporaneous with
-         * the conclusion of the transmission.
-         */
-        long duration_ms = 60 * 1000 * chars_remaining / (speed_wpm * 5);
-        ESP_LOGI (TAG8, "delaying %ld ms for %ld chars at %ld wpm", duration_ms, chars_remaining, speed_wpm);
-        vTaskDelay (pdMS_TO_TICKS (duration_ms));
-
-        vTaskDelay (pdMS_TO_TICKS (600));  // an additional amount, once, for command processing
-        if (mode != MODE_CW)
-            kxRadio.put_to_kx ("MD", 1, mode, SC_KX_COMMUNICATION_RETRIES);
+        if (!kxRadio.supports_keyer())
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "Morse keying not supported on this radio");
+        if (!kxRadio.send_keyer_message (param_value))
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "keyer send failed");
     }
 
     REPLY_WITH_SUCCESS();

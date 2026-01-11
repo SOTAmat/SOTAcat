@@ -49,8 +49,18 @@ radio_mode_t get_radio_mode () {
     int64_t now = esp_timer_get_time();
     long    mode;
 
+    if (Ft8RadioExclusive) {
+        if (cached_mode != MODE_UNKNOWN) {
+            mode = cached_mode;
+            ESP_LOGW (TAG8, "ft8 active - returning cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
+        }
+        else {
+            ESP_LOGW (TAG8, "ft8 active - no cached mode available");
+            mode = MODE_UNKNOWN;
+        }
+    }
     // Check cache first to reduce radio mutex contention
-    if (cached_mode != MODE_UNKNOWN && (now - cached_mode_time) < MODE_CACHE_US) {
+    else if (cached_mode != MODE_UNKNOWN && (now - cached_mode_time) < MODE_CACHE_US) {
         mode = cached_mode;
         ESP_LOGV (TAG8, "returning cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
     }
@@ -60,7 +70,11 @@ radio_mode_t get_radio_mode () {
         {
             TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "mode GET");
             if (lock.acquired()) {
-                mode = kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
+                radio_mode_t current_mode = MODE_UNKNOWN;
+                if (!kxRadio.get_mode (current_mode))
+                    mode = MODE_UNKNOWN;
+                else
+                    mode = current_mode;
 
                 if (mode > MODE_UNKNOWN && mode <= MODE_LAST) {
                     // Update cache
@@ -133,7 +147,9 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         // Determine the radio mode based on the "bw" parameter
         if (!strcmp (bw, "SSB")) {
             // Get the current frequency and set the mode to LSB or USB based on the frequency
-            long frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
+            long frequency = 0;
+            if (!kxRadio.get_frequency (frequency))
+                frequency = 0;
             if (frequency > 0)
                 mode = (frequency < 10000000) ? MODE_LSB : MODE_USB;
         }
@@ -153,7 +169,9 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid bw");
 
         // Set the radio mode
-        kxRadio.put_to_kx ("MD", 1, mode, SC_KX_COMMUNICATION_RETRIES);
+        ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
+        if (!kxRadio.set_mode (mode, SC_KX_COMMUNICATION_RETRIES))
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode for radio");
 
         // Update cache after setting new mode
         cached_mode      = mode;

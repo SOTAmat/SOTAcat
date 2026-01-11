@@ -5,6 +5,8 @@
 #include <freertos/task.h>
 #include <cstdint>
 
+#include <cstdlib>
+
 #define SC_KX_COMMUNICATION_RETRIES 3
 
 /**
@@ -26,7 +28,8 @@ typedef enum {
 enum class RadioType {
     UNKNOWN,
     KX2,
-    KX3
+    KX3,
+    KH1
 };
 
 typedef struct {
@@ -89,6 +92,9 @@ class KXRadio {
     bool put_to_kx_menu_item (uint8_t menu_item, long value, int tries);
     bool get_from_kx_string (const char * command, int tries, char * result, int result_size);
     bool put_to_kx_command_string (const char * command, int tries);
+    long get_kh1_frequency ();
+    long get_kh1_mode ();
+    bool set_kh1_power (int power_level);
     void get_kx_state (kx_state_t * in_state);
     void restore_kx_state (const kx_state_t * in_state, int tries);
 
@@ -98,6 +104,7 @@ class KXRadio {
         switch (m_radio_type) {
         case RadioType::KX2: return "KX2";
         case RadioType::KX3: return "KX3";
+        case RadioType::KH1: return "KH1";
         default: return "Unknown";
         }
     }

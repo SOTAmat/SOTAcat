@@ -26,8 +26,18 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
     long    frequency;
     int64_t now = esp_timer_get_time();
 
+    if (Ft8RadioExclusive) {
+        if (cached_frequency > 0) {
+            frequency = cached_frequency;
+            ESP_LOGW (TAG8, "ft8 active - returning cached frequency: %ld", frequency);
+        }
+        else {
+            ESP_LOGW (TAG8, "ft8 active - no cached frequency available");
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
+        }
+    }
     // Check cache first to reduce radio mutex contention
-    if (cached_frequency > 0 && (now - cached_frequency_time) < FREQUENCY_CACHE_US) {
+    else if (cached_frequency > 0 && (now - cached_frequency_time) < FREQUENCY_CACHE_US) {
         frequency = cached_frequency;
         ESP_LOGV (TAG8, "returning cached frequency: %ld", frequency);
     }
@@ -37,7 +47,8 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
         {
             TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
             if (lock.acquired()) {
-                frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
+                if (!kxRadio.get_frequency (frequency))
+                    frequency = -1;
 
                 if (frequency > 0) {
                     // Update cache
@@ -84,13 +95,13 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
 
     STANDARD_DECODE_SOLE_PARAMETER (req, "frequency", param_value)
     int freq = atoi (param_value);  // Convert the parameter to an integer
-    ESP_LOGI (TAG8, "freqency %d", freq);
+    ESP_LOGI (TAG8, "frequency '%d'", freq);
     if (freq <= 0)
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid frequency");
 
     // Tier 2: Moderate timeout for SET operations
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "frequency SET")) {
-        bool success = kxRadio.put_to_kx ("FA", 11, freq, SC_KX_COMMUNICATION_RETRIES);
+        bool success = kxRadio.set_frequency (freq, SC_KX_COMMUNICATION_RETRIES);
 
         if (!success)
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set frequency");

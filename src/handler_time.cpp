@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_driver.h"
 #include "timed_lock.h"
 #include "webserver.h"
 
@@ -13,59 +14,13 @@
 static const char * TAG8 = "sc:hdl_time";
 
 /**
- * Represents a time in hours, minutes, and seconds.
- */
-struct time_hms {
-    int hrs;
-    int min;
-    int sec;
-};
-
-/**
- * Converts two character digits into an integer.
- *
- * @param ten Character for the tens place.
- * @param one Character for the ones place.
- * @return Combined integer value.
- */
-inline int decode_couplet (char ten, char one) {
-    // note high bit 0x80 may be set on tens digit of each couplet, to represent the decimal point
-    return 10 * ((ten & 0x7f) - '0') + one - '0';
-}
-
-/**
- * Retrieves and decodes the time from a radio device into a time_hms structure.
- *
- * @param radio_time Pointer to store the decoded time.
- * @return true if successful, false otherwise.
- */
-static bool get_radio_time (time_hms * radio_time) {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-    char buf[sizeof ("DS@@123456af;")];                                                          // sizeof arg looks like expected response
-    if (!kxRadio.get_from_kx_string ("DS", SC_KX_COMMUNICATION_RETRIES, buf, sizeof (buf) - 1))  // read time from VFO A
-        return false;
-    buf[sizeof (buf) - 1] = '\0';
-    ESP_LOGV (TAG8, "time as read on display is %s", buf);
-
-    // expect buf to look like
-    //          DS@@1²3´5¶af;
-    // index    0123456789012
-    // note high bit 0x80 may be set on tens digit of each couplet, to represent the decimal point
-    radio_time->hrs = decode_couplet (buf[4], buf[5]);
-    radio_time->min = decode_couplet (buf[6], buf[7]);
-    radio_time->sec = decode_couplet (buf[8], buf[9]);
-    ESP_LOGV (TAG8, "radio time is %02d:%02d:%02d", radio_time->hrs, radio_time->min, radio_time->sec);
-    return true;
-}
-
-/**
  * Converts a long integer timestamp into a time_hms structure.
  *
  * @param long_time Timestamp to convert.
  * @param client_time Pointer to store the converted time.
  * @return true on success, false on failure.
  */
-static bool convert_client_time (long int long_time, time_hms * client_time) {
+static bool convert_client_time (long int long_time, RadioTimeHms * client_time) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
     // Convert long int to time_t
     time_t my_time = static_cast<time_t> (long_time);
@@ -86,41 +41,6 @@ static bool convert_client_time (long int long_time, time_hms * client_time) {
 }
 
 /**
- * Adjusts a single time component (H/M/S) on a radio device
- * based on the provided direction and magnitude.
- *
- * @param selector Component to adjust (e.g., "SWT19;" for hours).
- * @param diff Amount to adjust, positive for up, negative for down.
- */
-static void adjust_component (char const * selector, int diff) {
-    ESP_LOGV (TAG8, "trace: %s('%s', %d)", __func__, selector, diff);
-
-    if (!diff)
-        return;
-
-    const size_t num_steps = static_cast<size_t> (std::abs (diff));
-    assert (num_steps <= 60);
-
-    const size_t     selector_len    = std::strlen (selector);
-    constexpr size_t step_len        = sizeof ("UP;") - 1;  // 3
-    const size_t     adjustment_size = selector_len + num_steps * step_len + 1;
-    auto             adjustment      = std::make_unique<char[]> (adjustment_size);
-
-    char * buf = adjustment.get();
-
-    int written = snprintf (buf, adjustment_size, "%s", selector);
-    for (int ii = diff; ii > 0; --ii)
-        written += snprintf (buf + written, adjustment_size - written, "UP;");
-    for (int ii = diff; ii < 0; ++ii)
-        written += snprintf (buf + written, adjustment_size - written, "DN;");
-
-    ESP_LOGV (TAG8, "adjustment should be %s", buf);
-    kxRadio.put_to_kx_command_string (buf, 1);
-
-    vTaskDelay (pdMS_TO_TICKS (30 * num_steps));  // empirically determined delay to allow radio to complete the action
-}
-
-/**
  * Handles an HTTP PUT request to update the time setting on the radio.
  *
  * @param req Pointer to the HTTP request structure.  The "time" query parameter
@@ -134,27 +54,14 @@ esp_err_t handler_time_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "time", param_value);
 
     long     time_value = atoi (param_value);  // Convert the parameter to an integer
-    time_hms client_time;
+    RadioTimeHms client_time;
     if (!convert_client_time (time_value, &client_time))
         REPLY_WITH_FAILURE (req, HTTPD_400_BAD_REQUEST, "invalid time value");
 
     // Tier 3: Critical timeout for time setting
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "time SET")) {
-        time_hms radio_time;
-        kxRadio.put_to_kx ("MN", 3, 73, SC_KX_COMMUNICATION_RETRIES);       // enter time menu
-        if (!get_radio_time (&radio_time)) {                                // read the screen; VFO A shows the time
-            kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu on error
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to read radio time");
-        }
-
-        // set synced time in this order (sec, min, hrs) to be most sensitive to current time
-        if (radio_time.sec != client_time.sec)
-            adjust_component ("SWT20;", client_time.sec - radio_time.sec);
-        if (radio_time.min != client_time.min)
-            adjust_component ("SWT27;", client_time.min - radio_time.min);
-        if (radio_time.hrs != client_time.hrs)
-            adjust_component ("SWT19;", client_time.hrs - radio_time.hrs);
-        kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu
+        if (!kxRadio.sync_time (client_time))
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to sync radio time");
     }
 
     REPLY_WITH_SUCCESS();
