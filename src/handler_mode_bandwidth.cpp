@@ -123,11 +123,11 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         if (mode == MODE_UNKNOWN)
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid bw");
 
-        // KH1 code for CW is 0, mapped to MODE_UNKNOWN
+        // KH code for CW is 0, mapped to MODE_UNKNOWN
         if (kxRadio.get_radio_type() == RadioType::KH1 && mode == MODE_CW)
             mode = MODE_UNKNOWN;
 
-        // KH1 only supports CW, LSB, and USB modes
+        // KH only supports CW, LSB, and USB modes
         if (kxRadio.get_radio_type() == RadioType::KH1 && mode > MODE_CW)
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode for KH1");
 

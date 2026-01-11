@@ -13,6 +13,7 @@ static const char * TAG8 = "sc:hdl_atu.";
  * This function sends the appropriate command based on the detected radio type:
  * - KX3: SWT44
  * - KX2: SWT20
+ * - KH1: SW3T
  *
  * @param req Pointer to the HTTP request structure.
  * @return ESP_OK on success, or an error code on failure.

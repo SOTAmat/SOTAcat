@@ -56,7 +56,7 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid frequency");
 
     if (kxRadio.get_radio_type() == RadioType::KH1 && freq > 21450000)
-        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "Not a valid band for the KH1");
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "Not a valid band for the KH radio");
 
     {
         const std::lock_guard<Lockable> lock (kxRadio);

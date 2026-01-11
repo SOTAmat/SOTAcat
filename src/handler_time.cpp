@@ -41,7 +41,7 @@ static bool get_radio_time (time_hms * radio_time) {
         if (!kxRadio.get_from_kx_string ("DS2", SC_KX_COMMUNICATION_RETRIES, buf, sizeof (buf) - 1))  // read time from second line)
             return false;
         buf[sizeof (buf) - 1] = '\0';
-        ESP_LOGV (TAG8, "second line on kh1 display is %s", buf);
+        ESP_LOGV (TAG8, "second line on kh display is %s", buf);
 
         // expect buf to look like
         //          DS1xxxxxxxxxxxHH:MM;
@@ -52,7 +52,7 @@ static bool get_radio_time (time_hms * radio_time) {
         strncpy(min_char, buf + 17, 2);   // Characters 17-18 represent minutes as a string
         radio_time->hrs = atoi(hour_char);
         radio_time->min = atoi(min_char);
-        radio_time->sec = 0;  // KH1 does not show seconds
+        radio_time->sec = 0;  // KH does not show seconds
     }
     else {
         char buf[sizeof ("DS@@123456af;")];                                                          // sizeof arg looks like expected response
@@ -162,7 +162,7 @@ static bool set_time (char const * param_value) {
     if (kxRadio.get_radio_type() == RadioType::KH1) {
         if (!get_radio_time (&radio_time))                             // read the screen; second line shows the time
             return false;
-        kxRadio.put_to_kx_command_string("MNTIM", 1);  // enter time menu
+        kxRadio.put_to_kx_command_string("MNTIM;", 1);  // enter time menu
     }
     else {
         kxRadio.put_to_kx ("MN", 3, 73, SC_KX_COMMUNICATION_RETRIES);  // enter time menu
@@ -178,7 +178,7 @@ static bool set_time (char const * param_value) {
             adjust_component ("SW3T;", client_time.min - radio_time.min);
         if (radio_time.hrs != client_time.hrs)
             adjust_component ("SW2T;", client_time.hrs - radio_time.hrs);
-        kxRadio.put_to_kx_command_string("SW4T", 1);  // exit time menu
+        kxRadio.put_to_kx_command_string("SW4T;", 1);  // exit time menu
     }
     else {
         if (radio_time.sec != client_time.sec && kxRadio.get_radio_type() != RadioType::KH1)

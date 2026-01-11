@@ -34,7 +34,7 @@ function toggleXmit() {
 function setPowerMinMax(maximum) {
   // KX3 max power is 15w, KX2 will accept that and gracefully set 10w instead
   // On both radios, actual power may be lower than requested, depending on mode, battery, etc.
-  lastUserAction = Date.now(); // Prevent VFO polling while seting power. KH1 radio reads power and frequency from the display
+  lastUserAction = Date.now(); // Prevent VFO polling while seting power. KH radio reads power and frequency from the display
   const url = "/api/v1/power?power=" + (maximum ? "15" : "0");
   fetch(url, { method: "PUT" }).catch((error) =>
     console.error("Fetch error:", error),

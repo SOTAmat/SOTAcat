@@ -106,7 +106,7 @@ static void waitForFT8Window () {
 /**
  * Transitions from a prior frequency to a new frequency smoothly over one or more steps.
  *
- * @param base_frequency The base frequency for the FT8 transmission. Needed for KH1 offset calculations.
+ * @param base_frequency The base frequency for the FT8 transmission. Needed for KH offset calculations.
  * @param prior_frequency The frequency at which the previous tone was sent.
  * @param frequency The target frequency for the current tone.
  * @param lastWakeTime The last recorded wake time, used for task delay calculations.
@@ -124,8 +124,7 @@ static void sendFT8Tone (long base_frequency, long prior_frequency, long frequen
     for (int step = 1; step <= EASE_STEPS; step++) {
         long eased_frequency = prior_frequency + round (delta_frequency * ((float)step / EASE_STEPS));
         if (kxRadio.get_radio_type() == RadioType::KH1) {  
-            snprintf (command, sizeof (command), "FO%02ld;", (eased_frequency - base_frequency));  // KH1 uses offset in hundreds of Hz
-            // Send the tone command over UART
+            snprintf(command, sizeof(command), "FO%02u;", (unsigned)((eased_frequency - base_frequency) % 100));            // Send the tone command over UART
             uart_write_bytes (UART_NUM, command, 5);
         }
         else {
@@ -216,10 +215,8 @@ static void xmit_ft8_task (void * pvParameter) {
 
         // Tell the radio to turn off the CW tone
         if (kxRadio.get_radio_type() == RadioType::KH1) {
-            ESP_LOGI (TAG8, "ft8 tone sending completed.");
             uart_write_bytes (UART_NUM, "HK0;", strlen ("HK0;"));
-            // uart_write_bytes (UART_NUM, "HK0;", strlen ("HK0;"));
-            uart_write_bytes (UART_NUM, "FO99;;", strlen ("FO99;")); // Take KH1 out of FO mode
+            uart_write_bytes (UART_NUM, "FO99;", strlen ("FO99;")); // Take KH1 out of FO mode
         }
         else
             uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));
