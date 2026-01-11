@@ -2,7 +2,7 @@
 
 ## Introduction:
 
-### Wireless (WiFi/BLE) CAT control for Elecraft KX and KH1 radios, with SOTAMAT direct FT8 synthesis
+### Wireless (WiFi/BLE) CAT control for Elecraft KX and KH radios, with SOTAMAT direct FT8 synthesis
 
 SOTACAT is a small hardware module that plugs into an Elecraft KX2, KX3 or KH1 radio’s CAT port (Computer Aided Transceiver port, also known as a serial port or an accessory port) and provides WiFi control of the radio from your mobile device. It provides the following features:
 
