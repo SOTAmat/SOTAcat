@@ -106,12 +106,13 @@ static void waitForFT8Window () {
 /**
  * Transitions from a prior frequency to a new frequency smoothly over one or more steps.
  *
+ * @param base_frequency The base frequency for the FT8 transmission. Needed for KH offset calculations.
  * @param prior_frequency The frequency at which the previous tone was sent.
  * @param frequency The target frequency for the current tone.
  * @param lastWakeTime The last recorded wake time, used for task delay calculations.
  * @param toneInterval The interval at which tones should be sent, in ticks.
  */
-static void sendFT8Tone (long prior_frequency, long frequency, TickType_t * lastWakeTime, const TickType_t toneInterval) {
+static void sendFT8Tone (long base_frequency, long prior_frequency, long frequency, TickType_t * lastWakeTime, const TickType_t toneInterval) {
     // Jeff: I commented out the following line because this is the most time critical function: sending the FT8 tones.
     // We don't want to log this function because it will affect the timing and add jitter.
     // ESP_LOGV(TAG8, "trace: %s(%ld, %ld)", __func__, prior_frequency, frequency);
@@ -122,10 +123,15 @@ static void sendFT8Tone (long prior_frequency, long frequency, TickType_t * last
 
     for (int step = 1; step <= EASE_STEPS; step++) {
         long eased_frequency = prior_frequency + round (delta_frequency * ((float)step / EASE_STEPS));
-        snprintf (command, sizeof (command), "FA%011ld;", eased_frequency);
-
-        // Send the tone command over UART
-        uart_write_bytes (UART_NUM, command, 14);
+        if (kxRadio.get_radio_type() == RadioType::KH1) {  
+            snprintf(command, sizeof(command), "FO%02u;", (unsigned)((eased_frequency - base_frequency) % 100));            // Send the tone command over UART
+            uart_write_bytes (UART_NUM, command, 5);
+        }
+        else {
+            snprintf (command, sizeof (command), "FA%011ld;", eased_frequency);
+            // Send the tone command over UART
+            uart_write_bytes (UART_NUM, command, 14);
+        }
     }
 
     // Reset the lastWakeTime to the time we entered this function, and then wait the 0.16 total interval seconds.
@@ -182,15 +188,21 @@ static void xmit_ft8_task (void * pvParameter) {
         // Reset watchdog before starting time-critical FT8 transmission
         ESP_ERROR_CHECK (esp_task_wdt_reset());
 
-        uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));  // Tell the radio to turn on the CW tone
+        // Tell the radio to turn on the CW tone
+        if (kxRadio.get_radio_type() == RadioType::KH1)
+            uart_write_bytes (UART_NUM, "HK1;", strlen ("HK1;"));
+        else
+            uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;")); 
+
         TickType_t lastWakeTime = xTaskGetTickCount();             // Initialize lastWakeTime
 
         // Now tell the radio to play the array of 79 tones
-        // Note that the Elecraft KX2/KX3 radios do not allow fractional Hz, so we round to the nearest Hz.
+        // Note that the Elecraft KX2/KX3 and KH1 radios do not allow fractional Hz, so we round to the nearest Hz.
         for (int j = 0; j < FT8_NN; ++j) {
             long next_frequency = info->baseFreq + (long)round (info->tones[j] * 6.25);
 
-            sendFT8Tone (prior_frequency,
+            sendFT8Tone (info->baseFreq,
+                         prior_frequency,
                          next_frequency,
                          &lastWakeTime,
                          toneInterval);
@@ -202,7 +214,12 @@ static void xmit_ft8_task (void * pvParameter) {
         }
 
         // Tell the radio to turn off the CW tone
-        uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));
+        if (kxRadio.get_radio_type() == RadioType::KH1) {
+            uart_write_bytes (UART_NUM, "HK0;", strlen ("HK0;"));
+            uart_write_bytes (UART_NUM, "FO99;", strlen ("FO99;")); // Take KH1 out of FO mode
+        }
+        else
+            uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));
 
         // Reset watchdog after completing time-critical FT8 transmission
         ESP_ERROR_CHECK (esp_task_wdt_reset());
@@ -374,16 +391,26 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
         // Prepare the radio to send the FT8 FSK tones using CW tone with proper power setting.
         long baseFreq = rfFreq + audioFreq;
 
-        kxRadio.put_to_kx ("FR", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FR0; - Cancels split mode
-        kxRadio.put_to_kx ("FT", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FT0; - Select VFO A
-        kxRadio.put_to_kx ("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
-        kxRadio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);    // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
-        kxRadio.put_to_kx ("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);          // AP1; - Enable Audio Peaking filter
+        if (kxRadio.get_radio_type() == RadioType::KH1) {
+            // Set power to low if not already there. No need to store.
+            // The power level will be set to high in the restore_kx_state() function.
+            // kxRadio.set_kh1_power (2);  // 2 = LOW power as set in the radio
+            kxRadio.put_to_kx ("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
+            kxRadio.set_kh1_power (2);  // 2 = LOW power as set in the radio
+            ESP_LOGI (TAG8, "PWR set to 2W (LOW) for FT8 transmission");
+            kxRadio.put_to_kx_command_string ("FO00;", 1);   // FO00; - Turn on OFFSET mode
+        }
+        else {
+            kxRadio.put_to_kx ("FR", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FR0; - Cancels split mode
+            kxRadio.put_to_kx ("FT", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FT0; - Select VFO A
+            kxRadio.put_to_kx ("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
+            kxRadio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);    // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
+            kxRadio.put_to_kx ("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);          // AP1; - Enable Audio Peaking filter
 
-        // Set TUN PWR to 10W (100 = 10.0W in 0.1W units) with verification
-        kxRadio.put_to_kx_menu_item (58, 100, SC_KX_COMMUNICATION_RETRIES);  // MN058;MP100; - Set TUN PWR to 10 watts
-        ESP_LOGI (TAG8, "TUN PWR set to 10W for FT8 transmission");
-
+            // Set TUN PWR to 10W (100 = 10.0W in 0.1W units) with verification
+            kxRadio.put_to_kx_menu_item (58, 100, SC_KX_COMMUNICATION_RETRIES);  // MN058;MP100; - Set TUN PWR to 10 watts
+            ESP_LOGI (TAG8, "TUN PWR set to 10W for FT8 transmission");
+        }
         // Offload playing the FT8 audio
         ft8ConfigInfo           = new ft8_task_pack_t;
         ft8ConfigInfo->baseFreq = baseFreq;
