@@ -474,7 +474,7 @@ input.frequency-display {
 }
 
 .xmit-controls {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
 }
 
 .power-controls {
@@ -1523,6 +1523,25 @@ tbody tr:active {
 
     .button-group button {
         width: 100%;
+    }
+
+}
+
+/* Responsive controls for phones and small tablets */
+@media (max-width: 768px) {
+    /* Chase page: first 3 controls on one row, PoLo on second row */
+    .controls-grid {
+        display: grid;
+        grid-template-columns: auto auto 1fr;
+    }
+
+    .controls-grid .control-group:last-child {
+        grid-column: 1 / -1;
+    }
+
+    /* Spot page: 2x2 grid for transmit controls */
+    .xmit-controls {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
