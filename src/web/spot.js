@@ -10,9 +10,6 @@
 // Spot page state encapsulated in a single object
 // Note: VFO frequency/mode are stored in global AppState for cross-page sharing
 const SpotState = {
-    // Transmit state
-    isXmitActive: false,
-
     // VFO polling state (frequency/mode stored in AppState)
     vfoUpdateInterval: null,
     lastUserAction: 0,
@@ -48,30 +45,6 @@ const ATU_FEEDBACK_DURATION_MS = 1000;
 function playMsg(slot) {
     const url = `/api/v1/msg?bank=${slot}`;
     fetchQuiet(url, { method: "PUT" }, "Spot");
-}
-
-// ============================================================================
-// Transmit Control Functions
-// ============================================================================
-
-// Send transmit state change request to radio (state: 0=RX, 1=TX)
-function sendXmitRequest(state) {
-    const url = `/api/v1/xmit?state=${state}`;
-    fetchQuiet(url, { method: "PUT" }, "Spot");
-}
-
-// Toggle transmit state on/off
-function toggleXmit() {
-    const xmitButton = document.getElementById("xmit-button");
-    SpotState.isXmitActive = !SpotState.isXmitActive;
-
-    if (SpotState.isXmitActive) {
-        xmitButton.classList.add("active");
-        sendXmitRequest(1);
-    } else {
-        xmitButton.classList.remove("active");
-        sendXmitRequest(0);
-    }
 }
 
 // ============================================================================
@@ -1019,6 +992,9 @@ function onSpotAppearing() {
 
     // Attach event listeners for all controls
     attachSpotEventListeners();
+
+    // Sync xmit button state with global state
+    syncXmitButtonState();
 
     // Update Send button states based on loaded input values
     updateSendButtonStates();

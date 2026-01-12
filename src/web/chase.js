@@ -41,6 +41,7 @@ const ChaseState = {
 
     // UI state
     chaseEventListenersAttached: false,
+
 };
 
 // ============================================================================
@@ -947,6 +948,12 @@ function attachChaseEventListeners() {
     // Update button label to reflect current state
     updateRefreshButtonLabel();
 
+    // Transmit toggle button
+    const xmitBtn = document.getElementById("xmit-button");
+    if (xmitBtn) {
+        xmitBtn.addEventListener("click", toggleXmit);
+    }
+
     // Polo chase button
     const poloChaseBtn = document.getElementById("polo-chase-button");
     if (poloChaseBtn) {
@@ -1030,6 +1037,9 @@ function onChaseAppearing() {
 
     // Attach event listeners for all controls
     attachChaseEventListeners();
+
+    // Sync xmit button state with global state
+    syncXmitButtonState();
 
     // Set filter dropdown values (do this every time for state consistency)
     const modeSelector = document.getElementById("mode-filter");

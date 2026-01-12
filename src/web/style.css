@@ -532,8 +532,14 @@ input.frequency-display {
 .btn-xmit {
     background: var(--gray-8);
     color: var(--white);
-    font-weight: 700;
     padding: 0;
+}
+
+/* TX Toggle button in Chase page controls - match btn-refresh sizing */
+.controls-grid .btn-xmit {
+    min-height: var(--touch-target-sm);
+    font-size: var(--text-sm);
+    padding: 0 var(--space-md);
 }
 .btn-xmit.active {
     background: var(--danger);
@@ -1538,6 +1544,11 @@ tbody tr:active {
     /* Spot page: 2x2 grid for transmit controls */
     .xmit-controls {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Chase page: keep TX Toggle and PoLo buttons on same row */
+    .controls-grid .control-group:last-child .button-group {
+        flex-direction: row;
     }
 }
 

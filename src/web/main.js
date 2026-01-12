@@ -83,6 +83,9 @@ const AppState = {
     tuneTargets: null,         // null = not loaded, [] = loaded but empty
     tuneTargetsMobile: false,
     tuneTargetWindows: [],     // references to opened windows
+
+    // Transmit state (shared between Spot and Chase pages)
+    isXmitActive: false,
 };
 
 // ============================================================================
@@ -494,6 +497,42 @@ function buildPoloDeepLink(params) {
 
     if (queryParts.length === 0) return null;
     return `${baseUrl}?${queryParts.join("&")}`;
+}
+
+// ============================================================================
+// Transmit Control Functions
+// ============================================================================
+
+// Send transmit state change request to radio (state: 0=RX, 1=TX)
+function sendXmitRequest(state) {
+    const url = `/api/v1/xmit?state=${state}`;
+    fetchQuiet(url, { method: "PUT" }, "Xmit");
+}
+
+// Toggle transmit state on/off (shared between Spot and Chase pages)
+function toggleXmit() {
+    const xmitButton = document.getElementById("xmit-button");
+    AppState.isXmitActive = !AppState.isXmitActive;
+
+    if (AppState.isXmitActive) {
+        if (xmitButton) xmitButton.classList.add("active");
+        sendXmitRequest(1);
+    } else {
+        if (xmitButton) xmitButton.classList.remove("active");
+        sendXmitRequest(0);
+    }
+}
+
+// Sync xmit button UI with current state (call on page appearing)
+function syncXmitButtonState() {
+    const xmitButton = document.getElementById("xmit-button");
+    if (xmitButton) {
+        if (AppState.isXmitActive) {
+            xmitButton.classList.add("active");
+        } else {
+            xmitButton.classList.remove("active");
+        }
+    }
 }
 
 // ============================================================================
