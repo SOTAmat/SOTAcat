@@ -979,6 +979,18 @@ function processGeolocationCallback() {
 
 // Save geolocation received from bridge to ESP32
 async function saveGeolocationFromBridge(lat, lon, accuracy) {
+    // Store coords for QRX page to pick up (in case page isn't loaded yet)
+    sessionStorage.setItem("pendingGeolocation", JSON.stringify({ lat, lon }));
+
+    // Update input field immediately (if on QRX page)
+    const gpsInput = document.getElementById("gps-location");
+    if (gpsInput) {
+        gpsInput.value = `${lat}, ${lon}`;
+        // Fetch locality via reverse geocoding (fire and forget)
+        fetchLocalityFromCoords(lat, lon);
+    }
+
+    // Try to save to device API
     const settings = {
         gps_lat: lat,
         gps_lon: lon,
@@ -999,19 +1011,36 @@ async function saveGeolocationFromBridge(lat, lon, accuracy) {
 
             const accuracyNote = accuracy ? ` ±${accuracy}m` : "";
             alert(`Location saved: (${lat}, ${lon})${accuracyNote}`);
-
-            // Update input field if on settings page
-            const gpsInput = document.getElementById("gps-location");
-            if (gpsInput) {
-                gpsInput.value = `${lat}, ${lon}`;
-            }
         } else {
             const data = await response.json();
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
         Log.error("GPS", "Failed to save browser location:", error);
-        alert("Failed to get location. Please try again.");
+        alert("Failed to save location to device.");
+    }
+}
+
+// Fetch locality name from coordinates using Nominatim reverse geocoding
+async function fetchLocalityFromCoords(lat, lon) {
+    const localityDiv = document.getElementById("gps-locality");
+    if (!localityDiv) return;
+
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=jsonv2&addressdetails=1&zoom=10`;
+        const response = await fetch(url, {
+            headers: { "User-Agent": "sotacat (github.com/SOTAmat/SOTAcat)" },
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.display_name) {
+                localityDiv.textContent = data.display_name;
+                localityDiv.title = data.display_name;
+            }
+        }
+    } catch (error) {
+        Log.debug("GPS", "Locality lookup failed:", error.message);
     }
 }
 

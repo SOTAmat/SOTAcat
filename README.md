@@ -93,6 +93,7 @@ By having the SOTACAT connect to the phone and the phone connected to the cell n
 - Elecraft: N6KR, Wayne Burdick, and N1AL, Alan, provided guidance on control of Elecraft radios and Mathcad analysis of FT8 FSK harmonics.
 - Justin K5EM and Rex KE6MT: Created derivative hardware versions, custom SMT PCBs, and helped with packaging analysis, circuit analysis, and testing.
     - See [Justin's SOTACAT-PCB Github page](https://github.com/invertedlabs/sotacat-pcb/) for an open source custom PCB (printed circuit board) that implements SOTACAT in a compact and professional way, as well as 3D printing files for an enclosure.
+- [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors: Location data used for reverse geocoding via the [Nominatim](https://nominatim.org/) API. © OpenStreetMap contributors.
 
 ## Support
 

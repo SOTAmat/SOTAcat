@@ -53,22 +53,41 @@ let originalGpsValue = "";
 async function loadGpsLocation() {
     const gpsLocationInput = document.getElementById("gps-location");
     const saveGpsBtn = document.getElementById("save-gps-button");
+    const localityDiv = document.getElementById("gps-locality");
 
-    try {
-        const response = await fetch("/api/v1/gps");
-        const data = await response.json();
-
-        if (data.gps_lat && data.gps_lon) {
-            gpsLocationInput.value = `${data.gps_lat}, ${data.gps_lon}`;
+    // Check for pending geolocation from browser bridge (takes priority)
+    const pending = sessionStorage.getItem("pendingGeolocation");
+    if (pending) {
+        try {
+            const { lat, lon } = JSON.parse(pending);
+            gpsLocationInput.value = `${lat}, ${lon}`;
             gpsLocationInput.placeholder = "latitude, longitude";
-        } else {
+            fetchLocalityFromCoords(lat, lon);
+            sessionStorage.removeItem("pendingGeolocation");
+        } catch (e) {
+            sessionStorage.removeItem("pendingGeolocation");
+        }
+    } else {
+        // Otherwise load from device API
+        try {
+            const response = await fetch("/api/v1/gps");
+            const data = await response.json();
+
+            if (data.gps_lat && data.gps_lon) {
+                gpsLocationInput.value = `${data.gps_lat}, ${data.gps_lon}`;
+                gpsLocationInput.placeholder = "latitude, longitude";
+                fetchLocalityFromCoords(parseFloat(data.gps_lat), parseFloat(data.gps_lon));
+            } else {
+                gpsLocationInput.value = "";
+                gpsLocationInput.placeholder = "default: 38.0522, -122.9694";
+                if (localityDiv) localityDiv.textContent = "";
+            }
+        } catch (error) {
+            Log.error("QRX", "Failed to load GPS location:", error);
             gpsLocationInput.value = "";
             gpsLocationInput.placeholder = "default: 38.0522, -122.9694";
+            if (localityDiv) localityDiv.textContent = "";
         }
-    } catch (error) {
-        Log.error("QRX", "Failed to load GPS location:", error);
-        gpsLocationInput.value = "";
-        gpsLocationInput.placeholder = "default: 38.0522, -122.9694";
     }
 
     // Store original value and reset save button
@@ -135,6 +154,9 @@ async function saveGpsLocation() {
                 saveGpsBtn.disabled = true;
                 saveGpsBtn.className = "btn btn-secondary";
             }
+
+            // Fetch and display locality for the new coordinates
+            fetchLocalityFromCoords(latitude, longitude);
 
             alert(`Location saved: (${latitude}, ${longitude})`);
         } else {

@@ -1050,6 +1050,15 @@ tbody tr:active {
     margin-bottom: var(--space-lg);
 }
 
+.gps-locality {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-top: var(--space-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .info-icon {
     font-weight: bold;
     font-size: 18px;
