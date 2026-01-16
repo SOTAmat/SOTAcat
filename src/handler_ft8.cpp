@@ -392,13 +392,8 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
         long baseFreq = rfFreq + audioFreq;
 
         if (kxRadio.get_radio_type() == RadioType::KH1) {
-            // Set power to low if not already there. No need to store.
-            // The power level will be set to high in the restore_kx_state() function.
-            // kxRadio.set_kh1_power (2);  // 2 = LOW power as set in the radio
-            kxRadio.put_to_kx ("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
-            kxRadio.set_kh1_power (2);  // 2 = LOW power as set in the radio
-            ESP_LOGI (TAG8, "PWR set to 2W (LOW) for FT8 transmission");
             kxRadio.put_to_kx_command_string ("FO00;", 1);   // FO00; - Turn on OFFSET mode
+            kxRadio.put_to_kx ("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
         }
         else {
             kxRadio.put_to_kx ("FR", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FR0; - Cancels split mode
