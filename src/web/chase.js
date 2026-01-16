@@ -472,16 +472,15 @@ function getTunedSpotData() {
     return data;
 }
 
-// Check if tuned spot is valid for Polo logging (xOTA with valid ref)
+// Check if tuned spot is valid for Polo logging (has freq, mode, callsign)
 function isTunedSpotValidForPolo() {
     const tunedSpot = getTunedSpotData();
     if (!tunedSpot) return false;
 
-    // Must have a valid sig type (not Cluster)
-    if (!isValidPoloSig(tunedSpot.sig)) return false;
-
-    // Must have a reference (not empty or "-")
-    if (!tunedSpot.locationId || tunedSpot.locationId === "-") return false;
+    // Must have frequency, mode, and callsign
+    if (!tunedSpot.hertz || tunedSpot.hertz <= 0) return false;
+    if (!tunedSpot.modeType) return false;
+    if (!tunedSpot.activatorCallsign) return false;
 
     return true;
 }
@@ -502,22 +501,14 @@ function buildPoloChaseLink() {
         return null;
     }
 
-    // Validate spot is suitable for Polo
-    if (!isValidPoloSig(tunedSpot.sig)) {
-        Log.debug("Chase", "buildPoloChaseLink: invalid sig:", tunedSpot.sig);
-        return null;
-    }
-    if (!tunedSpot.locationId || tunedSpot.locationId === "-") {
-        Log.debug("Chase", "buildPoloChaseLink: invalid locationId:", tunedSpot.locationId);
-        return null;
-    }
-
     // Their data from the tuned spot
     const theirCall = tunedSpot.activatorCallsign;
-    const theirRef = tunedSpot.locationId;
-    const theirSig = tunedSpot.sig.toLowerCase();
     const freq = tunedSpot.hertz;
     const mode = mapModeForPolo(tunedSpot.modeType);
+
+    // Reference and sig are optional (only for x-OTA spots)
+    const theirRef = tunedSpot.locationId && tunedSpot.locationId !== "-" ? tunedSpot.locationId : null;
+    const theirSig = isValidPoloSig(tunedSpot.sig) ? tunedSpot.sig.toLowerCase() : null;
 
     // Check if user has their own activation reference (S2S/P2P scenario)
     const myRef = localStorage.getItem("qrxReference") || "";
