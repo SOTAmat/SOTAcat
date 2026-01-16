@@ -543,8 +543,8 @@ long KXRadio::get_kh1_mode () {
 
 /**
  * Sets the power level on the KH to one of two predefined levels. If a zero power level 
- * is requested from the web page, the radio is put in test mode. Likewise, if a power level
- * other than zero is requested, the radio is put in normal mode.
+ * is requested from the web page, the radio is put in the LOW setting. Likewise, if a power level
+ * other than zero is requested, the radio is put in the HIGH setting.
  * 
  * This is a toggle function so can't be retried. The power level can only be checked by 
  * reading the display via the DS command after the toggle command is sent. The power level 
@@ -554,37 +554,19 @@ long KXRadio::get_kh1_mode () {
  * @return bool True if successful, false otherwise.
  */
 bool KXRadio::set_kh1_power (int power_level) {
-    char test_return[20];
     char power_return[20];
-    int test_length = 5;
     int power_length = 5;
     int start_index = 3;  // "DS1" takes up first 3 characters
-    char test_char[test_length];
     char power_char[power_length];
 
-    // Puts the radio in TEST mode if zero power is requested. Otherwise puts it in NORM mode.
-    kxRadio.put_to_kx_command_string ("SW2H;SW3H;", 1);
-    if (kxRadio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, test_return, sizeof (test_return))) {
-        // Expecting response like "DS1xxxxxxxxxxxxxxxx;" where x's are the line contents
-        strncpy(test_char, test_return + start_index, test_length - 1);  // Characters 4-7 represent power level as a string
-        test_char[test_length - 1] = '\0';  // Ensure null-termination
-        if (!strcmp(test_char, power_level > 0 ? "TX_T" : "NORM")) {
-            kxRadio.put_to_kx_command_string ("SW2H;SW3H;", 1);
-        }
-    }
-
-    // vTaskDelay (pdMS_TO_TICKS (100));  // Wait for the radio to update the display
-
     // Puts the radio in HIGH power if non-zero power is requested. Otherwise puts it in LOW power.
-    if (power_level > 0) {
-        kxRadio.put_to_kx_command_string ("SW2H;SW2H;", 1);
-        if (kxRadio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, power_return, sizeof (power_return))) {
-            // Expecting response like "DS1xxxxxxxxxxxxxxxx;" where x's are the line contents
-            strncpy(power_char, power_return + start_index, power_length - 1);  // Characters 4-7 represent power level as a string
-            power_char[power_length - 1] = '\0';  // Ensure null-termination
-            if (!strcmp(power_char, power_level >= 5 ? "LOW " : "HIGH")) {
-                kxRadio.put_to_kx_command_string ("SW2H;SW2H;", 1);
-            }
+    kxRadio.put_to_kx_command_string ("SW2H;SW2H;", 1);
+    if (kxRadio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, power_return, sizeof (power_return))) {
+        // Expecting response like "DS1xxxxxxxxxxxxxxxx;" where x's are the line contents
+        strncpy(power_char, power_return + start_index, power_length - 1);  // Characters 4-7 represent power level as a string
+        power_char[power_length - 1] = '\0';  // Ensure null-termination
+        if (!strcmp(power_char, power_level > 0 ? "LOW " : "HIGH")) {
+            kxRadio.put_to_kx_command_string ("SW2H;SW2H;", 1);
         }
     }
 
@@ -641,7 +623,6 @@ void KXRadio::restore_kx_state (const kx_state_t * in_state, int tries) {
 
     if (kxRadio.get_radio_type() == RadioType::KH1) {
         put_to_kx ("FA", 11, in_state->vfo_a_freq, SC_KX_COMMUNICATION_RETRIES);    // VFO Frequency
-        set_kh1_power (5);   // Toggle power to high
     }
     else {
         put_to_kx_menu_item (58, in_state->tun_pwr, SC_KX_COMMUNICATION_RETRIES);   // TUN PWR setting
