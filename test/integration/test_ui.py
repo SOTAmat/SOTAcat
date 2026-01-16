@@ -432,6 +432,17 @@ class SOTAcatUITests:
         assert type_filter.count() > 0, "Type filter should exist"
         assert mode_filter.count() > 0, "Mode filter should exist"
 
+    def test_chase_mode_filter_ssbcw_option(self):
+        """Chase page mode filter has SSB+CW option as last entry"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="chase"]')
+        time.sleep(0.5)
+        mode_filter = self.page.locator('#mode-filter')
+        options = mode_filter.locator('option').all_text_contents()
+        assert 'SSB+CW' in options, "SSB+CW option should exist"
+        assert options[-1] == 'SSB+CW', "SSB+CW should be last option"
+
     def test_chase_table(self):
         """Chase page has chase table"""
         self.page.goto(self.url('/'))
@@ -603,6 +614,7 @@ class SOTAcatUITests:
             print("\nChase Page Elements:")
             self.run_test("Refresh button", self.test_chase_refresh_button)
             self.run_test("Filter dropdowns", self.test_chase_filter_dropdowns)
+            self.run_test("Mode filter SSB+CW option", self.test_chase_mode_filter_ssbcw_option)
             self.run_test("Chase table", self.test_chase_table)
 
             # Header elements

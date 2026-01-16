@@ -772,6 +772,8 @@ function applyTableFilters() {
         // Mode filter
         if (selectedMode === "All") {
             modeMatch = true;
+        } else if (selectedMode === "SSB+CW") {
+            modeMatch = row.classList.contains("row-mode-SSB") || row.classList.contains("row-mode-CW");
         } else {
             modeMatch = row.classList.contains(`row-mode-${selectedMode}`);
         }
