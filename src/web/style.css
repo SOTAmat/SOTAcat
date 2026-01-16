@@ -483,6 +483,13 @@ input.frequency-display {
     gap: var(--space-sm);
 }
 
+.volume-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+    margin-top: var(--space-sm);
+}
+
 /* CAT-specific button variants */
 .btn-freq {
     padding: 0;
@@ -512,6 +519,13 @@ input.frequency-display {
 
 .btn-power {
     background: var(--gray-8);
+    color: var(--white);
+    font-size: var(--text-sm);
+    padding: 0;
+}
+
+.btn-volume {
+    background: var(--gray-7);
     color: var(--white);
     font-size: var(--text-sm);
     padding: 0;

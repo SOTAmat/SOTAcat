@@ -60,6 +60,17 @@ function setPowerMinMax(maximum) {
 }
 
 // ============================================================================
+// Volume Control Functions
+// ============================================================================
+
+// Adjust volume (AF gain) by delta amount (delta: positive or negative integer)
+// KX2/KX3 AF gain range is 0-255; step of 21 ≈ 5 display units
+function changeVolume(delta) {
+    const url = `/api/v1/volume?delta=${delta}`;
+    fetchQuiet(url, { method: "PUT" }, "Spot");
+}
+
+// ============================================================================
 // Keyer Functions
 // ============================================================================
 
@@ -903,6 +914,17 @@ function attachSpotEventListeners() {
     const tuneAtuBtn = document.getElementById("tune-atu-button");
     if (tuneAtuBtn) {
         tuneAtuBtn.addEventListener("click", tuneAtu);
+    }
+
+    // Volume control buttons
+    const volDownBtn = document.getElementById("vol-down-button");
+    if (volDownBtn) {
+        volDownBtn.addEventListener("click", () => changeVolume(-21));
+    }
+
+    const volUpBtn = document.getElementById("vol-up-button");
+    if (volUpBtn) {
+        volUpBtn.addEventListener("click", () => changeVolume(21));
     }
 
     // SOTAMAT button

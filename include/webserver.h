@@ -17,6 +17,8 @@ extern esp_err_t handler_msg_put (httpd_req_t *);
 extern esp_err_t handler_ota_post (httpd_req_t *);
 extern esp_err_t handler_power_get (httpd_req_t *);
 extern esp_err_t handler_power_put (httpd_req_t *);
+extern esp_err_t handler_volume_get (httpd_req_t *);
+extern esp_err_t handler_volume_put (httpd_req_t *);
 extern esp_err_t handler_prepareft8_post (httpd_req_t *);
 extern esp_err_t handler_reboot_get (httpd_req_t *);
 extern esp_err_t handler_ft8_post (httpd_req_t *);

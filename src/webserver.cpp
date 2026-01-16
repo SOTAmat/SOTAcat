@@ -99,6 +99,7 @@ static const api_handler_t api_handlers[] = {
     {HTTP_GET,  "frequency",        handler_frequency_get,          true },
     {HTTP_GET,  "mode",             handler_mode_get,               true },
     {HTTP_GET,  "power",            handler_power_get,              true },
+    {HTTP_GET,  "volume",           handler_volume_get,             true },
     {HTTP_GET,  "reboot",           handler_reboot_get,             false},
     {HTTP_GET,  "rxBandwidth",      handler_mode_get,               true }, // alias for "mode"
     {HTTP_GET,  "settings",         handler_settings_get,           false},
@@ -108,6 +109,7 @@ static const api_handler_t api_handlers[] = {
     {HTTP_PUT,  "mode",             handler_mode_put,               true },
     {HTTP_PUT,  "msg",              handler_msg_put,                true },
     {HTTP_PUT,  "power",            handler_power_put,              true },
+    {HTTP_PUT,  "volume",           handler_volume_put,             true },
     {HTTP_PUT,  "rxBandwidth",      handler_mode_put,               true }, // alias for "mode"
     {HTTP_PUT,  "time",             handler_time_put,               true },
     {HTTP_PUT,  "xmit",             handler_xmit_put,               true },

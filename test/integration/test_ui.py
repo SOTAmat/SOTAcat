@@ -310,6 +310,17 @@ class SOTAcatUITests:
         assert not sms_spot.is_disabled(), "SMS spot button should be enabled with POTA reference"
         assert not sms_qrt.is_disabled(), "SMS QRT button should be enabled with POTA reference"
 
+    def test_spot_volume_controls(self):
+        """SPOT page has volume control buttons"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="spot"]')
+        time.sleep(0.5)
+        vol_up = self.page.locator('#vol-up-button')
+        vol_down = self.page.locator('#vol-down-button')
+        assert vol_up.count() > 0, "Vol+ button should exist"
+        assert vol_down.count() > 0, "Vol- button should exist"
+
     # =========================================================================
     # Settings Page Element Tests
     # =========================================================================
@@ -593,6 +604,7 @@ class SOTAcatUITests:
             self.run_test("Spot buttons disabled without ref", self.test_spot_buttons_disabled_without_reference)
             self.run_test("Spot buttons enabled with SOTA ref", self.test_spot_buttons_enabled_with_sota_reference)
             self.run_test("Spot buttons enabled with POTA ref", self.test_spot_buttons_enabled_with_pota_reference)
+            self.run_test("Volume controls", self.test_spot_volume_controls)
 
             # Settings page elements
             print("\nSettings Page Elements:")
