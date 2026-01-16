@@ -977,6 +977,31 @@ function processGeolocationCallback() {
     return false;
 }
 
+// Save GPS coordinates to device and invalidate caches
+// Returns true on success, throws on failure
+async function saveGpsToDevice(lat, lon) {
+    const settings = {
+        gps_lat: lat.toString(),
+        gps_lon: lon.toString(),
+    };
+
+    const response = await fetch("/api/v1/gps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+    });
+
+    if (response.ok) {
+        AppState.gpsOverride = null;
+        clearDistanceCache();
+        AppState.latestChaseJson = null;
+        return true;
+    }
+
+    const data = await response.json();
+    throw new Error(data.error || "Unknown error");
+}
+
 // Save geolocation received from bridge to ESP32
 async function saveGeolocationFromBridge(lat, lon, accuracy) {
     // Store coords for QRX page to pick up (in case page isn't loaded yet)
@@ -990,31 +1015,8 @@ async function saveGeolocationFromBridge(lat, lon, accuracy) {
         fetchLocalityFromCoords(lat, lon);
     }
 
-    // Try to save to device API
-    const settings = {
-        gps_lat: lat,
-        gps_lon: lon,
-    };
-
     try {
-        const response = await fetch("/api/v1/gps", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(settings),
-        });
-
-        if (response.ok) {
-            // Invalidate location cache
-            AppState.gpsOverride = null;
-            clearDistanceCache();
-            AppState.latestChaseJson = null;
-
-            const accuracyNote = accuracy ? ` ±${accuracy}m` : "";
-            alert(`Location saved: (${lat}, ${lon})${accuracyNote}`);
-        } else {
-            const data = await response.json();
-            throw new Error(data.error || "Unknown error");
-        }
+        await saveGpsToDevice(lat, lon);
     } catch (error) {
         Log.error("GPS", "Failed to save browser location:", error);
         alert("Failed to save location to device.");

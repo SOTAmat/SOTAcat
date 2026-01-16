@@ -130,39 +130,18 @@ async function saveGpsLocation() {
     // Parse the input to get clean latitude and longitude values
     const [latitude, longitude] = value.split(",").map((coord) => parseFloat(coord.trim()));
 
-    const settings = {
-        gps_lat: latitude.toString(),
-        gps_lon: longitude.toString(),
-    };
-
     try {
-        const response = await fetch("/api/v1/gps", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(settings),
-        });
+        await saveGpsToDevice(latitude, longitude);
 
-        if (response.ok) {
-            // Invalidate caches
-            AppState.gpsOverride = null;
-            clearDistanceCache();
-            AppState.latestChaseJson = null;
-
-            // Update original value and reset save button
-            originalGpsValue = gpsLocationInput.value;
-            if (saveGpsBtn) {
-                saveGpsBtn.disabled = true;
-                saveGpsBtn.className = "btn btn-secondary";
-            }
-
-            // Fetch and display locality for the new coordinates
-            fetchLocalityFromCoords(latitude, longitude);
-
-            alert(`Location saved: (${latitude}, ${longitude})`);
-        } else {
-            const data = await response.json();
-            throw new Error(data.error || "Unknown error");
+        // Update original value and reset save button
+        originalGpsValue = gpsLocationInput.value;
+        if (saveGpsBtn) {
+            saveGpsBtn.disabled = true;
+            saveGpsBtn.className = "btn btn-secondary";
         }
+
+        // Fetch and display locality for the new coordinates
+        fetchLocalityFromCoords(latitude, longitude);
     } catch (error) {
         Log.error("QRX", "Failed to save GPS location:", error);
         alert("Failed to save location.");
