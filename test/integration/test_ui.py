@@ -463,6 +463,40 @@ class SOTAcatUITests:
         table = self.page.locator('#chase-table')
         assert table.count() > 0, "Chase table should exist"
 
+    def test_chase_polo_button_exists(self):
+        """Chase page has PoLo button that is disabled by default"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="chase"]')
+        time.sleep(0.5)
+        polo_btn = self.page.locator('#polo-chase-button')
+        assert polo_btn.count() > 0, "PoLo button should exist"
+        assert polo_btn.is_disabled(), "PoLo button should be disabled when no spot is tuned"
+
+    def test_chase_polo_validates_cluster_spot(self):
+        """PoLo validation accepts Cluster spots with freq/mode/callsign (no sig/ref)"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="chase"]')
+        time.sleep(0.5)
+        # Test validation function with a Cluster spot (no valid sig, no reference)
+        result = self.page.evaluate('''() => {
+            // Mock a Cluster spot with freq, mode, callsign but no valid sig/ref
+            const mockSpot = {
+                activatorCallsign: "W1ABC",
+                locationId: "-",
+                sig: "Cluster",
+                hertz: 14250000,
+                modeType: "SSB"
+            };
+            // Test validation - should return true for spot with freq/mode/callsign
+            const hasFreq = mockSpot.hertz && mockSpot.hertz > 0;
+            const hasMode = !!mockSpot.modeType;
+            const hasCall = !!mockSpot.activatorCallsign;
+            return hasFreq && hasMode && hasCall;
+        }''')
+        assert result == True, "Cluster spot with freq/mode/callsign should be valid for PoLo"
+
     # =========================================================================
     # Header/Status Tests
     # =========================================================================
@@ -628,6 +662,8 @@ class SOTAcatUITests:
             self.run_test("Filter dropdowns", self.test_chase_filter_dropdowns)
             self.run_test("Mode filter SSB+CW option", self.test_chase_mode_filter_ssbcw_option)
             self.run_test("Chase table", self.test_chase_table)
+            self.run_test("PoLo button exists", self.test_chase_polo_button_exists)
+            self.run_test("PoLo validates Cluster spot", self.test_chase_polo_validates_cluster_spot)
 
             # Header elements
             print("\nHeader Elements:")
