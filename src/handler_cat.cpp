@@ -23,7 +23,13 @@ esp_err_t handler_xmit_put (httpd_req_t * req) {
     ESP_LOGI (TAG8, "setting xmit to '%s'", param_value);
 
     long         xmit    = atoi (param_value);  // Convert the parameter to an integer
-    const char * command = xmit ? "TX;" : "RX;";
+    const char * command = nullptr;
+    if (kxRadio.get_radio_type() == RadioType::KH1) {
+        command = xmit ? "HK1;" : "HK0;";
+    }
+    else {
+        command = xmit ? "TX;" : "RX;";
+    }
 
     {
         const std::lock_guard<Lockable> lock (kxRadio);
@@ -48,7 +54,13 @@ esp_err_t handler_msg_put (httpd_req_t * req) {
     ESP_LOGI (TAG8, "playing message bank '%s'", param_value);
 
     long         bank    = atoi (param_value);  // Convert the parameter to an integer
-    const char * command = bank == 1 ? "SWT11;SWT19;" : "SWT11;SWT27;";
+    const char * command = nullptr;
+    if (kxRadio.get_radio_type() == RadioType::KH1) {
+        command = bank == 1 ? "SW4T;SW1T;" : "SW4T;SW2T;";
+    }
+    else {
+        command = bank == 1 ? "SWT11;SWT19;" : "SWT11;SWT27;";
+    }
 
     {
         const std::lock_guard<Lockable> lock (kxRadio);
@@ -104,22 +116,29 @@ esp_err_t handler_power_put (httpd_req_t * req) {
     long desired_power = atoi (param_value);
     {
         const std::lock_guard<Lockable> lock (kxRadio);
-        // first set it to a known value, zero
-        if (!kxRadio.put_to_kx ("PC", 3, 0, SC_KX_COMMUNICATION_RETRIES))
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
 
-        if (!desired_power)
-            REPLY_WITH_SUCCESS();  // wanted zero - we're done
+        if (kxRadio.get_radio_type() == RadioType::KH1) {
+            if (!kxRadio.set_kh1_power (desired_power))
+                REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
+        }
+        else {
+            // first set it to a known value, zero
+            if (!kxRadio.put_to_kx ("PC", 3, 0, SC_KX_COMMUNICATION_RETRIES))
+                REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
 
-        // now try setting to desired value
-        kxRadio.put_to_kx ("PC", 3, desired_power, 0);
+            if (!desired_power)
+                REPLY_WITH_SUCCESS();  // wanted zero - we're done
 
-        // if the read result doesn't match the desired value, then ensure it has at least changed (from zero above)
-        long power = kxRadio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
-        if (power != desired_power)
-            ESP_LOGI (TAG8, "requested power '%s', acquired only %ld", param_value, power);
-        if (power == 0)
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
+            // now try setting to desired value
+            kxRadio.put_to_kx ("PC", 3, desired_power, 0);
+
+            // if the read result doesn't match the desired value, then ensure it has at least changed (from zero above)
+            long power = kxRadio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
+            if (power != desired_power)
+                ESP_LOGI (TAG8, "requested power '%s', acquired only %ld", param_value, power);
+            if (power == 0)
+                REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
+        }
     }
 
     REPLY_WITH_SUCCESS();
@@ -141,6 +160,11 @@ esp_err_t handler_keyer_put (httpd_req_t * req) {
     showActivity();
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    if (kxRadio.get_radio_type() == RadioType::KH1) {
+        ESP_LOGE (TAG8, "Morse keying not supported on KH1");
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "Morse keying not supported on KH1");
+    }
 
     STANDARD_DECODE_SOLE_PARAMETER (req, "message", param_value);
 

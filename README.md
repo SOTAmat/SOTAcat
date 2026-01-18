@@ -2,9 +2,9 @@
 
 ## Introduction:
 
-### Wireless (WiFi/BLE) CAT control for Elecraft KX radios, with SOTAMAT direct FT8 synthesis
+### Wireless (WiFi/BLE) CAT control for Elecraft KX and KH radios, with SOTAMAT direct FT8 synthesis
 
-SOTACAT is a small hardware module that plugs into an Elecraft KX2 or KX3 radio’s CAT port (Computer Aided Transceiver port, also known as a serial port or an accessory port) and provides WiFi control of the radio from your mobile device. It provides the following features:
+SOTACAT is a small hardware module that plugs into an Elecraft KX2, KX3 or KH1 radio’s CAT port (Computer Aided Transceiver port, also known as a serial port or an accessory port) and provides WiFi control of the radio from your mobile device. It provides the following features:
 
 1. **Your radio controlled from a web page:**
 
@@ -113,6 +113,7 @@ By having the SOTACAT connect to the phone and the phone connected to the cell n
 - KI6SYD, Max Praglin: provided key contributions to the implementation of direct FSK synthesis on the Elecraft KX radios, designed a [REST API](https://app.swaggerhub.com/apis-docs/KI6SYD_1/MAX-3B/1.0.2) which SOTACAT borrows from, and implemented a similar testbed with his [MAX-3B QRP transceiver](https://www.ki6syd.com/max-3b-qrp-radio) on which SOTAMAT-to-radio control was first implemented.
 - YL3JG, Karlis Goba: developed the original 'ft8_lib' FT8 CODEC. A derivative version was later created for encoding use in SOTACAT, and ported to C# for encoding in SOTAMAT by AB6D.
 - Elecraft: N6KR, Wayne Burdick, and N1AL, Alan, provided guidance on control of Elecraft radios and Mathcad analysis of FT8 FSK harmonics.
+- Ken WR7D: modified firmware to support the Elecraft KH1.
 - Justin K5EM and Rex KE6MT: Created derivative hardware versions, custom SMT PCBs, and helped with packaging analysis, circuit analysis, and testing.
     - See [Justin's SOTACAT-PCB Github page](https://github.com/invertedlabs/sotacat-pcb/) for an open source custom PCB (printed circuit board) that implements SOTACAT in a compact and professional way, as well as 3D printing files for an enclosure.
 
