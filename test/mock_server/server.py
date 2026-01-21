@@ -47,6 +47,7 @@ DEFAULT_STATE = {
     # Device info
     "version": "2025-01-01_mock-dev",
     "battery": 85,
+    "battery_charging": "1",  # "1" = charging, "0" = not charging, "unknown" = no detection
     "rssi": -62,
     "connected": True,
 
@@ -218,6 +219,11 @@ class MockSOTAcatServer:
         @self.app.route('/api/v1/batteryPercent', methods=['GET'])
         def get_battery():
             return jsonify({"battery": self.state["battery"]})
+
+        @self.app.route('/api/v1/batteryCharging', methods=['GET'])
+        def get_battery_charging():
+            # Returns plain text: "1" (charging), "0" (not charging), "unknown"
+            return self.state["battery_charging"]
 
         @self.app.route('/api/v1/rssi', methods=['GET'])
         def get_rssi():

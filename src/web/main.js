@@ -689,11 +689,17 @@ async function updateBatteryInfo() {
 
     batteryController = new AbortController();
     try {
-        const [batteryResponse, rssiResponse] = await Promise.all([
+        const [chargingResponse, batteryResponse, rssiResponse] = await Promise.all([
+            fetch("/api/v1/batteryCharging", { signal: batteryController.signal }),
             fetch("/api/v1/batteryPercent", { signal: batteryController.signal }),
             fetch("/api/v1/rssi", { signal: batteryController.signal }),
         ]);
 
+        if (chargingResponse.ok) {
+            const chargingState = await chargingResponse.text();
+            document.getElementById("battery-icon").textContent =
+                chargingState === "1" ? " \u26A1 " : " \uD83D\uDD0B ";
+        }
         if (batteryResponse.ok) {
             document.getElementById("battery-percent").textContent = await batteryResponse.text();
         }

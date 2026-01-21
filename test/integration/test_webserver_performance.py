@@ -86,7 +86,9 @@ class MDNSResolver:
         self.resolved_addresses = []
         self.zeroconf = None
 
-    def resolve_mdns(self, hostname: str, timeout: float = 5.0) -> Optional[Tuple[str, float]]:
+    def resolve_mdns(
+        self, hostname: str, timeout: float = 5.0
+    ) -> Optional[Tuple[str, float]]:
         """
         Resolve mDNS hostname and return (ip_address, resolution_time) or None
 
@@ -202,7 +204,6 @@ class WebServerTester:
             "/spot.html",
             "/chase.html",
             "/settings.html",
-
             # JavaScript files
             "/about.js",
             "/spot.js",
@@ -210,17 +211,15 @@ class WebServerTester:
             "/chase_api.js",
             "/main.js",
             "/settings.js",
-
             # CSS
             "/style.css",
-
             # Images
             "/favicon.ico",
             "/sclogo.jpg",
-
             # API endpoints (subset - no radio required)
             "/api/v1/version",
             "/api/v1/connectionStatus",
+            "/api/v1/batteryCharging",
             "/api/v1/batteryPercent",
             "/api/v1/rssi",
             "/api/v1/settings",
@@ -366,11 +365,13 @@ class WebServerTester:
         print(f"Testing {len(self.test_endpoints)} endpoints:")
 
         # Group and display endpoints
-        html_pages = [e for e in self.test_endpoints if e.endswith('.html') or e == '/']
-        js_files = [e for e in self.test_endpoints if e.endswith('.js')]
-        css_files = [e for e in self.test_endpoints if e.endswith('.css')]
-        images = [e for e in self.test_endpoints if e.endswith('.ico') or e.endswith('.jpg')]
-        apis = [e for e in self.test_endpoints if e.startswith('/api/')]
+        html_pages = [e for e in self.test_endpoints if e.endswith(".html") or e == "/"]
+        js_files = [e for e in self.test_endpoints if e.endswith(".js")]
+        css_files = [e for e in self.test_endpoints if e.endswith(".css")]
+        images = [
+            e for e in self.test_endpoints if e.endswith(".ico") or e.endswith(".jpg")
+        ]
+        apis = [e for e in self.test_endpoints if e.startswith("/api/")]
 
         print(f"  - HTML pages: {len(html_pages)}")
         print(f"  - JavaScript: {len(js_files)}")
@@ -458,21 +459,11 @@ class WebServerTester:
         if self.metrics.mdns_resolution_times:
             avg_mdns = summary["mdns_resolution"]["avg"]
             if avg_mdns > 2.0:
-                issues.append(
-                    f"⚠ Slow mDNS resolution ({avg_mdns*1000:.0f}ms avg)"
-                )
-                print(
-                    "  Issue: mDNS resolution is slow"
-                )
-                print(
-                    "  Recommendations:"
-                )
-                print(
-                    "    - Check if multiple mDNS responders are active on network"
-                )
-                print(
-                    "    - Verify ESP32 mDNS service is properly configured"
-                )
+                issues.append(f"⚠ Slow mDNS resolution ({avg_mdns*1000:.0f}ms avg)")
+                print("  Issue: mDNS resolution is slow")
+                print("  Recommendations:")
+                print("    - Check if multiple mDNS responders are active on network")
+                print("    - Verify ESP32 mDNS service is properly configured")
                 print(
                     "    - Consider using static IP address instead of .local hostname"
                 )
@@ -483,93 +474,45 @@ class WebServerTester:
             max_ttfb = summary["ttfb"]["max"]
 
             if avg_ttfb > 0.5:
-                issues.append(
-                    f"⚠ High Time to First Byte ({avg_ttfb*1000:.0f}ms avg)"
-                )
+                issues.append(f"⚠ High Time to First Byte ({avg_ttfb*1000:.0f}ms avg)")
                 print("  Issue: High server response latency (TTFB)")
                 print("  Recommendations:")
-                print(
-                    "    - Check ESP32 CPU usage during web requests"
-                )
-                print(
-                    "    - Verify HTTP server task priority is appropriate"
-                )
-                print(
-                    "    - Consider increasing httpd stack_size"
-                )
-                print(
-                    "    - Review handler functions for blocking operations"
-                )
+                print("    - Check ESP32 CPU usage during web requests")
+                print("    - Verify HTTP server task priority is appropriate")
+                print("    - Consider increasing httpd stack_size")
+                print("    - Review handler functions for blocking operations")
 
             if max_ttfb > avg_ttfb * 3:
                 issues.append(
                     f"⚠ Inconsistent response times (max {max_ttfb*1000:.0f}ms)"
                 )
-                print(
-                    "  Issue: High variance in response times"
-                )
-                print(
-                    "  Recommendations:"
-                )
-                print(
-                    "    - Check for task scheduling issues"
-                )
-                print(
-                    "    - Review FreeRTOS task priorities"
-                )
-                print(
-                    "    - Look for blocking operations in request handlers"
-                )
+                print("  Issue: High variance in response times")
+                print("  Recommendations:")
+                print("    - Check for task scheduling issues")
+                print("    - Review FreeRTOS task priorities")
+                print("    - Look for blocking operations in request handlers")
 
         # Check page load time
         if self.metrics.full_page_load_times:
             avg_page = summary["full_page_load"]["avg"]
             if avg_page > 2.0:
-                issues.append(
-                    f"⚠ Slow page load times ({avg_page*1000:.0f}ms avg)"
-                )
-                print(
-                    "  Issue: Full page loads taking too long"
-                )
-                print(
-                    "  Recommendations:"
-                )
-                print(
-                    "    - Increase max_open_sockets in httpd_config"
-                )
-                print(
-                    "    - Review chunked transfer implementation"
-                )
-                print(
-                    "    - Consider enabling HTTP compression for text assets"
-                )
-                print(
-                    "    - Add proper cache headers to static assets"
-                )
+                issues.append(f"⚠ Slow page load times ({avg_page*1000:.0f}ms avg)")
+                print("  Issue: Full page loads taking too long")
+                print("  Recommendations:")
+                print("    - Increase max_open_sockets in httpd_config")
+                print("    - Review chunked transfer implementation")
+                print("    - Consider enabling HTTP compression for text assets")
+                print("    - Add proper cache headers to static assets")
 
         # Check timeouts
         if self.metrics.timeouts > 0:
-            issues.append(
-                f"⚠ {self.metrics.timeouts} request timeouts occurred"
-            )
-            print(
-                "  Issue: Requests timing out"
-            )
-            print(
-                "  Recommendations:"
-            )
-            print(
-                "    - Check ESP32 is not running out of memory"
-            )
-            print(
-                "    - Verify max_open_sockets is sufficient"
-            )
-            print(
-                "    - Review send_wait_timeout and recv_wait_timeout settings"
-            )
-            print(
-                "    - Check for WiFi connectivity issues"
-            )
+            issues.append(f"⚠ {self.metrics.timeouts} request timeouts occurred")
+            print("  Issue: Requests timing out")
+            print("  Recommendations:")
+            print("    - Check ESP32 is not running out of memory")
+            print("    - Verify max_open_sockets is sufficient")
+            print("    - Review send_wait_timeout and recv_wait_timeout settings")
+            print("    - Check for WiFi connectivity issues")
 
         if not issues:
             print("  ✓ No significant performance issues detected")
@@ -588,9 +531,7 @@ class WebServerTester:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Test SOTAcat web server performance"
-    )
+    parser = argparse.ArgumentParser(description="Test SOTAcat web server performance")
     parser.add_argument(
         "--host",
         default="sotacat.local",

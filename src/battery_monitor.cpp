@@ -77,13 +77,18 @@ float get_analog_battery_percentage (float voltage) {
 #define SMBUS_TIMEOUT_MS     (1000)  // Timeout after this time if no ack received
 #define BATTERY_POLL_TIME_MS (5000)  // Approximate rate at which to poll the battery info
 
-static bool                    max17260_detected = false;
-static float                   vbat_analog       = 0;
-static float                   vpct_analog       = 0;
-static float                   vbat_digital      = 0;
-static float                   vpct_digital      = 0;
 static max17260_saved_params_t params;
-static i2c_master_bus_handle_t i2c_bus_handle = NULL;
+static bool                    max17260_detected      = false;
+static float                   vbat_analog            = 0;
+static float                   vpct_analog            = 0;
+static float                   vbat_digital           = 0;
+static float                   vpct_digital           = 0;
+static i2c_master_bus_handle_t i2c_bus_handle         = NULL;
+static BatteryChargingState    battery_charging_state = BatteryChargingState::UNKNOWN;
+
+BatteryChargingState get_battery_charging_state (void) {
+    return battery_charging_state;
+}
 
 float get_battery_voltage (void) {
     if (max17260_detected)
@@ -194,8 +199,11 @@ void battery_monitor_task (void * _pvParameter) {
             dig_bat_mon.poll (&bat_info);
             // Reset watchdog again after I2C operations
             ESP_ERROR_CHECK (esp_task_wdt_reset());
-            vbat_digital = bat_info.voltage_average;
-            vpct_digital = bat_info.reported_state_of_charge;
+            vbat_digital           = bat_info.voltage_average;
+            vpct_digital           = bat_info.reported_state_of_charge;
+            battery_charging_state = bat_info.charging
+                                         ? BatteryChargingState::CHARGING
+                                         : BatteryChargingState::NOT_CHARGING;
             if (!(cnt % REPORTING_TIME_SEC)) {
                 ESP_LOGI (TAG8, "battery: %4.2fV %4.1f%% %5.1fmA %s", vbat_digital, vpct_digital, bat_info.current_average, (bat_info.charging ? "charging" : "discharging"));
             }

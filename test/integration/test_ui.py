@@ -515,6 +515,25 @@ class SOTAcatUITests:
         battery = self.page.locator('#battery-percent')
         assert battery.count() > 0, "Battery display should exist"
 
+    def test_header_battery_icon_exists(self):
+        """Header has battery icon element"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        icon = self.page.locator('#battery-icon')
+        assert icon.count() > 0, "Battery icon element should exist"
+
+    def test_header_battery_icon_has_content(self):
+        """Battery icon displays either lightning or battery emoji"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        time.sleep(1)  # Allow API call to complete
+        icon = self.page.locator('#battery-icon')
+        content = icon.text_content().strip()
+        # Should contain either lightning bolt or battery emoji
+        valid_icons = ['\u26A1', '\U0001F50B']  # ⚡ or 🔋
+        has_valid = any(i in content for i in valid_icons)
+        assert has_valid, f"Battery icon should contain valid emoji, got: {repr(content)}"
+
     def test_header_connection_status(self):
         """Header has connection status indicator"""
         self.page.goto(self.url('/'))
@@ -669,6 +688,8 @@ class SOTAcatUITests:
             print("\nHeader Elements:")
             self.run_test("UTC clock", self.test_header_utc_clock)
             self.run_test("Battery display", self.test_header_battery_display)
+            self.run_test("Battery icon exists", self.test_header_battery_icon_exists)
+            self.run_test("Battery icon has content", self.test_header_battery_icon_has_content)
             self.run_test("Connection status", self.test_header_connection_status)
 
             # Interaction tests

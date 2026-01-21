@@ -39,3 +39,29 @@ esp_err_t handler_rssi_get (httpd_req_t * req) {
 
     REPLY_WITH_STRING (req, out_buff, "RSSI");
 }
+
+/**
+ * HTTP GET handler to retrieve the battery charging state.
+ *
+ * @param req Pointer to the HTTP request structure.
+ * @return ESP_OK on success, or an error code on failure.
+ */
+esp_err_t handler_batteryCharging_get (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    const char * result;
+    switch (get_battery_charging_state()) {
+    case BatteryChargingState::CHARGING:
+        result = "1";
+        break;
+    case BatteryChargingState::NOT_CHARGING:
+        result = "0";
+        break;
+    default:
+        result = "unknown";
+        break;
+    }
+    REPLY_WITH_STRING (req, result, "battery charging state");
+}
