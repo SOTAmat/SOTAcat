@@ -50,30 +50,30 @@ typedef struct
  * Represents an array of asset entries to facilitate URI to asset mapping.
  */
 static const asset_entry_t asset_map[] = {
-    // uri             asset_start          asset_end            asset_type         gzip   cache_time
-    // =============== ==================== ==================== ================== ====== ==============
+    // uri                 asset_start              asset_end                asset_type         gzip   cache_time
+    // =================== ======================== ======================== ================== ====== ==============
     // HTML pages - short cache (content may change)
-    {"/",              index_htmlgz_srt,    index_htmlgz_end,    "text/html",       true,  300  }, // 5 min
-    {"/index.html",    index_htmlgz_srt,    index_htmlgz_end,    "text/html",       true,  300  },
-    {"/about.html",    about_htmlgz_srt,    about_htmlgz_end,    "text/html",       true,  300  },
-    {"/spot.html",     spot_htmlgz_srt,     spot_htmlgz_end,     "text/html",       true,  300  },
-    {"/chase.html",    chase_htmlgz_srt,    chase_htmlgz_end,    "text/html",       true,  300  },
-    {"/settings.html", settings_htmlgz_srt, settings_htmlgz_end, "text/html",       true,  300  },
-    {"/qrx.html",      qrx_htmlgz_srt,      qrx_htmlgz_end,      "text/html",       true,  300  },
+    {"/",                  index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  }, // 5 min
+    {"/index.html",        index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  },
+    {"/about.html",        about_htmlgz_srt,        about_htmlgz_end,        "text/html",       true,  300  },
+    {"/spot.html",         spot_htmlgz_srt,         spot_htmlgz_end,         "text/html",       true,  300  },
+    {"/chase.html",        chase_htmlgz_srt,        chase_htmlgz_end,        "text/html",       true,  300  },
+    {"/settings.html",     settings_htmlgz_srt,     settings_htmlgz_end,     "text/html",       true,  300  },
+    {"/qrx.html",          qrx_htmlgz_srt,          qrx_htmlgz_end,          "text/html",       true,  300  },
     // JS/CSS - medium cache (versioned with firmware)
-    {"/about.js",           about_jsgz_srt,           about_jsgz_end,           "text/javascript", true,  3600 }, // 1 hour
-    {"/bandprivileges.js",  bandprivileges_jsgz_srt,  bandprivileges_jsgz_end,  "text/javascript", true,  3600 },
-    {"/spot.js",            spot_jsgz_srt,            spot_jsgz_end,            "text/javascript", true,  3600 },
-    {"/chase.js",           chase_jsgz_srt,           chase_jsgz_end,           "text/javascript", true,  3600 },
-    {"/chase_api.js",       chase_api_jsgz_srt,       chase_api_jsgz_end,       "text/javascript", true,  3600 },
-    {"/main.js",            main_jsgz_srt,            main_jsgz_end,            "text/javascript", true,  3600 },
-    {"/settings.js",        settings_jsgz_srt,        settings_jsgz_end,        "text/javascript", true,  3600 },
-    {"/qrx.js",             qrx_jsgz_srt,             qrx_jsgz_end,             "text/javascript", true,  3600 },
-    {"/style.css",          style_cssgz_srt,          style_cssgz_end,          "text/css",        true,  3600 },
+    {"/about.js",          about_jsgz_srt,          about_jsgz_end,          "text/javascript", true,  3600 }, // 1 hour
+    {"/bandprivileges.js", bandprivileges_jsgz_srt, bandprivileges_jsgz_end, "text/javascript", true,  3600 },
+    {"/spot.js",           spot_jsgz_srt,           spot_jsgz_end,           "text/javascript", true,  3600 },
+    {"/chase.js",          chase_jsgz_srt,          chase_jsgz_end,          "text/javascript", true,  3600 },
+    {"/chase_api.js",      chase_api_jsgz_srt,      chase_api_jsgz_end,      "text/javascript", true,  3600 },
+    {"/main.js",           main_jsgz_srt,           main_jsgz_end,           "text/javascript", true,  3600 },
+    {"/settings.js",       settings_jsgz_srt,       settings_jsgz_end,       "text/javascript", true,  3600 },
+    {"/qrx.js",            qrx_jsgz_srt,            qrx_jsgz_end,            "text/javascript", true,  3600 },
+    {"/style.css",         style_cssgz_srt,         style_cssgz_end,         "text/css",        true,  3600 },
     // Images - long cache (never change)
-    {"/favicon.ico",   favicon_ico_srt,     favicon_ico_end,     "image/x-icon",    false, 86400}, // 1 day
-    {"/sclogo.jpg",    sclogo_jpg_srt,      sclogo_jpg_end,      "image/jpeg",      false, 86400},
-    {NULL,             NULL,                NULL,                NULL,              true,  0    }  // Sent to mark end of array
+    {"/favicon.ico",       favicon_ico_srt,         favicon_ico_end,         "image/x-icon",    false, 86400}, // 1 day
+    {"/sclogo.jpg",        sclogo_jpg_srt,          sclogo_jpg_end,          "image/jpeg",      false, 86400},
+    {NULL,                 NULL,                    NULL,                    NULL,              true,  0    }  // Sent to mark end of array
 };
 
 /**
