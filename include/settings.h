@@ -61,3 +61,4 @@ esp_err_t handler_license_settings_get (httpd_req_t * req);
 esp_err_t handler_license_settings_post (httpd_req_t * req);
 esp_err_t handler_tune_targets_get (httpd_req_t * req);
 esp_err_t handler_tune_targets_post (httpd_req_t * req);
+esp_err_t handler_radio_type_get (httpd_req_t * req);

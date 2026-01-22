@@ -43,6 +43,7 @@ DEFAULT_STATE = {
     "mode": "USB",
     "power": 15,
     "xmit": 0,  # 0 = RX, 1 = TX
+    "radio_type": "KX2",  # "KX2", "KX3", or "Unknown"
 
     # Device info
     "version": "2025-01-01_mock-dev",
@@ -232,6 +233,12 @@ class MockSOTAcatServer:
         @self.app.route('/api/v1/connectionStatus', methods=['GET'])
         def get_connection_status():
             return jsonify({"connected": self.state["connected"]})
+
+        # Radio type
+        @self.app.route('/api/v1/radioType', methods=['GET'])
+        def get_radio_type():
+            # Returns plain text: "KX2", "KX3", or "Unknown"
+            return self.state["radio_type"]
 
         # Time sync
         @self.app.route('/api/v1/time', methods=['PUT'])

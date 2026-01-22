@@ -147,7 +147,7 @@ class BrowserClient(StressTestClient):
     """Simulates browser - 500ms polling of multiple endpoints"""
 
     def run(self):
-        endpoints = ["frequency", "mode", "power", "connectionStatus"]
+        endpoints = ["frequency", "mode", "power", "connectionStatus", "radioType"]
         end_time = time.time() + self.duration
 
         while time.time() < end_time and not self.stop_event.is_set():

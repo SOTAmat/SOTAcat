@@ -69,6 +69,10 @@ const AppState = {
     callSign: "",
     licenseClass: null,  // null = not loaded, "" = loaded but not set
 
+    // Radio info
+    radioType: null,           // "KX2", "KX3", or "Unknown"
+    filterBandsEnabled: false, // Filter chase spots to radio-supported bands
+
     // Version checking
     versionCheckRetryTimer: null,
 
@@ -302,6 +306,41 @@ const BAND_PLAN = {
     "47GHz": { min: 47000000000, max: 47200000000 },
     "76GHz": { min: 76000000000, max: 77500000000 },
 };
+
+// Radio band capabilities for filtering chase spots
+// KX2/KX3 both cover the same HF bands plus 6m
+// null = show all bands (no filtering)
+const RADIO_BAND_CAPABILITIES = {
+    "KX2": ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"],
+    "KX3": ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"],
+    "Unknown": null  // null = show all bands (no filtering)
+};
+
+// Get list of bands a radio can access (returns array or null for all bands)
+function getRadioBandCapabilities(radioType) {
+    return RADIO_BAND_CAPABILITIES[radioType] || null;
+}
+
+// Load radio type from device into AppState
+async function loadRadioType() {
+    try {
+        const response = await fetch("/api/v1/radioType");
+        if (response.ok) {
+            AppState.radioType = await response.text();
+            Log.debug("App", "Radio type loaded:", AppState.radioType);
+        }
+    } catch (error) {
+        Log.warn("App", "Failed to load radio type:", error);
+        AppState.radioType = "Unknown";
+    }
+}
+
+// Load filter bands setting from localStorage
+function loadFilterBandsSetting() {
+    const saved = localStorage.getItem("sotacat_filter_bands");
+    AppState.filterBandsEnabled = saved === "true";
+    return AppState.filterBandsEnabled;
+}
 
 // Determine which amateur band a frequency falls into (returns '40m', '20m', etc., or null)
 function getBandFromFrequency(frequencyHz) {

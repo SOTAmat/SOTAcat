@@ -469,6 +469,30 @@ async function saveTuneTargets() {
 }
 
 // ============================================================================
+// Chase Filters Functions
+// ============================================================================
+
+// Load filter bands setting and update checkbox UI
+function loadFilterBandsSettingUI() {
+    loadFilterBandsSetting(); // From main.js - loads into AppState
+    const checkbox = document.getElementById("filter-bands-enabled");
+    if (checkbox) {
+        checkbox.checked = AppState.filterBandsEnabled;
+    }
+}
+
+// Save filter bands setting to localStorage when checkbox changes
+function onFilterBandsChange() {
+    const checkbox = document.getElementById("filter-bands-enabled");
+    if (checkbox) {
+        const enabled = checkbox.checked;
+        localStorage.setItem("sotacat_filter_bands", enabled ? "true" : "false");
+        AppState.filterBandsEnabled = enabled;
+        Log.info("Settings", `Filter bands: ${enabled ? "enabled" : "disabled"}`);
+    }
+}
+
+// ============================================================================
 // Tune Targets Help Popup Functions
 // ============================================================================
 
@@ -960,6 +984,12 @@ function attachSettingsEventListeners() {
             }
         });
     });
+
+    // Chase filters - band filter checkbox
+    const filterBandsCheckbox = document.getElementById("filter-bands-enabled");
+    if (filterBandsCheckbox) {
+        filterBandsCheckbox.addEventListener("change", onFilterBandsChange);
+    }
 }
 
 // ============================================================================
@@ -972,6 +1002,7 @@ function onSettingsAppearing() {
     attachSettingsEventListeners();
     loadCallSign();
     loadTuneTargets();
+    loadFilterBandsSettingUI();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }
 

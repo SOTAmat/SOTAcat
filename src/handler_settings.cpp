@@ -1,4 +1,5 @@
 #include "globals.h"
+#include "kx_radio.h"
 #include "settings.h"
 #include "webserver.h"
 
@@ -592,4 +593,15 @@ esp_err_t handler_tune_targets_post (httpd_req_t * req) {
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
 
     return retrieve_and_send_tune_targets (req);
+}
+
+// ====================================================================================================
+// Radio Type
+// ====================================================================================================
+
+esp_err_t handler_radio_type_get (httpd_req_t * req) {
+    showActivity();
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+    const char * type = kxRadio.get_radio_type_string();
+    REPLY_WITH_STRING (req, type, "radio type");
 }

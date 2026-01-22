@@ -606,6 +606,12 @@ async function updateChaseTable() {
         row.classList.add(`row-mode-${modeType}`);
         row.classList.add(`row-type-${spot.sig}`); // Type-based class for filtering
 
+        // Add band class for band filtering
+        const band = getBandFromFrequency(spot.hertz);
+        if (band) {
+            row.classList.add(`row-band-${band}`);
+        }
+
         // Mark user's own spots with special class for frozen styling
         if (isMySpot) {
             row.classList.add("my-spot-row");
@@ -750,7 +756,13 @@ function applyTableFilters() {
     const selectedMode = ChaseState.modeFilter || "All";
     const selectedType = ChaseState.typeFilter || "All";
 
-    Log.debug("Chase", `Applying filters - Mode: ${selectedMode}, Type: ${selectedType}, Rows: ${allRows.length}`);
+    // Get band filter state - only filter if enabled AND we have a valid radio type
+    let allowedBands = null;
+    if (AppState.filterBandsEnabled && AppState.radioType) {
+        allowedBands = getRadioBandCapabilities(AppState.radioType);
+    }
+
+    Log.debug("Chase", `Applying filters - Mode: ${selectedMode}, Type: ${selectedType}, BandFilter: ${allowedBands ? "active" : "off"}, Rows: ${allRows.length}`);
 
     let visibleRows = 0;
     let hiddenRows = 0;
@@ -783,8 +795,20 @@ function applyTableFilters() {
             typeMatch = row.classList.contains(`row-type-${selectedType}`);
         }
 
+        // Band filter - check if spot's band is in the allowed bands list
+        let bandMatch = true;
+        if (allowedBands !== null) {
+            // Find the band class on this row
+            const bandClass = Array.from(row.classList).find(c => c.startsWith('row-band-'));
+            if (bandClass) {
+                const band = bandClass.replace('row-band-', '');
+                bandMatch = allowedBands.includes(band);
+            }
+            // If no band class found, show the row (graceful degradation for unknown frequencies)
+        }
+
         // Show row only if ALL filters match
-        if (modeMatch && typeMatch) {
+        if (modeMatch && typeMatch && bandMatch) {
             row.style.display = "";
             // Apply alternating row background based on visible row index
             row.classList.toggle("even-row", visibleRows % 2 === 1);
@@ -1012,11 +1036,15 @@ function attachChaseEventListeners() {
 // ============================================================================
 
 // Called when Chase tab becomes visible
-function onChaseAppearing() {
+async function onChaseAppearing() {
     Log.info("Chase", "tab appearing");
 
     // Load callsign for spot pinning (non-blocking)
     ensureCallSignLoaded();
+
+    // Load radio type and filter settings for band filtering
+    await loadRadioType();
+    loadFilterBandsSetting();
 
     // Subscribe to VFO changes and start polling for row highlighting
     subscribeToVfo(updateTunedRowHighlight);
