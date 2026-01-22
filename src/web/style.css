@@ -1554,14 +1554,32 @@ tbody tr:active {
 
 /* Responsive controls for phones and small tablets */
 @media (max-width: 768px) {
+    /* Chase page: strip card styling on mobile, add separator line */
+    .controls-card {
+        background: transparent;
+        box-shadow: none;
+        border-radius: 0;
+        padding: var(--space-sm);
+        margin: var(--space-sm) 0;
+        border-bottom: 1px solid var(--border);
+    }
+
     /* Chase page: first 3 controls on one row, PoLo on second row */
     .controls-grid {
         display: grid;
         grid-template-columns: auto auto 1fr;
+        gap: var(--space-sm);
+        align-items: end;
     }
 
     .controls-grid .control-group:last-child {
         grid-column: 1 / -1;
+    }
+
+    /* Match button height to select on mobile */
+    .controls-grid .btn-refresh {
+        min-height: var(--touch-target-sm);
+        height: var(--touch-target-sm);
     }
 
     /* Spot page: 2x2 grid for transmit controls */
