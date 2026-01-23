@@ -691,21 +691,27 @@ const isLocalhost =
 
 // Fetch API endpoint and update element with response text (url: string, elementId: string)
 async function fetchAndUpdateElement(url, elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) {
+        Log.warn("App", `Element not found: ${elementId}`);
+        return;
+    }
+
     try {
         const response = await fetch(url);
 
         if (!response.ok) {
             if (response.status === 404) {
-                document.getElementById(elementId).textContent = "";
+                element.textContent = "";
                 return;
             }
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
         const text = await response.text();
-        document.getElementById(elementId).textContent = text;
+        element.textContent = text;
     } catch (error) {
-        document.getElementById(elementId).textContent = "??";
+        element.textContent = "??";
     }
 }
 
