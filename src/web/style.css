@@ -721,6 +721,11 @@ input.frequency-display {
     color: var(--text-secondary);
 }
 
+#last-refresh-time {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
 .button-group {
     display: flex;
     gap: var(--space-sm);
