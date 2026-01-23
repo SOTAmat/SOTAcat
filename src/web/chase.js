@@ -552,7 +552,7 @@ function launchPoloChase() {
 // Update chase table display with sorted spots from AppState.latestChaseJson
 async function updateChaseTable() {
     const data = await AppState.latestChaseJson;
-    if (data == null) {
+    if (data === null) {
         Log.info("Chase", "Json is null");
         return;
     }
@@ -1074,7 +1074,7 @@ async function onChaseAppearing() {
     }
 
     // Load data
-    if (AppState.latestChaseJson != null) {
+    if (AppState.latestChaseJson !== null) {
         Log.debug("Chase", "tab appearing: Using existing data");
         updateChaseTable();
     } else {
