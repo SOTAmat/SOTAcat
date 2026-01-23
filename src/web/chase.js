@@ -330,7 +330,7 @@ function shouldSuggestAutoRefresh() {
 // Tune radio to specified frequency (Hz) and mode (adjusts SSB sideband based on frequency)
 async function tuneRadioHz(frequency, mode) {
     let useMode = mode.toUpperCase();
-    if (useMode == "SSB") {
+    if (useMode === "SSB") {
         if (frequency < LSB_USB_BOUNDARY_HZ) useMode = "LSB";
         else useMode = "USB";
     }
