@@ -52,6 +52,17 @@ DEFAULT_STATE = {
     "rssi": -62,
     "connected": True,
 
+    "batteryInfo": {
+        "voltage_v": 4.17,
+        "current_ma": -84.9,
+        "temp_C": 34.5,
+        "soc_pct": 85.2,
+        "cap_mAh": 496.5,
+        "tte_hrs": 5.25,
+        "ttf_hrs": 102.40,
+        "charging": False,
+    },
+
     # User settings (persisted to NVRAM on real device)
     "callsign": "N0CALL",
     "license": "G",  # License class: T, G, E, or empty
@@ -226,6 +237,11 @@ class MockSOTAcatServer:
             # Returns plain text: "1" (charging), "0" (not charging), "unknown"
             return self.state["battery_charging"]
 
+        @self.app.route('/api/v1/batteryInfo', methods=['GET'])
+        def get_battery_info():
+            # Returns object {voltage_v: 4.12, current_ma:-85.1, ...}
+            return jsonify(self.state["batteryInfo"])
+        
         @self.app.route('/api/v1/rssi', methods=['GET'])
         def get_rssi():
             return jsonify({"rssi": self.state["rssi"]})

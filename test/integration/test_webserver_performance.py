@@ -221,6 +221,7 @@ class WebServerTester:
             "/api/v1/connectionStatus",
             "/api/v1/batteryCharging",
             "/api/v1/batteryPercent",
+            "/api/v1/batteryInfo",
             "/api/v1/rssi",
             "/api/v1/settings",
         ]

@@ -96,6 +96,7 @@ static const api_handler_t api_handlers[] = {
     {HTTP_GET,  "connectionStatus", handler_connectionStatus_get,   false}, // disconnected radio /is/ a status
     {HTTP_GET,  "batteryCharging",  handler_batteryCharging_get,    false},
     {HTTP_GET,  "batteryPercent",   handler_batteryPercent_get,     false},
+    {HTTP_GET,  "batteryInfo",      handler_batteryInfo_get,        false},
     {HTTP_GET,  "rssi",             handler_rssi_get,               false},
     {HTTP_GET,  "frequency",        handler_frequency_get,          true },
     {HTTP_GET,  "mode",             handler_mode_get,               true },

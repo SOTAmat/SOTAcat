@@ -86,6 +86,9 @@ static float                   vpct_digital           = 0;
 static i2c_master_bus_handle_t i2c_bus_handle         = NULL;
 static BatteryChargingState    battery_charging_state = BatteryChargingState::UNKNOWN;
 
+static max17260_info_t bat_info; // Smart Battery info struct
+static SemaphoreHandle_t bat_info_mutex;
+
 BatteryChargingState get_battery_charging_state (void) {
     return battery_charging_state;
 }
@@ -102,6 +105,30 @@ float get_battery_percentage (void) {
         return vpct_digital;
     else
         return vpct_analog;
+}
+
+bool get_battery_is_smart(void){
+    return max17260_detected;
+}
+
+// Accessor for thread-safe access to battery info, provide a batteryInfo_t * to populate
+/**
+ * HTTP GET handler to retrieve the battery detailed information (returns JSON)
+ *
+ * @param info Pointer to a batteryInfo_t to overwrite
+ * @return ESP_OK on success, or an error code on failure.
+ */
+esp_err_t get_battery_info(batteryInfo_t* info){
+    esp_err_t ret = ESP_FAIL;
+    if(pdTRUE == xSemaphoreTake(bat_info_mutex, 100 / portTICK_PERIOD_MS)){
+        memcpy(info,&bat_info,sizeof(batteryInfo_t));
+        xSemaphoreGive(bat_info_mutex);
+        ret = ESP_OK;
+    }else{
+        ret = ESP_ERR_TIMEOUT;
+    }
+    
+    return ret;
 }
 
 static esp_err_t i2c_setup (void) {
@@ -142,6 +169,7 @@ static esp_err_t i2c_teardown (void) {
 void battery_monitor_task (void * _pvParameter) {
     // Register with watchdog timer
     ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
+    bat_info_mutex = xSemaphoreCreateMutex();
 
     Max17620 dig_bat_mon;
 
@@ -195,8 +223,11 @@ void battery_monitor_task (void * _pvParameter) {
         vbat_analog = get_analog_battery_voltage();
         vpct_analog = get_analog_battery_percentage (vbat_analog);
         if (max17260_detected) {
-            max17260_info_t bat_info;
+            
+            xSemaphoreTake(bat_info_mutex, 100 / portTICK_PERIOD_MS);
             dig_bat_mon.poll (&bat_info);
+            xSemaphoreGive(bat_info_mutex);
+
             // Reset watchdog again after I2C operations
             ESP_ERROR_CHECK (esp_task_wdt_reset());
             vbat_digital           = bat_info.voltage_average;
