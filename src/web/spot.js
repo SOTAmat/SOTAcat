@@ -1024,7 +1024,7 @@ function updateSendButtonStates() {
 // ============================================================================
 
 // Called when Spot tab becomes visible
-function onSpotAppearing() {
+async function onSpotAppearing() {
     Log.info("Spot", "tab appearing");
     loadInputValues();
     loadCollapsibleStates();
@@ -1040,6 +1040,9 @@ function onSpotAppearing() {
 
     // Update spot action buttons based on reference validity
     updateSpotButtonStates();
+
+    // Ensure license class is loaded before VFO updates (needed for privilege badges)
+    await ensureLicenseClassLoaded();
 
     startVfoUpdates();
 }
