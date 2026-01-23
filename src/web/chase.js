@@ -549,6 +549,168 @@ function launchPoloChase() {
 // Table Rendering
 // ============================================================================
 
+// Sort chase data in place by current sort field and direction
+function sortChaseData(data) {
+    data.sort((a, b) => {
+        if (a[ChaseState.sortField] < b[ChaseState.sortField]) return ChaseState.descending ? 1 : -1;
+        if (a[ChaseState.sortField] > b[ChaseState.sortField]) return ChaseState.descending ? -1 : 1;
+        return 0;
+    });
+}
+
+// Partition spots into user's own spots and others for pinning at top
+// Handles prefixes (S5/KC6X) and suffixes (KC6X/P, KC6X/M)
+function partitionMySpots(data, userCall) {
+    if (!userCall) {
+        return { mySpots: [], otherSpots: data };
+    }
+
+    const mySpots = [];
+    const otherSpots = [];
+
+    data.forEach((spot) => {
+        const callParts = spot.activatorCallsign ? spot.activatorCallsign.toUpperCase().split("/") : [];
+        if (callParts.includes(userCall)) {
+            mySpots.push(spot);
+        } else {
+            otherSpots.push(spot);
+        }
+    });
+
+    return { mySpots, otherSpots };
+}
+
+// Build reference link element based on spot type (SOTA, POTA, WWFF, ZLOTA)
+function buildReferenceLink(spot) {
+    if (spot.locationID === "-") {
+        return document.createTextNode(spot.locationID);
+    }
+
+    const refLink = document.createElement("a");
+    refLink.target = "_blank";
+    refLink.textContent = spot.locationID;
+
+    if (spot.sig === "SOTA") {
+        refLink.href = `https://sotl.as/summits/${spot.locationID}`;
+    } else if (spot.sig === "POTA") {
+        refLink.href = `https://pota.app/#/park/${spot.locationID}`;
+    } else if (spot.sig === "WWFF") {
+        refLink.href = `https://wwff.co/directory/?showRef=${spot.locationID}`;
+    } else if (spot.sig === "ZLOTA") {
+        // Convert slash format (ZLP/WK-0503) to underscore format (ZLP_WK-0503) for URL
+        const urlRef = spot.locationID.replace("/", "_");
+        refLink.href = `https://ontheair.nz/assets/${urlRef}`;
+    } else {
+        // Cluster or other types without reference - just show text
+        return document.createTextNode(spot.locationID);
+    }
+
+    return refLink;
+}
+
+// Build a single chase table row element
+function buildChaseRow(spot, isMySpot) {
+    const row = document.createElement("tr");
+    const modeType = spot.modeType;
+
+    // Add data attributes for VFO matching and Polo deep linking
+    row.dataset.hertz = spot.hertz || 0;
+    row.dataset.modeType = modeType;
+    row.dataset.activatorCallsign = spot.activatorCallsign || "";
+    row.dataset.locationId = spot.locationID || "";
+    row.dataset.sig = spot.sig || "";
+
+    // Add classes for filtering
+    row.classList.add(`row-mode-${modeType}`);
+    row.classList.add(`row-type-${spot.sig}`);
+
+    // Add band class for band filtering
+    const band = getBandFromFrequency(spot.hertz);
+    if (band) {
+        row.classList.add(`row-band-${band}`);
+    }
+
+    // Mark user's own spots with special class for frozen styling
+    if (isMySpot) {
+        row.classList.add("my-spot-row");
+    }
+
+    // Make entire row clickable to tune radio (except for links)
+    row.style.cursor = "pointer";
+    row.onclick = function (event) {
+        if (event.target.tagName === "A" || event.target.closest("a")) {
+            return; // Let the link handle it
+        }
+        if (spot.hertz && spot.hertz > 0) {
+            tuneRadioHz(spot.hertz, spot.modeType);
+        }
+    };
+
+    // 1. UTC time
+    const formattedTime = `${spot.timestamp.getUTCHours().toString().padStart(2, "0")}:${spot.timestamp.getUTCMinutes().toString().padStart(2, "0")}`;
+    row.insertCell().textContent = formattedTime;
+
+    // 2. Callsign
+    const callsignCell = row.insertCell();
+    const callsignLink = document.createElement("a");
+    callsignLink.href = `https://qrz.com/db/${spot.baseCallsign}`;
+    callsignLink.target = "_blank";
+    callsignLink.textContent = spot.activatorCallsign;
+    callsignCell.appendChild(callsignLink);
+
+    // 3. MHz Frequency (styled digits)
+    const frequencyCell = row.insertCell();
+    if (spot.hertz && typeof spot.hertz === "number") {
+        const freqMHz = spot.hertz / 1000000;
+        const [wholePart, fracPart] = freqMHz.toFixed(3).split(".");
+
+        const wholeSpan = document.createElement("span");
+        wholeSpan.className = "freq-whole";
+        wholeSpan.textContent = wholePart;
+
+        const fracSpan = document.createElement("span");
+        fracSpan.className = "freq-frac";
+        fracSpan.textContent = `.${fracPart}`;
+
+        frequencyCell.appendChild(wholeSpan);
+        frequencyCell.appendChild(fracSpan);
+
+        // Add band coloring
+        const freqBand = getBandFromFrequency(spot.hertz);
+        if (freqBand) {
+            frequencyCell.classList.add("band-cell", `band-${freqBand}`);
+        }
+    }
+
+    // 4. Mode
+    const modeCell = row.insertCell();
+    modeCell.textContent = spot.mode.toUpperCase().trim();
+    modeCell.classList.add("mode-cell");
+    modeCell.classList.add(`mode-cell-${modeType}`);
+
+    // 5. Type (xOTA program badge: SOTA/POTA/etc.)
+    const typeCell = row.insertCell();
+    const typeBadge = document.createElement("span");
+    typeBadge.className = `type-badge type-badge-${spot.sig}`;
+    typeBadge.textContent = spot.sig;
+    typeCell.appendChild(typeBadge);
+
+    // 6. Reference (with appropriate link based on type)
+    const refCell = row.insertCell();
+    refCell.appendChild(buildReferenceLink(spot));
+
+    // 7. Distance
+    row.insertCell().textContent = spot.distance.toLocaleString();
+
+    // 8. Details
+    row.insertCell().textContent = spot.details;
+
+    // 9. Comments
+    row.insertCell().textContent = spot.comments;
+
+    return row;
+}
+
 // Update chase table display with sorted spots from AppState.latestChaseJson
 async function updateChaseTable() {
     const data = await AppState.latestChaseJson;
@@ -557,34 +719,10 @@ async function updateChaseTable() {
         return;
     }
 
-    data.sort((a, b) => {
-        if (a[ChaseState.sortField] < b[ChaseState.sortField]) return ChaseState.descending ? 1 : -1;
-        if (a[ChaseState.sortField] > b[ChaseState.sortField]) return ChaseState.descending ? -1 : 1;
-        return 0;
-    });
+    sortChaseData(data);
 
-    // Separate user's own spots (if callsign is set) to pin them at top
-    // Match handles prefixes (S5/KC6X) and suffixes (KC6X/P, KC6X/M)
     const userCall = AppState.callSign ? AppState.callSign.toUpperCase() : "";
-    let mySpots = [];
-    let otherSpots = [];
-
-    if (userCall) {
-        data.forEach((spot) => {
-            // Split by "/" and check if any component matches user's callsign
-            const callParts = spot.activatorCallsign ? spot.activatorCallsign.toUpperCase().split("/") : [];
-            const isMySpot = callParts.includes(userCall);
-            if (isMySpot) {
-                mySpots.push(spot);
-            } else {
-                otherSpots.push(spot);
-            }
-        });
-    } else {
-        otherSpots = data;
-    }
-
-    // Combine: user's spots first (frozen at top), then others
+    const { mySpots, otherSpots } = partitionMySpots(data, userCall);
     const orderedData = [...mySpots, ...otherSpots];
 
     const tbody = document.querySelector("#chase-table tbody");
@@ -592,137 +730,8 @@ async function updateChaseTable() {
 
     orderedData.forEach((spot, index) => {
         const isMySpot = index < mySpots.length;
-        const row = newTbody.insertRow();
-        const modeType = spot.modeType;
-
-        // Add data attributes for VFO matching and Polo deep linking
-        row.dataset.hertz = spot.hertz || 0;
-        row.dataset.modeType = modeType;
-        row.dataset.activatorCallsign = spot.activatorCallsign || "";
-        row.dataset.locationId = spot.locationID || "";
-        row.dataset.sig = spot.sig || "";
-
-        // Add classes for filtering
-        row.classList.add(`row-mode-${modeType}`);
-        row.classList.add(`row-type-${spot.sig}`); // Type-based class for filtering
-
-        // Add band class for band filtering
-        const band = getBandFromFrequency(spot.hertz);
-        if (band) {
-            row.classList.add(`row-band-${band}`);
-        }
-
-        // Mark user's own spots with special class for frozen styling
-        if (isMySpot) {
-            row.classList.add("my-spot-row");
-        }
-
-        // Make entire row clickable to tune radio (except for links)
-        row.style.cursor = "pointer";
-        row.onclick = function (event) {
-            // Don't tune if user clicked on a link (Call or Ref columns)
-            if (event.target.tagName === "A" || event.target.closest("a")) {
-                return; // Let the link handle it
-            }
-            // Tune the radio
-            if (spot.hertz && spot.hertz > 0) {
-                tuneRadioHz(spot.hertz, spot.modeType);
-            }
-        };
-
-        // 1. UTC time
-        const formattedTime = `${spot.timestamp.getUTCHours().toString().padStart(2, "0")}:${spot.timestamp.getUTCMinutes().toString().padStart(2, "0")}`;
-        row.insertCell().textContent = formattedTime;
-
-        // 2. Callsign
-        const callsignCell = row.insertCell();
-        const callsignLink = document.createElement("a");
-        callsignLink.href = `https://qrz.com/db/${spot.baseCallsign}`;
-        callsignLink.target = "_blank";
-        callsignLink.textContent = spot.activatorCallsign;
-        callsignCell.appendChild(callsignLink);
-
-        // 3. MHz Frequency (styled digits, row click tunes radio)
-        const frequencyCell = row.insertCell();
-        if (spot.hertz && typeof spot.hertz === "number") {
-            const freqMHz = spot.hertz / 1000000;
-            const [wholePart, fracPart] = freqMHz.toFixed(3).split(".");
-
-            // Create styled frequency display with emphasis on MHz part
-            const wholeSpan = document.createElement("span");
-            wholeSpan.className = "freq-whole";
-            wholeSpan.textContent = wholePart;
-
-            const fracSpan = document.createElement("span");
-            fracSpan.className = "freq-frac";
-            fracSpan.textContent = `.${fracPart}`;
-
-            frequencyCell.appendChild(wholeSpan);
-            frequencyCell.appendChild(fracSpan);
-
-            // Add band coloring
-            const band = getBandFromFrequency(spot.hertz);
-            if (band) {
-                frequencyCell.classList.add("band-cell", `band-${band}`);
-            }
-        }
-
-        // 4. Mode
-        const modeCell = row.insertCell();
-        modeCell.textContent = spot.mode.toUpperCase().trim();
-        modeCell.classList.add("mode-cell");
-        modeCell.classList.add(`mode-cell-${modeType}`);
-
-        // 5. Type (xOTA program badge: SOTA/POTA/etc.)
-        const typeCell = row.insertCell();
-        const typeBadge = document.createElement("span");
-        typeBadge.className = `type-badge type-badge-${spot.sig}`;
-        typeBadge.textContent = spot.sig;
-        typeCell.appendChild(typeBadge);
-
-        // 6. Reference (with appropriate link based on type)
-        const refCell = row.insertCell();
-
-        // Generate appropriate link based on sig type
-        if (spot.sig === "SOTA" && spot.locationID !== "-") {
-            const refLink = document.createElement("a");
-            refLink.href = `https://sotl.as/summits/${spot.locationID}`;
-            refLink.target = "_blank";
-            refLink.textContent = spot.locationID;
-            refCell.appendChild(refLink);
-        } else if (spot.sig === "POTA" && spot.locationID !== "-") {
-            const refLink = document.createElement("a");
-            refLink.href = `https://pota.app/#/park/${spot.locationID}`;
-            refLink.target = "_blank";
-            refLink.textContent = spot.locationID;
-            refCell.appendChild(refLink);
-        } else if (spot.sig === "WWFF" && spot.locationID !== "-") {
-            const refLink = document.createElement("a");
-            refLink.href = `https://wwff.co/directory/?showRef=${spot.locationID}`;
-            refLink.target = "_blank";
-            refLink.textContent = spot.locationID;
-            refCell.appendChild(refLink);
-        } else if (spot.sig === "ZLOTA" && spot.locationID !== "-") {
-            const refLink = document.createElement("a");
-            // Convert slash format (ZLP/WK-0503) to underscore format (ZLP_WK-0503) for URL
-            const urlRef = spot.locationID.replace("/", "_");
-            refLink.href = `https://ontheair.nz/assets/${urlRef}`;
-            refLink.target = "_blank";
-            refLink.textContent = spot.locationID;
-            refCell.appendChild(refLink);
-        } else {
-            // Cluster or other types without reference - just show text (or dash)
-            refCell.textContent = spot.locationID;
-        }
-
-        // 7. Distance
-        row.insertCell().textContent = spot.distance.toLocaleString();
-
-        // 8. Details
-        row.insertCell().textContent = spot.details;
-
-        // 9. Comments
-        row.insertCell().textContent = spot.comments;
+        const row = buildChaseRow(spot, isMySpot);
+        newTbody.appendChild(row);
     });
 
     tbody.parentNode.replaceChild(newTbody, tbody);
