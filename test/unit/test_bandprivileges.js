@@ -503,30 +503,164 @@ describe('30m WARC Band (CW/DATA only)', () => {
 describe('License Badge Status', () => {
     it('returns correct status for 10m phone (all classes)', () => {
         const status = getLicenseClassStatus(28400000, 'USB');
+        assertTrue(status.N, 'Novice should be allowed');
         assertTrue(status.T, 'Tech should be allowed');
         assertTrue(status.G, 'General should be allowed');
+        assertTrue(status.A, 'Advanced should be allowed');
         assertTrue(status.E, 'Extra should be allowed');
     });
 
     it('returns correct status for 20m General phone', () => {
         const status = getLicenseClassStatus(14250000, 'USB');
+        assertFalse(status.N, 'Novice should not be allowed');
         assertFalse(status.T, 'Tech should not be allowed');
         assertTrue(status.G, 'General should be allowed');
+        assertTrue(status.A, 'Advanced should be allowed');
         assertTrue(status.E, 'Extra should be allowed');
     });
 
-    it('returns correct status for 20m Extra-only phone', () => {
+    it('returns correct status for 20m Extra/Advanced phone (14.200)', () => {
         const status = getLicenseClassStatus(14200000, 'USB');
+        assertFalse(status.N, 'Novice should not be allowed');
         assertFalse(status.T, 'Tech should not be allowed');
         assertFalse(status.G, 'General should not be allowed');
+        assertTrue(status.A, 'Advanced should be allowed (14.175-14.225)');
+        assertTrue(status.E, 'Extra should be allowed');
+    });
+
+    it('returns correct status for 20m Extra-only phone (14.160)', () => {
+        const status = getLicenseClassStatus(14160000, 'USB');
+        assertFalse(status.N, 'Novice should not be allowed');
+        assertFalse(status.T, 'Tech should not be allowed');
+        assertFalse(status.G, 'General should not be allowed');
+        assertFalse(status.A, 'Advanced should not be allowed');
         assertTrue(status.E, 'Extra should be allowed');
     });
 
     it('returns all false when mode not allowed', () => {
         const status = getLicenseClassStatus(10125000, 'USB'); // 30m phone
+        assertFalse(status.N, 'Novice should not be allowed (phone on 30m)');
         assertFalse(status.T, 'Tech should not be allowed (phone on 30m)');
         assertFalse(status.G, 'General should not be allowed (phone on 30m)');
+        assertFalse(status.A, 'Advanced should not be allowed (phone on 30m)');
         assertFalse(status.E, 'Extra should not be allowed (phone on 30m)');
+    });
+});
+
+describe('Novice License Privileges', () => {
+    describe('80m Novice CW (3.525-3.600 MHz)', () => {
+        it('Novice can TX CW at 3.550', () => {
+            const result = checkPrivileges(3550000, 'CW', 'N');
+            assertTrue(result.userCanTransmit, 'Novice should TX CW at 3.550');
+        });
+
+        it('Novice cannot TX CW at 3.520 (below Novice segment)', () => {
+            const result = checkPrivileges(3520000, 'CW', 'N');
+            assertFalse(result.userCanTransmit, 'Novice should not TX at 3.520');
+        });
+
+        it('Novice cannot TX phone anywhere on 80m', () => {
+            const result = checkPrivileges(3900000, 'USB', 'N');
+            assertFalse(result.userCanTransmit, 'Novice should not TX phone on 80m');
+        });
+    });
+
+    describe('40m Novice CW (7.025-7.125 MHz)', () => {
+        it('Novice can TX CW at 7.050', () => {
+            const result = checkPrivileges(7050000, 'CW', 'N');
+            assertTrue(result.userCanTransmit, 'Novice should TX CW at 7.050');
+        });
+
+        it('Novice cannot TX phone on 40m', () => {
+            const result = checkPrivileges(7200000, 'USB', 'N');
+            assertFalse(result.userCanTransmit, 'Novice should not TX phone on 40m');
+        });
+    });
+
+    describe('15m Novice CW (21.025-21.200 MHz)', () => {
+        it('Novice can TX CW at 21.100', () => {
+            const result = checkPrivileges(21100000, 'CW', 'N');
+            assertTrue(result.userCanTransmit, 'Novice should TX CW at 21.100');
+        });
+
+        it('Novice cannot TX phone on 15m', () => {
+            const result = checkPrivileges(21300000, 'USB', 'N');
+            assertFalse(result.userCanTransmit, 'Novice should not TX phone on 15m');
+        });
+    });
+
+    describe('10m Novice privileges (28.0-28.5 MHz)', () => {
+        it('Novice can TX CW at 28.100', () => {
+            const result = checkPrivileges(28100000, 'CW', 'N');
+            assertTrue(result.userCanTransmit, 'Novice should TX CW at 28.100');
+        });
+
+        it('Novice can TX phone at 28.400', () => {
+            const result = checkPrivileges(28400000, 'USB', 'N');
+            assertTrue(result.userCanTransmit, 'Novice should TX phone at 28.400');
+        });
+
+        it('Novice cannot TX phone at 28.600 (above 28.5)', () => {
+            const result = checkPrivileges(28600000, 'USB', 'N');
+            assertFalse(result.userCanTransmit, 'Novice should not TX at 28.600');
+        });
+    });
+
+    describe('Novice has no 20m privileges', () => {
+        it('Novice cannot TX anywhere on 20m', () => {
+            const result = checkPrivileges(14250000, 'CW', 'N');
+            assertFalse(result.userCanTransmit, 'Novice should not TX on 20m');
+        });
+    });
+});
+
+describe('Advanced License Privileges', () => {
+    describe('80m Advanced phone (3.700-4.000 MHz)', () => {
+        it('Advanced can TX phone at 3.750', () => {
+            const result = checkPrivileges(3750000, 'USB', 'A');
+            assertTrue(result.userCanTransmit, 'Advanced should TX at 3.750');
+        });
+
+        it('Advanced cannot TX phone at 3.650 (Extra only)', () => {
+            const result = checkPrivileges(3650000, 'USB', 'A');
+            assertFalse(result.userCanTransmit, 'Advanced should not TX at 3.650');
+        });
+    });
+
+    describe('20m Advanced phone (14.175-14.350 MHz)', () => {
+        it('Advanced can TX phone at 14.200', () => {
+            const result = checkPrivileges(14200000, 'USB', 'A');
+            assertTrue(result.userCanTransmit, 'Advanced should TX at 14.200');
+        });
+
+        it('Advanced cannot TX phone at 14.160 (Extra only)', () => {
+            const result = checkPrivileges(14160000, 'USB', 'A');
+            assertFalse(result.userCanTransmit, 'Advanced should not TX at 14.160');
+        });
+    });
+
+    describe('15m Advanced phone (21.225-21.450 MHz)', () => {
+        it('Advanced can TX phone at 21.250', () => {
+            const result = checkPrivileges(21250000, 'USB', 'A');
+            assertTrue(result.userCanTransmit, 'Advanced should TX at 21.250');
+        });
+
+        it('Advanced cannot TX phone at 21.210 (Extra only)', () => {
+            const result = checkPrivileges(21210000, 'USB', 'A');
+            assertFalse(result.userCanTransmit, 'Advanced should not TX at 21.210');
+        });
+    });
+
+    describe('Advanced has same privileges as General on some bands', () => {
+        it('Advanced can TX on 160m (same as General)', () => {
+            const result = checkPrivileges(1900000, 'USB', 'A');
+            assertTrue(result.userCanTransmit, 'Advanced should TX on 160m');
+        });
+
+        it('Advanced can TX on 30m (same as General)', () => {
+            const result = checkPrivileges(10125000, 'CW', 'A');
+            assertTrue(result.userCanTransmit, 'Advanced should TX CW on 30m');
+        });
     });
 });
 

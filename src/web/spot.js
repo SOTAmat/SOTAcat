@@ -159,22 +159,35 @@ function updateBandDisplay() {
 function updatePrivilegeDisplay() {
     const vfoDisplay = document.getElementById("vfo-display");
     const warningEl = document.getElementById("vfo-warning");
+    const badgeN = document.getElementById("badge-N");
     const badgeT = document.getElementById("badge-T");
     const badgeG = document.getElementById("badge-G");
+    const badgeA = document.getElementById("badge-A");
     const badgeE = document.getElementById("badge-E");
 
-    if (!vfoDisplay || !badgeT || !badgeG || !badgeE) return;
+    if (!vfoDisplay || !badgeN || !badgeT || !badgeG || !badgeA || !badgeE) return;
 
     const frequencyHz = AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ;
     const mode = AppState.vfoMode || "USB";
     const userLicense = getUserLicenseClass();
 
+    // Show N/A badges only if user has selected Novice or Advanced license
+    const showLegacyBadges = userLicense === "N" || userLicense === "A";
+    badgeN.classList.toggle("hidden", !showLegacyBadges);
+    badgeA.classList.toggle("hidden", !showLegacyBadges);
+
+    // Add class to container for compact styling when showing all 5 badges
+    const badgesContainer = document.getElementById("license-badges");
+    if (badgesContainer) {
+        badgesContainer.classList.toggle("show-all", showLegacyBadges);
+    }
+
     // Check privileges using bandprivileges.js functions
     const status = checkPrivileges(frequencyHz, mode, userLicense);
     const classStatus = getLicenseClassStatus(frequencyHz, mode);
 
-    // Update badge states
-    const badges = { T: badgeT, G: badgeG, E: badgeE };
+    // Update badge states - shows who CAN operate at this frequency/mode
+    const badges = { N: badgeN, T: badgeT, G: badgeG, A: badgeA, E: badgeE };
     for (const [cls, badge] of Object.entries(badges)) {
         // Remove all state classes
         badge.classList.remove("allowed", "denied", "user-class");
@@ -199,13 +212,17 @@ function updatePrivilegeDisplay() {
         vfoDisplay.classList.add("warning-privilege");
     } else if (!status.modeAllowed) {
         vfoDisplay.classList.add("warning-mode");
-    } else if (userLicense && !status.userCanTransmit) {
+    } else if (!userLicense || !status.userCanTransmit) {
+        // Warn if unlicensed or outside user's privileges
         vfoDisplay.classList.add("warning-privilege");
     }
 
     // Update warning message
     if (warningEl) {
-        if (status.warning) {
+        if (!userLicense && status.inBand && status.modeAllowed) {
+            // Unlicensed user in a valid band/mode
+            warningEl.textContent = "Unlicensed";
+        } else if (status.warning) {
             warningEl.textContent = status.warning;
         } else if (status.edgeWarning) {
             warningEl.textContent = status.edgeWarning;
