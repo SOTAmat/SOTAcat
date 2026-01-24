@@ -129,25 +129,6 @@ const MAX_TUNE_TARGETS = 5;
 let originalTuneTargets = [];
 let originalTuneTargetsMobile = false;
 
-// Normalize tune targets from API response (handles both old string[] and new object[] formats)
-function normalizeTuneTargets(targets) {
-    if (!targets || !Array.isArray(targets)) return [];
-
-    return targets.map((item) => {
-        if (typeof item === "string") {
-            // Old format: convert string to object, default enabled=true
-            return { url: item, enabled: true };
-        } else if (typeof item === "object" && item !== null) {
-            // New format: ensure both fields exist
-            return {
-                url: item.url || "",
-                enabled: item.enabled !== false, // default to true if not specified
-            };
-        }
-        return { url: "", enabled: true };
-    });
-}
-
 // Load tune targets from device (falls back to AppState if device unavailable)
 async function loadTuneTargets() {
     const mobileCheckbox = document.getElementById("tune-targets-mobile");

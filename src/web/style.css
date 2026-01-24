@@ -616,15 +616,19 @@ input.frequency-display {
     display: flex;
     gap: var(--space-sm);
     align-items: center;
+    max-width: 100%;
 }
 
 .callsign-license-row input {
-    flex: 1;
+    flex: 0 1 auto;
+    width: 8ch;
+    min-width: 7ch;
+    max-width: 10ch;
 }
 
 .callsign-license-row .select-control {
-    min-width: 90px;
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .input-row input,
@@ -714,6 +718,11 @@ input.frequency-display {
 .control-group label {
     font-size: var(--text-sm);
     font-weight: 500;
+    color: var(--text-secondary);
+}
+
+#last-refresh-time {
+    font-size: var(--text-sm);
     color: var(--text-secondary);
 }
 
@@ -1552,16 +1561,59 @@ tbody tr:active {
 
 }
 
+/* Compact badges when all 5 are shown (Novice/Advanced license selected) */
+.license-badges.show-all {
+    gap: 3px;
+    margin-left: var(--space-sm);
+}
+
+.license-badges.show-all .license-badge {
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
+}
+
+/* Extra narrow screens with 5 badges */
+@media (max-width: 360px) {
+    .license-badges.show-all {
+        gap: 2px;
+    }
+    .license-badges.show-all .license-badge {
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+        border-width: 1.5px;
+    }
+}
+
 /* Responsive controls for phones and small tablets */
 @media (max-width: 768px) {
+    /* Chase page: strip card styling on mobile, add separator line */
+    .controls-card {
+        background: transparent;
+        box-shadow: none;
+        border-radius: 0;
+        padding: var(--space-sm);
+        margin: var(--space-sm) 0;
+        border-bottom: 1px solid var(--border);
+    }
+
     /* Chase page: first 3 controls on one row, PoLo on second row */
     .controls-grid {
         display: grid;
         grid-template-columns: auto auto 1fr;
+        gap: var(--space-sm);
+        align-items: end;
     }
 
     .controls-grid .control-group:last-child {
         grid-column: 1 / -1;
+    }
+
+    /* Match button height to select on mobile */
+    .controls-grid .btn-refresh {
+        min-height: var(--touch-target-sm);
+        height: var(--touch-target-sm);
     }
 
     /* Spot page: 2x2 grid for transmit controls */

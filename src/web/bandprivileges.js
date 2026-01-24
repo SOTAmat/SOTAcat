@@ -2,6 +2,7 @@
 // FCC License Class Band Privileges
 // ============================================================================
 // Data source: FCC Part 97 as of January 2025
+//              https://www.arrl.org/frequency-allocations
 // Structured for mode-aware and bandwidth-aware privilege checking
 // Extensible design for future regional support
 
@@ -27,61 +28,65 @@ const MODE_BANDWIDTH_HZ = {
 // ============================================================================
 // Each segment defines: frequency range (Hz), allowed modes, license classes
 // Mode categories: CW, DATA, PHONE
-// License classes: T (Technician), G (General), E (Extra)
+// License classes: N (Novice), T (Technician), G (General), A (Advanced), E (Extra)
 
 const FCC_HF_PRIVILEGES = {
     "160m": [
-        { min: 1800000, max: 2000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
+        { min: 1800000, max: 2000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "80m": [
-        { min: 3500000, max: 3600000, modes: ["CW", "DATA"], classes: ["E", "G"] },
+        { min: 3500000, max: 3525000, modes: ["CW", "DATA"], classes: ["E", "A", "G"] },
+        { min: 3525000, max: 3600000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "N"] },
         { min: 3600000, max: 3700000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },
-        { min: 3700000, max: 3800000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },  // General has NO privileges 3.6-3.8
-        { min: 3800000, max: 4000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
+        { min: 3700000, max: 3800000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A"] },
+        { min: 3800000, max: 4000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "60m": [
         // Channelized band - simplified with narrow segments around each channel
-        { min: 5330500, max: 5333500, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
-        { min: 5346500, max: 5349500, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
-        { min: 5357000, max: 5360000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
-        { min: 5371500, max: 5374500, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
-        { min: 5403500, max: 5406500, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
+        { min: 5330500, max: 5333500, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
+        { min: 5346500, max: 5349500, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
+        { min: 5357000, max: 5360000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
+        { min: 5371500, max: 5374500, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
+        { min: 5403500, max: 5406500, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "40m": [
         { min: 7000000, max: 7025000, modes: ["CW"], classes: ["E"] },
-        { min: 7025000, max: 7125000, modes: ["CW", "DATA"], classes: ["E", "G", "T"] },
-        { min: 7125000, max: 7175000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
-        { min: 7175000, max: 7300000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G", "T"] },
+        { min: 7025000, max: 7125000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T", "N"] },
+        { min: 7125000, max: 7175000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
+        { min: 7175000, max: 7300000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
     ],
     "30m": [
         // WARC band - CW/DATA only, no phone
-        { min: 10100000, max: 10150000, modes: ["CW", "DATA"], classes: ["E", "G", "T"] },
+        { min: 10100000, max: 10150000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T"] },
     ],
     "20m": [
         { min: 14000000, max: 14025000, modes: ["CW"], classes: ["E"] },
-        { min: 14025000, max: 14150000, modes: ["CW", "DATA"], classes: ["E", "G"] },
-        { min: 14150000, max: 14225000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },
-        { min: 14225000, max: 14350000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G"] },
+        { min: 14025000, max: 14150000, modes: ["CW", "DATA"], classes: ["E", "A", "G"] },
+        { min: 14150000, max: 14175000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },
+        { min: 14175000, max: 14225000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A"] },
+        { min: 14225000, max: 14350000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "17m": [
         // WARC band
-        { min: 18068000, max: 18110000, modes: ["CW", "DATA"], classes: ["E", "G", "T"] },
-        { min: 18110000, max: 18168000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G", "T"] },
+        { min: 18068000, max: 18110000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T"] },
+        { min: 18110000, max: 18168000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
     ],
     "15m": [
         { min: 21000000, max: 21025000, modes: ["CW"], classes: ["E"] },
-        { min: 21025000, max: 21200000, modes: ["CW", "DATA"], classes: ["E", "G"] },
-        { min: 21200000, max: 21275000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },
-        { min: 21275000, max: 21450000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G", "T"] },
+        { min: 21025000, max: 21200000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "N"] },
+        { min: 21200000, max: 21225000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },
+        { min: 21225000, max: 21275000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A"] },
+        { min: 21275000, max: 21450000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
     ],
     "12m": [
         // WARC band
-        { min: 24890000, max: 24930000, modes: ["CW", "DATA"], classes: ["E", "G", "T"] },
-        { min: 24930000, max: 24990000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G", "T"] },
+        { min: 24890000, max: 24930000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T"] },
+        { min: 24930000, max: 24990000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
     ],
     "10m": [
-        { min: 28000000, max: 28300000, modes: ["CW", "DATA"], classes: ["E", "G", "T"] },
-        { min: 28300000, max: 29700000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "G", "T"] },
+        { min: 28000000, max: 28300000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T", "N"] },
+        { min: 28300000, max: 28500000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T", "N"] },
+        { min: 28500000, max: 29700000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
     ],
 };
 
@@ -329,12 +334,14 @@ function checkPrivileges(frequencyHz, radioMode, userLicenseClass) {
  * Get privilege status for each license class at a frequency/mode
  * @param {number} frequencyHz - Frequency in Hz
  * @param {string} radioMode - Current mode
- * @returns {Object} Status for each class: { T: boolean, G: boolean, E: boolean }
+ * @returns {Object} Status for each class: { N: boolean, T: boolean, G: boolean, A: boolean, E: boolean }
  */
 function getLicenseClassStatus(frequencyHz, radioMode) {
     const result = {
+        N: false,
         T: false,
         G: false,
+        A: false,
         E: false,
     };
 
@@ -353,7 +360,7 @@ function getLicenseClassStatus(frequencyHz, radioMode) {
 
 /**
  * Get user's license class from AppState
- * @returns {string|null} License class ('T', 'G', 'E') or null
+ * @returns {string|null} License class ('N', T', 'G', 'A', 'E') or null
  */
 function getUserLicenseClass() {
     return AppState.licenseClass || null;
