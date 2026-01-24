@@ -44,6 +44,7 @@ Then open http://localhost:8080 in your browser.
 | GET | `/api/v1/mode` | Current mode |
 | PUT | `/api/v1/mode?bw=X` | Set mode (CW, USB, LSB, etc.) |
 | GET | `/api/v1/batteryPercent` | Battery percentage |
+| GET | `/api/v1/batteryInfo` | Battery information |
 | GET | `/api/v1/rssi` | WiFi signal strength |
 | GET | `/api/v1/connectionStatus` | WiFi connection status |
 
