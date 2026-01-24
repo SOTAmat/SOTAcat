@@ -103,3 +103,6 @@ esp32c3.bin
 esp32.bin
 SOTACAT-ESP32C3-OTA.bin
 
+# Gzip-compressed web assets (build artifacts from kowalski/wip branch)
+src/web/*.*gz
+
