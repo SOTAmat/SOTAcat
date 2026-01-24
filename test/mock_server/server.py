@@ -47,19 +47,19 @@ DEFAULT_STATE = {
 
     # Device info
     "version": "2025-01-01_mock-dev",
-    "battery": 85,
-    "battery_charging": "1",  # "1" = charging, "0" = not charging, "unknown" = no detection
     "rssi": -62,
     "connected": True,
 
+    # Battery info (matches handler_batteryInfo_get JSON format)
     "batteryInfo": {
+        "is_smart": True,
         "voltage_v": 4.17,
         "current_ma": -84.9,
-        "temp_C": 34.5,
-        "soc_pct": 85.2,
-        "cap_mAh": 496.5,
-        "tte_hrs": 5.25,
-        "ttf_hrs": 102.40,
+        "temp_c": 34.5,
+        "state_of_charge_pct": 85.2,
+        "capacity_mah": 496.5,
+        "time_to_empty_hrs": 5.25,
+        "time_to_full_hrs": 0.0,
         "charging": False,
     },
 
@@ -228,18 +228,9 @@ class MockSOTAcatServer:
             return '', 200
 
         # Battery and Signal
-        @self.app.route('/api/v1/batteryPercent', methods=['GET'])
-        def get_battery():
-            return jsonify({"battery": self.state["battery"]})
-
-        @self.app.route('/api/v1/batteryCharging', methods=['GET'])
-        def get_battery_charging():
-            # Returns plain text: "1" (charging), "0" (not charging), "unknown"
-            return self.state["battery_charging"]
-
         @self.app.route('/api/v1/batteryInfo', methods=['GET'])
         def get_battery_info():
-            # Returns object {voltage_v: 4.12, current_ma:-85.1, ...}
+            # Returns comprehensive battery JSON (matches handler_batteryInfo_get format)
             return jsonify(self.state["batteryInfo"])
         
         @self.app.route('/api/v1/rssi', methods=['GET'])

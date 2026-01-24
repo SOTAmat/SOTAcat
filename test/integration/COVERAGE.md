@@ -4,7 +4,7 @@
 
 The performance test suite validates **100% of web server assets** declared in `src/webserver.cpp`.
 
-## Complete Asset Coverage (20 endpoints)
+## Complete Asset Coverage (18 endpoints)
 
 ### HTML Pages (6)
 - ✅ `/` - Main index (root)
@@ -29,13 +29,12 @@ The performance test suite validates **100% of web server assets** declared in `
 - ✅ `/favicon.ico` - Browser favicon
 - ✅ `/sclogo.jpg` - SOTAcat logo
 
-### API Endpoints (5)
+### API Endpoints (4)
 These are GET endpoints that don't require radio connection:
 
 - ✅ `/api/v1/version` - Firmware version
 - ✅ `/api/v1/connectionStatus` - Radio connection status
-- ✅ `/api/v1/batteryPercent` - Battery percentage
-- ✅ `/api/v1/batteryInfo` - Battery information
+- ✅ `/api/v1/batteryInfo` - Battery information (JSON with charging, state_of_charge_pct, time estimates)
 - ✅ `/api/v1/rssi` - WiFi signal strength
 - ✅ `/api/v1/settings` - Device settings
 
@@ -82,7 +81,7 @@ grep -A 30 'self.test_endpoints = \[' test_webserver_performance.py
 
 ## Test Execution
 
-Every test iteration requests ALL 20 endpoints and measures:
+Every test iteration requests ALL 18 endpoints and measures:
 - Response time (total)
 - Time to First Byte (TTFB)
 - HTTP status code
@@ -90,12 +89,12 @@ Every test iteration requests ALL 20 endpoints and measures:
 
 Example output:
 ```
-Testing 20 endpoints:
+Testing 18 endpoints:
   - HTML pages: 6
   - JavaScript: 6
   - CSS: 1
   - Images: 2
-  - API endpoints: 5
+  - API endpoints: 3
 
 Running 10 iterations...
 ```
@@ -105,7 +104,7 @@ Running 10 iterations...
 ### Performance Test (`test_webserver_performance.py`)
 Tests static assets and non-radio API endpoints:
 - Measures response times, TTFB, full page load
-- Tests 20 endpoints per iteration
+- Tests 18 endpoints per iteration
 - Default: 10 iterations
 - Run with: `make test-performance`
 
@@ -146,9 +145,9 @@ When assets are added/removed in `src/webserver.cpp`:
 
 | Test Suite        | Endpoints Tested    | Coverage                      |
 |-------------------|---------------------|-------------------------------|
-| Performance Test  | 20 static/non-radio | 100% of testable assets       |
+| Performance Test  | 18 static/non-radio | 100% of testable assets       |
 | Mutex Stress Test | 4 radio endpoints   | Core GET/SET operations       |
-| **Total**         | **24 endpoints**    | **~60% of all API endpoints** |
+| **Total**         | **22 endpoints**    | **~60% of all API endpoints** |
 
 The remaining ~40% of API endpoints (FT8, ATU, keyer, GPS, OTA, etc.) require specific radio states, have side effects (transmit, reboot), or need specialized testing conditions.
 

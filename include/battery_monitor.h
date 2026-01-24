@@ -4,15 +4,8 @@
 #include <freertos/task.h>
 #include "max17260.h"
 
-enum class BatteryChargingState {
-    UNKNOWN,
-    NOT_CHARGING,
-    CHARGING
-};
-
 typedef max17260_info_t batteryInfo_t;
 
-BatteryChargingState get_battery_charging_state (void);
 bool                 get_battery_is_smart(void);
 float                get_battery_voltage (void);
 float                get_battery_percentage (void);

@@ -726,6 +726,18 @@ function refreshUTCClock() {
     document.getElementById("current-utc-time").textContent = utcTime.slice(17, 22);
 }
 
+// Format battery time remaining in a compact format
+function formatBatteryTime(hours, type) {
+    if (!hours || hours <= 0) return "";
+    const arrow = type === "full" ? "\u2191" : "\u2193"; // ↑ or ↓
+    if (hours > 99) return `${arrow}99+`;
+    const totalMins = Math.round(hours * 60);
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    const str = h > 0 ? `${h}h${m > 0 ? m + "m" : ""}` : `${m}m`;
+    return `${arrow}${str}`;
+}
+
 // Update battery percentage and WiFi signal strength display
 async function updateBatteryInfo() {
     if (isLocalhost) return;
@@ -734,19 +746,29 @@ async function updateBatteryInfo() {
 
     batteryController = new AbortController();
     try {
-        const [chargingResponse, batteryResponse, rssiResponse] = await Promise.all([
-            fetch("/api/v1/batteryCharging", { signal: batteryController.signal }),
-            fetch("/api/v1/batteryPercent", { signal: batteryController.signal }),
+        const [batteryInfoResponse, rssiResponse] = await Promise.all([
+            fetch("/api/v1/batteryInfo", { signal: batteryController.signal }),
             fetch("/api/v1/rssi", { signal: batteryController.signal }),
         ]);
 
-        if (chargingResponse.ok) {
-            const chargingState = await chargingResponse.text();
+        if (batteryInfoResponse.ok) {
+            const info = await batteryInfoResponse.json();
+            document.getElementById("battery-percent").textContent =
+                Math.round(info.state_of_charge_pct);
             document.getElementById("battery-icon").textContent =
-                chargingState === "1" ? " \u26A1 " : " \uD83D\uDD0B ";
-        }
-        if (batteryResponse.ok) {
-            document.getElementById("battery-percent").textContent = await batteryResponse.text();
+                info.charging ? " \u26A1 " : " \uD83D\uDD0B ";
+
+            // Time display for smart batteries
+            const timeEl = document.getElementById("battery-time");
+            if (timeEl) {
+                if (info.is_smart && info.charging && info.time_to_full_hrs > 0) {
+                    timeEl.textContent = formatBatteryTime(info.time_to_full_hrs, "full");
+                } else if (info.is_smart && !info.charging && info.time_to_empty_hrs > 0) {
+                    timeEl.textContent = formatBatteryTime(info.time_to_empty_hrs, "empty");
+                } else {
+                    timeEl.textContent = "";
+                }
+            }
         }
         if (rssiResponse.ok) {
             document.getElementById("wifi-rssi").textContent = await rssiResponse.text();
@@ -755,6 +777,8 @@ async function updateBatteryInfo() {
         if (error.name === "AbortError") return;
         document.getElementById("battery-percent").textContent = "??";
         document.getElementById("wifi-rssi").textContent = "??";
+        const timeEl = document.getElementById("battery-time");
+        if (timeEl) timeEl.textContent = "";
     } finally {
         batteryController = null;
     }

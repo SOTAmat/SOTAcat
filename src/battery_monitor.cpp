@@ -84,14 +84,9 @@ static float                   vpct_analog            = 0;
 static float                   vbat_digital           = 0;
 static float                   vpct_digital           = 0;
 static i2c_master_bus_handle_t i2c_bus_handle         = NULL;
-static BatteryChargingState    battery_charging_state = BatteryChargingState::UNKNOWN;
 
-static max17260_info_t bat_info; // Smart Battery info struct
+static max17260_info_t   bat_info;  // Smart Battery info struct
 static SemaphoreHandle_t bat_info_mutex;
-
-BatteryChargingState get_battery_charging_state (void) {
-    return battery_charging_state;
-}
 
 float get_battery_voltage (void) {
     if (max17260_detected)
@@ -107,7 +102,7 @@ float get_battery_percentage (void) {
         return vpct_analog;
 }
 
-bool get_battery_is_smart(void){
+bool get_battery_is_smart (void) {
     return max17260_detected;
 }
 
@@ -117,16 +112,17 @@ bool get_battery_is_smart(void){
  * @param info Pointer to a batteryInfo_t to overwrite
  * @return ESP_OK on success, or an error code on failure.
  */
-esp_err_t get_battery_info(batteryInfo_t* info){
+esp_err_t get_battery_info (batteryInfo_t * info) {
     esp_err_t ret = ESP_FAIL;
-    if(pdTRUE == xSemaphoreTake(bat_info_mutex, 100 / portTICK_PERIOD_MS)){
-        memcpy(info,&bat_info,sizeof(batteryInfo_t));
-        xSemaphoreGive(bat_info_mutex);
+    if (pdTRUE == xSemaphoreTake (bat_info_mutex, 100 / portTICK_PERIOD_MS)) {
+        memcpy (info, &bat_info, sizeof (batteryInfo_t));
+        xSemaphoreGive (bat_info_mutex);
         ret = ESP_OK;
-    }else{
+    }
+    else {
         ret = ESP_ERR_TIMEOUT;
     }
-    
+
     return ret;
 }
 
@@ -222,21 +218,16 @@ void battery_monitor_task (void * _pvParameter) {
         vbat_analog = get_analog_battery_voltage();
         vpct_analog = get_analog_battery_percentage (vbat_analog);
         if (max17260_detected) {
-            
-            xSemaphoreTake(bat_info_mutex, 100 / portTICK_PERIOD_MS);
+            xSemaphoreTake (bat_info_mutex, 100 / portTICK_PERIOD_MS);
             dig_bat_mon.poll (&bat_info);
-            xSemaphoreGive(bat_info_mutex);
+            xSemaphoreGive (bat_info_mutex);
 
             // Reset watchdog again after I2C operations
             ESP_ERROR_CHECK (esp_task_wdt_reset());
             vbat_digital           = bat_info.voltage_average;
             vpct_digital           = bat_info.reported_state_of_charge;
-            battery_charging_state = bat_info.charging
-                                         ? BatteryChargingState::CHARGING
-                                         : BatteryChargingState::NOT_CHARGING;
-            if (!(cnt % REPORTING_TIME_SEC)) {
+            if (!(cnt % REPORTING_TIME_SEC))
                 ESP_LOGI (TAG8, "battery: %4.2fV %4.1f%% %5.1fmA %s", vbat_digital, vpct_digital, bat_info.current_average, (bat_info.charging ? "charging" : "discharging"));
-            }
         }
         else {
             if (!(cnt % REPORTING_TIME_SEC))
