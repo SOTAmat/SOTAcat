@@ -13,6 +13,7 @@ enum class BatteryChargingState {
 typedef max17260_info_t batteryInfo_t;
 
 BatteryChargingState get_battery_charging_state (void);
+bool                 get_battery_is_smart(void);
 float                get_battery_voltage (void);
 float                get_battery_percentage (void);
 esp_err_t            get_battery_info(batteryInfo_t*);

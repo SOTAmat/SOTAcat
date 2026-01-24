@@ -111,9 +111,8 @@ bool get_battery_is_smart(void){
     return max17260_detected;
 }
 
-// Accessor for thread-safe access to battery info, provide a batteryInfo_t * to populate
 /**
- * HTTP GET handler to retrieve the battery detailed information (returns JSON)
+ * Accessor for thread-safe access to battery info, provide a batteryInfo_t * to populate
  *
  * @param info Pointer to a batteryInfo_t to overwrite
  * @return ESP_OK on success, or an error code on failure.
