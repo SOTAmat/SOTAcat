@@ -37,7 +37,10 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
         {
             TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
             if (lock.acquired()) {
-                frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
+                if (kxRadio.get_radio_type() == RadioType::KH1)
+                    frequency = kxRadio.get_kh1_frequency();
+                else
+                    frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
 
                 if (frequency > 0) {
                     // Update cache
@@ -84,9 +87,12 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
 
     STANDARD_DECODE_SOLE_PARAMETER (req, "frequency", param_value)
     int freq = atoi (param_value);  // Convert the parameter to an integer
-    ESP_LOGI (TAG8, "freqency %d", freq);
+    ESP_LOGI (TAG8, "frequency '%d'", freq);
     if (freq <= 0)
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid frequency");
+
+    if (kxRadio.get_radio_type() == RadioType::KH1 && freq > 21450000)
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "Not a valid band for the KH radio");
 
     // Tier 2: Moderate timeout for SET operations
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "frequency SET")) {

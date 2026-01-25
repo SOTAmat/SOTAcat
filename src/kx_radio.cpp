@@ -2,6 +2,8 @@
 #include "hardware_specific.h"
 #include "timed_lock.h"
 
+#include <cstdlib>
+#include <cstring>
 #include <driver/uart.h>
 #include <esp_timer.h>
 
@@ -147,7 +149,8 @@ int KXRadio::connect() {
     if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
-    int    baud_rates[] = {38400, 19200, 9600, 4800};
+    // Moved the 9600 baud rate to the first position since KH only supports 9600 baud.
+    int    baud_rates[] = {9600, 38400, 19200, 4800};
     size_t num_rates    = sizeof (baud_rates) / sizeof (baud_rates[0]);
 
     // Install the UART driver using an event queue to handle UART events
@@ -176,6 +179,28 @@ int KXRadio::connect() {
         for (size_t i = 0; i < num_rates; ++i) {
             uart_set_baudrate (UART_NUM, baud_rates[i]);  // Change baud rate
             vTaskDelay (pdMS_TO_TICKS (250));             // Delay for stability before next try
+
+            if (baud_rates[i] == 9600) {
+                // Send I command to check for KH
+                uart_flush (UART_NUM);
+                uart_write_bytes (UART_NUM, ";I;", strlen (";I;"));
+
+                int length = uart_read_bytes (UART_NUM, buffer, 256, 250 / portTICK_PERIOD_MS);
+                if (length > 0) {
+                    buffer[length] = '\0';  // Null terminate the string
+                    ESP_LOGV (TAG8, "received %d bytes: %s", length, buffer);
+
+                    if (strstr ((char *)buffer, "KH1;") != NULL) {
+                        ESP_LOGI (TAG8, "detected KH1 radio");
+                        m_radio_type    = RadioType::KH1;
+                        m_is_connected  = true;
+                        empty_kx_input_buffer (100);
+                        return baud_rates[i];
+                    }
+                }
+                else
+                    ESP_LOGI (TAG8, "no response received for baud rate %d", baud_rates[i]);
+            }
 
             uart_flush (UART_NUM);
             uart_write_bytes (UART_NUM, ";RVR;", strlen (";RVR;"));
@@ -296,6 +321,7 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
     }
 
     char request[16];
+    int  kh_adj = 0;
     switch (num_digits) {
     case 1:  // Handling n-type request
         if (value > 9) {
@@ -312,7 +338,12 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
         snprintf (request, sizeof (request), "%s%03u;", command, (unsigned int)value);
         break;
     case 11:  // Handling long-type request
-        snprintf (request, sizeof (request), "%s%011ld;", command, value);
+        if (get_radio_type() == RadioType::KH1 && strcmp (command, "FA") == 0) {
+            kh_adj = 3;  // KH frequency command uses 8 digits
+            snprintf (request, sizeof (request), "%s%08ld;", command, value);
+        }
+        else
+            snprintf (request, sizeof (request), "%s%011ld;", command, value);
         break;
     default:
         ESP_LOGE (TAG8, "invalid num_digits and command '%s' with value %ld", command, value);
@@ -328,17 +359,28 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
     if (tries <= 0) {
         // simply write the command to the radio
         uart_flush (UART_NUM);
-        uart_write_bytes (UART_NUM, request, num_digits + 3);
+        uart_write_bytes (UART_NUM, request, num_digits + 3 - kh_adj);
         return true;
     }
 
     // validate the write was successful
     for (int attempt = 0; attempt < tries; attempt++) {
         uart_flush (UART_NUM);
-        uart_write_bytes (UART_NUM, request, num_digits + 3);
+        uart_write_bytes (UART_NUM, request, num_digits + 3 - kh_adj);
 
         // Now read-back the value to verify it was set correctly
-        long out_value = get_from_kx (command, 2, num_digits);
+        long out_value = 0;
+        if (get_radio_type() == RadioType::KH1) {
+            vTaskDelay (pdMS_TO_TICKS (300));  // small delay before reading back
+            if (strcmp (command, "FA") == 0)
+                out_value = get_kh1_frequency();
+            else if (strcmp (command, "MD") == 0) {
+                long temp_value = get_kh1_mode();
+                out_value = (temp_value == MODE_CW) ? static_cast<long> (MODE_UNKNOWN) : temp_value;  // KH code for CW is 0
+            }
+        }
+        else
+            out_value = get_from_kx (command, 2, num_digits);
 
         if (out_value == adjusted_value) {
             ESP_LOGI (TAG8, "command '%s' successful; value = %ld", command, adjusted_value);
@@ -456,6 +498,95 @@ bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
 }
 
 /**
+ * Retrieves the current frequency from the KH radio by sending the appropriate command
+ * and parsing the response.
+ *
+ * The KH doesn't have a GET command for frequency, so this function uses the DS command
+ * to read the frequency displayed on the radio. The frequency is extracted from the
+ * response string and converted to a long integer representing the frequency in Hz.
+ *
+ * @return long The current frequency in Hz.
+ */
+long KXRadio::get_kh1_frequency () {
+    char response[20];
+    const int freq_length = 10;
+    const int start_index = 3;  // "DS1" takes up first 3 characters
+    char      freq_char[freq_length];
+
+    if (get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response))) {
+        // Expecting response like "DS1xxxxxxxxxxxxxxxx;" where x's are the line contents
+        strncpy (freq_char, response + start_index, freq_length - 1);  // Characters 4-12 represent frequency as a string
+        freq_char[freq_length - 1] = '\0';                             // Ensure null-termination
+        double freq_dec            = strtod (freq_char, NULL);
+        return static_cast<long> (freq_dec * 1000);
+    }
+    return 0;  // Error retrieving frequency
+}
+
+/**
+ * Retrieves the current mode from the KH radio by sending the appropriate command
+ * and parsing the response.
+ *
+ * The KH doesn't have a GET command for mode, so this function uses the DS command
+ * to read the mode displayed on the radio. The mode is extracted from the response string
+ * and converted to a long integer representing the mode.
+ *
+ * @return long The current mode as an integer.
+ */
+long KXRadio::get_kh1_mode () {
+    long mode = 0;
+    char response[20];
+    if (get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response))) {
+        // Expecting response like "DS1xxxxxxxxxxxxxxxx;" where x's are the line contents
+        ESP_LOGI (TAG8, "KH DS1 response: '%s'", response);
+        char mode_char = response[12];  // 13th character represents the mode
+        switch (mode_char) {
+        case 'L': mode = MODE_LSB; break;
+        case 'U': mode = MODE_USB; break;
+        case 'C': mode = MODE_CW; break;
+        default: mode = MODE_UNKNOWN;
+        }
+    }
+    else {
+        ESP_LOGE (TAG8, "failed to get mode from KH");
+        mode = MODE_UNKNOWN;
+    }
+    return mode;
+}
+
+/**
+ * Sets the power level on the KH to one of two predefined levels. If a zero power level
+ * is requested from the web page, the radio is put in the LOW setting. Likewise, if a power level
+ * other than zero is requested, the radio is put in the HIGH setting.
+ *
+ * This is a toggle function so can't be retried. The power level can only be checked by
+ * reading the display via the DS command after the toggle command is sent. The power level
+ * is only shown briefly on the display after the command is sent.
+ *
+ * @param power_level The desired power level to set
+ * @return bool True if successful, false otherwise.
+ */
+bool KXRadio::set_kh1_power (int power_level) {
+    char power_return[20];
+    int  power_length = 5;
+    int  start_index  = 3;  // "DS1" takes up first 3 characters
+    char power_char[power_length];
+
+    // Puts the radio in HIGH power if non-zero power is requested. Otherwise puts it in LOW power.
+    put_to_kx_command_string ("SW2H;SW2H;", 1);
+    if (get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, power_return, sizeof (power_return))) {
+        // Expecting response like "DS1xxxxxxxxxxxxxxxx;" where x's are the line contents
+        strncpy (power_char, power_return + start_index, power_length - 1);  // Characters 4-7 represent power level as a string
+        power_char[power_length - 1] = '\0';                                 // Ensure null-termination
+        if (!strcmp (power_char, power_level > 0 ? "LOW " : "HIGH")) {
+            put_to_kx_command_string ("SW2H;SW2H;", 1);
+        }
+    }
+
+    return true;
+}
+
+/**
  * Retrieves and updates the current state of the radio into the provided structure. It gathers
  * settings such as the current mode, frequency of VFO A, active VFO, tuning power, and the status
  * of the audio peaking filter. This function also temporarily switches the radio mode to ensure
@@ -471,6 +602,15 @@ void KXRadio::get_kx_state (kx_state_t * in_state) {
 
     if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
+
+    if (get_radio_type() == RadioType::KH1) {
+        in_state->mode          = MODE_UNKNOWN;
+        in_state->active_vfo    = 0;
+        in_state->tun_pwr       = 0;
+        in_state->audio_peaking = 0;
+        in_state->vfo_a_freq    = get_kh1_frequency();  // Get the current frequency from KH
+        return;
+    }
 
     in_state->mode = (radio_mode_t)get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);        // MDn; - Get current mode: 1 (LSB), 2 (USB), 3 (CW), 4 (FM), 5 (AM), 6 (DATA), 7 (CWREV), or 9 (DATA-REV)
     put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);                                // To get the peaking filter mode we have to be in CW mode: MD3;
@@ -497,6 +637,12 @@ void KXRadio::restore_kx_state (const kx_state_t * in_state, int tries) {
     if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
 
+    if (get_radio_type() == RadioType::KH1) {
+        put_to_kx ("FA", 11, in_state->vfo_a_freq, SC_KX_COMMUNICATION_RETRIES);  // VFO Frequency
+        ESP_LOGI (TAG8, "restore done");
+        return;
+    }
+
     put_to_kx_menu_item (58, in_state->tun_pwr, SC_KX_COMMUNICATION_RETRIES);   // TUN PWR setting
     put_to_kx ("FT", 1, in_state->active_vfo, SC_KX_COMMUNICATION_RETRIES);     // Current VFO
     put_to_kx ("FA", 11, in_state->vfo_a_freq, SC_KX_COMMUNICATION_RETRIES);    // VFO A Frequency
@@ -522,6 +668,9 @@ void KXRadio::detect_radio_type() {
 
     if (!is_locked())
         ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)");
+
+    if (m_radio_type == RadioType::KH1)
+        return;
 
     char response[17] = {0};
 

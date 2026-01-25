@@ -28,7 +28,20 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
 
         // Tier 1: Fast timeout for GET operations
         TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET")) {
-            transmitting = kxRadio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
+            if (kxRadio.get_radio_type() == RadioType::KH1) {
+                char response[20];
+                if (kxRadio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response))) {
+                    // Expecting response like "DS1xxxxxxxxxxxxxxxx;" where x's are the line contents
+                    char xmit_char = response[3];  // 1st character is "P" if transmitting
+                    switch (xmit_char) {
+                    case 'P': transmitting = 1; break;
+                    default: transmitting = 0;
+                    }
+                }
+            }
+            else {
+                transmitting = kxRadio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
+            }
         }
 
         switch (transmitting) {

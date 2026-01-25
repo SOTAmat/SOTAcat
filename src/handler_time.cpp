@@ -41,19 +41,39 @@ inline int decode_couplet (char ten, char one) {
  */
 static bool get_radio_time (time_hms * radio_time) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
-    char buf[sizeof ("DS@@123456af;")];                                                          // sizeof arg looks like expected response
-    if (!kxRadio.get_from_kx_string ("DS", SC_KX_COMMUNICATION_RETRIES, buf, sizeof (buf) - 1))  // read time from VFO A
-        return false;
-    buf[sizeof (buf) - 1] = '\0';
-    ESP_LOGV (TAG8, "time as read on display is %s", buf);
+    if (kxRadio.get_radio_type() == RadioType::KH1) {
+        char buf[sizeof ("DS2xxxxxxxxxxxHH:MM;")];
+        if (!kxRadio.get_from_kx_string ("DS2", SC_KX_COMMUNICATION_RETRIES, buf, sizeof (buf) - 1))  // read time from second line
+            return false;
+        buf[sizeof (buf) - 1] = '\0';
+        ESP_LOGV (TAG8, "second line on kh display is %s", buf);
 
-    // expect buf to look like
-    //          DS@@1²3´5¶af;
-    // index    0123456789012
-    // note high bit 0x80 may be set on tens digit of each couplet, to represent the decimal point
-    radio_time->hrs = decode_couplet (buf[4], buf[5]);
-    radio_time->min = decode_couplet (buf[6], buf[7]);
-    radio_time->sec = decode_couplet (buf[8], buf[9]);
+        // expect buf to look like
+        //          DS2xxxxxxxxxxxHH:MM;
+        // index    01234567890123456789
+        char hour_char[3] = {0};
+        char min_char[3]  = {0};
+        strncpy (hour_char, buf + 14, 2);  // Characters 14-15 represent hours as a string
+        strncpy (min_char, buf + 17, 2);   // Characters 17-18 represent minutes as a string
+        radio_time->hrs = atoi (hour_char);
+        radio_time->min = atoi (min_char);
+        radio_time->sec = 0;  // KH does not show seconds
+    }
+    else {
+        char buf[sizeof ("DS@@123456af;")];                                                          // sizeof arg looks like expected response
+        if (!kxRadio.get_from_kx_string ("DS", SC_KX_COMMUNICATION_RETRIES, buf, sizeof (buf) - 1))  // read time from VFO A
+            return false;
+        buf[sizeof (buf) - 1] = '\0';
+        ESP_LOGV (TAG8, "time as read on display is %s", buf);
+
+        // expect buf to look like
+        //          DS@@1²3´5¶af;
+        // index    0123456789012
+        // note high bit 0x80 may be set on tens digit of each couplet, to represent the decimal point
+        radio_time->hrs = decode_couplet (buf[4], buf[5]);
+        radio_time->min = decode_couplet (buf[6], buf[7]);
+        radio_time->sec = decode_couplet (buf[8], buf[9]);
+    }
     ESP_LOGV (TAG8, "radio time is %02d:%02d:%02d", radio_time->hrs, radio_time->min, radio_time->sec);
     return true;
 }
@@ -101,8 +121,10 @@ static void adjust_component (char const * selector, int diff) {
     const size_t num_steps = static_cast<size_t> (std::abs (diff));
     assert (num_steps <= 60);
 
+    const char *     step_up         = (kxRadio.get_radio_type() == RadioType::KH1) ? "ENVU;" : "UP;";
+    const char *     step_dn         = (kxRadio.get_radio_type() == RadioType::KH1) ? "ENVD;" : "DN;";
     const size_t     selector_len    = std::strlen (selector);
-    constexpr size_t step_len        = sizeof ("UP;") - 1;  // 3
+    const size_t     step_len        = std::strlen (step_up);
     const size_t     adjustment_size = selector_len + num_steps * step_len + 1;
     auto             adjustment      = std::make_unique<char[]> (adjustment_size);
 
@@ -110,9 +132,9 @@ static void adjust_component (char const * selector, int diff) {
 
     int written = snprintf (buf, adjustment_size, "%s", selector);
     for (int ii = diff; ii > 0; --ii)
-        written += snprintf (buf + written, adjustment_size - written, "UP;");
+        written += snprintf (buf + written, adjustment_size - written, "%s", step_up);
     for (int ii = diff; ii < 0; ++ii)
-        written += snprintf (buf + written, adjustment_size - written, "DN;");
+        written += snprintf (buf + written, adjustment_size - written, "%s", step_dn);
 
     ESP_LOGV (TAG8, "adjustment should be %s", buf);
     kxRadio.put_to_kx_command_string (buf, 1);
@@ -141,20 +163,36 @@ esp_err_t handler_time_put (httpd_req_t * req) {
     // Tier 3: Critical timeout for time setting
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "time SET")) {
         time_hms radio_time;
-        kxRadio.put_to_kx ("MN", 3, 73, SC_KX_COMMUNICATION_RETRIES);       // enter time menu
-        if (!get_radio_time (&radio_time)) {                                // read the screen; VFO A shows the time
-            kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu on error
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to read radio time");
-        }
+        if (kxRadio.get_radio_type() == RadioType::KH1) {
+            if (!get_radio_time (&radio_time))
+                REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to read radio time");
 
-        // set synced time in this order (sec, min, hrs) to be most sensitive to current time
-        if (radio_time.sec != client_time.sec)
-            adjust_component ("SWT20;", client_time.sec - radio_time.sec);
-        if (radio_time.min != client_time.min)
-            adjust_component ("SWT27;", client_time.min - radio_time.min);
-        if (radio_time.hrs != client_time.hrs)
-            adjust_component ("SWT19;", client_time.hrs - radio_time.hrs);
-        kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu
+            kxRadio.put_to_kx_command_string ("MNTIM;", 1);  // enter time menu
+
+            // KH1 does not support seconds adjustment
+            if (radio_time.min != client_time.min)
+                adjust_component ("SW3T;", client_time.min - radio_time.min);
+            if (radio_time.hrs != client_time.hrs)
+                adjust_component ("SW2T;", client_time.hrs - radio_time.hrs);
+
+            kxRadio.put_to_kx_command_string ("SW4T;", 1);  // exit time menu
+        }
+        else {
+            kxRadio.put_to_kx ("MN", 3, 73, SC_KX_COMMUNICATION_RETRIES);       // enter time menu
+            if (!get_radio_time (&radio_time)) {                                // read the screen; VFO A shows the time
+                kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu on error
+                REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to read radio time");
+            }
+
+            // set synced time in this order (sec, min, hrs) to be most sensitive to current time
+            if (radio_time.sec != client_time.sec)
+                adjust_component ("SWT20;", client_time.sec - radio_time.sec);
+            if (radio_time.min != client_time.min)
+                adjust_component ("SWT27;", client_time.min - radio_time.min);
+            if (radio_time.hrs != client_time.hrs)
+                adjust_component ("SWT19;", client_time.hrs - radio_time.hrs);
+            kxRadio.put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // exit time menu
+        }
     }
 
     REPLY_WITH_SUCCESS();

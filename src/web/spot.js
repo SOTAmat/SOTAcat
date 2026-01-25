@@ -55,6 +55,7 @@ function playMsg(slot) {
 function setPowerMinMax(maximum) {
     // KX3 max power is 15w, KX2 will accept that and gracefully set 10w instead
     // On both radios, actual power may be lower than requested, depending on mode, battery, etc.
+    SpotState.lastUserAction = Date.now(); // Prevent VFO polling while setting power. KH reads power/freq from display
     const url = `/api/v1/power?power=${maximum ? "15" : "0"}`;
     fetchQuiet(url, { method: "PUT" }, "Spot");
 }
