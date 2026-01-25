@@ -4,6 +4,7 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 #include <cstdint>
+#include <cstdlib>
 
 #include <cstdlib>
 

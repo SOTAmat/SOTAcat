@@ -98,6 +98,9 @@ src/web/*.htmlgz
 src/web/*.jsgz
 src/web/*.cssgz
 
+# Gzip-compressed web assets (build artifacts from kowalski/wip branch)
+src/web/*.*gz
+
 merged-firmware.bin
 esp32c3.bin
 esp32.bin
