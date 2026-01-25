@@ -46,6 +46,22 @@
             </button>
         </div>
 
+        <!-- Connection Loss Overlay -->
+        <div id="connection-overlay" class="connection-overlay hidden">
+            <div class="connection-overlay-content">
+                <div id="overlay-reconnecting">
+                    <div class="connection-spinner"></div>
+                    <p>Connection lost. Reconnecting...</p>
+                </div>
+                <div id="overlay-disconnected" class="hidden">
+                    <p>Unable to reach SOTAcat</p>
+                    <p class="hint">The network may have changed.</p>
+                    <button class="btn btn-primary" onclick="window.location.reload()">Retry Current Address</button>
+                    <p class="hint">Or use Bonjour Browser to find the new address</p>
+                </div>
+            </div>
+        </div>
+
         <script src="chase_api.js"></script>
         <script src="main.js"></script>
         <script src="bandprivileges.js"></script>

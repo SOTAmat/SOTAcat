@@ -15,6 +15,19 @@ const CONNECTION_STATUS_UPDATE_INTERVAL_MS = 5000;
 const VFO_POLLING_INTERVAL_MS = 3000;
 
 // ============================================================================
+// Connection Loss Detection Constants
+// ============================================================================
+
+const DISCONNECT_THRESHOLD = 3;        // failures before showing overlay
+const RECONNECT_RETRY_MS = 3000;       // retry interval when disconnected
+const GIVE_UP_THRESHOLD_MS = 30000;    // show "find device" after this
+
+// Fetch timeouts (must be less than their polling intervals)
+const CONNECTION_STATUS_TIMEOUT_MS = 3000;  // < 5 sec polling interval
+const BATTERY_INFO_TIMEOUT_MS = 30000;      // < 60 sec polling interval
+const VFO_TIMEOUT_MS = 2000;                // < 3 sec polling interval
+
+// ============================================================================
 // Frequency Constants
 // ============================================================================
 
@@ -61,6 +74,11 @@ const AppState = {
 
     // Tab management
     currentTabName: null,
+
+    // Connection loss detection
+    connectionState: 'connected',  // 'connected' | 'reconnecting' | 'disconnected'
+    consecutiveFailures: 0,
+    lastSuccessfulPoll: Date.now(),
 
     // Location
     gpsOverride: null,
@@ -586,6 +604,7 @@ async function fetchVfoState() {
     if (vfoController) return; // Skip if previous request still in-flight
 
     vfoController = new AbortController();
+    const timeoutId = setTimeout(() => vfoController.abort(), VFO_TIMEOUT_MS);
     try {
         const [freqResponse, modeResponse] = await Promise.all([
             fetch("/api/v1/frequency", { signal: vfoController.signal }),
@@ -619,9 +638,10 @@ async function fetchVfoState() {
             });
         }
     } catch (error) {
-        if (error.name === "AbortError") return; // Expected when polling paused
+        if (error.name === "AbortError" && pollingPaused) return; // Expected when polling paused
         Log.warn("VFO", "Error fetching VFO state:", error);
     } finally {
+        clearTimeout(timeoutId);
         vfoController = null;
     }
 }
@@ -745,6 +765,7 @@ async function updateBatteryInfo() {
     if (batteryController) return; // Skip if previous request still in-flight
 
     batteryController = new AbortController();
+    const timeoutId = setTimeout(() => batteryController.abort(), BATTERY_INFO_TIMEOUT_MS);
     try {
         const [batteryInfoResponse, rssiResponse] = await Promise.all([
             fetch("/api/v1/batteryInfo", { signal: batteryController.signal }),
@@ -774,12 +795,13 @@ async function updateBatteryInfo() {
             document.getElementById("wifi-rssi").textContent = await rssiResponse.text();
         }
     } catch (error) {
-        if (error.name === "AbortError") return;
+        if (error.name === "AbortError" && pollingPaused) return;
         document.getElementById("battery-percent").textContent = "??";
         document.getElementById("wifi-rssi").textContent = "??";
         const timeEl = document.getElementById("battery-time");
         if (timeEl) timeEl.textContent = "";
     } finally {
+        clearTimeout(timeoutId);
         batteryController = null;
     }
 }
@@ -791,21 +813,78 @@ async function updateConnectionStatus() {
     if (connectionStatusController) return; // Skip if previous request still in-flight
 
     connectionStatusController = new AbortController();
+    const timeoutId = setTimeout(() => connectionStatusController.abort(), CONNECTION_STATUS_TIMEOUT_MS);
     try {
         const response = await fetch("/api/v1/connectionStatus", {
             signal: connectionStatusController.signal,
         });
 
         if (response.ok) {
+            // Success - reset failure tracking
+            AppState.consecutiveFailures = 0;
+            AppState.lastSuccessfulPoll = Date.now();
+            if (AppState.connectionState !== 'connected') {
+                setConnectionState('connected');
+            }
             document.getElementById("connection-status").textContent = await response.text();
         } else {
+            handlePollFailure();
             document.getElementById("connection-status").textContent = "??";
         }
     } catch (error) {
-        if (error.name === "AbortError") return;
+        // Timeout aborts should still count as failures; only skip for polling pauses
+        if (error.name === "AbortError" && pollingPaused) return;
+        handlePollFailure();
         document.getElementById("connection-status").textContent = "??";
     } finally {
+        clearTimeout(timeoutId);
         connectionStatusController = null;
+    }
+}
+
+// Handle connection poll failure - track consecutive failures and update connection state
+function handlePollFailure() {
+    AppState.consecutiveFailures++;
+    if (AppState.consecutiveFailures >= DISCONNECT_THRESHOLD) {
+        if (AppState.connectionState === 'connected') {
+            setConnectionState('reconnecting');
+        }
+        const elapsed = Date.now() - AppState.lastSuccessfulPoll;
+        if (elapsed > GIVE_UP_THRESHOLD_MS && AppState.connectionState === 'reconnecting') {
+            setConnectionState('disconnected');
+        }
+    }
+}
+
+// Update connection state and refresh overlay UI
+function setConnectionState(newState) {
+    Log.debug("Connection", `State: ${AppState.connectionState} -> ${newState}`);
+    AppState.connectionState = newState;
+    updateConnectionOverlay();
+}
+
+// Update the connection overlay based on current connection state
+function updateConnectionOverlay() {
+    const overlay = document.getElementById('connection-overlay');
+    const reconnecting = document.getElementById('overlay-reconnecting');
+    const disconnected = document.getElementById('overlay-disconnected');
+
+    if (!overlay) return;
+
+    switch (AppState.connectionState) {
+        case 'connected':
+            overlay.classList.add('hidden');
+            break;
+        case 'reconnecting':
+            overlay.classList.remove('hidden');
+            reconnecting.classList.remove('hidden');
+            disconnected.classList.add('hidden');
+            break;
+        case 'disconnected':
+            overlay.classList.remove('hidden');
+            reconnecting.classList.add('hidden');
+            disconnected.classList.remove('hidden');
+            break;
     }
 }
 
