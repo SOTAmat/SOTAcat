@@ -220,12 +220,12 @@ function openTuneTargets(frequencyHz, mode) {
             return;
         }
 
-        // Substitute placeholders
+        // Substitute placeholders (using {} delimiters to match N1MM logger)
         let finalUrl = target.url;
-        finalUrl = finalUrl.replace(/<FREQ-HZ>/gi, frequencyHz);
-        finalUrl = finalUrl.replace(/<FREQ-KHZ>/gi, frequencyKHz);
-        finalUrl = finalUrl.replace(/<FREQ-MHZ>/gi, frequencyMHz);
-        finalUrl = finalUrl.replace(/<MODE>/gi, modeLower);
+        finalUrl = finalUrl.replace(/\{FREQ-HZ\}/gi, frequencyHz);
+        finalUrl = finalUrl.replace(/\{FREQ-KHZ\}/gi, frequencyKHz);
+        finalUrl = finalUrl.replace(/\{FREQ-MHZ\}/gi, frequencyMHz);
+        finalUrl = finalUrl.replace(/\{MODE\}/gi, modeLower);
 
         // Get or create window for this target
         const windowName = `_sotacat_tune_${index}`;

@@ -273,7 +273,7 @@ function renderTuneTargetsFromArray(targets) {
         const input = document.createElement("input");
         input.type = "text";
         input.className = "tune-target-input";
-        input.placeholder = "e.g., http://websdr.example.com/?tune=<FREQ-KHZ><MODE>";
+        input.placeholder = "e.g., http://websdr.example.com/?tune={FREQ-KHZ}{MODE}";
         input.value = target.url;
         input.maxLength = 255;
         input.dataset.index = index;

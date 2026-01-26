@@ -233,24 +233,24 @@
                     <p>
                         <strong>How it works:</strong> Each tune target is a URL template containing placeholders
                         that get replaced with the actual frequency and mode when you tune. For example,
-                        <code>&lt;FREQ-KHZ&gt;</code> becomes <code>14074</code> and <code>&lt;MODE&gt;</code>
+                        <code>{FREQ-KHZ}</code> becomes <code>14074</code> and <code>{MODE}</code>
                         becomes <code>usb</code>.
                     </p>
                     <p>
                         <strong>Available placeholders:</strong>
                     </p>
                     <ul>
-                        <li><code>&lt;FREQ-HZ&gt;</code> — Frequency in Hertz (e.g., 14074000)</li>
-                        <li><code>&lt;FREQ-KHZ&gt;</code> — Frequency in kilohertz (e.g., 14074)</li>
-                        <li><code>&lt;FREQ-MHZ&gt;</code> — Frequency in megahertz (e.g., 14.074)</li>
-                        <li><code>&lt;MODE&gt;</code> — Mode in lowercase (e.g., usb, lsb, cw, am)</li>
+                        <li><code>{FREQ-HZ}</code> — Frequency in Hertz (e.g., 14074000)</li>
+                        <li><code>{FREQ-KHZ}</code> — Frequency in kilohertz (e.g., 14074)</li>
+                        <li><code>{FREQ-MHZ}</code> — Frequency in megahertz (e.g., 14.074)</li>
+                        <li><code>{MODE}</code> — Mode in lowercase (e.g., usb, lsb, cw, am)</li>
                     </ul>
                     <p>
                         <strong>Supported SDR types:</strong> Most web-based SDRs work. The two most common formats are:
                     </p>
                     <ul>
-                        <li><strong>WebSDR</strong> (PA3FWM) — Uses <code>?tune=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code></li>
-                        <li><strong>KiwiSDR</strong> — Uses <code>?f=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code></li>
+                        <li><strong>WebSDR</strong> (PA3FWM) — Uses <code>?tune={FREQ-KHZ}{MODE}</code></li>
+                        <li><strong>KiwiSDR</strong> — Uses <code>?f={FREQ-KHZ}{MODE}</code></li>
                     </ul>
                     <p>
                         <strong>Mobile browsers:</strong> Opening background tabs can be problematic on phones due to
@@ -269,12 +269,12 @@
         <div class="tune-target-examples">
             <p class="settings-info">Examples:</p>
             <div class="tune-target-example">
-                <code>http://websdr1.kfsdr.com:8901/?tune=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code>
-                <button type="button" class="btn-add-example" data-url="http://websdr1.kfsdr.com:8901/?tune=<FREQ-KHZ><MODE>">+ add</button>
+                <code>http://websdr1.kfsdr.com:8901/?tune={FREQ-KHZ}{MODE}</code>
+                <button type="button" class="btn-add-example" data-url="http://websdr1.kfsdr.com:8901/?tune={FREQ-KHZ}{MODE}">+ add</button>
             </div>
             <div class="tune-target-example">
-                <code>http://kphsdr.com:8074/?f=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code>
-                <button type="button" class="btn-add-example" data-url="http://kphsdr.com:8074/?f=<FREQ-KHZ><MODE>">+ add</button>
+                <code>http://kphsdr.com:8074/?f={FREQ-KHZ}{MODE}</code>
+                <button type="button" class="btn-add-example" data-url="http://kphsdr.com:8074/?f={FREQ-KHZ}{MODE}">+ add</button>
             </div>
         </div>
 
