@@ -736,11 +736,7 @@ function launchSOTAmat() {
 // SOTAmat SMS spotting number
 const SOTAMAT_SMS_NUMBER = "+16017682628";
 
-// SOTA reference pattern: XX/YY-NNN (e.g., W6/HC-298, VK3/VE-123)
-const SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;
-
-// POTA reference pattern: XX-NNNN (e.g., US-1234, VE-0001)
-const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;
+// Reference patterns defined in main.js: SOTA_REF_PATTERN, POTA_REF_PATTERN
 
 // Check if reference is a valid SOTA or POTA reference
 function isValidSpotReference(ref) {

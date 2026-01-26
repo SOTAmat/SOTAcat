@@ -198,6 +198,18 @@ function onReferenceInputChange() {
     }
 }
 
+// Handle reference input blur - apply auto-formatting
+function onReferenceBlur() {
+    const referenceInput = document.getElementById("reference-input");
+    if (!referenceInput) return;
+
+    const formatted = inferAndFormatReference(referenceInput.value);
+    if (formatted !== referenceInput.value) {
+        referenceInput.value = formatted;
+        onReferenceInputChange(); // Update save button state
+    }
+}
+
 // Save reference to localStorage
 function saveReference() {
     const referenceInput = document.getElementById("reference-input");
@@ -243,10 +255,44 @@ function clearReference() {
 // PoLo Integration Functions
 // ============================================================================
 
-// Reference patterns (same as run.js)
-const SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;
-const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;
-const WWFF_REF_PATTERN = /^[A-Z]{2,4}FF-\d{4}$/;
+// Reference patterns defined in main.js: SOTA_REF_PATTERN, POTA_REF_PATTERN,
+// WWFF_REF_PATTERN, IOTA_REF_PATTERN
+
+// Infer xOTA type and format reference from raw input
+function inferAndFormatReference(input) {
+    if (!input) return input;
+
+    // Uppercase and strip all non-alphanumeric chars
+    const raw = input.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (!raw) return input;
+
+    // Rule 1: WWFF - {2-4 letters}FF{4 digits}
+    const wwffMatch = raw.match(/^([A-Z]{2,4})(FF)(\d{4})$/);
+    if (wwffMatch) {
+        return `${wwffMatch[1]}FF-${wwffMatch[3]}`;
+    }
+
+    // Rule 2: IOTA - {continent code}{3 digits}
+    const iotaMatch = raw.match(/^(AF|AN|AS|EU|NA|OC|SA)(\d{3})$/);
+    if (iotaMatch) {
+        return `${iotaMatch[1]}-${iotaMatch[2]}`;
+    }
+
+    // Rule 3: POTA - {1-2 letters}{4-5 digits}
+    const potaMatch = raw.match(/^([A-Z]{1,2})(\d{4,5})$/);
+    if (potaMatch) {
+        return `${potaMatch[1]}-${potaMatch[2]}`;
+    }
+
+    // Rule 4: SOTA - {1-4 alphanum}{2 letters}{3 digits}
+    const sotaMatch = raw.match(/^([A-Z0-9]{1,4})([A-Z]{2})(\d{3})$/);
+    if (sotaMatch) {
+        return `${sotaMatch[1]}/${sotaMatch[2]}-${sotaMatch[3]}`;
+    }
+
+    // No pattern matched - return cleaned uppercase version
+    return input.toUpperCase().replace(/[^A-Z0-9/@-]/g, "");
+}
 
 // Check if reference is valid for PoLo
 function isValidPoloReference(ref) {
@@ -329,6 +375,7 @@ function attachQrxEventListeners() {
     const referenceInput = document.getElementById("reference-input");
     if (referenceInput) {
         referenceInput.addEventListener("input", onReferenceInputChange);
+        referenceInput.addEventListener("blur", onReferenceBlur);
     }
 
     const saveReferenceBtn = document.getElementById("save-reference-button");

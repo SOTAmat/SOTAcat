@@ -419,6 +419,54 @@ class SOTAcatUITests:
         clear_btn = self.page.locator('#clear-reference-button')
         assert clear_btn.count() > 0, "Clear reference button should exist"
 
+    def test_qrx_reference_auto_format_sota(self):
+        """Reference input auto-formats SOTA reference on blur"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        ref_input = self.page.locator('#reference-input')
+        ref_input.fill('w6nc298')
+        ref_input.blur()
+        time.sleep(0.1)
+        assert ref_input.input_value() == 'W6/NC-298', "Should auto-format SOTA reference"
+
+    def test_qrx_reference_auto_format_pota(self):
+        """Reference input auto-formats POTA reference on blur"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        ref_input = self.page.locator('#reference-input')
+        ref_input.fill('us1234')
+        ref_input.blur()
+        time.sleep(0.1)
+        assert ref_input.input_value() == 'US-1234', "Should auto-format POTA reference"
+
+    def test_qrx_reference_auto_format_wwff(self):
+        """Reference input auto-formats WWFF reference on blur"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        ref_input = self.page.locator('#reference-input')
+        ref_input.fill('vkff0001')
+        ref_input.blur()
+        time.sleep(0.1)
+        assert ref_input.input_value() == 'VKFF-0001', "Should auto-format WWFF reference"
+
+    def test_qrx_reference_auto_format_iota(self):
+        """Reference input auto-formats IOTA reference on blur"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        ref_input = self.page.locator('#reference-input')
+        ref_input.fill('eu123')
+        ref_input.blur()
+        time.sleep(0.1)
+        assert ref_input.input_value() == 'EU-123', "Should auto-format IOTA reference"
+
     # =========================================================================
     # Chase Page Element Tests
     # =========================================================================
@@ -674,6 +722,10 @@ class SOTAcatUITests:
             self.run_test("Reference input", self.test_qrx_reference_input)
             self.run_test("Save reference button", self.test_qrx_save_reference_button)
             self.run_test("Clear reference button", self.test_qrx_clear_reference_button)
+            self.run_test("Reference auto-format SOTA", self.test_qrx_reference_auto_format_sota)
+            self.run_test("Reference auto-format POTA", self.test_qrx_reference_auto_format_pota)
+            self.run_test("Reference auto-format WWFF", self.test_qrx_reference_auto_format_wwff)
+            self.run_test("Reference auto-format IOTA", self.test_qrx_reference_auto_format_iota)
 
             # Chase page elements
             print("\nChase Page Elements:")

@@ -38,6 +38,15 @@ const HF_MAX_FREQUENCY_HZ = 29700000; // 10m band upper edge (29.7 MHz) - KX2 li
 // const HF_MAX_FREQUENCY_HZ = 54000000; // 6m band upper edge (54 MHz) - KX3 limit
 
 // ============================================================================
+// Reference Patterns (used by qrx.js and run.js)
+// ============================================================================
+
+const SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;  // W6/NC-298
+const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;             // US-1234
+const WWFF_REF_PATTERN = /^[A-Z]{2,4}FF-\d{4}$/;             // VKFF-0001
+const IOTA_REF_PATTERN = /^(AF|AN|AS|EU|NA|OC|SA)-\d{3}$/;   // EU-123
+
+// ============================================================================
 // Polling Control
 // ============================================================================
 // Prevent request pile-up during tab transitions and slow network conditions
