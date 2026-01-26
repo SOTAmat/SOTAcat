@@ -18,8 +18,8 @@ static const char * TAG8 = "sc:webserve";
 DECLARE_ASSET (about_htmlgz)
 DECLARE_ASSET (about_jsgz)
 DECLARE_ASSET (bandprivileges_jsgz)
-DECLARE_ASSET (spot_htmlgz)
-DECLARE_ASSET (spot_jsgz)
+DECLARE_ASSET (run_htmlgz)
+DECLARE_ASSET (run_jsgz)
 DECLARE_ASSET (chase_api_jsgz)
 DECLARE_ASSET (chase_htmlgz)
 DECLARE_ASSET (chase_jsgz)
@@ -56,14 +56,14 @@ static const asset_entry_t asset_map[] = {
     {"/",                  index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  }, // 5 min
     {"/index.html",        index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  },
     {"/about.html",        about_htmlgz_srt,        about_htmlgz_end,        "text/html",       true,  300  },
-    {"/spot.html",         spot_htmlgz_srt,         spot_htmlgz_end,         "text/html",       true,  300  },
+    {"/run.html",          run_htmlgz_srt,          run_htmlgz_end,          "text/html",       true,  300  },
     {"/chase.html",        chase_htmlgz_srt,        chase_htmlgz_end,        "text/html",       true,  300  },
     {"/settings.html",     settings_htmlgz_srt,     settings_htmlgz_end,     "text/html",       true,  300  },
     {"/qrx.html",          qrx_htmlgz_srt,          qrx_htmlgz_end,          "text/html",       true,  300  },
     // JS/CSS - medium cache (versioned with firmware)
     {"/about.js",          about_jsgz_srt,          about_jsgz_end,          "text/javascript", true,  3600 }, // 1 hour
     {"/bandprivileges.js", bandprivileges_jsgz_srt, bandprivileges_jsgz_end, "text/javascript", true,  3600 },
-    {"/spot.js",           spot_jsgz_srt,           spot_jsgz_end,           "text/javascript", true,  3600 },
+    {"/run.js",            run_jsgz_srt,            run_jsgz_end,            "text/javascript", true,  3600 },
     {"/chase.js",          chase_jsgz_srt,          chase_jsgz_end,          "text/javascript", true,  3600 },
     {"/chase_api.js",      chase_api_jsgz_srt,      chase_api_jsgz_end,      "text/javascript", true,  3600 },
     {"/main.js",           main_jsgz_srt,           main_jsgz_end,           "text/javascript", true,  3600 },

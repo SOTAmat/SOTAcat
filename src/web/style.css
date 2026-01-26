@@ -167,8 +167,8 @@ a {
 
 /* =========================== Card Components */
 
-/* Spot Page Container */
-.spot-container {
+/* Run Page Container */
+.run-container {
     max-width: 1200px; /* Medium width for comfortable button/control sizing */
     margin: 0 auto;
 }
@@ -584,20 +584,20 @@ input.frequency-display {
     background: var(--primary-dark);
 }
 
-/* Spot Actions Grid */
-.spot-actions {
+/* Run Actions Grid */
+.run-actions {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: var(--space-sm);
 }
 
-.btn-spot {
+.btn-run {
     background: var(--primary);
     color: var(--white);
     font-weight: 600;
     padding: 0;
 }
-.btn-spot:active:not(:disabled) {
+.btn-run:active:not(:disabled) {
     background: var(--primary-dark);
 }
 
@@ -1767,7 +1767,7 @@ tbody tr:active {
     .btn-send:hover:not(:disabled) {
         background: var(--primary-dark);
     }
-    .btn-spot:hover:not(:disabled) {
+    .btn-run:hover:not(:disabled) {
         background: var(--primary-dark);
     }
 
