@@ -173,6 +173,8 @@ function loadReference() {
         saveBtn.disabled = true;
         saveBtn.className = "btn btn-secondary";
     }
+
+    updatePoloSetupButtonState();
 }
 
 // Handle reference input changes - auto-uppercase and filter invalid chars
@@ -212,6 +214,8 @@ function saveReference() {
         saveBtn.disabled = true;
         saveBtn.className = "btn btn-secondary";
     }
+
+    updatePoloSetupButtonState();
 }
 
 // Clear reference from input and localStorage
@@ -231,6 +235,60 @@ function clearReference() {
         saveBtn.disabled = true;
         saveBtn.className = "btn btn-secondary";
     }
+
+    updatePoloSetupButtonState();
+}
+
+// ============================================================================
+// PoLo Integration Functions
+// ============================================================================
+
+// Reference patterns (same as run.js)
+const SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;
+const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;
+const WWFF_REF_PATTERN = /^[A-Z]{2,4}FF-\d{4}$/;
+
+// Check if reference is valid for PoLo
+function isValidPoloReference(ref) {
+    if (!ref) return false;
+    return SOTA_REF_PATTERN.test(ref) || POTA_REF_PATTERN.test(ref) || WWFF_REF_PATTERN.test(ref);
+}
+
+// Derive sig from reference format
+function getPoloSigFromReference(ref) {
+    if (!ref) return null;
+    if (SOTA_REF_PATTERN.test(ref)) return "sota";
+    if (POTA_REF_PATTERN.test(ref)) return "pota";
+    if (WWFF_REF_PATTERN.test(ref)) return "wwff";
+    return null;
+}
+
+// Build Polo deep link for operation setup (myRef + mySig only)
+function buildPoloSetupLink() {
+    const myRef = localStorage.getItem(REFERENCE_STORAGE_KEY) || "";
+    if (!isValidPoloReference(myRef)) return null;
+    const mySig = getPoloSigFromReference(myRef);
+    if (!mySig) return null;
+    return buildPoloDeepLink({ myRef: myRef, mySig: mySig });
+}
+
+// Launch Ham2K Polo app to setup operation
+function launchPoloSetup() {
+    const url = buildPoloSetupLink();
+    if (url) {
+        Log.info("QRX", "Launching Polo for operation setup:", url);
+        window.location.href = url;
+    } else {
+        Log.warn("QRX", "Cannot launch Polo - no valid reference set");
+    }
+}
+
+// Update PoLo setup button state
+function updatePoloSetupButtonState() {
+    const btn = document.getElementById("setup-polo-button");
+    if (!btn) return;
+    const ref = localStorage.getItem(REFERENCE_STORAGE_KEY) || "";
+    btn.disabled = !isValidPoloReference(ref);
 }
 
 // ============================================================================
@@ -281,6 +339,12 @@ function attachQrxEventListeners() {
     const clearReferenceBtn = document.getElementById("clear-reference-button");
     if (clearReferenceBtn) {
         clearReferenceBtn.addEventListener("click", clearReference);
+    }
+
+    // PoLo setup button
+    const setupPoloBtn = document.getElementById("setup-polo-button");
+    if (setupPoloBtn) {
+        setupPoloBtn.addEventListener("click", launchPoloSetup);
     }
 }
 
