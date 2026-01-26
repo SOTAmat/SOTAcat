@@ -758,13 +758,13 @@ function refreshUTCClock() {
 // Format battery time remaining in a compact format
 function formatBatteryTime(hours, type) {
     if (!hours || hours <= 0) return "";
-    const arrow = type === "full" ? "\u2191" : "\u2193"; // ↑ or ↓
-    if (hours > 99) return `${arrow}99+`;
+    const arrow = type === "charging" ? "\u2191" : "\u2193"; // ↑ or ↓
     const totalMins = Math.round(hours * 60);
-    const h = Math.floor(totalMins / 60);
-    const m = totalMins % 60;
-    const str = h > 0 ? `${h}h${m > 0 ? m + "m" : ""}` : `${m}m`;
-    return `${arrow}${str}`;
+    if (totalMins > 98) {
+        const roundedHours = Math.round(totalMins / 60);
+        return `${arrow}${roundedHours}h`;
+    }
+    return `${arrow}${totalMins}m`;
 }
 
 // Update battery percentage and WiFi signal strength display
@@ -792,9 +792,9 @@ async function updateBatteryInfo() {
             const timeEl = document.getElementById("battery-time");
             if (timeEl) {
                 if (info.is_smart && info.charging && info.time_to_full_hrs > 0) {
-                    timeEl.textContent = formatBatteryTime(info.time_to_full_hrs, "full");
+                    timeEl.textContent = formatBatteryTime(info.time_to_full_hrs, "charging");
                 } else if (info.is_smart && !info.charging && info.time_to_empty_hrs > 0) {
-                    timeEl.textContent = formatBatteryTime(info.time_to_empty_hrs, "empty");
+                    timeEl.textContent = formatBatteryTime(info.time_to_empty_hrs, "discharging");
                 } else {
                     timeEl.textContent = "";
                 }

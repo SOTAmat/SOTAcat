@@ -160,11 +160,6 @@ a {
     opacity: 0.9;
 }
 
-#battery-time {
-    font-size: var(--text-xs);
-    opacity: 0.8;
-}
-
 /* =========================== Card Components */
 
 /* Run Page Container */
