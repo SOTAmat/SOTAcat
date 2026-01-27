@@ -19,11 +19,15 @@
  *         - TX/RX toggle, Keyer, ATU, FT8, Time setting
  *         - 10000ms (10s) allows completion while preventing indefinite blocking
  */
+// clang has narrow vision and complains of non-use, but these are used in source files
+// NOLINTBEGIN(clang-diagnostic-unused-const-variable)
 constexpr TickType_t RADIO_LOCK_TIMEOUT_FAST_MS     = 500;    // Tier 1: GET operations
 constexpr TickType_t RADIO_LOCK_TIMEOUT_MODERATE_MS = 2000;   // Tier 2: SET operations
 constexpr TickType_t RADIO_LOCK_TIMEOUT_QUICK_MS    = 1000;   // Tier 2: Quick SET operations
 constexpr TickType_t RADIO_LOCK_TIMEOUT_CRITICAL_MS = 10000;  // Tier 3: Critical operations
 constexpr TickType_t RADIO_LOCK_TIMEOUT_FT8_MS      = 20000;  // FT8: Long transmission (~13s + margin)
+
+// NOLINTEND(clang-diagnostic-unused-const-variable)
 
 /**
  * RAII wrapper for timeout-based mutex locking.
