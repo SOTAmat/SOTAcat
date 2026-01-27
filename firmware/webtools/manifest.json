@@ -1,6 +1,6 @@
 {
     "name": "SOTACAT for Elecraft KX2 and KX3",
-    "version": "2026-01-25_20:37-Release",
+    "version": "2026-01-26_19:54-Release",
     "builds": [
         {
             "chipFamily": "ESP32-C3",

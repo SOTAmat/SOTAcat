@@ -724,6 +724,7 @@ input.frequency-display {
 #last-refresh-time {
     font-size: var(--text-sm);
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 .button-group {
