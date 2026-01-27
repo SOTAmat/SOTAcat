@@ -1055,6 +1055,10 @@ async function onChaseAppearing() {
     await loadRadioType();
     loadFilterBandsSetting();
 
+    // Apply UI density preference
+    loadUiCompactMode();
+    applyUiCompactMode();
+
     // Subscribe to VFO changes and start polling for row highlighting
     subscribeToVfo(updateTunedRowHighlight);
     startGlobalVfoPolling();

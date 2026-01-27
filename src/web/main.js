@@ -100,6 +100,9 @@ const AppState = {
     radioType: null,           // "KX2", "KX3", or "Unknown"
     filterBandsEnabled: false, // Filter chase spots to radio-supported bands
 
+    // UI density
+    uiCompactMode: false,      // Compact mode for denser table display
+
     // Version checking
     versionCheckRetryTimer: null,
 
@@ -367,6 +370,22 @@ function loadFilterBandsSetting() {
     const saved = localStorage.getItem("sotacat_filter_bands");
     AppState.filterBandsEnabled = saved === "true";
     return AppState.filterBandsEnabled;
+}
+
+// Load UI compact mode setting from localStorage
+function loadUiCompactMode() {
+    const saved = localStorage.getItem("sotacat_ui_compact");
+    AppState.uiCompactMode = saved === "true";
+    return AppState.uiCompactMode;
+}
+
+// Apply UI compact mode class to document body
+function applyUiCompactMode() {
+    if (AppState.uiCompactMode) {
+        document.body.classList.add("ui-compact");
+    } else {
+        document.body.classList.remove("ui-compact");
+    }
 }
 
 // Determine which amateur band a frequency falls into (returns '40m', '20m', etc., or null)
@@ -1060,6 +1079,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // Preload tune targets at startup (required for Safari popup blocker compatibility)
     // This must happen early so openTuneTargets() can be synchronous
     loadTuneTargetsAsync();
+
+    // Apply UI density preference from localStorage
+    loadUiCompactMode();
+    applyUiCompactMode();
 
     // Ensure all tab buttons use the same click handler
     document.querySelectorAll(".tabBar button").forEach((button) => {

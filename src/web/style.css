@@ -1045,6 +1045,40 @@ tbody tr:active {
     color: var(--primary);
 }
 
+/* =========================== UI Density: Compact Mode */
+
+/* Compact mode for data tables */
+.ui-compact .data-table td {
+    padding: var(--space-xs) var(--space-xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ui-compact .data-table th {
+    padding: var(--space-sm) var(--space-xs);
+}
+
+/* Limit width on text-heavy columns (Details, Notes) */
+.ui-compact #chase-table td:nth-child(8),
+.ui-compact #chase-table td:nth-child(9) {
+    max-width: 200px;
+}
+
+@media (max-width: 480px) {
+    .ui-compact .data-table td {
+        padding: 2px var(--space-xs);
+        font-size: 11px;
+    }
+    .ui-compact .data-table th {
+        padding: var(--space-xs) var(--space-xs);
+    }
+    .ui-compact #chase-table td:nth-child(8),
+    .ui-compact #chase-table td:nth-child(9) {
+        max-width: 120px;
+    }
+}
+
 /* =========================== Settings Page */
 .settings-container {
     padding: 0;

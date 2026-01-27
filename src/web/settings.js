@@ -450,6 +450,31 @@ async function saveTuneTargets() {
 }
 
 // ============================================================================
+// UI Compact Mode Functions
+// ============================================================================
+
+// Load UI compact mode setting and update checkbox UI
+function loadUiCompactModeUI() {
+    loadUiCompactMode(); // From main.js - loads into AppState
+    const checkbox = document.getElementById("ui-compact-mode");
+    if (checkbox) {
+        checkbox.checked = AppState.uiCompactMode;
+    }
+}
+
+// Save UI compact mode setting to localStorage when checkbox changes
+function onUiCompactModeChange() {
+    const checkbox = document.getElementById("ui-compact-mode");
+    if (checkbox) {
+        const enabled = checkbox.checked;
+        localStorage.setItem("sotacat_ui_compact", enabled ? "true" : "false");
+        AppState.uiCompactMode = enabled;
+        applyUiCompactMode(); // From main.js - applies class to body
+        Log.info("Settings", `Compact mode: ${enabled ? "enabled" : "disabled"}`);
+    }
+}
+
+// ============================================================================
 // Chase Filters Functions
 // ============================================================================
 
@@ -971,6 +996,12 @@ function attachSettingsEventListeners() {
     if (filterBandsCheckbox) {
         filterBandsCheckbox.addEventListener("change", onFilterBandsChange);
     }
+
+    // UI compact mode checkbox
+    const uiCompactModeCheckbox = document.getElementById("ui-compact-mode");
+    if (uiCompactModeCheckbox) {
+        uiCompactModeCheckbox.addEventListener("change", onUiCompactModeChange);
+    }
 }
 
 // ============================================================================
@@ -984,6 +1015,7 @@ function onSettingsAppearing() {
     loadCallSign();
     loadTuneTargets();
     loadFilterBandsSettingUI();
+    loadUiCompactModeUI();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }
 

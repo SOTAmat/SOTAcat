@@ -352,6 +352,75 @@ class SOTAcatUITests:
         targets = self.page.locator('#tune-targets-list')
         assert targets.count() > 0, "Tune targets list should exist"
 
+    def test_settings_display_compact_mode_checkbox(self):
+        """Settings page has compact mode checkbox in Display section"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        checkbox = self.page.locator('#ui-compact-mode')
+        assert checkbox.count() > 0, "Compact mode checkbox should exist"
+
+    def test_settings_compact_mode_persists(self):
+        """Compact mode setting persists in localStorage"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        # Clear any existing setting
+        self.page.evaluate("localStorage.removeItem('sotacat_ui_compact')")
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        # Enable compact mode
+        checkbox = self.page.locator('#ui-compact-mode')
+        checkbox.check()
+        time.sleep(0.3)
+        # Verify localStorage was updated
+        stored = self.page.evaluate("localStorage.getItem('sotacat_ui_compact')")
+        assert stored == "true", "Compact mode should be saved to localStorage"
+        # Disable and verify
+        checkbox.uncheck()
+        time.sleep(0.3)
+        stored = self.page.evaluate("localStorage.getItem('sotacat_ui_compact')")
+        assert stored == "false", "Compact mode disabled should be saved to localStorage"
+
+    def test_settings_compact_mode_applies_body_class(self):
+        """Compact mode applies ui-compact class to body"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        # Clear any existing setting
+        self.page.evaluate("localStorage.removeItem('sotacat_ui_compact')")
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        # Verify class not present initially
+        has_class = self.page.evaluate("document.body.classList.contains('ui-compact')")
+        assert not has_class, "Body should not have ui-compact class initially"
+        # Enable compact mode
+        checkbox = self.page.locator('#ui-compact-mode')
+        checkbox.check()
+        time.sleep(0.3)
+        # Verify class is applied
+        has_class = self.page.evaluate("document.body.classList.contains('ui-compact')")
+        assert has_class, "Body should have ui-compact class when enabled"
+        # Disable and verify class is removed
+        checkbox.uncheck()
+        time.sleep(0.3)
+        has_class = self.page.evaluate("document.body.classList.contains('ui-compact')")
+        assert not has_class, "Body should not have ui-compact class when disabled"
+
+    def test_compact_mode_applies_on_initial_load(self):
+        """Compact mode is applied on initial page load from localStorage"""
+        # First, set the localStorage value before loading the page
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.evaluate("localStorage.setItem('sotacat_ui_compact', 'true')")
+        # Reload the page to test initial load behavior
+        self.page.reload()
+        self.page.wait_for_load_state('networkidle')
+        # Verify class is applied immediately on load
+        has_class = self.page.evaluate("document.body.classList.contains('ui-compact')")
+        assert has_class, "Compact mode should be applied on initial page load"
+        # Clean up
+        self.page.evaluate("localStorage.removeItem('sotacat_ui_compact')")
+
     # =========================================================================
     # QRX Page Element Tests
     # =========================================================================
