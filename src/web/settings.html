@@ -12,7 +12,7 @@
                     pattern="^[A-Z0-9\/]*$"
                     inputmode="text"
                     autocapitalize="characters"
-                    style="text-transform: uppercase"
+                    class="text-uppercase"
                     maxlength="15"
                 />
                 <select id="license-class" class="select-control">
@@ -41,7 +41,7 @@
         <p class="settings-info">Configure up to 3 client networks and 1 access point with SSID and Password</p>
 
         <!-- WiFi Help Popup -->
-        <div id="wifi-help-popup" class="help-popup" style="display: none">
+        <div id="wifi-help-popup" class="help-popup hidden">
             <div class="help-popup-content">
                 <div class="help-popup-header">
                     <h3>WiFi Configuration Help</h3>
@@ -217,7 +217,7 @@
         </p>
 
         <!-- Tune Targets Help Popup -->
-        <div id="tune-targets-help-popup" class="help-popup" style="display: none">
+        <div id="tune-targets-help-popup" class="help-popup hidden">
             <div class="help-popup-content">
                 <div class="help-popup-header">
                     <h3>Tune Targets Help</h3>
@@ -338,7 +338,7 @@
                 <div class="step-content">
                     <p>Select downloaded firmware file</p>
                     <button id="select-file-button" class="btn btn-secondary">Select File</button>
-                    <input type="file" id="ota-file" accept=".bin" style="display: none" />
+                    <input type="file" id="ota-file" accept=".bin" class="hidden" />
                 </div>
             </div>
 

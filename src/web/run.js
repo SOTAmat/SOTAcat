@@ -100,10 +100,10 @@ function updateFrequencyDisplay() {
     const display = document.getElementById("current-frequency");
     if (display) {
         display.textContent = formatFrequency(AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ);
-        // Brief visual feedback
-        display.style.color = "var(--success)";
+        // Brief visual feedback using CSS class
+        display.classList.add("feedback-success");
         setTimeout(() => {
-            display.style.color = "";
+            display.classList.remove("feedback-success");
         }, VISUAL_FEEDBACK_DURATION_MS);
     }
 }
@@ -113,10 +113,10 @@ function updateModeDisplay() {
     const display = document.getElementById("current-mode");
     if (display) {
         display.textContent = AppState.vfoMode || "USB";
-        // Brief visual feedback
-        display.style.color = "var(--warning)";
+        // Brief visual feedback using CSS class
+        display.classList.add("feedback-warning");
         setTimeout(() => {
-            display.style.color = "";
+            display.classList.remove("feedback-warning");
         }, VISUAL_FEEDBACK_DURATION_MS);
     }
 
@@ -252,9 +252,9 @@ function enableFrequencyEditing() {
     let isProcessing = false;
 
     // Switch from display to input and hide mode display
-    display.style.display = "none";
-    input.style.display = "";
-    if (modeDisplay) modeDisplay.style.display = "none";
+    display.classList.add("hidden");
+    input.classList.remove("hidden");
+    if (modeDisplay) modeDisplay.classList.add("hidden");
     input.value = display.textContent;
 
     // Handle input confirmation
@@ -298,9 +298,9 @@ function enableFrequencyEditing() {
 
     // Exit edit mode and restore display
     const exitEditMode = () => {
-        input.style.display = "none";
-        display.style.display = "";
-        if (modeDisplay) modeDisplay.style.display = "";
+        input.classList.add("hidden");
+        display.classList.remove("hidden");
+        if (modeDisplay) modeDisplay.classList.remove("hidden");
         display.textContent = formatFrequency(AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ);
 
         // Remove event listeners
@@ -643,12 +643,12 @@ async function tuneAtu() {
             return;
         }
 
-        // Visual feedback
+        // Visual feedback using CSS class
         const atuBtn = document.querySelector(".btn-tune");
         if (atuBtn) {
-            atuBtn.style.background = "var(--success)";
+            atuBtn.classList.add("feedback-bg-success");
             setTimeout(() => {
-                atuBtn.style.background = "";
+                atuBtn.classList.remove("feedback-bg-success");
             }, ATU_FEEDBACK_DURATION_MS);
         }
     } catch (error) {
@@ -688,12 +688,12 @@ function toggleSection(sectionId) {
     const icon = document.getElementById(iconId);
     const storageKey = SECTION_STORAGE_KEYS[sectionId];
 
-    if (content.style.display === "none") {
-        content.style.display = "block";
+    if (content.classList.contains("collapsed")) {
+        content.classList.remove("collapsed");
         icon.innerHTML = "&#9660;"; // Down triangle
         localStorage.setItem(storageKey, "true");
     } else {
-        content.style.display = "none";
+        content.classList.add("collapsed");
         icon.innerHTML = "&#9654;"; // Right triangle
         localStorage.setItem(storageKey, "false");
     }
@@ -710,10 +710,10 @@ function loadCollapsibleStates() {
         const icon = document.getElementById(iconId);
 
         if (savedState === "false") {
-            content.style.display = "none";
+            content.classList.add("collapsed");
             icon.innerHTML = "&#9654;"; // Right triangle
         } else {
-            content.style.display = "block";
+            content.classList.remove("collapsed");
             icon.innerHTML = "&#9660;"; // Down triangle
         }
     });

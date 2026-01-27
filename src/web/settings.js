@@ -480,14 +480,14 @@ function onFilterBandsChange() {
 // Toggle Tune Targets help popup
 function toggleTuneTargetsHelp() {
     const popup = document.getElementById("tune-targets-help-popup");
-    const isVisible = popup.style.display !== "none";
+    const isVisible = !popup.classList.contains("hidden");
 
     if (isVisible) {
-        popup.style.display = "none";
-        document.body.style.overflow = ""; // Restore scrolling
+        popup.classList.add("hidden");
+        document.body.classList.remove("overflow-hidden"); // Restore scrolling
     } else {
-        popup.style.display = "block";
-        document.body.style.overflow = "hidden"; // Prevent background scrolling
+        popup.classList.remove("hidden");
+        document.body.classList.add("overflow-hidden"); // Prevent background scrolling
     }
 }
 
@@ -498,14 +498,14 @@ function toggleTuneTargetsHelp() {
 // Toggle WiFi configuration help popup
 function toggleWifiHelp() {
     const popup = document.getElementById("wifi-help-popup");
-    const isVisible = popup.style.display !== "none";
+    const isVisible = !popup.classList.contains("hidden");
 
     if (isVisible) {
-        popup.style.display = "none";
-        document.body.style.overflow = ""; // Restore scrolling
+        popup.classList.add("hidden");
+        document.body.classList.remove("overflow-hidden"); // Restore scrolling
     } else {
-        popup.style.display = "block";
-        document.body.style.overflow = "hidden"; // Prevent background scrolling
+        popup.classList.remove("hidden");
+        document.body.classList.add("overflow-hidden"); // Prevent background scrolling
     }
 }
 
@@ -517,7 +517,7 @@ function handleClickOutsidePopup(event) {
 
     if (
         wifiPopup &&
-        wifiPopup.style.display === "block" &&
+        !wifiPopup.classList.contains("hidden") &&
         !wifiPopup.contains(event.target) &&
         wifiHelpButton &&
         !wifiHelpButton.contains(event.target)
@@ -531,7 +531,7 @@ function handleClickOutsidePopup(event) {
 
     if (
         tuneTargetsPopup &&
-        tuneTargetsPopup.style.display === "block" &&
+        !tuneTargetsPopup.classList.contains("hidden") &&
         !tuneTargetsPopup.contains(event.target) &&
         tuneTargetsHelpButton &&
         !tuneTargetsHelpButton.contains(event.target)

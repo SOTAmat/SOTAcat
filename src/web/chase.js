@@ -636,7 +636,7 @@ function buildChaseRow(spot, isMySpot) {
     }
 
     // Make entire row clickable to tune radio (except for links)
-    row.style.cursor = "pointer";
+    row.classList.add("cursor-pointer");
     row.onclick = function (event) {
         if (event.target.tagName === "A" || event.target.closest("a")) {
             return; // Let the link handle it
@@ -818,12 +818,12 @@ function applyTableFilters() {
 
         // Show row only if ALL filters match
         if (modeMatch && typeMatch && bandMatch) {
-            row.style.display = "";
+            row.classList.remove("hidden");
             // Apply alternating row background based on visible row index
             row.classList.toggle("even-row", visibleRows % 2 === 1);
             visibleRows++;
         } else {
-            row.style.display = "none";
+            row.classList.add("hidden");
             row.classList.remove("even-row");
             hiddenRows++;
         }

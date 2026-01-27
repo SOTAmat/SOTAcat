@@ -1843,3 +1843,35 @@ tbody tr:active {
 .text-muted {
     color: var(--text-secondary);
 }
+
+.text-uppercase {
+    text-transform: uppercase;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.overflow-hidden {
+    overflow: hidden;
+}
+
+/* Collapsible section state */
+.collapsed {
+    display: none;
+}
+
+/* =========================== Visual Feedback Classes */
+/* These classes provide visual feedback via CSS transitions instead of JS style manipulation */
+
+.feedback-success {
+    color: var(--success) !important;
+}
+
+.feedback-warning {
+    color: var(--warning) !important;
+}
+
+.feedback-bg-success {
+    background: var(--success) !important;
+}
