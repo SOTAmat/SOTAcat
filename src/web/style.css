@@ -1015,6 +1015,11 @@ tbody tr:active {
     text-align: right;
 }
 
+/* Miles column - right aligned */
+#chase-table td:nth-child(7) {
+    text-align: right;
+}
+
 /* Frequency display styling - emphasize MHz, de-emphasize fractional KHz */
 .freq-whole {
     font-size: 1.15em;
