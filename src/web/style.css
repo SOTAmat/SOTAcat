@@ -1122,6 +1122,12 @@ tbody tr:active {
     white-space: nowrap;
 }
 
+.summit-info {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-top: var(--space-xs);
+}
+
 .info-icon {
     font-weight: bold;
     font-size: 18px;

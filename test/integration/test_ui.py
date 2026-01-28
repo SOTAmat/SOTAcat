@@ -536,6 +536,33 @@ class SOTAcatUITests:
         time.sleep(0.1)
         assert ref_input.input_value() == 'EU-123', "Should auto-format IOTA reference"
 
+    def test_qrx_nearest_sota_button(self):
+        """QRX page has Nearest SOTA button"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        nearest_btn = self.page.locator('#nearest-sota-button')
+        assert nearest_btn.count() > 0, "Nearest SOTA button should exist"
+
+    def test_qrx_nearest_sota_button_clickable(self):
+        """Nearest SOTA button is clickable (not disabled)"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        nearest_btn = self.page.locator('#nearest-sota-button')
+        assert not nearest_btn.is_disabled(), "Nearest SOTA button should be enabled"
+
+    def test_qrx_summit_info_element(self):
+        """QRX page has summit info display element"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="qrx"]')
+        time.sleep(0.5)
+        summit_info = self.page.locator('#summit-info')
+        assert summit_info.count() > 0, "Summit info element should exist"
+
     # =========================================================================
     # Chase Page Element Tests
     # =========================================================================
@@ -795,6 +822,9 @@ class SOTAcatUITests:
             self.run_test("Reference auto-format POTA", self.test_qrx_reference_auto_format_pota)
             self.run_test("Reference auto-format WWFF", self.test_qrx_reference_auto_format_wwff)
             self.run_test("Reference auto-format IOTA", self.test_qrx_reference_auto_format_iota)
+            self.run_test("Nearest SOTA button", self.test_qrx_nearest_sota_button)
+            self.run_test("Nearest SOTA button clickable", self.test_qrx_nearest_sota_button_clickable)
+            self.run_test("Summit info element", self.test_qrx_summit_info_element)
 
             # Chase page elements
             print("\nChase Page Elements:")

@@ -149,6 +149,99 @@ async function saveGpsLocation() {
 }
 
 // ============================================================================
+// Nearest SOTA Functions
+// ============================================================================
+
+const SOTA_DISTANCE_API_URL = "https://api-db2.sota.org.uk/api/summits/distance";
+const SOTA_SEARCH_RANGE_KM = 0.1;
+
+// Fetch nearest SOTA summit and populate reference input
+async function fetchNearestSota() {
+    const referenceInput = document.getElementById("reference-input");
+    const summitInfoDiv = document.getElementById("summit-info");
+    const nearestBtn = document.getElementById("nearest-sota-button");
+
+    if (!referenceInput) return;
+
+    // Disable button and show loading state
+    if (nearestBtn) {
+        nearestBtn.disabled = true;
+        nearestBtn.textContent = "Searching...";
+    }
+    if (summitInfoDiv) {
+        summitInfoDiv.textContent = "";
+    }
+
+    try {
+        // Get current location
+        const location = await getLocation();
+        if (!location || !location.latitude || !location.longitude) {
+            alert("No location available. Please set your location first.");
+            return;
+        }
+
+        const { latitude, longitude } = location;
+
+        // Fetch summits near the location, starting with small range and expanding if needed
+        let summits = [];
+        let range = SOTA_SEARCH_RANGE_KM;
+        const maxRange = 100; // Max 100km search radius
+
+        while (summits.length === 0 && range <= maxRange) {
+            const url = `${SOTA_DISTANCE_API_URL}/${latitude}/${longitude}/${range}`;
+            Log.debug("QRX", `Fetching SOTA summits: ${url}`);
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`SOTA API error: ${response.status}`);
+            }
+
+            summits = await response.json();
+            if (summits.length === 0) {
+                range = range < 1 ? 1 : range < 10 ? 10 : range < 50 ? 50 : 100;
+            }
+        }
+
+        if (!summits || summits.length === 0) {
+            alert("No SOTA summits found within 100km of your location.");
+            return;
+        }
+
+        // Sort by distance and pick the nearest
+        summits.sort((a, b) => a.distance - b.distance);
+        const nearest = summits[0];
+
+        // Populate the reference input with the summit code
+        referenceInput.value = nearest.summitCode;
+        onReferenceInputChange(); // Trigger change handler to enable save button
+
+        // Display summit info with distance (convert km to miles/feet)
+        if (summitInfoDiv) {
+            const distanceMiles = nearest.distance * 0.621371;
+            let distanceStr;
+            if (distanceMiles < 0.1) {
+                const distanceFeet = Math.round(distanceMiles * 5280);
+                distanceStr = `${distanceFeet}ft away`;
+            } else {
+                distanceStr = `${distanceMiles.toFixed(1)}mi away`;
+            }
+            summitInfoDiv.textContent = `${nearest.name} • ${nearest.altFt}ft • ${nearest.points}pt • ${distanceStr}`;
+        }
+
+        Log.info("QRX", `Nearest SOTA: ${nearest.summitCode} - ${nearest.name}`);
+    } catch (error) {
+        Log.error("QRX", "Failed to fetch nearest SOTA:", error);
+        alert(`Failed to find nearest SOTA summit: ${error.message}`);
+    } finally {
+        // Restore button state
+        if (nearestBtn) {
+            nearestBtn.disabled = false;
+            nearestBtn.textContent = "Nearest SOTA";
+        }
+    }
+}
+
+// ============================================================================
 // Reference Functions (SOTA/POTA/X-OTA)
 // ============================================================================
 
@@ -376,6 +469,11 @@ function attachQrxEventListeners() {
     if (referenceInput) {
         referenceInput.addEventListener("input", onReferenceInputChange);
         referenceInput.addEventListener("blur", onReferenceBlur);
+    }
+
+    const nearestSotaBtn = document.getElementById("nearest-sota-button");
+    if (nearestSotaBtn) {
+        nearestSotaBtn.addEventListener("click", fetchNearestSota);
     }
 
     const saveReferenceBtn = document.getElementById("save-reference-button");
