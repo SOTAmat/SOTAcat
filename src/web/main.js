@@ -933,10 +933,10 @@ function cleanupCurrentTab() {
     }
 }
 
-// Load previously active tab from localStorage (returns tab name string, defaults to 'chase')
+// Load previously active tab from localStorage (returns tab name string, defaults to 'qrx')
 function loadActiveTab() {
     const activeTab = localStorage.getItem("activeTab");
-    return activeTab ? activeTab : "chase"; // Default to 'chase' if no tab is saved
+    return activeTab ? activeTab : "qrx"; // Default to 'qrx' if no tab is saved
 }
 
 // Save currently active tab to localStorage (tabName: 'chase', 'cat', 'settings', 'about')
