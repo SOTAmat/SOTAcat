@@ -605,7 +605,7 @@ void wifi_task (void * pvParameters) {
             if ((current_time - last_connection_check_time) * portTICK_PERIOD_MS >= CONNECTION_CHECK_INTERVAL_MS) {
                 last_connection_check_time = current_time;
 
-                // Only check STA connection if we're not in AP mode with clients
+                // Check STA connection if connected as station
                 if (s_sta_connected.load() && !s_ap_client_connected.load()) {
                     wifi_ap_record_t ap_info;
                     esp_err_t        err = esp_wifi_sta_get_ap_info (&ap_info);
@@ -629,6 +629,21 @@ void wifi_task (void * pvParameters) {
                                 ESP_LOGI (TAG8, "Reconnection attempt initiated");
                             }
                         }
+                    }
+                }
+                // Get RSSI from connected AP clients (use weakest signal - most likely to have issues)
+                else if (s_ap_client_connected.load()) {
+                    wifi_sta_list_t sta_list;
+                    esp_err_t       err = esp_wifi_ap_get_sta_list (&sta_list);
+                    if (err == ESP_OK && sta_list.num > 0) {
+                        int8_t weakest_rssi = 0;
+                        for (int i = 0; i < sta_list.num; i++) {
+                            if (sta_list.sta[i].rssi < weakest_rssi) {
+                                weakest_rssi = sta_list.sta[i].rssi;
+                            }
+                        }
+                        s_rssi.store (weakest_rssi);
+                        ESP_LOGI (TAG8, "AP mode - weakest client RSSI: %d dBm (%d clients)", weakest_rssi, sta_list.num);
                     }
                 }
             }
