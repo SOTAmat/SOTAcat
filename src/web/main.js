@@ -1178,7 +1178,8 @@ async function saveGpsToDevice(lat, lon) {
     });
 
     if (response.ok) {
-        AppState.gpsOverride = null;
+        // Update cached location to new value (don't clear - needed for location-based keys)
+        AppState.gpsOverride = { latitude: lat, longitude: lon };
         clearDistanceCache();
         AppState.latestChaseJson = null;
         return true;
@@ -1203,6 +1204,7 @@ async function saveGeolocationFromBridge(lat, lon, accuracy) {
 
     try {
         await saveGpsToDevice(lat, lon);
+        // Reference and summit info use location-based cache keys, so no explicit clearing needed
     } catch (error) {
         Log.error("GPS", "Failed to save browser location:", error);
         alert("Failed to save location to device.");
@@ -1225,6 +1227,9 @@ async function fetchLocalityFromCoords(lat, lon) {
             if (data.display_name) {
                 localityDiv.textContent = data.display_name;
                 localityDiv.title = data.display_name;
+                // Cache the result
+                const cacheKey = buildLocationKey("locality", lat, lon);
+                localStorage.setItem(cacheKey, data.display_name);
             }
         }
     } catch (error) {
@@ -1262,6 +1267,36 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// Build localStorage key for location-based data
+function buildLocationKey(prefix, lat, lon) {
+    // Ensure lat/lon are numbers (GPS API may return strings)
+    const latNum = typeof lat === "number" ? lat : parseFloat(lat);
+    const lonNum = typeof lon === "number" ? lon : parseFloat(lon);
+    return `${prefix}_${latNum.toFixed(4)}_${lonNum.toFixed(4)}`;
+}
+
+// Get reference for current location (sync - uses cached location)
+// Returns empty string if no cached location available
+function getLocationBasedReference() {
+    if (!AppState.gpsOverride) return "";
+    const key = buildLocationKey("reference", AppState.gpsOverride.latitude, AppState.gpsOverride.longitude);
+    return localStorage.getItem(key) || "";
+}
+
+// Set reference for current location (sync - uses cached location)
+function setLocationBasedReference(value) {
+    if (!AppState.gpsOverride) {
+        Log.warn("GPS", "Cannot save reference - no location cached");
+        return;
+    }
+    const key = buildLocationKey("reference", AppState.gpsOverride.latitude, AppState.gpsOverride.longitude);
+    if (value) {
+        localStorage.setItem(key, value);
+    } else {
+        localStorage.removeItem(key);
+    }
+}
+
 // Get user location from NVRAM or default to KPH (returns {latitude, longitude})
 async function getLocation() {
     // Return cached location if available
@@ -1282,9 +1317,10 @@ async function getLocation() {
         Log.warn("GPS", "Failed to fetch from NVRAM:", error);
     }
 
-    // Fall back to default location (KPH)
+    // Fall back to default location (KPH) - cache it so location-based keys work
     Log.debug("GPS", "Using default location (KPH)");
-    return DEFAULT_LOCATION;
+    AppState.gpsOverride = DEFAULT_LOCATION;
+    return AppState.gpsOverride;
 }
 
 // Distance cache for reference lookups

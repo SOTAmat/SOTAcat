@@ -751,7 +751,7 @@ function isSotaReference(ref) {
 
 // Update spot action buttons enabled state based on reference validity
 function updateRunButtonStates() {
-    const ref = localStorage.getItem("qrxReference") || "";
+    const ref = getLocationBasedReference() || "";
     const isValid = isValidSpotReference(ref);
 
     const sotamatBtn = document.getElementById("sotamat-button");
@@ -770,7 +770,7 @@ function updateRunButtonStates() {
 // Build SMS URI for spotting current activation
 // SOTA uses "sm" command, POTA uses "psm" command
 function buildSpotSmsUri() {
-    const ref = localStorage.getItem("qrxReference") || "";
+    const ref = getLocationBasedReference() || "";
     if (!isValidSpotReference(ref)) return null;
 
     const cmd = isSotaReference(ref) ? "sm" : "psm";
@@ -784,7 +784,7 @@ function buildSpotSmsUri() {
 // Build SMS URI for QRT (end of activation)
 // SOTA uses "sm" command, POTA uses "psm" command
 function buildQrtSmsUri() {
-    const ref = localStorage.getItem("qrxReference") || "";
+    const ref = getLocationBasedReference() || "";
     if (!isValidSpotReference(ref)) return null;
 
     const cmd = isSotaReference(ref) ? "sm" : "psm";
@@ -835,7 +835,7 @@ function getSigFromReference(ref) {
 
 // Build Polo deep link for Spot page (my activation)
 function buildPoloSpotLink() {
-    const myRef = localStorage.getItem("qrxReference") || "";
+    const myRef = getLocationBasedReference() || "";
     if (!isValidSpotReference(myRef)) return null;
 
     const mySig = getSigFromReference(myRef);

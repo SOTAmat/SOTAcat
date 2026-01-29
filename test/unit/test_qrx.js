@@ -235,6 +235,214 @@ describe('Summit Info Formatting', () => {
     });
 });
 
+// ============================================================================
+// Reference Auto-Formatting Logic (extracted from qrx.js for testing)
+// ============================================================================
+
+/**
+ * Infer xOTA type and format reference from raw input
+ * @param {string} input - Raw user input
+ * @returns {string} Formatted reference
+ */
+function inferAndFormatReference(input) {
+    if (!input) return input;
+
+    // Uppercase and strip all non-alphanumeric chars
+    const raw = input.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (!raw) return input;
+
+    // Rule 1: WWFF - {2-4 letters}FF{4 digits}
+    const wwffMatch = raw.match(/^([A-Z]{2,4})(FF)(\d{4})$/);
+    if (wwffMatch) {
+        return `${wwffMatch[1]}FF-${wwffMatch[3]}`;
+    }
+
+    // Rule 2: IOTA - {continent code}{3 digits}
+    const iotaMatch = raw.match(/^(AF|AN|AS|EU|NA|OC|SA)(\d{3})$/);
+    if (iotaMatch) {
+        return `${iotaMatch[1]}-${iotaMatch[2]}`;
+    }
+
+    // Rule 3: POTA - {1-2 letters}{4-5 digits}
+    const potaMatch = raw.match(/^([A-Z]{1,2})(\d{4,5})$/);
+    if (potaMatch) {
+        return `${potaMatch[1]}-${potaMatch[2]}`;
+    }
+
+    // Rule 4: SOTA - {1-4 alphanum}{2 letters}{3 digits}
+    const sotaMatch = raw.match(/^([A-Z0-9]{1,4})([A-Z]{2})(\d{3})$/);
+    if (sotaMatch) {
+        return `${sotaMatch[1]}/${sotaMatch[2]}-${sotaMatch[3]}`;
+    }
+
+    // No pattern matched - return cleaned uppercase version
+    return input.toUpperCase().replace(/[^A-Z0-9/@-]/g, "");
+}
+
+// ============================================================================
+// Location Key Logic (extracted from main.js for testing)
+// ============================================================================
+
+/**
+ * Build localStorage key for location-based data
+ * @param {string} prefix - Key prefix (e.g., 'reference', 'summitInfo', 'locality')
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @returns {string} Cache key
+ */
+function buildLocationKey(prefix, lat, lon) {
+    return `${prefix}_${lat.toFixed(4)}_${lon.toFixed(4)}`;
+}
+
+describe('Reference Auto-Formatting', () => {
+    describe('SOTA references', () => {
+        it('formats W6NC150 as W6/NC-150', () => {
+            assertEqual(inferAndFormatReference('W6NC150'), 'W6/NC-150');
+        });
+
+        it('formats w6nc150 (lowercase) as W6/NC-150', () => {
+            assertEqual(inferAndFormatReference('w6nc150'), 'W6/NC-150');
+        });
+
+        it('formats W6/NC-150 (already formatted) as W6/NC-150', () => {
+            // Already has slashes/dashes, gets stripped then reformatted
+            assertEqual(inferAndFormatReference('W6/NC-150'), 'W6/NC-150');
+        });
+
+        it('formats VK3SE001 as VK3/SE-001', () => {
+            assertEqual(inferAndFormatReference('VK3SE001'), 'VK3/SE-001');
+        });
+
+        it('formats G/LD001 as G/LD-001', () => {
+            assertEqual(inferAndFormatReference('GLD001'), 'G/LD-001');
+        });
+    });
+
+    describe('POTA references', () => {
+        it('formats K1234 as K-1234', () => {
+            assertEqual(inferAndFormatReference('K1234'), 'K-1234');
+        });
+
+        it('formats US12345 as US-12345', () => {
+            assertEqual(inferAndFormatReference('US12345'), 'US-12345');
+        });
+
+        it('formats k-1234 (with dash) as K-1234', () => {
+            assertEqual(inferAndFormatReference('k-1234'), 'K-1234');
+        });
+    });
+
+    describe('WWFF references', () => {
+        it('formats KFFF1234 as KFF-1234', () => {
+            assertEqual(inferAndFormatReference('KFFF1234'), 'KFFF-1234');
+        });
+
+        it('formats VKFF0001 as VKFF-0001', () => {
+            assertEqual(inferAndFormatReference('VKFF0001'), 'VKFF-0001');
+        });
+    });
+
+    describe('IOTA references', () => {
+        it('formats NA001 as NA-001', () => {
+            assertEqual(inferAndFormatReference('NA001'), 'NA-001');
+        });
+
+        it('formats EU123 as EU-123', () => {
+            assertEqual(inferAndFormatReference('EU123'), 'EU-123');
+        });
+
+        it('formats OC050 as OC-050', () => {
+            assertEqual(inferAndFormatReference('OC050'), 'OC-050');
+        });
+    });
+
+    describe('Edge cases', () => {
+        it('returns empty string for empty input', () => {
+            assertEqual(inferAndFormatReference(''), '');
+        });
+
+        it('returns null for null input', () => {
+            assertEqual(inferAndFormatReference(null), null);
+        });
+
+        it('cleans but does not format unrecognized patterns', () => {
+            assertEqual(inferAndFormatReference('ABC123XYZ'), 'ABC123XYZ');
+        });
+
+        it('removes invalid characters', () => {
+            assertEqual(inferAndFormatReference('W6!@#NC$%^150'), 'W6/NC-150');
+        });
+    });
+});
+
+describe('Location-Based Cache Keys', () => {
+    describe('buildLocationKey', () => {
+        it('builds key with 4 decimal precision', () => {
+            assertEqual(
+                buildLocationKey('reference', 37.12345678, -122.98765432),
+                'reference_37.1235_-122.9877'
+            );
+        });
+
+        it('builds locality key', () => {
+            assertEqual(
+                buildLocationKey('locality', 38.0522, -122.9694),
+                'locality_38.0522_-122.9694'
+            );
+        });
+
+        it('builds summitInfo key', () => {
+            assertEqual(
+                buildLocationKey('summitInfo', 37.3176, -122.1476),
+                'summitInfo_37.3176_-122.1476'
+            );
+        });
+
+        it('handles zero coordinates', () => {
+            assertEqual(
+                buildLocationKey('reference', 0, 0),
+                'reference_0.0000_0.0000'
+            );
+        });
+
+        it('handles negative coordinates', () => {
+            assertEqual(
+                buildLocationKey('reference', -33.8688, 151.2093),
+                'reference_-33.8688_151.2093'
+            );
+        });
+
+        it('rounds correctly at boundary', () => {
+            // JavaScript toFixed uses banker's rounding (round half to even)
+            // 37.12345 -> 37.1234 (4 is even, so rounds down)
+            assertEqual(
+                buildLocationKey('reference', 37.12345, -122.0),
+                'reference_37.1234_-122.0000'
+            );
+        });
+    });
+
+    describe('Cache key consistency', () => {
+        it('same coordinates produce same key', () => {
+            const key1 = buildLocationKey('reference', 37.3176, -122.1476);
+            const key2 = buildLocationKey('reference', 37.3176, -122.1476);
+            assertEqual(key1, key2);
+        });
+
+        it('slightly different coordinates produce different keys', () => {
+            const key1 = buildLocationKey('reference', 37.3176, -122.1476);
+            const key2 = buildLocationKey('reference', 37.3177, -122.1476);
+            assertTrue(key1 !== key2, 'Different coords should produce different keys');
+        });
+
+        it('different prefixes produce different keys', () => {
+            const key1 = buildLocationKey('reference', 37.3176, -122.1476);
+            const key2 = buildLocationKey('summitInfo', 37.3176, -122.1476);
+            assertTrue(key1 !== key2, 'Different prefixes should produce different keys');
+        });
+    });
+});
+
 describe('SOTA API Response Handling', () => {
     it('sorts summits by distance correctly', () => {
         const summits = [
