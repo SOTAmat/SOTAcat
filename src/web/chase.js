@@ -172,7 +172,7 @@ function updateRefreshTimer() {
 
     // Manual mode: show time since last refresh
     if (ChaseState.lastRefreshCompleteTime === 0) {
-        timerElement.textContent = "Last refresh 0:00 ago";
+        timerElement.textContent = "Refreshed 0:00 ago";
         return;
     }
 
@@ -180,7 +180,7 @@ function updateRefreshTimer() {
     const minutes = Math.floor(elapsedSeconds / 60);
     const seconds = elapsedSeconds % 60;
 
-    timerElement.textContent = `Last refresh ${minutes}:${seconds.toString().padStart(2, "0")} ago`;
+    timerElement.textContent = `Refreshed ${minutes}:${seconds.toString().padStart(2, "0")} ago`;
 }
 
 // Start the refresh timer interval
