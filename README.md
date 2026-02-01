@@ -38,16 +38,6 @@ Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
 
 > **Page not responding?** See [Networking troubleshooting](Documentation/user/Networking.md#connection-lost-recovery)
 
-## What Works Without Internet
-
-| Feature | Offline | Online | Notes |
-|---------|---------|--------|-------|
-| Radio control (RUN) | ✓ | ✓ | |
-| CW keyer | ✓ | ✓ | |
-| Clock sync | ✓ | ✓ | Syncs from phone clock |
-| CHASE spots | ✗ | ✓ | Requires internet |
-| SOTAmat FT8 | ✓* | ✓ | *Requires gateway coverage |
-
 ## Documentation
 
 **Users:** [Getting Started](Documentation/user/Getting-Started.md) · [UI Tour](Documentation/user/UI-Tour.md) · [Networking](Documentation/user/Networking.md) · [Troubleshooting](Documentation/user/Troubleshooting.md)
