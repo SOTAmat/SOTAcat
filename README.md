@@ -18,7 +18,8 @@ WiFi CAT control for Elecraft KX2/KX3. Connect your phone, control your radio.
 | **Settings** | Callsign, WiFi, tune targets |
 | **About** | Version, attribution |
 
-<!-- 📷 SCREENSHOT NEEDED: App header showing UTC, battery, RSSI, connection indicator -->
+> **[ 📷 IMAGE: App header showing UTC, battery, RSSI, connection indicator ]**
+> `Documentation/images/header-status.png`
 
 ## Get Started in 60 Seconds
 

@@ -1,0 +1,39 @@
+* Screenshots Needed for Documentation
+
+** README.md
+- [ ] App header showing UTC, battery, RSSI, connection indicator
+  - Filename: header-status.png
+
+** Documentation/user/Getting-Started.md
+- [ ] Phone WiFi list showing SOTACAT_xxxx
+  - Filename: wifi-list.png
+- [ ] Header bar with all status indicators
+  - Filename: header-status.png (same as above)
+
+** Documentation/user/UI-Tour.md
+- [ ] QRX page showing location and reference fields
+  - Filename: qrx-page.png
+- [ ] CHASE page with spots and filter dropdowns
+  - Filename: chase-spots.png
+- [ ] RUN page with Tune/Spot/Transmit sections
+  - Filename: run-controls.png
+- [ ] Settings page
+  - Filename: settings-page.png
+
+** Documentation/user/Networking.md
+- [ ] Settings WiFi configuration help popup
+  - Filename: settings-wifi-help.png
+- [ ] Connection lost overlay
+  - Filename: connection-lost.png
+
+** Documentation/user/Tune-Targets.md
+- [ ] Settings Tune Targets help popup
+  - Filename: settings-tune-targets-help.png
+
+** Documentation/Hardware.md
+- [ ] SOTAcat plugged into KX radio
+  - Filename: sotacat-on-radio.png
+- [ ] K5EM PCB version
+  - Filename: k5em-pcb.png
+- [ ] Hand-built SOTAcat
+  - Filename: hand-built.png

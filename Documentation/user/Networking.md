@@ -36,7 +36,8 @@ SOTAcat joins your phone's hotspot.
 
 **Best for:** Android phones that drop cellular when on WiFi
 
-<!-- 📷 SCREENSHOT NEEDED: Settings WiFi configuration help popup -->
+> **[ 📷 IMAGE: Settings WiFi configuration help popup ]**
+> `../images/settings-wifi-help.png`
 
 ## One-Time Setup
 
@@ -63,7 +64,8 @@ When you see "Connection lost. Reconnecting...":
 2. If not, reconnect to `SOTACAT_xxxx`
 3. Wait for auto-reconnect or tap **Retry**
 
-<!-- 📷 SCREENSHOT NEEDED: Connection lost overlay -->
+> **[ 📷 IMAGE: Connection lost overlay ]**
+> `../images/connection-lost.png`
 
 ---
 

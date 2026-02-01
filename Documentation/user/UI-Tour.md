@@ -14,7 +14,8 @@ Prepare for your activation before operating.
 - **Activation Reference** — Enter your summit/park ID
 - **Nearest SOTA** — Find closest summits to your location
 
-<!-- 📷 SCREENSHOT NEEDED: QRX page showing location and reference fields -->
+> **[ 📷 IMAGE: QRX page showing location and reference fields ]**
+> `../images/qrx-page.png`
 
 ## CHASE — Click-to-Pounce
 
@@ -25,7 +26,8 @@ Hunt activators from the spot list.
 - Distance shown based on your saved location
 - Opens WebSDR/KiwiSDR if tune targets configured
 
-<!-- 📷 SCREENSHOT NEEDED: CHASE page with spots and filter dropdowns -->
+> **[ 📷 IMAGE: CHASE page with spots and filter dropdowns ]**
+> `../images/chase-spots.png`
 
 > **Note:** CHASE requires internet. When offline, this page will be empty.
 
@@ -47,7 +49,8 @@ Control your radio during activation.
 - TX toggle
 - CW keyer (3 message slots, 24 chars each)
 
-<!-- 📷 SCREENSHOT NEEDED: RUN page with Tune/Spot/Transmit sections -->
+> **[ 📷 IMAGE: RUN page with Tune/Spot/Transmit sections ]**
+> `../images/run-controls.png`
 
 ## Settings — Configuration
 
@@ -59,7 +62,8 @@ One-time setup and preferences.
 - Display settings (compact mode)
 - Firmware updates
 
-<!-- 📷 SCREENSHOT NEEDED: Settings page -->
+> **[ 📷 IMAGE: Settings page ]**
+> `../images/settings-page.png`
 
 ## About — Info
 

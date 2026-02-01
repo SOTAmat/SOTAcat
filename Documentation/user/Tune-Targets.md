@@ -35,7 +35,8 @@ http://websdr.example.com/?tune={FREQ-KHZ}{MODE}
 http://kiwisdr.example.com:8073/?f={FREQ-KHZ}{MODE}
 ```
 
-<!-- 📷 SCREENSHOT NEEDED: Settings Tune Targets help popup -->
+> **[ 📷 IMAGE: Settings Tune Targets help popup ]**
+> `../images/settings-tune-targets-help.png`
 
 ## Tips
 

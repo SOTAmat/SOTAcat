@@ -10,7 +10,8 @@
 2. On your phone, go to WiFi settings
 3. Connect to `SOTACAT_xxxx` (password: `12345678`)
 
-<!-- 📷 SCREENSHOT NEEDED: Phone WiFi list showing SOTACAT_xxxx -->
+> **[ 📷 IMAGE: Phone WiFi list showing SOTACAT_xxxx ]**
+> `../images/wifi-list.png`
 
 ## Open the Web Interface
 
@@ -26,7 +27,8 @@ You should see the SOTAcat header with:
 - WiFi signal strength (dBm)
 - Green connection indicator
 
-<!-- 📷 SCREENSHOT NEEDED: Header bar with all status indicators -->
+> **[ 📷 IMAGE: Header bar with all status indicators ]**
+> `../images/header-status.png`
 
 **Success!** You're connected.
 
