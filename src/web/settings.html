@@ -12,7 +12,7 @@
                     pattern="^[A-Z0-9\/]*$"
                     inputmode="text"
                     autocapitalize="characters"
-                    style="text-transform: uppercase"
+                    class="text-uppercase"
                     maxlength="15"
                 />
                 <select id="license-class" class="select-control">
@@ -41,7 +41,7 @@
         <p class="settings-info">Configure up to 3 client networks and 1 access point with SSID and Password</p>
 
         <!-- WiFi Help Popup -->
-        <div id="wifi-help-popup" class="help-popup" style="display: none">
+        <div id="wifi-help-popup" class="help-popup hidden">
             <div class="help-popup-content">
                 <div class="help-popup-header">
                     <h3>WiFi Configuration Help</h3>
@@ -217,7 +217,7 @@
         </p>
 
         <!-- Tune Targets Help Popup -->
-        <div id="tune-targets-help-popup" class="help-popup" style="display: none">
+        <div id="tune-targets-help-popup" class="help-popup hidden">
             <div class="help-popup-content">
                 <div class="help-popup-header">
                     <h3>Tune Targets Help</h3>
@@ -233,24 +233,24 @@
                     <p>
                         <strong>How it works:</strong> Each tune target is a URL template containing placeholders
                         that get replaced with the actual frequency and mode when you tune. For example,
-                        <code>&lt;FREQ-KHZ&gt;</code> becomes <code>14074</code> and <code>&lt;MODE&gt;</code>
+                        <code>{FREQ-KHZ}</code> becomes <code>14074</code> and <code>{MODE}</code>
                         becomes <code>usb</code>.
                     </p>
                     <p>
                         <strong>Available placeholders:</strong>
                     </p>
                     <ul>
-                        <li><code>&lt;FREQ-HZ&gt;</code> — Frequency in Hertz (e.g., 14074000)</li>
-                        <li><code>&lt;FREQ-KHZ&gt;</code> — Frequency in kilohertz (e.g., 14074)</li>
-                        <li><code>&lt;FREQ-MHZ&gt;</code> — Frequency in megahertz (e.g., 14.074)</li>
-                        <li><code>&lt;MODE&gt;</code> — Mode in lowercase (e.g., usb, lsb, cw, am)</li>
+                        <li><code>{FREQ-HZ}</code> — Frequency in Hertz (e.g., 14074000)</li>
+                        <li><code>{FREQ-KHZ}</code> — Frequency in kilohertz (e.g., 14074)</li>
+                        <li><code>{FREQ-MHZ}</code> — Frequency in megahertz (e.g., 14.074)</li>
+                        <li><code>{MODE}</code> — Mode in lowercase (e.g., usb, lsb, cw, am)</li>
                     </ul>
                     <p>
                         <strong>Supported SDR types:</strong> Most web-based SDRs work. The two most common formats are:
                     </p>
                     <ul>
-                        <li><strong>WebSDR</strong> (PA3FWM) — Uses <code>?tune=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code></li>
-                        <li><strong>KiwiSDR</strong> — Uses <code>?f=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code></li>
+                        <li><strong>WebSDR</strong> (PA3FWM) — Uses <code>?tune={FREQ-KHZ}{MODE}</code></li>
+                        <li><strong>KiwiSDR</strong> — Uses <code>?f={FREQ-KHZ}{MODE}</code></li>
                     </ul>
                     <p>
                         <strong>Mobile browsers:</strong> Opening background tabs can be problematic on phones due to
@@ -269,12 +269,12 @@
         <div class="tune-target-examples">
             <p class="settings-info">Examples:</p>
             <div class="tune-target-example">
-                <code>http://websdr1.kfsdr.com:8901/?tune=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code>
-                <button type="button" class="btn-add-example" data-url="http://websdr1.kfsdr.com:8901/?tune=<FREQ-KHZ><MODE>">+ add</button>
+                <code>http://websdr1.kfsdr.com:8901/?tune={FREQ-KHZ}{MODE}</code>
+                <button type="button" class="btn-add-example" data-url="http://websdr1.kfsdr.com:8901/?tune={FREQ-KHZ}{MODE}">+ add</button>
             </div>
             <div class="tune-target-example">
-                <code>http://kphsdr.com:8074/?f=&lt;FREQ-KHZ&gt;&lt;MODE&gt;</code>
-                <button type="button" class="btn-add-example" data-url="http://kphsdr.com:8074/?f=<FREQ-KHZ><MODE>">+ add</button>
+                <code>http://kphsdr.com:8074/?f={FREQ-KHZ}{MODE}</code>
+                <button type="button" class="btn-add-example" data-url="http://kphsdr.com:8074/?f={FREQ-KHZ}{MODE}">+ add</button>
             </div>
         </div>
 
@@ -294,6 +294,16 @@
         <div class="button-group">
             <button id="save-tune-targets-button" class="btn btn-secondary" disabled>Save Tune Targets</button>
         </div>
+    </div>
+
+    <!-- Display Settings Card -->
+    <div class="settings-card">
+        <h2>Display</h2>
+        <p class="settings-info">Adjust how information is displayed</p>
+        <label class="checkbox-label">
+            <input type="checkbox" id="ui-compact-mode" />
+            <span>Compact mode (denser tables, no word wrap)</span>
+        </label>
     </div>
 
     <!-- Chase Filters Card -->
@@ -338,7 +348,7 @@
                 <div class="step-content">
                     <p>Select downloaded firmware file</p>
                     <button id="select-file-button" class="btn btn-secondary">Select File</button>
-                    <input type="file" id="ota-file" accept=".bin" style="display: none" />
+                    <input type="file" id="ota-file" accept=".bin" class="hidden" />
                 </div>
             </div>
 

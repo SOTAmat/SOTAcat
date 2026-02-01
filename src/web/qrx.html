@@ -2,14 +2,14 @@
     <!-- Clock Sync Card -->
     <div class="settings-card">
         <h2>Clock Sync</h2>
-        <p class="settings-info">Synchronize your KX or KH radio clock with your phone</p>
-        <button id="sync-time-button" class="btn btn-primary">Sync Radio Clock</button>
+        <p class="settings-info">Synchronize your KX radio clock with your phone</p>
+        <button id="sync-time-button" class="btn btn-primary">Sync Clock Now</button>
     </div>
 
     <!-- Location Card -->
     <div class="settings-card">
         <h2>Location</h2>
-        <p class="settings-info">For distance calculations</p>
+        <p class="settings-info">For Chase page distances and Nearest SOTA lookup</p>
         <div class="input-group-vertical">
             <input
                 type="text"
@@ -33,13 +33,22 @@
             <input
                 type="text"
                 id="reference-input"
-                placeholder="e.g., W6/NC-298 or US-1234"
-                style="text-transform: uppercase"
+                placeholder="e.g., W6NC298 or US1234"
+                class="text-uppercase"
             />
             <div class="button-group">
+                <button id="nearest-sota-button" class="btn btn-primary">Nearest SOTA</button>
                 <button id="clear-reference-button" class="btn btn-secondary">Clear</button>
                 <button id="save-reference-button" class="btn btn-secondary" disabled>Save</button>
             </div>
+            <div id="summit-info" class="summit-info"></div>
         </div>
+    </div>
+
+    <!-- PoLo Integration Card -->
+    <div class="settings-card">
+        <h2>PoLo Logging</h2>
+        <p class="settings-info">Pre-create your operation in Ham2K PoLo</p>
+        <button id="setup-polo-button" class="btn btn-primary" disabled>Setup PoLo Operation</button>
     </div>
 </div>

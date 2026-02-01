@@ -11,7 +11,7 @@ STRESS_CLIENTS ?= 7
 # Detect if venv exists
 VENV_EXISTS := $(shell [ -f $(PYTHON) ] && echo 1 || echo 0)
 
-.PHONY: help setup test test-performance test-mutex clean
+.PHONY: help setup test test-performance test-mutex test-ui clean
 
 help:
 	@echo "SOTAcat Integration Tests"
@@ -21,6 +21,7 @@ help:
 	@echo "  test             - Run full test suite (performance + mutex stress)"
 	@echo "  test-performance - Run web server performance test only"
 	@echo "  test-mutex       - Run multi-client mutex stress test only"
+	@echo "  test-ui          - Run Playwright UI tests"
 	@echo "  clean            - Remove test results and cache files"
 	@echo ""
 	@echo "Variables:"
@@ -43,7 +44,9 @@ setup:
 		cd ../.. && python3 -m venv .venv; \
 	fi
 	@echo "Installing dependencies..."
-	@$(VENV)/bin/pip install -q requests zeroconf
+	@$(VENV)/bin/pip install -q requests zeroconf pytest playwright pytest-playwright
+	@echo "Installing Playwright browsers..."
+	@$(VENV)/bin/playwright install chromium
 	@echo "✓ Setup complete"
 
 test: check-venv
@@ -63,6 +66,10 @@ test-mutex: check-venv
 		--duration $(STRESS_DURATION) \
 		--clients $(STRESS_CLIENTS)
 
+test-ui: check-venv
+	@echo "Running UI tests with Playwright..."
+	@$(PYTHON) test_ui.py --base-url http://$(HOST)
+
 clean:
 	@echo "Cleaning test results..."
 	@rm -f *.json
@@ -77,3 +84,4 @@ check-venv:
 		echo "Run 'make setup' first."; \
 		exit 1; \
 	fi
+

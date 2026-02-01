@@ -273,7 +273,7 @@ function renderTuneTargetsFromArray(targets) {
         const input = document.createElement("input");
         input.type = "text";
         input.className = "tune-target-input";
-        input.placeholder = "e.g., http://websdr.example.com/?tune=<FREQ-KHZ><MODE>";
+        input.placeholder = "e.g., http://websdr.example.com/?tune={FREQ-KHZ}{MODE}";
         input.value = target.url;
         input.maxLength = 255;
         input.dataset.index = index;
@@ -473,6 +473,25 @@ function onFilterBandsChange() {
     }
 }
 
+// Load UI compact mode setting into checkbox
+function loadUiCompactModeSettingUI() {
+    const checkbox = document.getElementById("ui-compact-mode");
+    if (checkbox) {
+        checkbox.checked = AppState.uiCompactMode;
+    }
+}
+
+// Save UI compact mode setting and apply immediately
+function onUiCompactModeChange() {
+    const checkbox = document.getElementById("ui-compact-mode");
+    if (!checkbox) return;
+    const enabled = checkbox.checked;
+    localStorage.setItem("sotacat_ui_compact", enabled ? "true" : "false");
+    AppState.uiCompactMode = enabled;
+    applyUiCompactMode();
+    Log.info("Settings", `Compact mode: ${enabled ? "enabled" : "disabled"}`);
+}
+
 // ============================================================================
 // Tune Targets Help Popup Functions
 // ============================================================================
@@ -480,13 +499,13 @@ function onFilterBandsChange() {
 // Toggle Tune Targets help popup
 function toggleTuneTargetsHelp() {
     const popup = document.getElementById("tune-targets-help-popup");
-    const isVisible = popup.style.display !== "none";
+    const isVisible = popup && !popup.classList.contains("hidden");
 
     if (isVisible) {
-        popup.style.display = "none";
+        popup.classList.add("hidden");
         document.body.style.overflow = ""; // Restore scrolling
     } else {
-        popup.style.display = "block";
+        popup.classList.remove("hidden");
         document.body.style.overflow = "hidden"; // Prevent background scrolling
     }
 }
@@ -498,13 +517,13 @@ function toggleTuneTargetsHelp() {
 // Toggle WiFi configuration help popup
 function toggleWifiHelp() {
     const popup = document.getElementById("wifi-help-popup");
-    const isVisible = popup.style.display !== "none";
+    const isVisible = popup && !popup.classList.contains("hidden");
 
     if (isVisible) {
-        popup.style.display = "none";
+        popup.classList.add("hidden");
         document.body.style.overflow = ""; // Restore scrolling
     } else {
-        popup.style.display = "block";
+        popup.classList.remove("hidden");
         document.body.style.overflow = "hidden"; // Prevent background scrolling
     }
 }
@@ -517,7 +536,7 @@ function handleClickOutsidePopup(event) {
 
     if (
         wifiPopup &&
-        wifiPopup.style.display === "block" &&
+        !wifiPopup.classList.contains("hidden") &&
         !wifiPopup.contains(event.target) &&
         wifiHelpButton &&
         !wifiHelpButton.contains(event.target)
@@ -531,7 +550,7 @@ function handleClickOutsidePopup(event) {
 
     if (
         tuneTargetsPopup &&
-        tuneTargetsPopup.style.display === "block" &&
+        !tuneTargetsPopup.classList.contains("hidden") &&
         !tuneTargetsPopup.contains(event.target) &&
         tuneTargetsHelpButton &&
         !tuneTargetsHelpButton.contains(event.target)
@@ -971,6 +990,12 @@ function attachSettingsEventListeners() {
     if (filterBandsCheckbox) {
         filterBandsCheckbox.addEventListener("change", onFilterBandsChange);
     }
+
+    // Display settings - compact mode checkbox
+    const compactModeCheckbox = document.getElementById("ui-compact-mode");
+    if (compactModeCheckbox) {
+        compactModeCheckbox.addEventListener("change", onUiCompactModeChange);
+    }
 }
 
 // ============================================================================
@@ -984,6 +1009,7 @@ function onSettingsAppearing() {
     loadCallSign();
     loadTuneTargets();
     loadFilterBandsSettingUI();
+    loadUiCompactModeSettingUI();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }
 

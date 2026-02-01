@@ -15,6 +15,19 @@ const CONNECTION_STATUS_UPDATE_INTERVAL_MS = 5000;
 const VFO_POLLING_INTERVAL_MS = 3000;
 
 // ============================================================================
+// Connection Loss Detection Constants
+// ============================================================================
+
+const DISCONNECT_THRESHOLD = 3;        // failures before showing overlay
+const RECONNECT_RETRY_MS = 3000;       // retry interval when disconnected
+const GIVE_UP_THRESHOLD_MS = 30000;    // show "find device" after this
+
+// Fetch timeouts (must be less than their polling intervals)
+const CONNECTION_STATUS_TIMEOUT_MS = 3000;  // < 5 sec polling interval
+const BATTERY_INFO_TIMEOUT_MS = 30000;      // < 60 sec polling interval
+const VFO_TIMEOUT_MS = 2000;                // < 3 sec polling interval
+
+// ============================================================================
 // Frequency Constants
 // ============================================================================
 
@@ -23,6 +36,15 @@ const DEFAULT_FREQUENCY_HZ = 14225000; // 20m band - fallback when VFO state unk
 const HF_MIN_FREQUENCY_HZ = 1800000;  // 160m band lower edge (1.8 MHz)
 const HF_MAX_FREQUENCY_HZ = 29700000; // 10m band upper edge (29.7 MHz) - KX2 limit
 // const HF_MAX_FREQUENCY_HZ = 54000000; // 6m band upper edge (54 MHz) - KX3 limit
+
+// ============================================================================
+// Reference Patterns (used by qrx.js and run.js)
+// ============================================================================
+
+const SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;  // W6/NC-298
+const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;             // US-1234
+const WWFF_REF_PATTERN = /^[A-Z]{2,4}FF-\d{4}$/;             // VKFF-0001
+const IOTA_REF_PATTERN = /^(AF|AN|AS|EU|NA|OC|SA)-\d{3}$/;   // EU-123
 
 // ============================================================================
 // Polling Control
@@ -62,6 +84,11 @@ const AppState = {
     // Tab management
     currentTabName: null,
 
+    // Connection loss detection
+    connectionState: "connected",  // "connected" | "reconnecting" | "disconnected"
+    consecutiveFailures: 0,
+    lastSuccessfulPoll: Date.now(),
+
     // Location
     gpsOverride: null,
 
@@ -72,6 +99,9 @@ const AppState = {
     // Radio info
     radioType: null,           // "KX2", "KX3", or "Unknown"
     filterBandsEnabled: false, // Filter chase spots to radio-supported bands
+
+    // UI density
+    uiCompactMode: false,      // Compact mode for denser table display
 
     // Version checking
     versionCheckRetryTimer: null,
@@ -97,17 +127,26 @@ const AppState = {
 // ============================================================================
 
 // Normalize tune targets from API response (handles both old string[] and new object[] formats)
+function migrateTuneTargetUrl(url) {
+    if (!url || typeof url !== "string") return url;
+    return url
+        .replace(/<FREQ-HZ>/gi, "{FREQ-HZ}")
+        .replace(/<FREQ-KHZ>/gi, "{FREQ-KHZ}")
+        .replace(/<FREQ-MHZ>/gi, "{FREQ-MHZ}")
+        .replace(/<MODE>/gi, "{MODE}");
+}
+
 function normalizeTuneTargets(targets) {
     if (!targets || !Array.isArray(targets)) return [];
 
     return targets.map((item) => {
         if (typeof item === "string") {
             // Old format: convert string to object, default enabled=true
-            return { url: item, enabled: true };
+            return { url: migrateTuneTargetUrl(item), enabled: true };
         } else if (typeof item === "object" && item !== null) {
             // New format: ensure both fields exist
             return {
-                url: item.url || "",
+                url: migrateTuneTargetUrl(item.url || ""),
                 enabled: item.enabled !== false, // default to true if not specified
             };
         }
@@ -204,10 +243,10 @@ function openTuneTargets(frequencyHz, mode) {
 
         // Substitute placeholders
         let finalUrl = target.url;
-        finalUrl = finalUrl.replace(/<FREQ-HZ>/gi, frequencyHz);
-        finalUrl = finalUrl.replace(/<FREQ-KHZ>/gi, frequencyKHz);
-        finalUrl = finalUrl.replace(/<FREQ-MHZ>/gi, frequencyMHz);
-        finalUrl = finalUrl.replace(/<MODE>/gi, modeLower);
+        finalUrl = finalUrl.replace(/\{FREQ-HZ\}/gi, frequencyHz);
+        finalUrl = finalUrl.replace(/\{FREQ-KHZ\}/gi, frequencyKHz);
+        finalUrl = finalUrl.replace(/\{FREQ-MHZ\}/gi, frequencyMHz);
+        finalUrl = finalUrl.replace(/\{MODE\}/gi, modeLower);
 
         // Get or create window for this target
         const windowName = `_sotacat_tune_${index}`;
@@ -340,6 +379,22 @@ function loadFilterBandsSetting() {
     const saved = localStorage.getItem("sotacat_filter_bands");
     AppState.filterBandsEnabled = saved === "true";
     return AppState.filterBandsEnabled;
+}
+
+// Load UI compact mode setting from localStorage
+function loadUiCompactMode() {
+    const saved = localStorage.getItem("sotacat_ui_compact");
+    AppState.uiCompactMode = saved === "true";
+    return AppState.uiCompactMode;
+}
+
+// Apply UI compact mode class to document body
+function applyUiCompactMode() {
+    if (AppState.uiCompactMode) {
+        document.body.classList.add("ui-compact");
+    } else {
+        document.body.classList.remove("ui-compact");
+    }
 }
 
 // Determine which amateur band a frequency falls into (returns '40m', '20m', etc., or null)
@@ -586,6 +641,7 @@ async function fetchVfoState() {
     if (vfoController) return; // Skip if previous request still in-flight
 
     vfoController = new AbortController();
+    const timeoutId = setTimeout(() => vfoController.abort(), VFO_TIMEOUT_MS);
     try {
         const [freqResponse, modeResponse] = await Promise.all([
             fetch("/api/v1/frequency", { signal: vfoController.signal }),
@@ -619,9 +675,10 @@ async function fetchVfoState() {
             });
         }
     } catch (error) {
-        if (error.name === "AbortError") return; // Expected when polling paused
+        if (error.name === "AbortError" && pollingPaused) return; // Expected when polling paused
         Log.warn("VFO", "Error fetching VFO state:", error);
     } finally {
+        clearTimeout(timeoutId);
         vfoController = null;
     }
 }
@@ -745,6 +802,7 @@ async function updateBatteryInfo() {
     if (batteryController) return; // Skip if previous request still in-flight
 
     batteryController = new AbortController();
+    const timeoutId = setTimeout(() => batteryController.abort(), BATTERY_INFO_TIMEOUT_MS);
     try {
         const [batteryInfoResponse, rssiResponse] = await Promise.all([
             fetch("/api/v1/batteryInfo", { signal: batteryController.signal }),
@@ -774,12 +832,13 @@ async function updateBatteryInfo() {
             document.getElementById("wifi-rssi").textContent = await rssiResponse.text();
         }
     } catch (error) {
-        if (error.name === "AbortError") return;
+        if (error.name === "AbortError" && pollingPaused) return;
         document.getElementById("battery-percent").textContent = "??";
         document.getElementById("wifi-rssi").textContent = "??";
         const timeEl = document.getElementById("battery-time");
         if (timeEl) timeEl.textContent = "";
     } finally {
+        clearTimeout(timeoutId);
         batteryController = null;
     }
 }
@@ -791,21 +850,78 @@ async function updateConnectionStatus() {
     if (connectionStatusController) return; // Skip if previous request still in-flight
 
     connectionStatusController = new AbortController();
+    const timeoutId = setTimeout(() => connectionStatusController.abort(), CONNECTION_STATUS_TIMEOUT_MS);
     try {
         const response = await fetch("/api/v1/connectionStatus", {
             signal: connectionStatusController.signal,
         });
 
         if (response.ok) {
+            // Success - reset failure tracking
+            AppState.consecutiveFailures = 0;
+            AppState.lastSuccessfulPoll = Date.now();
+            if (AppState.connectionState !== "connected") {
+                setConnectionState("connected");
+            }
             document.getElementById("connection-status").textContent = await response.text();
         } else {
+            handlePollFailure();
             document.getElementById("connection-status").textContent = "??";
         }
     } catch (error) {
-        if (error.name === "AbortError") return;
+        // Timeout aborts should still count as failures; only skip for polling pauses
+        if (error.name === "AbortError" && pollingPaused) return;
+        handlePollFailure();
         document.getElementById("connection-status").textContent = "??";
     } finally {
+        clearTimeout(timeoutId);
         connectionStatusController = null;
+    }
+}
+
+// Handle connection poll failure - track consecutive failures and update connection state
+function handlePollFailure() {
+    AppState.consecutiveFailures++;
+    if (AppState.consecutiveFailures >= DISCONNECT_THRESHOLD) {
+        if (AppState.connectionState === "connected") {
+            setConnectionState("reconnecting");
+        }
+        const elapsed = Date.now() - AppState.lastSuccessfulPoll;
+        if (elapsed > GIVE_UP_THRESHOLD_MS && AppState.connectionState === "reconnecting") {
+            setConnectionState("disconnected");
+        }
+    }
+}
+
+// Update connection state and refresh overlay UI
+function setConnectionState(newState) {
+    Log.debug("Connection", `State: ${AppState.connectionState} -> ${newState}`);
+    AppState.connectionState = newState;
+    updateConnectionOverlay();
+}
+
+// Update the connection overlay based on current connection state
+function updateConnectionOverlay() {
+    const overlay = document.getElementById("connection-overlay");
+    const reconnecting = document.getElementById("overlay-reconnecting");
+    const disconnected = document.getElementById("overlay-disconnected");
+
+    if (!overlay) return;
+
+    switch (AppState.connectionState) {
+        case "connected":
+            overlay.classList.add("hidden");
+            break;
+        case "reconnecting":
+            overlay.classList.remove("hidden");
+            reconnecting.classList.remove("hidden");
+            disconnected.classList.add("hidden");
+            break;
+        case "disconnected":
+            overlay.classList.remove("hidden");
+            reconnecting.classList.add("hidden");
+            disconnected.classList.remove("hidden");
+            break;
     }
 }
 
@@ -829,7 +945,8 @@ function cleanupCurrentTab() {
 // Load previously active tab from localStorage (returns tab name string, defaults to 'chase')
 function loadActiveTab() {
     const activeTab = localStorage.getItem("activeTab");
-    return activeTab ? activeTab : "chase"; // Default to 'chase' if no tab is saved
+    if (activeTab === "spot") return "run";
+    return activeTab ? activeTab : "qrx"; // Default to 'qrx' if no tab is saved
 }
 
 // Save currently active tab to localStorage (tabName: 'chase', 'cat', 'settings', 'about')
@@ -973,6 +1090,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // This must happen early so openTuneTargets() can be synchronous
     loadTuneTargetsAsync();
 
+    // Apply UI density preference from localStorage
+    loadUiCompactMode();
+    applyUiCompactMode();
+
     // Ensure all tab buttons use the same click handler
     document.querySelectorAll(".tabBar button").forEach((button) => {
         button.addEventListener("click", function (event) {
@@ -1067,7 +1188,8 @@ async function saveGpsToDevice(lat, lon) {
     });
 
     if (response.ok) {
-        AppState.gpsOverride = null;
+        // Update cached location to new value (don't clear - needed for location-based keys)
+        AppState.gpsOverride = { latitude: lat, longitude: lon };
         clearDistanceCache();
         AppState.latestChaseJson = null;
         return true;
@@ -1092,6 +1214,7 @@ async function saveGeolocationFromBridge(lat, lon, accuracy) {
 
     try {
         await saveGpsToDevice(lat, lon);
+        // Reference and summit info use location-based cache keys, so no explicit clearing needed
     } catch (error) {
         Log.error("GPS", "Failed to save browser location:", error);
         alert("Failed to save location to device.");
@@ -1114,6 +1237,9 @@ async function fetchLocalityFromCoords(lat, lon) {
             if (data.display_name) {
                 localityDiv.textContent = data.display_name;
                 localityDiv.title = data.display_name;
+                // Cache the result
+                const cacheKey = buildLocationKey("locality", lat, lon);
+                localStorage.setItem(cacheKey, data.display_name);
             }
         }
     } catch (error) {
@@ -1151,6 +1277,36 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// Build localStorage key for location-based data
+function buildLocationKey(prefix, lat, lon) {
+    // Ensure lat/lon are numbers (GPS API may return strings)
+    const latNum = typeof lat === "number" ? lat : parseFloat(lat);
+    const lonNum = typeof lon === "number" ? lon : parseFloat(lon);
+    return `${prefix}_${latNum.toFixed(4)}_${lonNum.toFixed(4)}`;
+}
+
+// Get reference for current location (sync - uses cached location)
+// Returns empty string if no cached location available
+function getLocationBasedReference() {
+    if (!AppState.gpsOverride) return "";
+    const key = buildLocationKey("reference", AppState.gpsOverride.latitude, AppState.gpsOverride.longitude);
+    return localStorage.getItem(key) || "";
+}
+
+// Set reference for current location (sync - uses cached location)
+function setLocationBasedReference(value) {
+    if (!AppState.gpsOverride) {
+        Log.warn("GPS", "Cannot save reference - no location cached");
+        return;
+    }
+    const key = buildLocationKey("reference", AppState.gpsOverride.latitude, AppState.gpsOverride.longitude);
+    if (value) {
+        localStorage.setItem(key, value);
+    } else {
+        localStorage.removeItem(key);
+    }
+}
+
 // Get user location from NVRAM or default to KPH (returns {latitude, longitude})
 async function getLocation() {
     // Return cached location if available
@@ -1171,9 +1327,10 @@ async function getLocation() {
         Log.warn("GPS", "Failed to fetch from NVRAM:", error);
     }
 
-    // Fall back to default location (KPH)
+    // Fall back to default location (KPH) - cache it so location-based keys work
     Log.debug("GPS", "Using default location (KPH)");
-    return DEFAULT_LOCATION;
+    AppState.gpsOverride = DEFAULT_LOCATION;
+    return AppState.gpsOverride;
 }
 
 // Distance cache for reference lookups

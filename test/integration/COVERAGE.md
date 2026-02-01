@@ -10,13 +10,13 @@ The performance test suite validates **100% of web server assets** declared in `
 - ✅ `/` - Main index (root)
 - ✅ `/index.html` - Main index (explicit)
 - ✅ `/about.html` - About page
-- ✅ `/spot.html` - Spot page (CAT control)
+- ✅ `/run.html` - Run page (activator controls)
 - ✅ `/chase.html` - Chase/SOTA page
 - ✅ `/settings.html` - Settings page
 
 ### JavaScript Files (6)
 - ✅ `/about.js` - About page script
-- ✅ `/spot.js` - Spot page script
+- ✅ `/run.js` - Run page script
 - ✅ `/chase.js` - Chase page script
 - ✅ `/chase_api.js` - Chase API integration
 - ✅ `/main.js` - Main application script
@@ -152,3 +152,4 @@ When assets are added/removed in `src/webserver.cpp`:
 The remaining ~40% of API endpoints (FT8, ATU, keyer, GPS, OTA, etc.) require specific radio states, have side effects (transmit, reboot), or need specialized testing conditions.
 
 Last updated: 2025-11-29
+

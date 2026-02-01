@@ -18,8 +18,8 @@ static const char * TAG8 = "sc:webserve";
 DECLARE_ASSET (about_htmlgz)
 DECLARE_ASSET (about_jsgz)
 DECLARE_ASSET (bandprivileges_jsgz)
-DECLARE_ASSET (spot_htmlgz)
-DECLARE_ASSET (spot_jsgz)
+DECLARE_ASSET (run_htmlgz)
+DECLARE_ASSET (run_jsgz)
 DECLARE_ASSET (chase_api_jsgz)
 DECLARE_ASSET (chase_htmlgz)
 DECLARE_ASSET (chase_jsgz)
@@ -56,14 +56,14 @@ static const asset_entry_t asset_map[] = {
     {"/",                  index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  }, // 5 min
     {"/index.html",        index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  },
     {"/about.html",        about_htmlgz_srt,        about_htmlgz_end,        "text/html",       true,  300  },
-    {"/spot.html",         spot_htmlgz_srt,         spot_htmlgz_end,         "text/html",       true,  300  },
+    {"/run.html",          run_htmlgz_srt,          run_htmlgz_end,          "text/html",       true,  300  },
     {"/chase.html",        chase_htmlgz_srt,        chase_htmlgz_end,        "text/html",       true,  300  },
     {"/settings.html",     settings_htmlgz_srt,     settings_htmlgz_end,     "text/html",       true,  300  },
     {"/qrx.html",          qrx_htmlgz_srt,          qrx_htmlgz_end,          "text/html",       true,  300  },
     // JS/CSS - medium cache (versioned with firmware)
     {"/about.js",          about_jsgz_srt,          about_jsgz_end,          "text/javascript", true,  3600 }, // 1 hour
     {"/bandprivileges.js", bandprivileges_jsgz_srt, bandprivileges_jsgz_end, "text/javascript", true,  3600 },
-    {"/spot.js",           spot_jsgz_srt,           spot_jsgz_end,           "text/javascript", true,  3600 },
+    {"/run.js",            run_jsgz_srt,            run_jsgz_end,            "text/javascript", true,  3600 },
     {"/chase.js",          chase_jsgz_srt,          chase_jsgz_end,          "text/javascript", true,  3600 },
     {"/chase_api.js",      chase_api_jsgz_srt,      chase_api_jsgz_end,      "text/javascript", true,  3600 },
     {"/main.js",           main_jsgz_srt,           main_jsgz_end,           "text/javascript", true,  3600 },
@@ -169,7 +169,7 @@ static const size_t CHUNK_SIZE = 8192;  // Increased from 1KB to 8KB for efficie
 static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, const uint8_t * end) {
     const int MAX_RETRIES    = 3;
     const int RETRY_DELAY_MS = 10;
-    size_t    total_size     = end - start - 1;
+    size_t    total_size     = end - start;
     size_t    sent           = 0;
 
     while (sent < total_size) {
@@ -255,7 +255,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
     httpd_resp_set_hdr (req, "Cache-Control", cache_header);
 
     // Use chunked transfer for large files
-    size_t file_size = asset_ptr->asset_end - asset_ptr->asset_start - 1;
+    size_t file_size = asset_ptr->asset_end - asset_ptr->asset_start;
     if (file_size > CHUNK_SIZE) {  // Chunk large files
         ESP_LOGI (TAG8, "sending chunked asset");
         return send_file_chunked (req,

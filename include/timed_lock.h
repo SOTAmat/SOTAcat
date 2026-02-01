@@ -119,8 +119,6 @@ class TimedLock {
  * Usage: TIMED_LOCK_OR_FAIL(req, kxRadio.timed_lock(RADIO_LOCK_TIMEOUT_FAST_MS, "operation")) { ... }
  */
 #define TIMED_LOCK_OR_FAIL(req, timed_lock_expr)                                               \
-    TimedLock _timed_lock_##__LINE__ = timed_lock_expr;                                        \
-    if (!_timed_lock_##__LINE__.acquired()) {                                                  \
+    if (TimedLock _timed_lock_##__LINE__ = timed_lock_expr; !_timed_lock_##__LINE__.acquired()) { \
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy, please retry"); \
-    }                                                                                          \
-    if (_timed_lock_##__LINE__.acquired())
+    } else

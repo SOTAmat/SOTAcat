@@ -511,7 +511,7 @@ function buildPoloChaseLink() {
     const theirSig = isValidPoloSig(tunedSpot.sig) ? tunedSpot.sig.toLowerCase() : null;
 
     // Check if user has their own activation reference (S2S/P2P scenario)
-    const myRef = localStorage.getItem("qrxReference") || "";
+    const myRef = getLocationBasedReference() || "";
     const mySig = getChaseUserSigFromReference(myRef);
 
     const params = {

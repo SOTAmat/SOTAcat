@@ -167,8 +167,8 @@ a {
 
 /* =========================== Card Components */
 
-/* Spot Page Container */
-.spot-container {
+/* Run Page Container */
+.run-container {
     max-width: 1200px; /* Medium width for comfortable button/control sizing */
     margin: 0 auto;
 }
@@ -781,6 +781,18 @@ td {
     color: var(--text-primary);
 }
 
+/* Compact mode (denser tables, no word wrap) */
+body.ui-compact .data-table,
+body.ui-compact table {
+    font-size: var(--text-xs);
+}
+
+body.ui-compact th,
+body.ui-compact td {
+    padding: var(--space-sm) var(--space-xs);
+    white-space: nowrap;
+}
+
 tr:last-child td {
     border-bottom: none;
 }
@@ -1017,6 +1029,11 @@ tbody tr:active {
 
 /* Numeric "hertz" frequency columns - right aligned */
 #chase-table td:nth-child(3) {
+    text-align: right;
+}
+
+/* Miles column - right aligned */
+#chase-table td:nth-child(7) {
     text-align: right;
 }
 
@@ -1490,6 +1507,49 @@ tbody tr:active {
     font-weight: 500;
 }
 
+/* =========================== Connection Loss Overlay */
+.connection-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+
+.connection-overlay-content {
+    background: var(--white);
+    color: var(--text-primary);
+    padding: var(--space-xl);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    max-width: 320px;
+    margin: var(--space-md);
+}
+
+.connection-overlay .hint {
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    margin-top: var(--space-sm);
+}
+
+.connection-spinner {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 4px solid var(--gray-3);
+    border-top-color: var(--primary);
+    margin: 0 auto var(--space-md);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* =========================== Responsive Design */
 @media (max-width: 480px) {
     :root {
@@ -1782,8 +1842,28 @@ tbody tr:active {
     display: none !important;
 }
 
+.collapsed {
+    display: none !important;
+}
+
+.feedback-success {
+    color: var(--success);
+}
+
+.feedback-warning {
+    color: var(--warning);
+}
+
+.feedback-bg-success {
+    background: var(--success) !important;
+}
+
 .text-center {
     text-align: center;
+}
+
+.text-uppercase {
+    text-transform: uppercase;
 }
 
 .text-muted {
