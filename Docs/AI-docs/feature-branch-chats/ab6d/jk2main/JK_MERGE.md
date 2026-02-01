@@ -122,6 +122,21 @@ The following features were added to `origin/main` after the `kowalski/wip` bran
 
 ---
 
+## FT8 Regression vs `origin/main` (Feb 1, 2026)
+
+### Findings
+- **FT8 cleanup can exit without restoring radio state:** `cleanup_ft8_task()` now uses `TimedLock` with a 10s timeout and returns early if the lock is busy, skipping `restore_radio_state()` and leaving the radio in prepared FT8 mode. In `origin/main` this was a blocking `lock_guard`, so cleanup always eventually restored state.
+- **FT8 transmit can abort under contention:** `xmit_ft8_task()` now uses a timed lock and exits if it cannot acquire the mutex, which can skip the second transmission if another REST request is holding the lock.
+- **FT8 window timing no longer uses UTC:** `msUntilFT8Window()` now uses `esp_timer_get_time()` (uptime) instead of `gettimeofday()` (UTC). This decouples FT8 start times from UTC boundaries and is a behavioral change from `origin/main`.
+
+### Plan to Address
+1. **Make cleanup non-failable:** Replace the timed lock in `cleanup_ft8_task()` with a blocking lock or a retry loop (with watchdog resets) so `restore_radio_state()` always runs. Never return early without restoring state.
+2. **Harden transmit under lock contention:** If `xmit_ft8_task()` cannot acquire the lock, force cleanup by setting `CancelRadioFT8ModeTime = 1`, clear `ft8TaskInProgress`, and schedule a retry (or return a clear error to the caller) so the radio does not remain prepared.
+3. **Handle lock failure in prepare:** When `TIMED_LOCK_OR_FAIL` triggers in `handler_prepareft8_post()`, ensure `CommandInProgress` is cleared, allocated tone buffers are freed, and LED state is reset before returning.
+4. **Re-align FT8 timing to UTC:** Switch `msUntilFT8Window()` back to `gettimeofday()` or compute the 15-second boundary from the system clock so FT8 transmissions remain time-accurate.
+
+---
+
 ## Deviations from kowalski/wip (Justified by Driver Architecture)
 
 The following deviations are intentional and required for KH1 support:
