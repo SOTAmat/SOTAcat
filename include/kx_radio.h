@@ -41,6 +41,8 @@ typedef struct {
 
 // Forward declaration for TimedLock
 class TimedLock;
+class IRadioDriver;
+struct RadioTimeHms;
 
 /*
  * The recommended way of exclusively accessing the radio's ACC port
@@ -64,8 +66,10 @@ class KXRadio {
     SemaphoreHandle_t m_mutex;
     bool              m_is_connected;
     RadioType         m_radio_type;
+    IRadioDriver *    m_driver;
     KXRadio();
     void detect_radio_type ();
+    void select_driver ();
 
     // Check if current task holds the mutex
     bool is_locked () const {
@@ -91,11 +95,29 @@ class KXRadio {
     bool put_to_kx_menu_item (uint8_t menu_item, long value, int tries);
     bool get_from_kx_string (const char * command, int tries, char * result, int result_size);
     bool put_to_kx_command_string (const char * command, int tries);
-    long get_kh1_frequency ();
-    long get_kh1_mode ();
-    bool set_kh1_power (int power_level);
-    void get_kx_state (kx_state_t * in_state);
-    void restore_kx_state (const kx_state_t * in_state, int tries);
+
+    bool get_frequency (long & out_hz);
+    bool set_frequency (long hz, int tries);
+    bool get_mode (radio_mode_t & out_mode);
+    bool set_mode (radio_mode_t mode, int tries);
+    bool get_power (long & out_power);
+    bool set_power (long power);
+    bool get_volume (long & out_volume);
+    bool set_volume (long volume);
+    bool get_xmit_state (long & out_state);
+    bool set_xmit_state (bool on);
+    bool play_message_bank (int bank);
+    bool tune_atu ();
+    bool supports_keyer () const;
+    bool supports_volume () const;
+    bool send_keyer_message (const char * message);
+    bool sync_time (const RadioTimeHms & client_time);
+    bool get_radio_state (kx_state_t * in_state);
+    bool restore_radio_state (const kx_state_t * in_state, int tries);
+    bool ft8_prepare (long base_freq);
+    void ft8_tone_on ();
+    void ft8_tone_off ();
+    void ft8_set_tone (long base_freq, long frequency);
 
     RadioType get_radio_type () const { return m_radio_type; }
 

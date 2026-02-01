@@ -60,10 +60,11 @@ radio_mode_t get_radio_mode () {
         {
             TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "mode GET");
             if (lock.acquired()) {
-                if (kxRadio.get_radio_type() == RadioType::KH1)
-                    mode = kxRadio.get_kh1_mode();
+                radio_mode_t current_mode = MODE_UNKNOWN;
+                if (!kxRadio.get_mode (current_mode))
+                    mode = MODE_UNKNOWN;
                 else
-                    mode = kxRadio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1);
+                    mode = current_mode;
 
                 if (mode > MODE_UNKNOWN && mode <= MODE_LAST) {
                     // Update cache
@@ -137,12 +138,8 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         if (!strcmp (bw, "SSB")) {
             // Get the current frequency and set the mode to LSB or USB based on the frequency
             long frequency = 0;
-            if (kxRadio.get_radio_type() == RadioType::KH1) {
-                frequency = kxRadio.get_kh1_frequency() * 10;  // KH1 frequency is in tens of Hz, convert to Hz
-                ESP_LOGI (TAG8, "mode freq = '%ld'", frequency);
-            }
-            else
-                frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
+            if (!kxRadio.get_frequency (frequency))
+                frequency = 0;
             if (frequency > 0)
                 mode = (frequency < 10000000) ? MODE_LSB : MODE_USB;
         }
@@ -161,17 +158,10 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         if (mode == MODE_UNKNOWN)
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid bw");
 
-        // KH code for CW is 0, mapped to MODE_UNKNOWN
-        if (kxRadio.get_radio_type() == RadioType::KH1 && mode == MODE_CW)
-            mode = MODE_UNKNOWN;
-
-        // KH only supports CW, LSB, and USB modes
-        if (kxRadio.get_radio_type() == RadioType::KH1 && mode > MODE_CW)
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode for KH1");
-
         // Set the radio mode
         ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
-        kxRadio.put_to_kx ("MD", 1, mode, SC_KX_COMMUNICATION_RETRIES);
+        if (!kxRadio.set_mode (mode, SC_KX_COMMUNICATION_RETRIES))
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode for radio");
 
         // Update cache after setting new mode
         cached_mode      = mode;

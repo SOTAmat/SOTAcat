@@ -7,6 +7,62 @@
 
 This document catalogs changes added to `main` after the split from `kowalski/wip` that do **not** exist in `kowalski/wip` (even if implemented differently). Items verified as present in `kowalski/wip` have been removed.
 
+## JK2 Integration Plan (ab6d/jk2main)
+
+This plan assumes the current working tree already contains the partial radio-driver refactor (new `IRadioDriver` in `include/radio_driver.h` and drivers in `src/radio_driver_kx.*` / `src/radio_driver_kh1.*`). The goal is to finish the refactor, validate locking and timing behavior from `kowalski/wip`, then merge in the latest `origin/kowalski/wip` changes.
+
+### 1) Finish the radio-driver refactor
+1. Inventory remaining radio-specific logic outside drivers.
+   - `src/handler_volume.cpp` still uses `kxRadio.get_from_kx` / `kxRadio.put_to_kx` with KX-only AG commands. Decide: add volume methods to `IRadioDriver` (preferred) or gate the handler by `RadioType` or a new `supports_volume` capability.
+   - Search for any other direct `get_from_kx` / `put_to_kx` usage and move to driver methods.
+2. Expand the driver interface as needed.
+   - Add `get_volume` / `set_volume` (or `supports_audio_gain`) to `IRadioDriver`.
+   - Implement in `KXRadioDriver`; return false in `KH1RadioDriver` and have the handler return 404 for unsupported features.
+3. Keep handlers radio-agnostic.
+   - Handlers should call `kxRadio.*` high-level methods only (no RadioType branching, no DSx parsing).
+   - Update `KXRadio` to forward any new methods to `m_driver`.
+4. Make sure build includes new files.
+   - Add new driver `.cpp` / `.h` files to any build lists if needed.
+   - `include/radio_driver.h` should stay in `include/`; driver headers can stay in `src/` if they are private.
+5. Commit the refactor as its own change before merging `origin/kowalski/wip`.
+
+### 2) Locking and timing regression review
+The refactor must preserve the `kowalski/wip` concurrency protections (radio mutex plus timeouts).
+
+Checklist:
+- Every radio access in HTTP handlers runs inside `TimedLock` or `TIMED_LOCK_OR_FAIL`.
+- `xmit_ft8_task` holds a single `TimedLock` for the entire transmission and only uses `kxRadio.ft8_*` inside that lock.
+- `handler_prepareft8_post` grabs a lock only for the setup phase, then releases it before background tasks start.
+- `KXRadio::connect()` is still called under a lock during setup (`setup.cpp` uses `timed_lock(portMAX_DELAY, "radio connect")`).
+- `get_from_kx` / `put_to_kx` are not called from any context that does not already hold the lock.
+- Timeouts still match operation tiers (FAST, MODERATE, CRITICAL, FT8) and no new lock bypasses were introduced.
+
+If any regression is found:
+- Restore `TimedLock` blocks around any new direct `kxRadio` or UART calls.
+- Avoid taking locks inside driver methods (keep locks at the handler or task layer to prevent deadlocks).
+- Reintroduce cached-frequency and cached-mode fallback behavior if it was removed or weakened.
+
+### 3) Incorporate latest `origin/kowalski/wip` changes
+`origin/kowalski/wip` has moved ahead since `ab6d/jk2main`. The current delta includes UI and docs updates such as connection-loss overlay, QRX page changes, and README/docs modernization.
+
+Recommended sequence:
+1. Fetch latest:
+   - `git fetch origin`
+2. Finish and commit the refactor work on `ab6d/jk2main` (keep it a single focused commit).
+3. Rebase or merge:
+   - Preferred: `git rebase origin/kowalski/wip`
+   - Alternative: `git merge origin/kowalski/wip`
+4. Resolve likely conflicts in:
+   - `README.md`
+   - `Docs/...` (documentation structure and placeholders)
+   - `src/web/*` (QRX/chase UI changes, CSS refactors, labels)
+5. After merging, re-run the KH1 validations:
+   - Detection at 9600 baud (`;I;` / `KH1;`)
+   - CAT endpoints (`/frequency`, `/mode`, `/xmit`, `/atu`, `/power`, `/time`)
+   - FT8 transmit and cleanup path and watchdog
+   - Unsupported features: keyer and volume should return a clear error on KH1
+6. Build and flash for at least one KX and one KH1 test cycle if possible.
+
 ## Summary
 
 The following functionality appears only in `main` and is missing from `kowalski/wip`:
