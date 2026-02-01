@@ -152,3 +152,4 @@ When assets are added/removed in `src/webserver.cpp`:
 The remaining ~40% of API endpoints (FT8, ATU, keyer, GPS, OTA, etc.) require specific radio states, have side effects (transmit, reboot), or need specialized testing conditions.
 
 Last updated: 2025-11-29
+

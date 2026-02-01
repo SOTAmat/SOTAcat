@@ -19,3 +19,4 @@
 ---
 
 **Note:** The `docs/` directory (lowercase) contains the geolocation module code that powers the "Locate me" feature. See [docs/README.md](../docs/README.md) for developer details.
+

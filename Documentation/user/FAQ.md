@@ -32,3 +32,4 @@ Android's mDNS support varies by device and OS version. Use `http://192.168.4.1`
 ---
 
 [← Troubleshooting](Troubleshooting.md)
+

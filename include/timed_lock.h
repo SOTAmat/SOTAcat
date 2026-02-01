@@ -19,7 +19,6 @@
  *         - TX/RX toggle, Keyer, ATU, FT8, Time setting
  *         - 10000ms (10s) allows completion while preventing indefinite blocking
  */
-// clang has narrow vision and complains of non-use, but these are used in source files
 // NOLINTBEGIN(clang-diagnostic-unused-const-variable)
 constexpr TickType_t RADIO_LOCK_TIMEOUT_FAST_MS     = 500;    // Tier 1: GET operations
 constexpr TickType_t RADIO_LOCK_TIMEOUT_MODERATE_MS = 2000;   // Tier 2: SET operations
@@ -90,7 +89,7 @@ class TimedLock {
     /**
      * Automatically unlock on destruction (RAII)
      */
-    ~TimedLock() {
+    ~TimedLock () {
         if (m_acquired) {
             xSemaphoreGive (m_mutex);
         }
@@ -127,4 +126,4 @@ class TimedLock {
     if (!_timed_lock_##__LINE__.acquired()) {                                                  \
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy, please retry"); \
     }                                                                                          \
-    if (_timed_lock_##__LINE__.acquired())
+    else

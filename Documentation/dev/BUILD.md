@@ -88,3 +88,4 @@ For pre-built firmware with one-button install, see [sotamat.com/sotacat](https:
 ---
 
 [Architecture →](Architecture.md)
+

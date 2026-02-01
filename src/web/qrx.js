@@ -278,7 +278,15 @@ async function loadReference() {
 
     // Load reference for current location (no fetch - only fetched on button press)
     if (referenceInput) {
-        const stored = getLocationBasedReference();
+        let stored = getLocationBasedReference();
+        if (!stored) {
+            const legacy = localStorage.getItem("qrxReference") || "";
+            if (legacy) {
+                setLocationBasedReference(legacy);
+                localStorage.removeItem("qrxReference");
+                stored = legacy;
+            }
+        }
         referenceInput.value = stored;
         originalReferenceValue = stored;
     }
@@ -563,11 +571,11 @@ function attachQrxEventListeners() {
 // ============================================================================
 
 // Called when QRX tab becomes visible
-function onQrxAppearing() {
+async function onQrxAppearing() {
     Log.info("QRX", "tab appearing");
     attachQrxEventListeners();
     loadGpsLocation();
-    loadReference();
+    await loadReference();
 }
 
 // Called when QRX tab is hidden

@@ -1,15 +1,13 @@
 // ============================================================================
-// RUN Page Logic - For Activators Running a Summit/Park
+// SPOT Page Logic - CAT (Computer Aided Transceiver) Control
 // ============================================================================
-// The RUN page is for activators operating from a SOTA summit, POTA park, etc.
-// (as opposed to the CHASE page, which is for hunters working activators).
-// Provides radio control, self-spotting, and logging integration.
+// Provides radio control interface for frequency, mode, power, and keying
 
 // ============================================================================
 // State Object
 // ============================================================================
 
-// Run page state encapsulated in a single object
+// Spot page state encapsulated in a single object
 // Note: VFO frequency/mode are stored in global AppState for cross-page sharing
 const RunState = {
     // VFO polling state (frequency/mode stored in AppState)
@@ -21,7 +19,7 @@ const RunState = {
     lastFrequencyChange: 0,
 
     // UI state
-    runEventListenersAttached: false,
+    spotEventListenersAttached: false,
 };
 
 // ============================================================================
@@ -46,7 +44,7 @@ const ATU_FEEDBACK_DURATION_MS = 1000;
 // Play pre-recorded message from specified memory bank slot (1-3)
 function playMsg(slot) {
     const url = `/api/v1/msg?bank=${slot}`;
-    fetchQuiet(url, { method: "PUT" }, "Run");
+    fetchQuiet(url, { method: "PUT" }, "Spot");
 }
 
 // ============================================================================
@@ -57,9 +55,9 @@ function playMsg(slot) {
 function setPowerMinMax(maximum) {
     // KX3 max power is 15w, KX2 will accept that and gracefully set 10w instead
     // On both radios, actual power may be lower than requested, depending on mode, battery, etc.
-    SpotState.lastUserAction = Date.now(); // Prevent VFO polling while setting power. KH reads power/freq from display
+    RunState.lastUserAction = Date.now(); // Prevent VFO polling while setting power. KH reads power/freq from display
     const url = `/api/v1/power?power=${maximum ? "15" : "0"}`;
-    fetchQuiet(url, { method: "PUT" }, "Run");
+    fetchQuiet(url, { method: "PUT" }, "Spot");
 }
 
 // ============================================================================
@@ -70,7 +68,7 @@ function setPowerMinMax(maximum) {
 // KX2/KX3 AF gain range is 0-255; step of 21 ≈ 5 display units
 function changeVolume(delta) {
     const url = `/api/v1/volume?delta=${delta}`;
-    fetchQuiet(url, { method: "PUT" }, "Run");
+    fetchQuiet(url, { method: "PUT" }, "Spot");
 }
 
 // ============================================================================
@@ -85,7 +83,7 @@ function sendKeys(message) {
     }
 
     const url = `/api/v1/keyer?message=${message}`;
-    fetchQuiet(url, { method: "PUT" }, "Run");
+    fetchQuiet(url, { method: "PUT" }, "Spot");
 }
 
 // Frequency utilities (BAND_PLAN, formatFrequency, parseFrequencyInput,
@@ -151,10 +149,10 @@ function updateBandDisplay() {
         const bandButton = document.getElementById(`btn-${currentBand}`);
         if (bandButton) {
             bandButton.classList.add("active");
-            Log.debug("Run", `Band display updated: ${currentBand} active`);
+            Log.debug("Spot", `Band display updated: ${currentBand} active`);
         }
     } else {
-        Log.debug("Run", "Current frequency not in any supported band range");
+        Log.debug("Spot", "Current frequency not in any supported band range");
     }
 }
 
@@ -278,10 +276,10 @@ function enableFrequencyEditing() {
             // Valid frequency - apply it
             setFrequency(result.frequencyHz);
             exitEditMode();
-            Log.debug("Run", `Frequency set to ${result.frequencyHz} Hz (${result.band})`);
+            Log.debug("Spot", `Frequency set to ${result.frequencyHz} Hz (${result.band})`);
         } else {
             // Invalid frequency - show error
-            Log.error("Run", "Invalid frequency input:", result.error);
+            Log.error("Spot", "Invalid frequency input:", result.error);
             alert(result.error);
             exitEditMode();
         }
@@ -339,7 +337,7 @@ function notifyVfoSubscribers() {
         try {
             callback(AppState.vfoFrequencyHz, AppState.vfoMode);
         } catch (error) {
-            Log.error("Run", "VFO callback error:", error);
+            Log.error("Spot", "VFO callback error:", error);
         }
     });
 }
@@ -369,14 +367,14 @@ function setFrequency(frequencyHz) {
             const response = await fetch(url, { method: "PUT" });
 
             if (response.ok) {
-                Log.debug("Run", "Frequency updated:", frequencyHz);
+                Log.debug("Spot", "Frequency updated:", frequencyHz);
             } else {
-                Log.error("Run", "Frequency update failed");
+                Log.error("Spot", "Frequency update failed");
                 // Revert display on error
                 getCurrentVfoState();
             }
         } catch (error) {
-            Log.error("Run", "Frequency fetch error:", error);
+            Log.error("Spot", "Frequency fetch error:", error);
             // Revert display on error
             getCurrentVfoState();
         } finally {
@@ -393,7 +391,7 @@ function adjustFrequency(deltaHz) {
     if (newFrequency >= HF_MIN_FREQUENCY_HZ && newFrequency <= HF_MAX_FREQUENCY_HZ) {
         setFrequency(newFrequency);
     } else {
-        Log.warn("Run", "Frequency out of bounds:", newFrequency);
+        Log.warn("Spot", "Frequency out of bounds:", newFrequency);
     }
 }
 
@@ -419,14 +417,14 @@ async function setMode(mode) {
             updateModeDisplay();
             updatePrivilegeDisplay();
             notifyVfoSubscribers();
-            Log.debug("Run", "Mode updated:", actualMode);
+            Log.debug("Spot", "Mode updated:", actualMode);
         } else {
-            Log.error("Run", "Mode update failed");
+            Log.error("Spot", "Mode update failed");
             // Revert display on error
             getCurrentVfoState();
         }
     } catch (error) {
-        Log.error("Run", "Mode fetch error:", error);
+        Log.error("Spot", "Mode fetch error:", error);
         // Revert display on error
         getCurrentVfoState();
     }
@@ -469,7 +467,7 @@ function selectBand(band) {
                 }
                 // If not in SSB mode (AM, FM, DATA, CW, etc.), leave mode unchanged
             } catch (error) {
-                Log.error("Run", "Error checking current mode:", error);
+                Log.error("Spot", "Error checking current mode:", error);
             }
         }, MODE_CHECK_DELAY_MS);
     }
@@ -488,7 +486,7 @@ async function getCurrentVfoState() {
 
     // Back off if we've had consecutive errors
     if (RunState.consecutiveErrors > 2) {
-        Log.debug("Run", "Backing off due to errors, skipping poll");
+        Log.debug("Spot", "Backing off due to errors, skipping poll");
         return;
     }
 
@@ -524,7 +522,7 @@ async function getCurrentVfoState() {
                 RunState.lastFrequencyChange = Date.now(); // Track that frequency changed
                 updateFrequencyDisplay();
                 updateBandDisplay(); // Update band button active state
-                Log.debug("Run", "Frequency updated from radio:", AppState.vfoFrequencyHz);
+                Log.debug("Spot", "Frequency updated from radio:", AppState.vfoFrequencyHz);
                 changed = true;
             }
         }
@@ -535,7 +533,7 @@ async function getCurrentVfoState() {
             if (newMode !== AppState.vfoMode) {
                 AppState.vfoMode = newMode;
                 updateModeDisplay();
-                Log.debug("Run", "Mode updated from radio:", AppState.vfoMode);
+                Log.debug("Spot", "Mode updated from radio:", AppState.vfoMode);
                 changed = true;
             }
         }
@@ -548,7 +546,7 @@ async function getCurrentVfoState() {
         }
     } catch (error) {
         RunState.consecutiveErrors++;
-        Log.error("Run", `VFO state error (${RunState.consecutiveErrors} consecutive):`, error);
+        Log.error("Spot", `VFO state error (${RunState.consecutiveErrors} consecutive):`, error);
         // After 3 consecutive errors, we'll back off automatically
     } finally {
         RunState.isUpdatingVfo = false;
@@ -581,12 +579,12 @@ async function startVfoUpdates() {
             AppState.vfoFrequencyHz = parseInt(frequency, 10);
             updateFrequencyDisplay();
             updateBandDisplay();
-            Log.debug("Run", "Initial frequency loaded:", AppState.vfoFrequencyHz);
+            Log.debug("Spot", "Initial frequency loaded:", AppState.vfoFrequencyHz);
         }
         if (mode) {
             AppState.vfoMode = mode.toUpperCase();
             updateModeDisplay();
-            Log.debug("Run", "Initial mode loaded:", AppState.vfoMode);
+            Log.debug("Spot", "Initial mode loaded:", AppState.vfoMode);
         }
         // Update privilege display with initial state
         updatePrivilegeDisplay();
@@ -594,7 +592,7 @@ async function startVfoUpdates() {
         AppState.vfoLastUpdated = Date.now();
         notifyVfoSubscribers();
     } catch (error) {
-        Log.error("Run", "Error loading initial VFO state:", error);
+        Log.error("Spot", "Error loading initial VFO state:", error);
     } finally {
         RunState.isUpdatingVfo = false;
 
@@ -607,7 +605,7 @@ async function startVfoUpdates() {
                 RunState.consecutiveErrors > 0 &&
                 Date.now() - RunState.lastFrequencyChange > ERROR_RESET_STABILITY_MS
             ) {
-                Log.debug("Run", "System stable, resetting error counter");
+                Log.debug("Spot", "System stable, resetting error counter");
                 RunState.consecutiveErrors = 0;
             }
         }, VFO_POLLING_INTERVAL_MS);
@@ -640,11 +638,11 @@ async function tuneAtu() {
         const response = await fetch("/api/v1/atu", { method: "PUT" });
 
         if (!response.ok) {
-            Log.error("Run", "ATU tune failed");
+            Log.error("Spot", "ATU tune failed");
             return;
         }
 
-        // Visual feedback using CSS class
+        // Visual feedback
         const atuBtn = document.querySelector(".btn-tune");
         if (atuBtn) {
             atuBtn.classList.add("feedback-bg-success");
@@ -653,7 +651,7 @@ async function tuneAtu() {
             }, ATU_FEEDBACK_DURATION_MS);
         }
     } catch (error) {
-        Log.error("Run", "ATU fetch error:", error);
+        Log.error("Spot", "ATU fetch error:", error);
     }
 }
 
@@ -661,25 +659,45 @@ async function tuneAtu() {
 // UI State Persistence Functions
 // ============================================================================
 
+const CW_MESSAGE_STORAGE_KEYS = ["runCwMessage1", "runCwMessage2", "runCwMessage3"];
+const LEGACY_CW_MESSAGE_KEYS = ["spotCWMessage1", "spotCWMessage2", "spotCWMessage3"];
+
+function migrateCwMessageKeys() {
+    CW_MESSAGE_STORAGE_KEYS.forEach((newKey, index) => {
+        const legacyKey = LEGACY_CW_MESSAGE_KEYS[index];
+        const existingValue = localStorage.getItem(newKey);
+        if (existingValue !== null) {
+            return;
+        }
+
+        const legacyValue = localStorage.getItem(legacyKey);
+        if (legacyValue !== null) {
+            localStorage.setItem(newKey, legacyValue);
+            localStorage.removeItem(legacyKey);
+        }
+    });
+}
+
 // Load saved CW message text from localStorage
 function loadInputValues() {
-    document.getElementById("cw-message-1").value = localStorage.getItem("runCWMessage1") || "";
-    document.getElementById("cw-message-2").value = localStorage.getItem("runCWMessage2") || "";
-    document.getElementById("cw-message-3").value = localStorage.getItem("runCWMessage3") || "";
+    migrateCwMessageKeys();
+    document.getElementById("cw-message-1").value = localStorage.getItem(CW_MESSAGE_STORAGE_KEYS[0]) || "";
+    document.getElementById("cw-message-2").value = localStorage.getItem(CW_MESSAGE_STORAGE_KEYS[1]) || "";
+    document.getElementById("cw-message-3").value = localStorage.getItem(CW_MESSAGE_STORAGE_KEYS[2]) || "";
 }
 
 // Save CW message text to localStorage
 function saveInputValues() {
-    localStorage.setItem("runCWMessage1", document.getElementById("cw-message-1").value);
-    localStorage.setItem("runCWMessage2", document.getElementById("cw-message-2").value);
-    localStorage.setItem("runCWMessage3", document.getElementById("cw-message-3").value);
+    localStorage.setItem(CW_MESSAGE_STORAGE_KEYS[0], document.getElementById("cw-message-1").value);
+    localStorage.setItem(CW_MESSAGE_STORAGE_KEYS[1], document.getElementById("cw-message-2").value);
+    localStorage.setItem(CW_MESSAGE_STORAGE_KEYS[2], document.getElementById("cw-message-3").value);
 }
 
 // Mapping from DOM section IDs to localStorage keys
 const SECTION_STORAGE_KEYS = {
-    "tune-section": "runTuneSectionExpanded",
-    "run-section": "runSpotSectionExpanded",
-    "transmit-section": "runTransmitSectionExpanded",
+    "tune-section": "spotTuneSectionExpanded",
+    "spot-section": "spotSpotSectionExpanded",
+    "transmit-section": "spotTransmitSectionExpanded",
 };
 
 // Toggle collapsible section visibility (sectionId: 'tune-section', 'spot-section', 'transmit-section')
@@ -702,7 +720,7 @@ function toggleSection(sectionId) {
 
 // Load saved collapsed/expanded state for all sections
 function loadCollapsibleStates() {
-    const sections = ["tune-section", "run-section", "transmit-section"];
+    const sections = ["tune-section", "spot-section", "transmit-section"];
     sections.forEach((sectionId) => {
         const storageKey = SECTION_STORAGE_KEYS[sectionId];
         const savedState = localStorage.getItem(storageKey);
@@ -751,7 +769,7 @@ function isSotaReference(ref) {
 }
 
 // Update spot action buttons enabled state based on reference validity
-function updateRunButtonStates() {
+function updateSpotButtonStates() {
     const ref = getLocationBasedReference() || "";
     const isValid = isValidSpotReference(ref);
 
@@ -765,7 +783,7 @@ function updateRunButtonStates() {
     if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
     if (poloSpotBtn) poloSpotBtn.disabled = !isValid;
 
-    Log.debug("Run", `Run buttons ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
+    Log.debug("Spot", `Spot buttons ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
 }
 
 // Build SMS URI for spotting current activation
@@ -800,7 +818,7 @@ function buildQrtSmsUri() {
 function sendSpotSms() {
     const uri = buildSpotSmsUri();
     if (uri) {
-        Log.info("Run", "Opening SMS for spot:", uri);
+        Log.info("Spot", "Opening SMS for spot:", uri);
         window.location.href = uri;
     }
 }
@@ -809,7 +827,7 @@ function sendSpotSms() {
 function sendQrtSms() {
     const uri = buildQrtSmsUri();
     if (uri) {
-        Log.info("Run", "Opening SMS for QRT:", uri);
+        Log.info("Spot", "Opening SMS for QRT:", uri);
         window.location.href = uri;
     }
 }
@@ -855,11 +873,11 @@ function buildPoloSpotLink() {
 function launchPoloSpot() {
     const url = buildPoloSpotLink();
     if (url) {
-        Log.info("Run", "Launching Polo for spot:", url);
+        Log.info("Spot", "Launching Polo for spot:", url);
         // Use location.href for mobile deep link compatibility
         window.location.href = url;
     } else {
-        Log.warn("Run", "Cannot launch Polo - no valid reference set");
+        Log.warn("Spot", "Cannot launch Polo - no valid reference set");
     }
 }
 
@@ -868,15 +886,15 @@ function launchPoloSpot() {
 // ============================================================================
 
 // Attach all Spot page event listeners
-function attachRunEventListeners() {
+function attachSpotEventListeners() {
     // Only attach once to prevent memory leaks
-    Log.debug("Run", `attachRunEventListeners called, flag: ${RunState.runEventListenersAttached}`);
-    if (RunState.runEventListenersAttached) {
-        Log.debug("Run", "Event listeners already attached, skipping");
+    Log.debug("Spot", `attachSpotEventListeners called, flag: ${RunState.spotEventListenersAttached}`);
+    if (RunState.spotEventListenersAttached) {
+        Log.debug("Spot", "Event listeners already attached, skipping");
         return;
     }
-    Log.debug("Run", "Attaching event listeners to DOM");
-    RunState.runEventListenersAttached = true;
+    Log.debug("Spot", "Attaching event listeners to DOM");
+    RunState.spotEventListenersAttached = true;
 
     // Section toggle handlers
     document.querySelectorAll(".section-header[data-section]").forEach((header) => {
@@ -1023,13 +1041,13 @@ function updateSendButtonStates() {
 // ============================================================================
 
 // Called when Spot tab becomes visible
-async function onRunAppearing() {
-    Log.info("Run", "tab appearing");
+async function onSpotAppearing() {
+    Log.info("Spot", "tab appearing");
     loadInputValues();
     loadCollapsibleStates();
 
     // Attach event listeners for all controls
-    attachRunEventListeners();
+    attachSpotEventListeners();
 
     // Sync xmit button state with global state
     syncXmitButtonState();
@@ -1038,7 +1056,7 @@ async function onRunAppearing() {
     updateSendButtonStates();
 
     // Update spot action buttons based on reference validity
-    updateRunButtonStates();
+    updateSpotButtonStates();
 
     // Ensure license class is loaded before VFO updates (needed for privilege badges)
     await ensureLicenseClassLoaded();
@@ -1047,11 +1065,20 @@ async function onRunAppearing() {
 }
 
 // Called when Spot tab is hidden
-function onRunLeaving() {
-    Log.info("Run", "tab leaving");
+function onSpotLeaving() {
+    Log.info("Spot", "tab leaving");
     stopVfoUpdates();
 
     // Reset event listener flag so they can be reattached when returning to this tab
     // (necessary because DOM is recreated on each tab switch)
-    RunState.runEventListenersAttached = false;
+    RunState.spotEventListenersAttached = false;
+}
+
+// RUN tab aliases for the renamed tab
+function onRunAppearing() {
+    return onSpotAppearing();
+}
+
+function onRunLeaving() {
+    return onSpotLeaving();
 }

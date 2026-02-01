@@ -534,3 +534,4 @@ if (failures.length > 0) {
 console.log('='.repeat(60));
 
 process.exit(testsFailed > 0 ? 1 : 0);
+
