@@ -71,8 +71,3 @@ WiFi CAT control for Elecraft KX2/KX3. Connect your phone, control your radio.
 - **Bug?** [GitHub Issues](https://github.com/SOTAmat/SOTAcat/issues)
 - **Suggestion?** [GitHub Discussions](https://github.com/SOTAmat/SOTAcat/discussions)
 - **Help?** #sotacat-sotamat on SOTA-NA Slack — [how to join](Documentation/user/FAQ.md#slack)
-
-## Repository Layout
-
-- `Documentation/` — User and developer documentation
-- `docs/` — Geolocation engine code (powers "Locate me" feature)
