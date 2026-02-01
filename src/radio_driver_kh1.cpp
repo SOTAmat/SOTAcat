@@ -1,0 +1,303 @@
+#include "radio_driver_kh1.h"
+
+#include "hardware_specific.h"
+
+#include <cassert>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+
+#include <driver/uart.h>
+
+static bool get_kh1_display_frequency (KXRadio & radio, long & out_hz) {
+    char response[20];
+    const int freq_length = 10;
+    const int start_index = 3;  // "DS1" takes up first 3 characters
+    char      freq_char[freq_length];
+
+    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response)))
+        return false;
+
+    strncpy (freq_char, response + start_index, freq_length - 1);
+    freq_char[freq_length - 1] = '\0';
+    double freq_dec            = strtod (freq_char, NULL);
+    out_hz                     = static_cast<long> (freq_dec * 1000);
+    return out_hz > 0;
+}
+
+static bool get_kh1_display_mode (KXRadio & radio, radio_mode_t & out_mode) {
+    char response[20];
+    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response)))
+        return false;
+
+    char mode_char = response[12];  // 13th character represents the mode
+    switch (mode_char) {
+    case 'L': out_mode = MODE_LSB; break;
+    case 'U': out_mode = MODE_USB; break;
+    case 'C': out_mode = MODE_CW; break;
+    default: out_mode = MODE_UNKNOWN;
+    }
+
+    return out_mode != MODE_UNKNOWN;
+}
+
+static bool get_kh1_display_power (KXRadio & radio, long & out_power) {
+    char response[20];
+    const int power_length = 5;
+    const int start_index  = 3;  // "DS1" takes up first 3 characters
+    char      power_char[power_length];
+
+    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response)))
+        return false;
+
+    strncpy (power_char, response + start_index, power_length - 1);
+    power_char[power_length - 1] = '\0';
+
+    if (!strcmp (power_char, "LOW "))
+        out_power = 0;
+    else if (!strcmp (power_char, "HIGH"))
+        out_power = 15;
+    else
+        out_power = -1;
+
+    return out_power >= 0;
+}
+
+static bool set_kh1_power_level (KXRadio & radio, long power_level) {
+    char power_return[20];
+    int  power_length = 5;
+    int  start_index  = 3;  // "DS1" takes up first 3 characters
+    char power_char[power_length];
+
+    radio.put_to_kx_command_string ("SW2H;SW2H;", 1);
+    if (radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, power_return, sizeof (power_return))) {
+        strncpy (power_char, power_return + start_index, power_length - 1);
+        power_char[power_length - 1] = '\0';
+        if (!strcmp (power_char, power_level > 0 ? "LOW " : "HIGH")) {
+            radio.put_to_kx_command_string ("SW2H;SW2H;", 1);
+        }
+    }
+
+    return true;
+}
+
+static bool get_kh1_display_time (KXRadio & radio, RadioTimeHms & radio_time) {
+    char buf[sizeof ("DS2xxxxxxxxxxxHH:MM;")];
+    if (!radio.get_from_kx_string ("DS2", SC_KX_COMMUNICATION_RETRIES, buf, sizeof (buf) - 1))
+        return false;
+
+    buf[sizeof (buf) - 1] = '\0';
+
+    char hour_char[3] = {0};
+    char min_char[3]  = {0};
+    strncpy (hour_char, buf + 14, 2);
+    strncpy (min_char, buf + 17, 2);
+    radio_time.hrs = atoi (hour_char);
+    radio_time.min = atoi (min_char);
+    radio_time.sec = 0;
+    return true;
+}
+
+static void adjust_kh1_time_component (KXRadio & radio, const char * selector, int diff) {
+    if (!diff)
+        return;
+
+    const size_t num_steps = static_cast<size_t> (std::abs (diff));
+    assert (num_steps <= 60);
+
+    const size_t     selector_len    = std::strlen (selector);
+    constexpr size_t step_len        = sizeof ("ENVU;") - 1;
+    const size_t     adjustment_size = selector_len + num_steps * step_len + 1;
+    auto             adjustment      = std::make_unique<char[]> (adjustment_size);
+
+    char * buf = adjustment.get();
+
+    int written = snprintf (buf, adjustment_size, "%s", selector);
+    for (int ii = diff; ii > 0; --ii)
+        written += snprintf (buf + written, adjustment_size - written, "ENVU;");
+    for (int ii = diff; ii < 0; ++ii)
+        written += snprintf (buf + written, adjustment_size - written, "ENVD;");
+
+    radio.put_to_kx_command_string (buf, 1);
+    vTaskDelay (pdMS_TO_TICKS (30 * num_steps));
+}
+
+bool KH1RadioDriver::supports_keyer () const {
+    return false;
+}
+
+bool KH1RadioDriver::supports_volume () const {
+    return false;
+}
+
+bool KH1RadioDriver::get_frequency (KXRadio & radio, long & out_hz) {
+    return get_kh1_display_frequency (radio, out_hz);
+}
+
+bool KH1RadioDriver::set_frequency (KXRadio & radio, long hz, int tries) {
+    if (hz > 21450000)
+        return false;
+
+    long adjusted_value = (hz / 10) * 10;
+
+    if (tries <= 0) {
+        char command[16];
+        snprintf (command, sizeof (command), "FA%08ld;", hz);
+        return radio.put_to_kx_command_string (command, 1);
+    }
+
+    for (int attempt = 0; attempt < tries; attempt++) {
+        char command[16];
+        snprintf (command, sizeof (command), "FA%08ld;", hz);
+        radio.put_to_kx_command_string (command, 1);
+
+        vTaskDelay (pdMS_TO_TICKS (300));
+        long out_value = 0;
+        if (get_kh1_display_frequency (radio, out_value) && out_value == adjusted_value)
+            return true;
+    }
+
+    return false;
+}
+
+bool KH1RadioDriver::get_mode (KXRadio & radio, radio_mode_t & out_mode) {
+    return get_kh1_display_mode (radio, out_mode);
+}
+
+bool KH1RadioDriver::set_mode (KXRadio & radio, radio_mode_t mode, int tries) {
+    if (mode > MODE_CW)
+        return false;
+
+    int kh_mode = (mode == MODE_CW) ? MODE_UNKNOWN : mode;
+    const char * command = nullptr;
+    switch (kh_mode) {
+    case MODE_UNKNOWN: command = "MD0;"; break;
+    case MODE_LSB: command = "MD1;"; break;
+    case MODE_USB: command = "MD2;"; break;
+    default: return false;
+    }
+
+    if (tries <= 0) {
+        return radio.put_to_kx_command_string (command, 1);
+    }
+
+    for (int attempt = 0; attempt < tries; attempt++) {
+        radio.put_to_kx_command_string (command, 1);
+
+        vTaskDelay (pdMS_TO_TICKS (300));
+        radio_mode_t out_mode = MODE_UNKNOWN;
+        if (get_kh1_display_mode (radio, out_mode) && out_mode == mode)
+            return true;
+    }
+
+    return false;
+}
+
+bool KH1RadioDriver::get_power (KXRadio & radio, long & out_power) {
+    return get_kh1_display_power (radio, out_power);
+}
+
+bool KH1RadioDriver::set_power (KXRadio & radio, long power) {
+    return set_kh1_power_level (radio, power);
+}
+
+bool KH1RadioDriver::get_volume (KXRadio & radio, long & out_volume) {
+    (void)radio;
+    out_volume = -1;
+    return false;
+}
+
+bool KH1RadioDriver::set_volume (KXRadio & radio, long volume) {
+    (void)radio;
+    (void)volume;
+    return false;
+}
+
+bool KH1RadioDriver::get_xmit_state (KXRadio & radio, long & out_state) {
+    char response[20];
+    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response)))
+        return false;
+
+    char xmit_char = response[3];
+    out_state      = (xmit_char == 'P') ? 1 : 0;
+    return true;
+}
+
+bool KH1RadioDriver::set_xmit_state (KXRadio & radio, bool on) {
+    const char * command = on ? "HK1;" : "HK0;";
+    return radio.put_to_kx_command_string (command, 1);
+}
+
+bool KH1RadioDriver::play_message_bank (KXRadio & radio, int bank) {
+    const char * command = (bank == 1) ? "SW4T;SW1T;" : "SW4T;SW2T;";
+    return radio.put_to_kx_command_string (command, 1);
+}
+
+bool KH1RadioDriver::tune_atu (KXRadio & radio) {
+    return radio.put_to_kx_command_string ("SW3T;", 1);
+}
+
+bool KH1RadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
+    (void)radio;
+    (void)message;
+    return false;
+}
+
+bool KH1RadioDriver::sync_time (KXRadio & radio, const RadioTimeHms & client_time) {
+    RadioTimeHms radio_time;
+    if (!get_kh1_display_time (radio, radio_time))
+        return false;
+
+    radio.put_to_kx_command_string ("MNTIM;", 1);
+
+    if (radio_time.min != client_time.min)
+        adjust_kh1_time_component (radio, "SW3T;", client_time.min - radio_time.min);
+    if (radio_time.hrs != client_time.hrs)
+        adjust_kh1_time_component (radio, "SW2T;", client_time.hrs - radio_time.hrs);
+
+    radio.put_to_kx_command_string ("SW4T;", 1);
+    return true;
+}
+
+bool KH1RadioDriver::get_radio_state (KXRadio & radio, kx_state_t * state) {
+    if (!state)
+        return false;
+
+    state->mode          = MODE_UNKNOWN;
+    state->active_vfo    = 0;
+    state->tun_pwr       = 0;
+    state->audio_peaking = 0;
+    return get_kh1_display_frequency (radio, state->vfo_a_freq);
+}
+
+bool KH1RadioDriver::restore_radio_state (KXRadio & radio, const kx_state_t * state, int tries) {
+    if (!state)
+        return false;
+
+    return set_frequency (radio, state->vfo_a_freq, tries);
+}
+
+bool KH1RadioDriver::ft8_prepare (KXRadio & radio, long base_freq) {
+    radio.put_to_kx_command_string ("FO00;", 1);
+    return set_frequency (radio, base_freq, SC_KX_COMMUNICATION_RETRIES);
+}
+
+void KH1RadioDriver::ft8_tone_on (KXRadio & radio) {
+    (void)radio;
+    uart_write_bytes (UART_NUM, "HK1;", sizeof ("HK1;") - 1);
+}
+
+void KH1RadioDriver::ft8_tone_off (KXRadio & radio) {
+    (void)radio;
+    uart_write_bytes (UART_NUM, "HK0;", sizeof ("HK0;") - 1);
+    uart_write_bytes (UART_NUM, "FO99;", sizeof ("FO99;") - 1);
+}
+
+void KH1RadioDriver::ft8_set_tone (KXRadio & radio, long base_freq, long frequency) {
+    (void)radio;
+    char command[8];
+    unsigned offset = static_cast<unsigned> ((frequency - base_freq) % 100);
+    snprintf (command, sizeof (command), "FO%02u;", offset);
+    uart_write_bytes (UART_NUM, command, 5);
+}
