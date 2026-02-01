@@ -39,6 +39,19 @@ SOTAcat joins your phone's hotspot.
 > **[ 📷 IMAGE: Settings WiFi configuration help popup ]**
 > `../images/settings-wifi-help.png`
 
+#### Stable IP Address (.200)
+
+When connecting to a phone hotspot, SOTAcat automatically pins itself to `.200` on whatever subnet your phone assigns. For example, if your hotspot uses `192.168.43.x`, SOTAcat will always be at `192.168.43.200`.
+
+**Why this matters:** Android hotspots can briefly disconnect when mobile data flaps (switching towers, signal drops, etc.). Without a stable IP, you'd need to rediscover SOTAcat's address each time. With the pinned `.200` address, your browser reconnects automatically after brief interruptions.
+
+**First-time setup:**
+1. Use [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover SOTAcat
+2. Note the address (e.g., `192.168.43.200`)
+3. Bookmark it — this address stays stable as long as your hotspot uses the same subnet
+
+**When you need to rediscover:** If your phone's hotspot changes subnets (rare — usually only after phone reboot or hotspot reconfiguration), use Bonjour Browser once to find the new `.200` address.
+
 ## One-Time Setup
 
 In Settings, configure:
