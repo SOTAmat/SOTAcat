@@ -35,12 +35,92 @@ static esp_netif_t *     ap_netif;
 static std::atomic<bool> mdns_started{false};
 static std::atomic<int8_t> s_rssi{0};
 
+// ---- Optional: try to keep a stable STA address on phone hotspots ----
+// Strategy:
+//   - Let DHCP run to learn subnet/netmask/gateway.
+//   - Then pin the STA IP to (subnet + pinned host octet).
+// Notes:
+//   - This cannot be *guaranteed* to be stable on Android hotspots if subnet changes.
+//   - Risk: IP collision if the pinned address is within the phone's DHCP pool.
+//   - Using a high octet (e.g., 200) reduces collision risk.
+static constexpr bool      k_pin_sta_host_octet = true;
+static constexpr uint8_t   k_pinned_host_octet  = 200;
+static std::atomic<bool>   s_sta_using_static_ip{false};
+
 #define WIFI_CONNECT_TIMEOUT_MS          6000  // Slightly increased for mobile hotspots
 #define WIFI_STATE_TRANSITION_TIMEOUT_MS 3000
 #define WIFI_RECONNECT_BACKOFF_BASE_MS   500
 #define WIFI_MAX_BACKOFF_MS              10000  // Slightly increased for mobile
 #define RECONNECT_TIMEOUT_MS             3000   // Slightly increased for mobile
 #define MDNS_SERVICE_NAME                "SOTAcat SOTAmat Service"
+
+// Revert STA interface back to DHCP mode so we can re-learn subnet on reconnect
+static void sta_revert_to_dhcp_if_needed () {
+    if (!sta_netif)
+        return;
+    if (!s_sta_using_static_ip.load())
+        return;
+
+    esp_err_t err = esp_netif_dhcpc_start (sta_netif);
+    if (err != ESP_OK && err != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STARTED) {
+        ESP_LOGW (TAG8, "Failed to restart DHCP client: %s", esp_err_to_name (err));
+    }
+    else {
+        ESP_LOGI (TAG8, "Re-enabled DHCP client on STA");
+    }
+    s_sta_using_static_ip.store (false);
+}
+
+// After DHCP gives us an IP, pin to a fixed host octet on the same subnet.
+// Returns true if IP was changed (caller should re-announce mDNS).
+static bool maybe_pin_sta_ip (const ip_event_got_ip_t * event) {
+    if (!k_pin_sta_host_octet || !sta_netif || !event)
+        return false;
+
+    const esp_netif_ip_info_t & got = event->ip_info;
+    const uint32_t ip      = got.ip.addr;
+    const uint32_t netmask = got.netmask.addr;
+
+    // Compute subnet base and desired IP = subnet + pinned host octet
+    const uint32_t subnet  = ip & netmask;
+    const uint32_t desired = subnet | (static_cast<uint32_t>(k_pinned_host_octet) << 24);
+
+    // Avoid problematic addresses
+    if (k_pinned_host_octet == 0 || k_pinned_host_octet == 1 || k_pinned_host_octet == 255) {
+        ESP_LOGW (TAG8, "Pinned host octet %u is unsafe; not pinning", static_cast<unsigned>(k_pinned_host_octet));
+        return false;
+    }
+
+    if (desired == ip) {
+        ESP_LOGI (TAG8, "STA already has pinned IP: " IPSTR, IP2STR (&got.ip));
+        s_sta_using_static_ip.store (true);
+        return false;
+    }
+
+    esp_netif_ip_info_t ip_info = got;
+    ip_info.ip.addr = desired;
+
+    // Stop DHCP client, then apply static IP
+    esp_err_t err = esp_netif_dhcpc_stop (sta_netif);
+    if (err != ESP_OK && err != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STOPPED) {
+        ESP_LOGW (TAG8, "Failed to stop DHCP client: %s", esp_err_to_name (err));
+        return false;
+    }
+
+    err = esp_netif_set_ip_info (sta_netif, &ip_info);
+    if (err != ESP_OK) {
+        ESP_LOGW (TAG8, "Failed to set pinned STA IP: %s", esp_err_to_name (err));
+        // Try to get back to DHCP
+        esp_netif_dhcpc_start (sta_netif);
+        s_sta_using_static_ip.store (false);
+        return false;
+    }
+
+    s_sta_using_static_ip.store (true);
+    ESP_LOGI (TAG8, "Pinned STA IP to " IPSTR " (gw " IPSTR " mask " IPSTR ")",
+              IP2STR (&ip_info.ip), IP2STR (&ip_info.gw), IP2STR (&ip_info.netmask));
+    return true;
+}
 
 // Function to handle Wi-Fi events
 static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t event_id, void * event_data) {
@@ -81,6 +161,9 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
                 ESP_LOGI (TAG8, "No AP found - Android hotspot may be hidden or turned off");
                 break;
             }
+
+            // Revert to DHCP so we can re-learn subnet on next reconnect
+            sta_revert_to_dhcp_if_needed();
 
             s_sta_connected.store (false);
             wifi_connected.store (s_ap_client_connected.load());
@@ -143,14 +226,21 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
         switch (event_id) {
         case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t * event = (ip_event_got_ip_t *)event_data;
-            ESP_LOGI (TAG8, "Got IP: " IPSTR, IP2STR (&event->ip_info.ip));
+            ESP_LOGI (TAG8, "Got IP via DHCP: " IPSTR, IP2STR (&event->ip_info.ip));
             wifi_connected.store (true);
 
+            // Pin to stable IP BEFORE announcing mDNS, so Bonjour Browser sees the pinned address
+            bool ip_was_pinned = maybe_pin_sta_ip (event);
+
             // Announce mDNS now that the STA interface has a valid IPv4 address
+            // (either the DHCP address or the newly-pinned address)
             if (sta_netif && mdns_started.load()) {
                 esp_err_t err = mdns_netif_action (sta_netif, MDNS_EVENT_ANNOUNCE_IP4);
                 if (err != ESP_OK) {
                     ESP_LOGW (TAG8, "Failed to announce mDNS on STA interface: %s", esp_err_to_name (err));
+                }
+                else if (ip_was_pinned) {
+                    ESP_LOGI (TAG8, "mDNS re-announced with pinned IP");
                 }
             }
 
