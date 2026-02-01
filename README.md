@@ -29,7 +29,7 @@ Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
 ### No Cell Service (Offline)
 - **RUN** works fully: tune radio, send CW, toggle TX
 - **CHASE** requires internet (empty when offline)
-- Self-spot via **SOTAmat** FT8 synthesis (requires SOTAmat app + gateway coverage)
+- Self-spot via **SOTAmat** FT8 synthesis (requires [SOTAmat app](https://sotamat.com) — [iOS](https://apps.apple.com/us/app/sotam%C4%81t-sota-pota-spotting/id1625530954) · [Android](http://play.google.com/store/apps/details?id=com.sotamat.SOTAmat&hl=en_US))
 
 ### With Cell Service
 - **CHASE** live spots with tap-to-tune
