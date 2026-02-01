@@ -243,9 +243,25 @@ bool KXRadioDriver::ft8_prepare (KXRadio & radio, long base_freq) {
     radio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);
     radio.put_to_kx ("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);
 
-    if (!radio.put_to_kx_menu_item (58, 100, SC_KX_COMMUNICATION_RETRIES)) {
+    // Set TUN PWR to 10W (100 = 10.0W in 0.1W units) with readback verification
+    constexpr long FT8_TUN_PWR = 100;  // 10.0 watts
+    if (!radio.put_to_kx_menu_item (58, FT8_TUN_PWR, SC_KX_COMMUNICATION_RETRIES)) {
         return false;
     }
+
+    // Verify power was set correctly by reading back
+    long readback = radio.get_from_kx_menu_item (58, SC_KX_COMMUNICATION_RETRIES);
+    if (readback != FT8_TUN_PWR) {
+        ESP_LOGW (TAG8, "TUN PWR readback mismatch: requested %ld, got %ld", FT8_TUN_PWR, readback);
+        // Retry once if readback doesn't match
+        radio.put_to_kx_menu_item (58, FT8_TUN_PWR, SC_KX_COMMUNICATION_RETRIES);
+        readback = radio.get_from_kx_menu_item (58, SC_KX_COMMUNICATION_RETRIES);
+        if (readback != FT8_TUN_PWR) {
+            ESP_LOGE (TAG8, "TUN PWR verification failed after retry: got %ld", readback);
+            return false;
+        }
+    }
+    ESP_LOGI (TAG8, "TUN PWR set to 10W for FT8 transmission (verified)");
     return true;
 }
 
