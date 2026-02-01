@@ -1,8 +1,10 @@
 * Screenshots Needed for Documentation
 
 ** README.md
-- [ ] App header showing UTC, battery, RSSI, connection indicator
-  - Filename: header-status.png
+- [ ] CHASE page with spots and tap-to-tune
+  - Filename: chase-spots.png (reused from UI-Tour)
+- [ ] RUN page with rig controls and spotting
+  - Filename: run-controls.png (reused from UI-Tour)
 
 ** Documentation/user/Getting-Started.md
 - [ ] Phone WiFi list showing SOTACAT_xxxx

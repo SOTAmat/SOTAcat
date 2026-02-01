@@ -1,25 +1,20 @@
-# SOTAcat — Phone-First Web Console for SOTA Activation
+# SOTAcat — Wireless Rig Control for Field Ops
 
-WiFi CAT control for Elecraft KX2/KX3. Connect your phone, control your radio.
+WiFi CAT control for Elecraft KX2/KX3. Your phone becomes your radio console.
 
-```
-┌─────────────────────────────────────────────────────┐
-│  [UTC time]  [Battery %]  [RSSI]  [●]              │  ← Header
-├──────────┬──────────┬──────────┬──────────┬────────┤
-│   QRX    │  CHASE   │   RUN    │ Settings │ About  │  ← Tabs
-└──────────┴──────────┴──────────┴──────────┴────────┘
-```
+### Chase contacts with click-to-pounce
 
-| Tab | What You Do There |
-|-----|-------------------|
-| **QRX** | Clock sync, set location, enter activation reference |
-| **CHASE** | Tap a spot → radio tunes automatically |
-| **RUN** | Rig control, CW keyer, TX toggle, self-spot |
-| **Settings** | Callsign, WiFi, tune targets |
-| **About** | Version, attribution |
+Tap a spot, radio tunes. SOTA, POTA, WWFF—all in one list.
 
-> **[ 📷 IMAGE: App header showing UTC, battery, RSSI, connection indicator ]**
-> `Documentation/images/header-status.png`
+> **[ 📷 IMAGE: CHASE page with spots and tap-to-tune ]**
+> `Documentation/images/chase-spots.png`
+
+### Control your rig and spot in all conditions
+
+Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
+
+> **[ 📷 IMAGE: RUN page with rig controls and spotting ]**
+> `Documentation/images/run-controls.png`
 
 ## Get Started in 60 Seconds
 
