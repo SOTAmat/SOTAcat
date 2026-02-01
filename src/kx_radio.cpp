@@ -361,7 +361,7 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
 
     long adjusted_value = value;
     if (num_digits == 11) {
-        // The radio only reports frequencies in 10's of Hz, so we have to make sure the last digit is a 0.
+        // Some radios report 10 Hz resolution; accept both exact and rounded readback.
         adjusted_value = ((long)(value / 10)) * 10;
     }
 
@@ -380,8 +380,8 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
         // Now read-back the value to verify it was set correctly
         long out_value = get_from_kx (command, 2, num_digits);
 
-        if (out_value == adjusted_value) {
-            ESP_LOGI (TAG8, "command '%s' successful; value = %ld", command, adjusted_value);
+        if (out_value == value || (num_digits == 11 && out_value == adjusted_value)) {
+            ESP_LOGI (TAG8, "command '%s' successful; value = %ld", command, out_value);
             return true;
         }
 

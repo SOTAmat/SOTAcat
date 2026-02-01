@@ -26,8 +26,18 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
     long    frequency;
     int64_t now = esp_timer_get_time();
 
+    if (Ft8RadioExclusive) {
+        if (cached_frequency > 0) {
+            frequency = cached_frequency;
+            ESP_LOGW (TAG8, "ft8 active - returning cached frequency: %ld", frequency);
+        }
+        else {
+            ESP_LOGW (TAG8, "ft8 active - no cached frequency available");
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
+        }
+    }
     // Check cache first to reduce radio mutex contention
-    if (cached_frequency > 0 && (now - cached_frequency_time) < FREQUENCY_CACHE_US) {
+    else if (cached_frequency > 0 && (now - cached_frequency_time) < FREQUENCY_CACHE_US) {
         frequency = cached_frequency;
         ESP_LOGV (TAG8, "returning cached frequency: %ld", frequency);
     }

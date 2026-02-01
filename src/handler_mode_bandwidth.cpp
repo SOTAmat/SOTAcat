@@ -49,8 +49,18 @@ radio_mode_t get_radio_mode () {
     int64_t now = esp_timer_get_time();
     long    mode;
 
+    if (Ft8RadioExclusive) {
+        if (cached_mode != MODE_UNKNOWN) {
+            mode = cached_mode;
+            ESP_LOGW (TAG8, "ft8 active - returning cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
+        }
+        else {
+            ESP_LOGW (TAG8, "ft8 active - no cached mode available");
+            mode = MODE_UNKNOWN;
+        }
+    }
     // Check cache first to reduce radio mutex contention
-    if (cached_mode != MODE_UNKNOWN && (now - cached_mode_time) < MODE_CACHE_US) {
+    else if (cached_mode != MODE_UNKNOWN && (now - cached_mode_time) < MODE_CACHE_US) {
         mode = cached_mode;
         ESP_LOGV (TAG8, "returning cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
     }

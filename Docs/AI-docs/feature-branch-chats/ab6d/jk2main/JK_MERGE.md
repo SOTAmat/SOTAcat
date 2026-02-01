@@ -135,6 +135,10 @@ The following features were added to `origin/main` after the `kowalski/wip` bran
 3. **Handle lock failure in prepare:** When `TIMED_LOCK_OR_FAIL` triggers in `handler_prepareft8_post()`, ensure `CommandInProgress` is cleared, allocated tone buffers are freed, and LED state is reset before returning.
 4. **Re-align FT8 timing to UTC:** Switch `msUntilFT8Window()` back to `gettimeofday()` or compute the 15-second boundary from the system clock so FT8 transmissions remain time-accurate.
 
+### Additional FT8 Workflow Findings
+- **Cancel can be overridden in transmit:** `waitForFT8Window()` returns early when `CancelRadioFT8ModeTime <= 1`, but `xmit_ft8_task()` immediately overwrites `CancelRadioFT8ModeTime` and proceeds with tones. Suggested fix: re-check cancellation right after `waitForFT8Window()` and return early before updating the watchdog, or gate the watchdog update on `CancelRadioFT8ModeTime > 1`.
+- **`CommandInProgress` cleared when `handler_ft8_post()` auto-calls prepare:** When `handler_ft8_post()` calls `handler_prepareft8_post()` internally, the prepare handler clears `CommandInProgress` on success, so the FT8 transmit runs with the busy flag cleared. Suggested fix: reassert `CommandInProgress` after the prepare call or add a prepare option to leave the flag set when invoked by `handler_ft8_post()`.
+
 ---
 
 ## Deviations from kowalski/wip (Justified by Driver Architecture)

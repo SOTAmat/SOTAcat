@@ -3,6 +3,7 @@
 #include <esp_adc/adc_oneshot.h>
 
 extern bool CommandInProgress;
+extern bool Ft8RadioExclusive;
 extern void showActivity ();
 
 extern adc_oneshot_unit_handle_t   Global_adc1_handle;

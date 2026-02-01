@@ -23,6 +23,9 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
 
     if (!kxRadio.is_connected())
         symbol = "⚫";
+    else if (Ft8RadioExclusive) {
+        symbol = "⚪";
+    }
     else {
         long transmitting = -1;
 
