@@ -17,6 +17,9 @@ ENV ?= seeed_xiao_esp32c3_release
 # Default OTA target
 IP ?= sotacat.local
 
+# Default test target
+HOST ?= sotacat.local
+
 # Output directories
 FIRMWARE_DIR := firmware/webtools
 OTA_BIN := $(FIRMWARE_DIR)/SOTACAT-ESP32C3-OTA.bin
@@ -111,7 +114,7 @@ test-setup:
 
 test:
 	@echo "Running integration test suite..."
-	@cd test/integration && make test HOST=$(IP)
+	@cd test/integration && make test HOST=$(HOST)
 
 # Convenience aliases
 .PHONY: flash debug release
