@@ -26,13 +26,13 @@ static std::atomic<bool> s_sta_connected{false};
 static std::atomic<bool> s_ap_client_connected{false};
 static std::atomic<bool> wifi_connected{false};
 
-static bool              s_wifi_sta_started = false;
-static bool              s_wifi_ap_started  = false;
-static bool              s_dhcp_configured  = false;
-static int               retry_count        = 0;
-static esp_netif_t *     sta_netif;
-static esp_netif_t *     ap_netif;
-static std::atomic<bool> mdns_started{false};
+static bool                s_wifi_sta_started = false;
+static bool                s_wifi_ap_started  = false;
+static bool                s_dhcp_configured  = false;
+static int                 retry_count        = 0;
+static esp_netif_t *       sta_netif;
+static esp_netif_t *       ap_netif;
+static std::atomic<bool>   mdns_started{false};
 static std::atomic<int8_t> s_rssi{0};
 
 // ---- Optional: try to keep a stable STA address on phone hotspots ----
@@ -43,9 +43,9 @@ static std::atomic<int8_t> s_rssi{0};
 //   - This cannot be *guaranteed* to be stable on Android hotspots if subnet changes.
 //   - Risk: IP collision if the pinned address is within the phone's DHCP pool.
 //   - Using a high octet (e.g., 200) reduces collision risk.
-static constexpr bool      k_pin_sta_host_octet = true;
-static constexpr uint8_t   k_pinned_host_octet  = 200;
-static std::atomic<bool>   s_sta_using_static_ip{false};
+static constexpr bool    k_pin_sta_host_octet = true;
+static constexpr uint8_t k_pinned_host_octet  = 200;
+static std::atomic<bool> s_sta_using_static_ip{false};
 
 #define WIFI_CONNECT_TIMEOUT_MS          6000  // Slightly increased for mobile hotspots
 #define WIFI_STATE_TRANSITION_TIMEOUT_MS 3000
@@ -77,17 +77,17 @@ static bool maybe_pin_sta_ip (const ip_event_got_ip_t * event) {
     if (!k_pin_sta_host_octet || !sta_netif || !event)
         return false;
 
-    const esp_netif_ip_info_t & got = event->ip_info;
-    const uint32_t ip      = got.ip.addr;
-    const uint32_t netmask = got.netmask.addr;
+    const esp_netif_ip_info_t & got     = event->ip_info;
+    const uint32_t              ip      = got.ip.addr;
+    const uint32_t              netmask = got.netmask.addr;
 
     // Compute subnet base and desired IP = subnet + pinned host octet
     const uint32_t subnet  = ip & netmask;
-    const uint32_t desired = subnet | (static_cast<uint32_t>(k_pinned_host_octet) << 24);
+    const uint32_t desired = subnet | (static_cast<uint32_t> (k_pinned_host_octet) << 24);
 
     // Avoid problematic addresses
     if (k_pinned_host_octet == 0 || k_pinned_host_octet == 1 || k_pinned_host_octet == 255) {
-        ESP_LOGW (TAG8, "Pinned host octet %u is unsafe; not pinning", static_cast<unsigned>(k_pinned_host_octet));
+        ESP_LOGW (TAG8, "Pinned host octet %u is unsafe; not pinning", static_cast<unsigned> (k_pinned_host_octet));
         return false;
     }
 
@@ -98,7 +98,7 @@ static bool maybe_pin_sta_ip (const ip_event_got_ip_t * event) {
     }
 
     esp_netif_ip_info_t ip_info = got;
-    ip_info.ip.addr = desired;
+    ip_info.ip.addr             = desired;
 
     // Stop DHCP client, then apply static IP
     esp_err_t err = esp_netif_dhcpc_stop (sta_netif);
@@ -117,8 +117,7 @@ static bool maybe_pin_sta_ip (const ip_event_got_ip_t * event) {
     }
 
     s_sta_using_static_ip.store (true);
-    ESP_LOGI (TAG8, "Pinned STA IP to " IPSTR " (gw " IPSTR " mask " IPSTR ")",
-              IP2STR (&ip_info.ip), IP2STR (&ip_info.gw), IP2STR (&ip_info.netmask));
+    ESP_LOGI (TAG8, "Pinned STA IP to " IPSTR " (gw " IPSTR " mask " IPSTR ")", IP2STR (&ip_info.ip), IP2STR (&ip_info.gw), IP2STR (&ip_info.netmask));
     return true;
 }
 
