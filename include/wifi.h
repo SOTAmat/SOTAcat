@@ -44,6 +44,13 @@ void start_wifi_task (TaskNotifyConfig * config);
  */
 bool is_wifi_connected (void);
 
+/**
+ * @brief Get the current WiFi RSSI (signal strength).
+ *
+ * @return RSSI value in dBm, or 0 if not connected.
+ */
+int8_t get_rssi (void);
+
 #ifdef __cplusplus
 }
 #endif

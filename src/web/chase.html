@@ -1,0 +1,66 @@
+<div class="controls-card">
+    <div class="controls-grid">
+        <div class="control-group">
+            <div id="last-refresh-time">
+                Last refresh 0:00 ago
+            </div>
+            <div class="button-group">
+                <button id="refresh-button" class="btn btn-refresh">Refresh Now</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="mode-filter">Mode:</label>
+            <select id="mode-filter" class="select-control">
+                <option value="All">All</option>
+                <option value="AM">AM</option>
+                <option value="CW">CW</option>
+                <option value="DATA">DATA</option>
+                <option value="FM">FM</option>
+                <option value="SSB">SSB</option>
+                <option value="SSB+CW">SSB+CW</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="type-filter">Type:</label>
+            <select id="type-filter" class="select-control">
+                <option value="All">All</option>
+                <option value="xOTA">xOTA</option>
+                <option value="SOTA">SOTA</option>
+                <option value="POTA">POTA</option>
+                <option value="WWFF">WWFF</option>
+                <option value="GMA">GMA</option>
+                <option value="IOTA">IOTA</option>
+                <option value="WCA">WCA</option>
+                <option value="Cluster">Cluster</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <div class="button-group">
+                <button class="btn btn-xmit" id="xmit-button">Toggle TX</button>
+                <button id="polo-chase-button" class="btn btn-refresh" disabled>Log in PoLo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="table-container">
+    <table id="chase-table" class="data-table table-sortable">
+        <thead>
+            <tr>
+                <th><span data-sort-field="timestamp">UTC</span></th>
+                <th><span data-sort-field="activatorCallsign">Call</span></th>
+                <th><span data-sort-field="hertz">MHz</span></th>
+                <th><span data-sort-field="mode">Mode</span></th>
+                <th><span data-sort-field="sig">Type</span></th>
+                <th><span data-sort-field="locationID">Ref</span></th>
+                <th><span data-sort-field="distance">Miles</span></th>
+                <th><span data-sort-field="details">Details</span></th>
+                <th><span data-sort-field="comments">Notes</span></th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>

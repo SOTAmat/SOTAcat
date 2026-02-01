@@ -1,6 +1,5 @@
 #include "enter_deep_sleep.h"
 #include "hardware_specific.h"
-#include "settings.h"
 #include "setup_adc.h"
 
 #include <driver/rtc_io.h>

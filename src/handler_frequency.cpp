@@ -1,11 +1,16 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "timed_lock.h"
 #include "webserver.h"
 
-#include <memory>
-
 #include <esp_log.h>
+#include <esp_timer.h>
 static const char * TAG8 = "sc:hdl_freq";
+
+// Frequency cache to reduce radio contention under heavy load
+static long          cached_frequency      = 0;
+static int64_t       cached_frequency_time = 0;
+static const int64_t FREQUENCY_CACHE_US    = 200000;  // 200ms cache
 
 /**
  * Handles a HTTP GET request to retrieve the current frequency from the radio.
@@ -18,13 +23,42 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    long frequency;
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
-        if (kxRadio.get_radio_type() == RadioType::KH1)
-            frequency = kxRadio.get_kh1_frequency();
-        else
-            frequency = kxRadio.get_from_kx ("FA", SC_KX_COMMUNICATION_RETRIES, 11);
+    long    frequency;
+    int64_t now = esp_timer_get_time();
+
+    // Check cache first to reduce radio mutex contention
+    if (cached_frequency > 0 && (now - cached_frequency_time) < FREQUENCY_CACHE_US) {
+        frequency = cached_frequency;
+        ESP_LOGV (TAG8, "returning cached frequency: %ld", frequency);
+    }
+    else {
+        // Cache miss or expired - query radio with timeout
+        // Tier 1: Fast timeout for GET operations
+        {
+            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
+            if (lock.acquired()) {
+                if (!kxRadio.get_frequency (frequency))
+                    frequency = -1;
+
+                if (frequency > 0) {
+                    // Update cache
+                    cached_frequency      = frequency;
+                    cached_frequency_time = now;
+                    ESP_LOGD (TAG8, "cached new frequency: %ld", frequency);
+                }
+            }
+            else {
+                // Mutex timeout - return stale cache if available
+                if (cached_frequency > 0) {
+                    frequency = cached_frequency;
+                    ESP_LOGW (TAG8, "radio busy - returning stale cached frequency: %ld", frequency);
+                }
+                else {
+                    ESP_LOGW (TAG8, "radio busy - no cached frequency available");
+                    REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
+                }
+            }
+        }  // TimedLock destructor runs here, after radio access is complete
     }
 
     if (frequency <= 0)
@@ -55,13 +89,17 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
     if (freq <= 0)
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid frequency");
 
-    if (kxRadio.get_radio_type() == RadioType::KH1 && freq > 21450000)
-        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "Not a valid band for the KH radio");
+    // Tier 2: Moderate timeout for SET operations
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "frequency SET")) {
+        bool success = kxRadio.set_frequency (freq, SC_KX_COMMUNICATION_RETRIES);
 
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
-        if (!kxRadio.put_to_kx ("FA", 11, freq, SC_KX_COMMUNICATION_RETRIES))
+        if (!success)
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set frequency");
+
+        // Invalidate cache after setting new frequency
+        cached_frequency      = freq;
+        cached_frequency_time = esp_timer_get_time();
+        ESP_LOGD (TAG8, "cache updated with new frequency: %d", freq);
     }
 
     REPLY_WITH_SUCCESS();

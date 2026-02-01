@@ -1,0 +1,126 @@
+<div class="run-container">
+    <!-- Tune Section - Collapsible -->
+    <div class="section-card">
+        <div class="section-header" data-section="tune-section">
+            <h2>Tune</h2>
+            <span class="collapse-icon" id="tune-icon">&#9660;</span>
+        </div>
+
+        <div class="section-content" id="tune-section">
+            <!-- VFO Display -->
+            <div class="vfo-display" id="vfo-display">
+                <div class="vfo-main">
+                    <div class="license-badges" id="license-badges">
+                        <span class="license-badge hidden" id="badge-N" title="Novice">N</span>
+                        <span class="license-badge" id="badge-T" title="Technician">T</span>
+                        <span class="license-badge" id="badge-G" title="General">G</span>
+                        <span class="license-badge hidden" id="badge-A" title="Advanced">A</span>
+                        <span class="license-badge" id="badge-E" title="Extra">E</span>
+                    </div>
+                    <div class="frequency-display" id="current-frequency">14.225.000</div>
+                    <input
+                        type="text"
+                        class="frequency-display hidden"
+                        id="frequency-input"
+                        inputmode="decimal"
+                        pattern="[0-9.,]*"
+                    />
+                    <div class="mode-display" id="current-mode">USB</div>
+                </div>
+                <div class="vfo-warning" id="vfo-warning"></div>
+            </div>
+
+            <!-- Frequency Controls - Logical 2x3 Grid -->
+            <div class="freq-controls">
+                <button class="btn btn-freq up" data-freq-delta="5000">+5k</button>
+                <button class="btn btn-freq up" data-freq-delta="3000">+3K</button>
+                <button class="btn btn-freq up" data-freq-delta="1000">+1k</button>
+                <button class="btn btn-freq down" data-freq-delta="-5000">−5k</button>
+                <button class="btn btn-freq down" data-freq-delta="-3000">−3k</button>
+                <button class="btn btn-freq down" data-freq-delta="-1000">−1k</button>
+            </div>
+
+            <!-- Band Selection -->
+            <div class="band-grid">
+                <button class="btn btn-band" id="btn-40m" data-band="40m">40m</button>
+                <button class="btn btn-band" id="btn-20m" data-band="20m">20m</button>
+                <button class="btn btn-band" id="btn-17m" data-band="17m">17m</button>
+                <button class="btn btn-band" id="btn-15m" data-band="15m">15m</button>
+                <button class="btn btn-band" id="btn-12m" data-band="12m">12m</button>
+                <button class="btn btn-band" id="btn-10m" data-band="10m">10m</button>
+            </div>
+
+            <!-- Mode Selection -->
+            <div class="mode-grid">
+                <button class="btn btn-mode" id="btn-cw" data-mode="CW">CW</button>
+                <button class="btn btn-mode" id="btn-data" data-mode="DATA">DATA</button>
+                <button class="btn btn-mode" id="btn-am" data-mode="AM">AM</button>
+                <button class="btn btn-mode" id="btn-fm" data-mode="FM">FM</button>
+                <button class="btn btn-mode" id="btn-ssb" data-mode="SSB">SSB</button>
+            </div>
+
+            <!-- Power Controls -->
+            <div class="power-controls">
+                <button class="btn btn-power" id="min-power-button">Min Power</button>
+                <button class="btn btn-tune" id="tune-atu-button">Tune ATU</button>
+                <button class="btn btn-power" id="max-power-button">Max Power</button>
+            </div>
+
+            <!-- Volume Controls -->
+            <div class="volume-controls">
+                <button class="btn btn-volume" id="vol-down-button">Vol −</button>
+                <button class="btn btn-volume" id="vol-up-button">Vol +</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Run Section - Collapsible -->
+    <div class="section-card">
+        <div class="section-header" data-section="spot-section">
+            <h2>Run</h2>
+            <span class="collapse-icon" id="spot-icon">&#9660;</span>
+        </div>
+
+        <div class="section-content" id="spot-section">
+            <div class="spot-actions">
+                <button class="btn btn-spot" id="sotamat-button" disabled>SOTAmāt</button>
+                <button class="btn btn-spot" id="sms-spot-button" disabled>Spot SMS</button>
+                <button class="btn btn-spot" id="sms-qrt-button" disabled>QRT SMS</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transmit Section - Collapsible -->
+    <div class="section-card">
+        <div class="section-header" data-section="transmit-section">
+            <h2>Transmit</h2>
+            <span class="collapse-icon" id="transmit-icon">&#9660;</span>
+        </div>
+
+        <div class="section-content" id="transmit-section">
+            <!-- Quick Transmit Controls -->
+            <div class="xmit-controls">
+                <button class="btn btn-msg" data-msg-slot="1">Msg 1</button>
+                <button class="btn btn-msg" data-msg-slot="2">Msg 2</button>
+                <button class="btn btn-xmit" id="xmit-button">Toggle TX</button>
+                <button class="btn btn-spot" id="polo-spot-button" disabled>Log in PoLo</button>
+            </div>
+
+            <!-- CW Text Input -->
+            <div class="cw-inputs">
+                <div class="input-row">
+                    <input type="text" id="cw-message-1" maxlength="24" placeholder="CW message 1" />
+                    <button class="btn btn-send" data-message-input="cw-message-1" disabled>Key</button>
+                </div>
+                <div class="input-row">
+                    <input type="text" id="cw-message-2" maxlength="24" placeholder="CW message 2" />
+                    <button class="btn btn-send" data-message-input="cw-message-2" disabled>Key</button>
+                </div>
+                <div class="input-row">
+                    <input type="text" id="cw-message-3" maxlength="24" placeholder="CW message 3" />
+                    <button class="btn btn-send" data-message-input="cw-message-3" disabled>Key</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

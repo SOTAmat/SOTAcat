@@ -1,587 +1,200 @@
-# Changes in main Branch Not Present in kowalski/wip Branch
+# ab6d/jk2main Integration Document
 
-**Branch Split Point:** `82d567a` - "Remove submodule esp32-smbus, rely on pio lib_deps"  
-**Analysis Date:** January 23, 2026  
-**Base Branch:** kowalski/wip  
-**Target Branch:** main
-
-This document catalogs changes added to `main` after the split from `kowalski/wip` that do **not** exist in `kowalski/wip` (even if implemented differently). Items verified as present in `kowalski/wip` have been removed.
-
-## Summary
-
-The following functionality appears only in `main` and is missing from `kowalski/wip`:
-
-- Elecraft KH1 radio support (PR #77)
-- Time interval selectors (15m/30m) and POTA time filtering to match SOTA
-- KH1 support review document and AI documentation structure additions
-- Cursor documentation file (`docs-cursor/README.md`)
-
-## Major Feature Additions
-
-### 1. Elecraft KH1 Radio Support (PR #77)
-
-**Commits:**
-- `b9b9253` (2026-01-11) - Adding support for the Elecraft KH1 (#77) by WR7D
-- `7946d8f` (2026-01-11) - Release build for initial KH1 support
-- `09f5ab4` (2026-01-11) - Add attribution to Wayne and WR7D for adding KH1 support
-- `d0fee64` (2026-01-11) - Attribution change and official version update
-- `6f8fe27` (2026-01-15) - Power-set-fix (#78) - Removed power setting functionality, Min power button changes radio to LOW mode
-
-**Files Changed:**
-- `include/kx_radio.h` - Added `RadioType::KH1` enum value and KH1-specific methods
-- `src/kx_radio.cpp` - Added KH1 detection, frequency/mode reading, power setting, and CAT command handling
-- `src/handler_atu.cpp` - KH1-specific ATU handling
-- `src/handler_cat.cpp` - KH1-specific CAT command handling
-- `src/handler_frequency.cpp` - KH1 frequency handling
-- `src/handler_ft8.cpp` - KH1 FT8 transmission support with FO command
-- `src/handler_mode_bandwidth.cpp` - KH1 mode and bandwidth handling
-- `src/handler_status.cpp` - KH1 status reading via DS1 display parsing
-- `src/handler_time.cpp` - KH1 time setting (no seconds support, different menu/button functions)
-- `src/web/about.html` - Updated radio type display
-- `src/web/cat.js` - KH1 support additions
-- `src/web/settings.html` - KH1-related settings
-
-**Key Implementation Details:**
-- KH1 uses different CAT command set compared to KX2/KX3
-- KH1 detection via baud rate (9600) and different OM command response
-- Frequency and mode reading via DS1 display parsing (different from KX2/KX3)
-- Power control limited to two preset levels (LOW/HIGH)
-- FT8 transmission uses FO command for frequency offset (00-99 Hz range)
-- Time setting uses MNTIM and SW4T commands (different from KX2/KX3)
-- No CW keyer memories support on KH1
-
-**Documentation:**
-- `Docs/AI-docs/feature-branch-chats/PR77-WR7D-KH1-support/CR_PR77.md` - Code review document with detailed analysis
-
-**Impact:** This is a **major feature addition** that enables SOTACAT to work with the Elecraft KH1 radio. The implementation required significant changes to the radio communication layer and multiple handlers.
+**Branch Base:** kowalski/wip (commit `55fac9f`)  
+**Comparison Target:** kowalski/wip (up to commit `a089d86`)
+**Last Updated:** February 1, 2026  
+**Purpose:** Integrate KH1 radio support from `main` into `kowalski/wip` architecture using a driver abstraction layer
 
 ---
 
-### 2. Time Interval Selectors and POTA Time Filter
+## Overview
 
-**Commits:**
-- `96e41fd` (2025-10-05) - Added 15m and 30m time interval selectors. Add time filter to POTA to match SOTA. Improved SOTA Watch API rate limiting cache code
-
-**Files Changed:**
-- `src/web/main.js` - Time interval selector logic (34 lines added/modified)
-- `src/web/pota.html` - Time interval selector UI (24 lines added)
-- `src/web/pota.js` - POTA time filtering (31 lines modified)
-- `src/web/sota.html` - Time interval selector updates
-- `src/web/sota.js` - SOTA time filtering improvements (57 lines added/modified)
-- `firmware/webtools/manifest.json` - Version bump
-- `include/build_info.h` - Version bump
-
-**Key Features:**
-- Added 15-minute and 30-minute time interval selectors (in addition to existing intervals)
-- Added time filter to POTA page to match SOTA functionality
-- Improved SOTA Watch API rate limiting cache implementation
-
-**Impact:** **Medium** - Enhances filtering capabilities and improves API efficiency.
+The `ab6d/jk2main` branch was created from `kowalski/wip` to:
+1. Add Elecraft KH1 radio support (from PR #77 on `main`)
+2. Refactor radio-specific code into device drivers (`IRadioDriver` interface)
+3. Keep handlers and web UI radio-agnostic
+4. Incorporate minimal, targeted changes to `kowalski/wip` architecture
 
 ---
 
-## Documentation Additions Missing from kowalski/wip
+## Code Review Findings (Feb 1, 2026)
 
-### 3. AI Documentation Directory Structure
+A deep review of `ab6d/jk2main` relative to `kowalski/wip` was performed.
 
-**Commits:**
-- `f5273f6` (2026-01-11) - Created a place to hold AI generated .md documents for future reference
+### 1. Feature Parity with kowalski/wip
+The `ab6d/jk2main` branch successfully integrates recent features from `kowalski/wip` (commits up to `a089d86`), including:
+- **UI Modernization**: `SPOT` -> `RUN` tab rename, Tune target delimiters `{}`, compact mode, connection loss overlay.
+- **QRX Page**: Location-based references, Nearest SOTA, Setup PoLo button.
+- **WiFi**: STA IP pinning to `.200`, RSSI reporting for AP clients.
+- **Documentation**: New structure in `Documentation/`.
 
-**Files Changed:**
-- `Docs/AI-docs/feature-branch-chats/` - New directory structure
-- `Docs/AI-docs/feature-branch-chats/PR77-WR7D-KH1-support/CR_PR77.md` - KH1 code review document
+### 2. Architectural Integrity
+The driver pattern has been implemented cleanly without disrupting the `kowalski/wip` architecture:
+- `KXRadio` class delegates efficiently to `m_driver`.
+- Handlers (`handler_cat.cpp`, `handler_frequency.cpp`, etc.) are now agnostic to the specific radio hardware.
+- KH1-specific logic is confined to `src/radio_driver_kh1.cpp`.
 
----
+### 3. Cleanups & Refactoring
+- **RunState**: The `SpotState` object has been correctly renamed to `RunState` in `run.js`.
+- **CSS Classes**: `spot-container` has been renamed to `run-container` in HTML and CSS.
+- **Styling**: Miles column alignment in Chase table is implemented.
 
-### 4. Cursor Documentation
-
-**Commits:**
-- `52de9f1` (2026-01-18) - Cursor Readme
-
-**Files Changed:**
-- `docs-cursor/README.md` - Cursor documentation (125 lines)
-
----
-
-## Notes
-
-- WebSDR/tune targets, SDR mobile enablement, and band/mode sideband logic are already present in `kowalski/wip` (implemented differently), so they are intentionally omitted here.
-- The branch split occurred at commit `82d567a` ("Remove submodule esp32-smbus, rely on pio lib_deps").
-
----
-
-*Document updated on January 23, 2026*
-# Changes in main Branch Not Present in kowalski/wip Branch
-
-**Branch Split Point:** `82d567a` - "Remove submodule esp32-smbus, rely on pio lib_deps"  
-**Analysis Date:** January 23, 2026  
-**Base Branch:** kowalski/wip  
-**Target Branch:** main
-
-This document catalogs all changes that were added to the `main` branch after the split from `kowalski/wip` that have not been incorporated into `kowalski/wip`. The analysis includes commits from August 5, 2025 through January 23, 2026.
-
-## Summary
-
-A total of **33 commits** were added to `main` that are not present in `kowalski/wip`. These changes include:
-
-- **Major Feature Additions:**
-  - Elecraft KH1 radio support (PR #77)
-  - WebSDR integration
-  - SDR mobile launch control
-  - Time interval selectors for SOTA/POTA
-  - Dynamic bidirectional band/mode button updates
-
-- **UI/UX Improvements:**
-  - CAT page card/sub-card styling
-  - Settings page enhancements
-  - About page improvements
-  - WiFi help popup styling
-  - Frequency display consistency improvements
-
-- **Bug Fixes and Enhancements:**
-  - FT8 power read-back verification
-  - Idle status task improvements for USB power detection
-  - Power setting fixes (PR #78)
-  - Version string build improvements
-
-- **Documentation and Infrastructure:**
-  - AI documentation directory structure
-  - README updates
-  - Cursor documentation
+### 4. Deviations
+No unsupported deviations were found. All changes in `ab6d/jk2main` are either:
+- Part of the KH1/Driver refactoring.
+- Integrations of features from `kowalski/wip`.
 
 ---
 
-## Major Feature Additions
+## Missing Features from `origin/main`
 
-### 1. Elecraft KH1 Radio Support (PR #77)
+The following features were added to `origin/main` after the `kowalski/wip` branch diverged and are **not yet present** in `kowalski/wip` (and thus missing from `ab6d/jk2main`). These should be considered for future integration.
 
-**Commits:**
-- `b9b9253` (2026-01-11) - Adding support for the Elecraft KH1 (#77) by WR7D
-- `7946d8f` (2026-01-11) - Release build for initial KH1 support
-- `09f5ab4` (2026-01-11) - Add attribution to Wayne and WR7D for adding KH1 support
-- `d0fee64` (2026-01-11) - Attribution change and official version update
-- `6f8fe27` (2026-01-15) - Power-set-fix (#78) - Removed power setting functionality, Min power button changes radio to LOW mode
-
-**Files Changed:**
-- `include/kx_radio.h` - Added `RadioType::KH1` enum value and KH1-specific methods
-- `src/kx_radio.cpp` - Added KH1 detection, frequency/mode reading, power setting, and CAT command handling
-- `src/handler_atu.cpp` - KH1-specific ATU handling
-- `src/handler_cat.cpp` - KH1-specific CAT command handling
-- `src/handler_frequency.cpp` - KH1 frequency handling
-- `src/handler_ft8.cpp` - KH1 FT8 transmission support with FO command
-- `src/handler_mode_bandwidth.cpp` - KH1 mode and bandwidth handling
-- `src/handler_status.cpp` - KH1 status reading via DS1 display parsing
-- `src/handler_time.cpp` - KH1 time setting (no seconds support, different menu/button functions)
-- `src/web/about.html` - Updated radio type display
-- `src/web/cat.js` - KH1 support additions
-- `src/web/settings.html` - KH1-related settings
-
-**Key Implementation Details:**
-- KH1 uses different CAT command set compared to KX2/KX3
-- KH1 detection via baud rate (9600) and different OM command response
-- Frequency and mode reading via DS1 display parsing (different from KX2/KX3)
-- Power control limited to two preset levels (LOW/HIGH)
-- FT8 transmission uses FO command for frequency offset (00-99 Hz range)
-- Time setting uses MNTIM and SW4T commands (different from KX2/KX3)
-- No CW keyer memories support on KH1
-
-**Documentation:**
-- `Docs/AI-docs/feature-branch-chats/PR77-WR7D-KH1-support/CR_PR77.md` - Code review document with detailed analysis
-
-**Impact:** This is a **major feature addition** that enables SOTACAT to work with the Elecraft KH1 radio. The implementation required significant changes to the radio communication layer and multiple handlers.
+### 1. FT8 Power Readback Verification (`586baf4`)
+- **Main:** Ensures FT8 power is at 10 watts by reading back the value after setting it.
+- **Current:** `ab6d/jk2main` sets the power blindly (via `put_to_kx_menu_item`) in `KXRadioDriver::ft8_prepare` without an explicit read-back verification loop.
 
 ---
 
-### 2. WebSDR Integration
+## Current Status Summary
 
-**Commits:**
-- `dc02bd5` (2025-10-04) - Add WebSDR integration feature to SOTACAT: tune the Elecraft and the WebSDR in a separate Browser tab
+### Completed (✅)
 
-**Files Changed:**
-- `include/settings.h` - Added WebSDR settings structure
-- `src/handler_settings.cpp` - WebSDR settings handler
-- `src/web/main.js` - WebSDR integration JavaScript (79 lines added)
-- `src/web/settings.html` - WebSDR configuration UI
-- `src/web/settings.js` - WebSDR settings management (79 lines added)
-- `src/webserver.cpp` - WebSDR endpoint registration
-- `README.md` - Documentation updates
-- `firmware/webtools/manifest.json` - Version bump
-- `include/build_info.h` - Version bump
+1. **Radio Driver Architecture** - Fully implemented
+   - `IRadioDriver` interface in `include/radio_driver.h`
+   - `KXRadioDriver` in `src/radio_driver_kx.cpp/.h` (for KX2/KX3)
+   - `KH1RadioDriver` in `src/radio_driver_kh1.cpp/.h` (for KH1)
+   - `KXRadio` class updated to use `m_driver` pointer with runtime selection
+   - Driver selection via `select_driver()` based on detected `RadioType`
 
-**Key Features:**
-- Allows users to configure WebSDR/KiwiSDR URLs
-- Opens WebSDR in separate browser tab synchronized with Elecraft radio frequency
-- Enables simultaneous monitoring on WebSDR while operating the radio
+2. **Handler Refactoring** - All handlers use driver abstraction
+   - `handler_atu.cpp` - Uses `kxRadio.tune_atu()` (driver routes to correct command)
+   - `handler_cat.cpp` - Uses `kxRadio.set_xmit_state()`, `play_message_bank()`, `send_keyer_message()`
+   - `handler_frequency.cpp` - Uses `kxRadio.get_frequency()`, `set_frequency()`
+   - `handler_mode_bandwidth.cpp` - Uses `kxRadio.get_mode()`, `set_mode()`
+   - `handler_ft8.cpp` - Uses `kxRadio.ft8_prepare()`, `ft8_tone_on/off()`, `ft8_set_tone()`
+   - `handler_time.cpp` - Uses `kxRadio.sync_time()`
+   - `handler_status.cpp` - Uses `kxRadio.get_xmit_state()`
+   - `handler_volume.cpp` - Uses `kxRadio.get_volume()`, `set_volume()` with `supports_volume()` check
 
-**Impact:** **Medium** - Adds useful feature for operators who want to monitor their signal on WebSDR while transmitting.
+3. **KH1 Radio Support** - Fully integrated
+   - Detection at 9600 baud via `;I;` / `KH1;` response
+   - Frequency/mode reading via DS1 display parsing
+   - Power control via LOW/HIGH toggle (SW2H command)
+   - FT8 transmission via FO command for frequency offset (00-99 Hz range)
+   - Time setting via MNTIM menu and ENVU/ENVD for adjustments
+   - ATU tuning via SW3T command
+   - Transmit toggle via HK1/HK0 commands
+   - `supports_keyer()` returns false (KH1 has no CW keyer memories)
+   - `supports_volume()` returns false (KH1 has no AF gain CAT control)
 
----
+4. **kowalski/wip UI Features** - Integrated & Committed
+   - SPOT → RUN tab rename completed (`run.html`, `run.js`)
+   - Connection loss overlay HTML/CSS/JS (index.html, main.js, style.css)
+   - QRX as default tab on initial load
+   - QRX page with location-based references, Nearest SOTA, PoLo button
+   - Tune target delimiters changed from `<>` to `{}`
+   - Reference patterns (SOTA/POTA/WWFF/IOTA) in `main.js`
+   - Battery time humanization in header display
+   - Compact mode toggle in Settings page
+   - CSS class refactoring (hidden, feedback classes)
 
-### 3. SDR Mobile Launch Control
+5. **WiFi Improvements** - Integrated & Committed
+   - STA IP pinning to `.200` on hotspot connect
+   - DHCP revert on disconnect
+   - AP client RSSI reporting (weakest client signal)
 
-**Commits:**
-- `d71085a` (2025-10-04) - Add SDR mobile launch control and adjust frequency display units to be consistent between SOTA and POTA (KHz)
+6. **Documentation**
+   - New `Documentation/` tree with user and dev docs
+   - Updated README.md with modern structure
+   - KH1 code review document at `Docs/AI-docs/.../CR_PR77.md`
 
-**Files Changed:**
-- `include/settings.h` - SDR mobile settings
-- `src/handler_settings.cpp` - SDR mobile handler
-- `src/web/main.js` - SDR mobile launch functionality (185 lines modified)
-- `src/web/settings.html` - SDR mobile configuration UI
-- `src/web/settings.js` - SDR mobile settings management
-- `src/web/sota.html` - Frequency display unit consistency
-- `src/web/sota.js` - Frequency display updates
-- `firmware/webtools/manifest.json` - Version bump
-- `include/build_info.h` - Version bump
+7. **Cleanup Tasks** (Previously Pending)
+   - **CSS class rename:** `spot-container` → `run-container` ✅
+   - **State object rename:** `SpotState` → `RunState` in `run.js` ✅
+   - **Miles column alignment:** Add `#chase-table td:nth-child(7) { text-align: right; }` to style.css ✅
+   - **localStorage key migration:** `spotCwMessage*` → `runCwMessage*` (Present in `run.js`) ✅
 
-**Key Features:**
-- Mobile-friendly SDR launch control
-- Consistent frequency display units (KHz) across SOTA and POTA pages
-- Enhanced mobile user experience for SDR integration
+### Locking and Timing (Needs Verification)
 
-**Impact:** **Medium** - Improves mobile usability and display consistency.
-
----
-
-### 4. Time Interval Selectors and POTA Time Filter
-
-**Commits:**
-- `96e41fd` (2025-10-05) - Added 15m and 30m time interval selectors. Add time filter to POTA to match SOTA. Improved SOTA Watch API rate limiting cache code
-
-**Files Changed:**
-- `src/web/main.js` - Time interval selector logic (34 lines added/modified)
-- `src/web/pota.html` - Time interval selector UI (24 lines added)
-- `src/web/pota.js` - POTA time filtering (31 lines modified)
-- `src/web/sota.html` - Time interval selector updates
-- `src/web/sota.js` - SOTA time filtering improvements (57 lines added/modified)
-- `firmware/webtools/manifest.json` - Version bump
-- `include/build_info.h` - Version bump
-
-**Key Features:**
-- Added 15-minute and 30-minute time interval selectors (in addition to existing intervals)
-- Added time filter to POTA page to match SOTA functionality
-- Improved SOTA Watch API rate limiting cache implementation
-
-**Impact:** **Medium** - Enhances filtering capabilities and improves API efficiency.
+- Handlers use `TimedLock` and `TIMED_LOCK_OR_FAIL` macro ✅
+- FT8 timing, cache fallback, and timeout tiers should be validated on hardware
 
 ---
 
-### 5. Dynamic Bidirectional Band/Mode Button Updates
+## FT8 Regression vs `origin/main` (Feb 1, 2026)
 
-**Commits:**
-- `1ab7688` (2025-09-27) - Dynamically update band and mode buttons bidirectionally. Ensure proper sideband when changing bands and radio is in SSB mode
+### Findings
+- **FT8 cleanup can exit without restoring radio state:** `cleanup_ft8_task()` now uses `TimedLock` with a 10s timeout and returns early if the lock is busy, skipping `restore_radio_state()` and leaving the radio in prepared FT8 mode. In `origin/main` this was a blocking `lock_guard`, so cleanup always eventually restored state.
+- **FT8 transmit can abort under contention:** `xmit_ft8_task()` now uses a timed lock and exits if it cannot acquire the mutex, which can skip the second transmission if another REST request is holding the lock.
+- **FT8 window timing no longer uses UTC:** `msUntilFT8Window()` now uses `esp_timer_get_time()` (uptime) instead of `gettimeofday()` (UTC). This decouples FT8 start times from UTC boundaries and is a behavioral change from `origin/main`.
 
-**Files Changed:**
-- `src/web/cat.html` - Band/mode button UI updates (24 lines modified)
-- `src/web/cat.js` - Bidirectional update logic (196 lines modified)
-- `src/web/style.css` - Button styling updates (16 lines added)
-- `firmware/webtools/manifest.json` - Version bump
-- `include/build_info.h` - Version bump
-
-**Key Features:**
-- Band and mode buttons update dynamically based on radio state
-- Bidirectional synchronization between UI and radio
-- Proper sideband handling when changing bands in SSB mode
-
-**Impact:** **Medium** - Improves user experience by keeping UI in sync with radio state.
+### Plan to Address
+1. **Make cleanup non-failable:** Replace the timed lock in `cleanup_ft8_task()` with a blocking lock or a retry loop (with watchdog resets) so `restore_radio_state()` always runs. Never return early without restoring state.
+2. **Harden transmit under lock contention:** If `xmit_ft8_task()` cannot acquire the lock, force cleanup by setting `CancelRadioFT8ModeTime = 1`, clear `ft8TaskInProgress`, and schedule a retry (or return a clear error to the caller) so the radio does not remain prepared.
+3. **Handle lock failure in prepare:** When `TIMED_LOCK_OR_FAIL` triggers in `handler_prepareft8_post()`, ensure `CommandInProgress` is cleared, allocated tone buffers are freed, and LED state is reset before returning.
+4. **Re-align FT8 timing to UTC:** Switch `msUntilFT8Window()` back to `gettimeofday()` or compute the 15-second boundary from the system clock so FT8 transmissions remain time-accurate.
 
 ---
 
-## UI/UX Improvements
+## Deviations from kowalski/wip (Justified by Driver Architecture)
 
-### 6. CAT Page Card/Sub-Card Styling
+The following deviations are intentional and required for KH1 support:
 
-**Commits:**
-- `08ac428` (2025-09-28) - Update formatting of CAT page to use the card and sub-card style used by Settings and About pages
+### 1. New Files (Driver Architecture)
 
-**Files Changed:**
-- `src/web/cat.html` - Applied card/sub-card styling structure
-- `src/web/style.css` - Styling updates
+These files exist only in `ab6d/jk2main`:
+- `include/radio_driver.h` - IRadioDriver interface
+- `src/radio_driver_kx.cpp` / `.h` - KX2/KX3 driver
+- `src/radio_driver_kh1.cpp` / `.h` - KH1 driver
 
-**Impact:** **Low** - Consistency improvement for UI design.
+### 2. KXRadio Class Changes
 
----
+The `KXRadio` class has new members and methods:
+- `m_driver` pointer for runtime driver selection
+- `select_driver()` method
+- High-level driver-forwarding methods (`get_frequency()`, `set_mode()`, etc.)
+- `RadioType::KH1` enum value added
 
-### 7. Settings Page Styling Enhancements
+### 3. Handler Changes
 
-**Commits:**
-- `eab76a3` (2025-09-27) - Enhance Settings page styling
-- `82c8ddf` (2025-09-28) - Remove battery voltage display - Update settings styles and formatting
-
-**Files Changed:**
-- `src/web/settings.html` - Styling improvements
-- `src/web/settings.js` - Battery voltage display removal
-- `src/web/style.css` - CSS updates
-
-**Impact:** **Low** - UI polish and cleanup.
-
----
-
-### 8. About Page Improvements
-
-**Commits:**
-- `ebd67cf` (2025-09-28) - Apply the settings.html card and sub-card styling to the about.html page
-- `43f4ee8` (2025-09-27) - Move version info from header to about page
-- `a52c201` (2025-09-28) - Update version information display on the About page
-- `ca3bdf8` (2025-08-13) - Improve margins on About page (by Jeff Kowalski)
-
-**Files Changed:**
-- `src/web/about.html` - Styling and layout updates
-- `src/web/about.js` - Version display logic
-- `src/web/index.html` - Header cleanup (version info moved)
-
-**Impact:** **Low** - UI consistency and information organization.
+Handlers call driver-abstracted methods instead of raw CAT commands. This is necessary for:
+- Volume control (KH1 doesn't support AF gain CAT control)
+- TX/RX toggle (different commands per radio)
+- Message playback (different button sequences per radio)
+- Keyer (not supported on KH1)
+- FT8 tone generation (different mechanism on KH1)
+- Time sync (different menu system on KH1)
+- ATU tuning (different switch commands per radio)
 
 ---
 
-### 9. WiFi Help Popup Styling
+## Remaining Tasks
 
-**Commits:**
-- `db660f7` (2025-09-27) - Enhance WiFi help popup styling. Fix cherry-pick merge errors
+### Hardware Validation
+1. **Test on KX2, KX3, and KH1 radios:**
+   - Verify all CAT endpoints work correctly.
+   - Test FT8 transmission and time sync.
+   - Verify `run.js` interactions (frequency tuning, mode switching, etc.).
 
-**Files Changed:**
-- `src/web/style.css` - WiFi popup styling
-- Related HTML/JS files
-
-**Impact:** **Low** - UI polish.
-
----
-
-### 10. Frequency Display and Button Improvements
-
-**Commits:**
-- `72148c2` (2025-09-27) - Updated frequency change buttons and instruction text
-- `33e0697` (2025-09-27) - Adjust frequency value font size to match af48bc0841f341f29c25e9557c4289664d32016c
-- `4dc6813` (2025-09-27) - Compressed layout of GPS Location entry and fixed bug with Clear not updating textbox
-- `a331ecf` (2025-09-28) - Minor UI layout changes
-- `f46753c` (2025-09-28) - Swap row order in SOTA table settings header to match POTA
-
-**Files Changed:**
-- `src/web/cat.html` - Frequency button updates
-- `src/web/cat.js` - Frequency change logic
-- `src/web/settings.html` - GPS layout compression
-- `src/web/sota.html` - Header row order
-- `src/web/style.css` - Font size adjustments
-
-**Impact:** **Low** - UI improvements and bug fixes.
+2. **Complete locking/timing review:**
+   - Verify FT8 task lock behavior.
+   - Check cache fallback for frequency/mode.
 
 ---
 
-## Bug Fixes and Enhancements
+## Architecture Decision: Driver Pattern
 
-### 11. FT8 Power Read-Back Verification
+The driver pattern was chosen because:
 
-**Commits:**
-- `586baf4` (2025-10-01) - Ensure FT8 power is at 10 watts with read-back
+1. **Separation of Concerns** - Radio-specific code is isolated in driver files
+2. **Extensibility** - New radios can be added by implementing `IRadioDriver`
+3. **Handler Simplicity** - Handlers don't need `switch` statements on `RadioType`
+4. **Feature Detection** - `supports_keyer()`, `supports_volume()` allow graceful degradation
+5. **Testing** - Drivers can be unit tested in isolation
 
-**Files Changed:**
-- `src/handler_ft8.cpp` - Added power read-back verification (11 lines modified)
-- `firmware/webtools/manifest.json` - Version bump
-- `include/build_info.h` - Version bump
-
-**Key Changes:**
-- Added verification that FT8 power is correctly set to 10 watts
-- Reads back power setting to confirm it was applied
-
-**Impact:** **Medium** - Ensures FT8 transmission power is correct.
+The pattern follows the Strategy design pattern with runtime selection based on detected radio type.
 
 ---
 
-### 12. Idle Status Task USB Power Detection
-
-**Commits:**
-- `e03c177` (2025-10-01) - Update idle_status_task to prevent shutdown during USB power detection and adjust LED blink behavior accordingly
-
-**Files Changed:**
-- `src/idle_status_task.cpp` - USB power detection logic (7 lines modified)
-
-**Key Changes:**
-- Prevents shutdown during USB power detection
-- Adjusts LED blink behavior for USB power state
-
-**Impact:** **Medium** - Prevents unintended shutdowns during power detection.
-
----
-
-### 13. Version String Build Improvements
-
-**Commits:**
-- `311d88b` (2025-09-28) - Only update version strings on real builds, not other PIO tasks
-
-**Files Changed:**
-- Build scripts - Version string update logic
-
-**Impact:** **Low** - Build process improvement.
-
----
-
-### 14. HTTPS Geolocation Service Change
-
-**Commits:**
-- `e168b1d` (2025-09-27) - Change IP address geolocation to a service that supports HTTPS for browsers that require it. Fixed bug with cherry-pick from KC6X's moving of SOTAMAT button from SOTA/POTA pages to CAT page
-
-**Files Changed:**
-- `src/web/main.js` - Geolocation service URL update
-
-**Impact:** **Low** - Browser compatibility improvement.
-
----
-
-## Documentation and Infrastructure
-
-### 15. AI Documentation Directory Structure
-
-**Commits:**
-- `f5273f6` (2026-01-11) - Created a place to hold AI generated .md documents for future reference
-- `52de9f1` (2026-01-18) - Cursor Readme
-
-**Files Changed:**
-- `Docs/AI-docs/feature-branch-chats/` - New directory structure
-- `docs-cursor/README.md` - Cursor documentation (125 lines)
-
-**Impact:** **Low** - Documentation organization.
-
----
-
-### 16. README Updates
-
-**Commits:**
-- `839a948` (2025-10-04) - Update README.md to clarify availability of pre-made SOTACAT modules and provide purchase link for Justin K5EM's products
-
-**Files Changed:**
-- `README.md` - Added information about pre-made modules and K5EM store link
-
-**Impact:** **Low** - Documentation update.
-
----
-
-### 17. Build Asset Management
-
-**Commits:**
-- `2c9f4dd` (2026-01-23) - Ignore dynamically created *.*gz web assets
-- `894b1bf` (2026-01-18) - Merge branch 'main' of github.com:SOTAmat/SOTAcat
-
-**Files Changed:**
-- `.gitignore` - Added pattern for dynamically created gzip assets
-
-**Impact:** **Low** - Build process cleanup.
-
----
-
-## Architecture and Code Structure Differences
-
-### Lockable vs TimedLock
-
-**Key Difference:** The `main` branch uses a `Lockable` base class pattern, while `kowalski/wip` uses a `TimedLock` composition pattern. This affects how radio locking is implemented:
-
-- **main:** Uses `Lockable` base class with `TIMED_LOCK_OR_FAIL` macro
-- **kowalski/wip:** Uses `TimedLock` composition with different locking semantics
-
-**Files Affected:**
-- `include/lockable.h` - Present in main, different approach in kowalski/wip
-- `include/timed_lock.h` - Present in kowalski/wip, removed in main
-- `src/lockable.cpp` - Present in main
-- `src/kx_radio.cpp` - Different locking implementations
-
----
-
-### Web UI Architecture
-
-**Major Differences:**
-- **main:** Separate pages for SOTA (`sota.html/js`) and POTA (`pota.html/js`)
-- **kowalski/wip:** Unified chase page (`chase.html/js`) with Spot/QRX pages
-
-**Files Present in main but not kowalski/wip:**
-- `src/web/sota.html` / `src/web/sota.js`
-- `src/web/pota.html` / `src/web/pota.js`
-
-**Files Present in kowalski/wip but not main:**
-- `src/web/chase.html` / `src/web/chase.js`
-- `src/web/chase_api.js`
-- `src/web/spot.html` / `src/web/spot.js`
-- `src/web/qrx.html` / `src/web/qrx.js`
-- `src/web/bandprivileges.js`
-
----
-
-## Files Added in main (Not in kowalski/wip)
-
-1. `Docs/AI-docs/feature-branch-chats/PR77-WR7D-KH1-support/CR_PR77.md` - KH1 code review
-2. `docs-cursor/README.md` - Cursor documentation
-3. `src/web/sota.html` / `src/web/sota.js` - SOTA page
-4. `src/web/pota.html` / `src/web/pota.js` - POTA page
-5. `include/lockable.h` / `src/lockable.cpp` - Lockable implementation
-6. `docs/geolocation/bridge.js` / `docs/geolocation/index.html` - Geolocation bridge (removed in kowalski/wip)
-
----
-
-## Files Removed in main (Present in kowalski/wip)
-
-1. `src/web/chase.html` / `src/web/chase.js` - Unified chase page
-2. `src/web/chase_api.js` - Chase API
-3. `src/web/spot.html` / `src/web/spot.js` - Spot page
-4. `src/web/qrx.html` / `src/web/qrx.js` - QRX page
-5. `src/web/bandprivileges.js` - Band privileges
-6. `src/handler_volume.cpp` - Volume handler (removed in main)
-7. `include/timed_lock.h` - TimedLock header
-8. `test/integration/` - Integration test suite (removed in main)
-9. `test/mock_server/` - Mock server (removed in main)
-10. `Makefile` - Build convenience Makefile (removed in main)
-
----
-
-## Recommendations for Merging
-
-### High Priority (Must Merge)
-
-1. **KH1 Radio Support** - This is a major feature that significantly expands hardware compatibility. The implementation is well-documented and includes attribution.
-
-2. **WebSDR Integration** - Useful feature that enhances the user experience without major architectural changes.
-
-3. **FT8 Power Read-Back** - Important bug fix that ensures correct transmission power.
-
-### Medium Priority (Should Merge)
-
-4. **Time Interval Selectors** - Enhances filtering capabilities.
-
-5. **SDR Mobile Launch Control** - Improves mobile user experience.
-
-6. **Dynamic Band/Mode Updates** - Improves UI responsiveness and user experience.
-
-7. **Idle Status Task USB Power Detection** - Prevents unintended shutdowns.
-
-### Low Priority (Consider Merging)
-
-8. **UI/UX Improvements** - Various styling and layout improvements for consistency.
-
-9. **Documentation Updates** - README and documentation improvements.
-
-10. **Build Process Improvements** - Version string and asset management improvements.
-
-### Architecture Considerations
-
-- **Locking Mechanism:** The `main` branch uses `Lockable` while `kowalski/wip` uses `TimedLock`. This will require careful merging to maintain consistency.
-
-- **Web UI Structure:** The branches have fundamentally different web UI architectures (separate SOTA/POTA pages vs unified chase page). Merging will require choosing one approach or creating a hybrid.
-
----
-
-## Statistics
-
-- **Total Commits:** 33 commits in main not in kowalski/wip
-- **Files Changed:** 88 files with 6,658 insertions and 13,537 deletions (net reduction due to removal of test infrastructure and unified chase page)
-- **Date Range:** August 5, 2025 - January 23, 2026
-- **Major Features:** 5 (KH1 support, WebSDR, SDR mobile, time filters, dynamic updates)
-- **Bug Fixes:** 4 (FT8 power, USB power detection, version strings, geolocation)
-
----
-
-## Notes
-
-- Some commits in main were authored by Jeff Kowalski but were cherry-picked or merged into main after the branch split.
-- The branch split occurred at commit `82d567a` ("Remove submodule esp32-smbus, rely on pio lib_deps").
-- The `kowalski/wip` branch has significantly more commits (150+ commits) with extensive UI refactoring, test infrastructure, and modern web development practices.
-- The `main` branch has focused more on hardware support (KH1) and specific feature additions.
-
----
-
-*Document generated on January 23, 2026*
+*Document last updated: February 1, 2026*

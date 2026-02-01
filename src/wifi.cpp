@@ -7,18 +7,16 @@
 #include "esp_task_wdt.h"
 #include "globals.h"
 #include "hardware_specific.h"
-#include "lwip/netdb.h"
 #include "lwip/sockets.h"
-#include "lwip/tcp.h"
 #include "settings.h"
 #include <atomic>
+#include <cstring>
 #include <esp_mac.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <lwip/ip4_addr.h>
 #include <mdns.h>
-#include <string.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:wifi....";
@@ -35,6 +33,19 @@ static int               retry_count        = 0;
 static esp_netif_t *     sta_netif;
 static esp_netif_t *     ap_netif;
 static std::atomic<bool> mdns_started{false};
+static std::atomic<int8_t> s_rssi{0};
+
+// ---- Optional: try to keep a stable STA address on phone hotspots ----
+// Strategy:
+//   - Let DHCP run to learn subnet/netmask/gateway.
+//   - Then pin the STA IP to (subnet + pinned host octet).
+// Notes:
+//   - This cannot be *guaranteed* to be stable on Android hotspots if subnet changes.
+//   - Risk: IP collision if the pinned address is within the phone's DHCP pool.
+//   - Using a high octet (e.g., 200) reduces collision risk.
+static constexpr bool      k_pin_sta_host_octet = true;
+static constexpr uint8_t   k_pinned_host_octet  = 200;
+static std::atomic<bool>   s_sta_using_static_ip{false};
 
 #define WIFI_CONNECT_TIMEOUT_MS          6000  // Slightly increased for mobile hotspots
 #define WIFI_STATE_TRANSITION_TIMEOUT_MS 3000
@@ -42,6 +53,74 @@ static std::atomic<bool> mdns_started{false};
 #define WIFI_MAX_BACKOFF_MS              10000  // Slightly increased for mobile
 #define RECONNECT_TIMEOUT_MS             3000   // Slightly increased for mobile
 #define MDNS_SERVICE_NAME                "SOTAcat SOTAmat Service"
+
+// Revert STA interface back to DHCP mode so we can re-learn subnet on reconnect
+static void sta_revert_to_dhcp_if_needed () {
+    if (!sta_netif)
+        return;
+    if (!s_sta_using_static_ip.load())
+        return;
+
+    esp_err_t err = esp_netif_dhcpc_start (sta_netif);
+    if (err != ESP_OK && err != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STARTED) {
+        ESP_LOGW (TAG8, "Failed to restart DHCP client: %s", esp_err_to_name (err));
+    }
+    else {
+        ESP_LOGI (TAG8, "Re-enabled DHCP client on STA");
+    }
+    s_sta_using_static_ip.store (false);
+}
+
+// After DHCP gives us an IP, pin to a fixed host octet on the same subnet.
+// Returns true if IP was changed (caller should re-announce mDNS).
+static bool maybe_pin_sta_ip (const ip_event_got_ip_t * event) {
+    if (!k_pin_sta_host_octet || !sta_netif || !event)
+        return false;
+
+    const esp_netif_ip_info_t & got = event->ip_info;
+    const uint32_t ip      = got.ip.addr;
+    const uint32_t netmask = got.netmask.addr;
+
+    // Compute subnet base and desired IP = subnet + pinned host octet
+    const uint32_t subnet  = ip & netmask;
+    const uint32_t desired = subnet | (static_cast<uint32_t>(k_pinned_host_octet) << 24);
+
+    // Avoid problematic addresses
+    if (k_pinned_host_octet == 0 || k_pinned_host_octet == 1 || k_pinned_host_octet == 255) {
+        ESP_LOGW (TAG8, "Pinned host octet %u is unsafe; not pinning", static_cast<unsigned>(k_pinned_host_octet));
+        return false;
+    }
+
+    if (desired == ip) {
+        ESP_LOGI (TAG8, "STA already has pinned IP: " IPSTR, IP2STR (&got.ip));
+        s_sta_using_static_ip.store (true);
+        return false;
+    }
+
+    esp_netif_ip_info_t ip_info = got;
+    ip_info.ip.addr = desired;
+
+    // Stop DHCP client, then apply static IP
+    esp_err_t err = esp_netif_dhcpc_stop (sta_netif);
+    if (err != ESP_OK && err != ESP_ERR_ESP_NETIF_DHCP_ALREADY_STOPPED) {
+        ESP_LOGW (TAG8, "Failed to stop DHCP client: %s", esp_err_to_name (err));
+        return false;
+    }
+
+    err = esp_netif_set_ip_info (sta_netif, &ip_info);
+    if (err != ESP_OK) {
+        ESP_LOGW (TAG8, "Failed to set pinned STA IP: %s", esp_err_to_name (err));
+        // Try to get back to DHCP
+        esp_netif_dhcpc_start (sta_netif);
+        s_sta_using_static_ip.store (false);
+        return false;
+    }
+
+    s_sta_using_static_ip.store (true);
+    ESP_LOGI (TAG8, "Pinned STA IP to " IPSTR " (gw " IPSTR " mask " IPSTR ")",
+              IP2STR (&ip_info.ip), IP2STR (&ip_info.gw), IP2STR (&ip_info.netmask));
+    return true;
+}
 
 // Function to handle Wi-Fi events
 static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t event_id, void * event_data) {
@@ -79,9 +158,12 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
                 ESP_LOGW (TAG8, "Beacon timeout - Android hotspot may be power saving");
                 break;
             case WIFI_REASON_NO_AP_FOUND:
-                ESP_LOGW (TAG8, "No AP found - Android hotspot may be hidden or turned off");
+                ESP_LOGI (TAG8, "No AP found - Android hotspot may be hidden or turned off");
                 break;
             }
+
+            // Revert to DHCP so we can re-learn subnet on next reconnect
+            sta_revert_to_dhcp_if_needed();
 
             s_sta_connected.store (false);
             wifi_connected.store (s_ap_client_connected.load());
@@ -144,14 +226,21 @@ static void wifi_event_handler (void * arg, esp_event_base_t event_base, int32_t
         switch (event_id) {
         case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t * event = (ip_event_got_ip_t *)event_data;
-            ESP_LOGI (TAG8, "Got IP: " IPSTR, IP2STR (&event->ip_info.ip));
+            ESP_LOGI (TAG8, "Got IP via DHCP: " IPSTR, IP2STR (&event->ip_info.ip));
             wifi_connected.store (true);
 
+            // Pin to stable IP BEFORE announcing mDNS, so Bonjour Browser sees the pinned address
+            bool ip_was_pinned = maybe_pin_sta_ip (event);
+
             // Announce mDNS now that the STA interface has a valid IPv4 address
+            // (either the DHCP address or the newly-pinned address)
             if (sta_netif && mdns_started.load()) {
                 esp_err_t err = mdns_netif_action (sta_netif, MDNS_EVENT_ANNOUNCE_IP4);
                 if (err != ESP_OK) {
                     ESP_LOGW (TAG8, "Failed to announce mDNS on STA interface: %s", esp_err_to_name (err));
+                }
+                else if (ip_was_pinned) {
+                    ESP_LOGI (TAG8, "mDNS re-announced with pinned IP");
                 }
             }
 
@@ -177,29 +266,23 @@ static void wifi_init_softap () {
 
     ESP_LOGI (TAG8, "Setting up soft AP");
     wifi_config_t    wifi_config = {};
-    wifi_ap_config_t ap_config   = {
-          .ssid            = "",
-          .password        = "",
-          .ssid_len        = 0,
-          .channel         = 1,
-          .authmode        = WIFI_AUTH_WPA2_PSK,
-          .ssid_hidden     = 0,
-          .max_connection  = 8,
-          .beacon_interval = 100,
-          .pairwise_cipher = WIFI_CIPHER_TYPE_CCMP,
-          .ftm_responder   = false,
-          .pmf_cfg         = {
-                              .capable  = true,
-                              .required = false},
-          .sae_pwe_h2e = WPA3_SAE_PWE_BOTH
-    };
-    memcpy (&wifi_config.ap, &ap_config, sizeof (wifi_ap_config_t));
+    wifi_ap_config_t ap_config   = {};  // Zero-initialize all fields
+    ap_config.channel            = 1;
+    ap_config.authmode           = WIFI_AUTH_WPA2_PSK;
+    ap_config.max_connection     = 8;
+    ap_config.beacon_interval    = 100;
+    ap_config.pairwise_cipher    = WIFI_CIPHER_TYPE_CCMP;
+    ap_config.ftm_responder      = false;
+    ap_config.pmf_cfg.capable    = true;
+    ap_config.pmf_cfg.required   = false;
+    ap_config.sae_pwe_h2e        = WPA3_SAE_PWE_BOTH;
+    std::memcpy (&wifi_config.ap, &ap_config, sizeof (wifi_ap_config_t));
 
     strlcpy ((char *)wifi_config.ap.ssid, g_ap_ssid, sizeof (wifi_config.ap.ssid));
-    wifi_config.ap.ssid_len = strlen (g_ap_ssid);
+    wifi_config.ap.ssid_len = std::strlen (g_ap_ssid);
     strlcpy ((char *)wifi_config.ap.password, g_ap_pass, sizeof (wifi_config.ap.password));
 
-    if (strlen (g_ap_pass) == 0) {
+    if (std::strlen (g_ap_pass) == 0) {
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;
     }
 
@@ -354,22 +437,24 @@ bool start_mdns_service () {
     // Attach network interfaces to the default mDNS server (required for ESP-IDF >= 5.0)
     if (sta_netif) {
         err = mdns_register_netif (sta_netif);
-        if (err != ESP_OK) {
+        if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+            // INVALID_STATE means already registered, which is fine
             ESP_LOGW (TAG8, "Failed to register STA interface with mDNS: %s", esp_err_to_name (err));
         }
     }
     else {
-        ESP_LOGW (TAG8, "STA interface not initialized, skipping mDNS registration");
+        ESP_LOGD (TAG8, "STA interface not initialized, skipping mDNS registration");
     }
 
     if (ap_netif) {
         err = mdns_register_netif (ap_netif);
-        if (err != ESP_OK) {
+        if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+            // INVALID_STATE means already registered, which is fine
             ESP_LOGW (TAG8, "Failed to register AP interface with mDNS: %s", esp_err_to_name (err));
         }
     }
     else {
-        ESP_LOGW (TAG8, "AP interface not initialized, skipping mDNS registration");
+        ESP_LOGD (TAG8, "AP interface not initialized, skipping mDNS registration");
     }
 
     // Enable mDNS on both interfaces immediately for IPv4
@@ -517,7 +602,7 @@ void wifi_task (void * pvParameters) {
                 const char * ssid     = NULL;
                 const char * password = NULL;
 
-                if (strlen (g_sta1_ssid) == 0 && strlen (g_sta2_ssid) == 0 && strlen (g_sta3_ssid) == 0) {
+                if (std::strlen (g_sta1_ssid) == 0 && std::strlen (g_sta2_ssid) == 0 && std::strlen (g_sta3_ssid) == 0) {
                     if (!sta_mode_aborted) {
                         ESP_LOGE (TAG8, "All SSIDs are empty. Aborting station mode connection attempts.");
                         sta_mode_aborted = true;
@@ -525,17 +610,17 @@ void wifi_task (void * pvParameters) {
                 }
                 else {
                     sta_mode_aborted = false;  // Reset the flag if at least one SSID is available
-                    if (current_ssid == 1 && strlen (g_sta1_ssid) > 0) {
+                    if (current_ssid == 1 && std::strlen (g_sta1_ssid) > 0) {
                         ssid         = g_sta1_ssid;
                         password     = g_sta1_pass;
                         current_ssid = 2;
                     }
-                    else if (current_ssid == 2 && strlen (g_sta2_ssid) > 0) {
+                    else if (current_ssid == 2 && std::strlen (g_sta2_ssid) > 0) {
                         ssid         = g_sta2_ssid;
                         password     = g_sta2_pass;
                         current_ssid = 3;
                     }
-                    else if (strlen (g_sta3_ssid) > 0) {
+                    else if (std::strlen (g_sta3_ssid) > 0) {
                         ssid         = g_sta3_ssid;
                         password     = g_sta3_pass;
                         current_ssid = 1;
@@ -579,6 +664,14 @@ void wifi_task (void * pvParameters) {
                 ESP_LOGI (TAG8, "All connections lost");
                 attempt_start_time = current_time;  // Reset the timer for immediate attempt
 
+                // Re-enable AP mode when STA connection is lost
+                if (!s_ap_client_connected.load()) {
+                    esp_err_t err = esp_wifi_set_mode (WIFI_MODE_APSTA);
+                    if (err == ESP_OK) {
+                        ESP_LOGI (TAG8, "AP mode re-enabled after STA disconnect");
+                    }
+                }
+
                 // Track when AP client disconnected
                 if (!s_ap_client_connected.load() && previously_connected) {
                     last_ap_disconnect_time = current_time;
@@ -586,17 +679,30 @@ void wifi_task (void * pvParameters) {
                 break;
             }
 
+            // Disable AP mode when STA is connected (reduces channel congestion)
+            if (s_sta_connected.load() && !s_ap_client_connected.load() && s_wifi_ap_started) {
+                esp_err_t err = esp_wifi_set_mode (WIFI_MODE_STA);
+                if (err == ESP_OK) {
+                    ESP_LOGI (TAG8, "AP mode disabled - STA connected, reducing channel congestion");
+                    s_wifi_ap_started = false;
+                }
+                else {
+                    ESP_LOGW (TAG8, "Failed to disable AP mode: %s", esp_err_to_name (err));
+                }
+            }
+
             // Periodic connection check
             if ((current_time - last_connection_check_time) * portTICK_PERIOD_MS >= CONNECTION_CHECK_INTERVAL_MS) {
                 last_connection_check_time = current_time;
 
-                // Only check STA connection if we're not in AP mode with clients
+                // Check STA connection if connected as station
                 if (s_sta_connected.load() && !s_ap_client_connected.load()) {
                     wifi_ap_record_t ap_info;
                     esp_err_t        err = esp_wifi_sta_get_ap_info (&ap_info);
 
                     if (err == ESP_OK) {
-                        ESP_LOGI (TAG8, "WiFi still connected to SSID: %s, RSSI: %d", ap_info.ssid, ap_info.rssi);
+                        s_rssi.store (ap_info.rssi);
+                        ESP_LOGI (TAG8, "WiFi still connected to SSID: %s, RSSI: %d", ap_info.ssid, get_rssi());
                     }
                     else {
                         ESP_LOGW (TAG8, "Failed to get AP info, error: %s", esp_err_to_name (err));
@@ -615,6 +721,21 @@ void wifi_task (void * pvParameters) {
                         }
                     }
                 }
+                // Get RSSI from connected AP clients (use weakest signal - most likely to have issues)
+                else if (s_ap_client_connected.load()) {
+                    wifi_sta_list_t sta_list;
+                    esp_err_t       err = esp_wifi_ap_get_sta_list (&sta_list);
+                    if (err == ESP_OK && sta_list.num > 0) {
+                        int8_t weakest_rssi = 0;
+                        for (int i = 0; i < sta_list.num; i++) {
+                            if (sta_list.sta[i].rssi < weakest_rssi) {
+                                weakest_rssi = sta_list.sta[i].rssi;
+                            }
+                        }
+                        s_rssi.store (weakest_rssi);
+                        ESP_LOGI (TAG8, "AP mode - weakest client RSSI: %d dBm (%d clients)", weakest_rssi, sta_list.num);
+                    }
+                }
             }
 
             if (!mdns_started.load()) {
@@ -628,7 +749,6 @@ void wifi_task (void * pvParameters) {
 
                 if (start_mdns_service()) {
                     mdns_retry_count = 0;
-                    ESP_LOGI (TAG8, "mDNS service started");
                 }
                 else {
                     mdns_retry_count++;
@@ -706,4 +826,8 @@ void start_wifi_task (TaskNotifyConfig * config) {
 
 bool is_wifi_connected () {
     return wifi_connected.load();
+}
+
+int8_t get_rssi () {
+    return s_rssi.load();
 }

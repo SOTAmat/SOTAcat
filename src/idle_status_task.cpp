@@ -5,14 +5,10 @@
 #include "hardware_specific.h"
 #include "settings.h"
 
+#include <cmath>
+#include <ctime>
 #include <driver/gpio.h>
-#include <math.h>
-#include <time.h>
 
-#include "esp_timer.h"
-#include "max17260.h"
-#include "smbus.h"
-#include <driver/i2c.h>
 #include <esp_task_wdt.h>
 
 #include <esp_log.h>
@@ -24,7 +20,7 @@ static const char * TAG8 = "sc:idletask";
  * to prevent the idle watchdog from triggering incorrectly.
  */
 void resetActivityTimer () {
-    time (&LastUserActivityUnixTime);
+    std::time (&LastUserActivityUnixTime);
     ESP_LOGI (TAG8, "Activity timer reset");
 }
 
@@ -55,19 +51,22 @@ void idle_status_task (void * _pvParameter) {
 
         // Get the current time
         time_t now;
-        time (&now);  // Time in seconds
+        std::time (&now);  // Time in seconds
 
-        int blinks = ceil ((now - LastUserActivityUnixTime) / (AUTO_SHUTDOWN_TIME_SECONDS / 4.0));
+        int blinks = std::ceil ((now - LastUserActivityUnixTime) / (AUTO_SHUTDOWN_TIME_SECONDS / 4.0));
         ESP_LOGV (TAG8, "blinks %d", blinks);
 
-        // When USB power is detected, we don't shut down due to inactivity
-        // Keep LED flash count at 1 to indicate shutdown countdown is not progressing
+        // Count USB detection as a user event
         if (gpio_get_level (USB_DET_PIN)) {
-            ESP_LOGV (TAG8, "USB power connected - shutdown disabled");
+            ESP_LOGV (TAG8, "USB power connected");
             blinks = 1;
         }
 
-        if (blinks > 4 && gpio_get_level (USB_DET_PIN) == 0) {
+        // Inactivity shutdown: blinks > 4 means idle time exceeded AUTO_SHUTDOWN_TIME_SECONDS.
+        // When USB is connected, blinks is set to 1 above, so this block is never entered.
+        // If battery is sufficient, we reset timers instead of shutting down (allows indefinite
+        // operation when charging via USB, since battery stays above threshold).
+        if (blinks > 4) {
             if (get_battery_percentage() < BATTERY_SHUTOFF_PERCENTAGE) {
                 gpio_set_level (LED_BLUE, LED_ON);
                 gpio_set_level (LED_RED, LED_ON);
@@ -140,7 +139,7 @@ void showActivity () {
         xTaskCreate (activityLedBlinkTask, "ActivityLEDblinkControlTask", 2048, NULL, SC_TASK_PRIORITY_LOW, &showUserActivityBlinkTaskHandle);
 
     // Reset the inactivity timer to the current time, so we can remember when the user was last active.
-    time (&LastUserActivityUnixTime);
+    std::time (&LastUserActivityUnixTime);
     gpio_set_level (LED_RED, LED_ON);
 
     // Signal the LED control task to reset its wait timer

@@ -5,15 +5,14 @@
 #include "hardware_specific.h"
 #include "idle_status_task.h"
 #include "kx_radio.h"
-#include "settings.h"
+#include "timed_lock.h"
 #include "webserver.h"
 
+#include <cmath>
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_task_wdt.h>
 #include <esp_timer.h>
-#include <math.h>
-#include <memory>
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
 
@@ -57,11 +56,10 @@ static ft8_task_pack_t * ft8ConfigInfo = NULL;
  */
 static long msUntilFT8Window () {
     // Obtain the current time with microsecond precision
-    struct timeval tv_now;
-    gettimeofday (&tv_now, NULL);
+    int64_t now_us = esp_timer_get_time();
 
     // Convert current time to milliseconds using long long to avoid overflow
-    long long now_ms = (long long)(tv_now.tv_sec) * 1000LL + (tv_now.tv_usec / 1000LL);
+    long long now_ms = now_us / 1000LL;
 
     // Calculate delay until the next 15-second boundary
     long delay_ms = 15000 - (now_ms % 15000LL);
@@ -117,21 +115,12 @@ static void sendFT8Tone (long base_frequency, long prior_frequency, long frequen
     // We don't want to log this function because it will affect the timing and add jitter.
     // ESP_LOGV(TAG8, "trace: %s(%ld, %ld)", __func__, prior_frequency, frequency);
 
-    char command[16];
     // Ease into the new frequency based on the prior frequency in x steps lasting 10% of the interval
     long delta_frequency = frequency - prior_frequency;
 
     for (int step = 1; step <= EASE_STEPS; step++) {
-        long eased_frequency = prior_frequency + round (delta_frequency * ((float)step / EASE_STEPS));
-        if (kxRadio.get_radio_type() == RadioType::KH1) {  
-            snprintf(command, sizeof(command), "FO%02u;", (unsigned)((eased_frequency - base_frequency) % 100));            // Send the tone command over UART
-            uart_write_bytes (UART_NUM, command, 5);
-        }
-        else {
-            snprintf (command, sizeof (command), "FA%011ld;", eased_frequency);
-            // Send the tone command over UART
-            uart_write_bytes (UART_NUM, command, 14);
-        }
+        long eased_frequency = prior_frequency + std::round (delta_frequency * ((float)step / EASE_STEPS));
+        kxRadio.ft8_set_tone (base_frequency, eased_frequency);
     }
 
     // Reset the lastWakeTime to the time we entered this function, and then wait the 0.16 total interval seconds.
@@ -163,73 +152,68 @@ static void xmit_ft8_task (void * pvParameter) {
     }
 
     // this block encapsulates our exclusive access to the radio port
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
-
-        ft8TaskInProgress = true;
-
-        ESP_LOGI (TAG8, "ft8 transmission starting--");
-
-        // Get ready, do any pre-work before the 'waitForFT8Window()' call so we start at the right time
-        ft8_task_pack_t * info            = (ft8_task_pack_t *)pvParameter;
-        const TickType_t  toneInterval    = pdMS_TO_TICKS (160);  // 160ms interval for each tone
-        long              prior_frequency = info->baseFreq + (long)round (info->tones[0] * 6.25);
-
-        waitForFT8Window();
-
-        // Update the timer for when to cancel the radio FT8 mode
-        int64_t watchdogTime = esp_timer_get_time() + (15LL * 1000LL * 1000LL);  // 15 seconds from now, converted to microseconds
-        if (watchdogTime > CancelRadioFT8ModeTime)
-            CancelRadioFT8ModeTime = watchdogTime;
-
-        struct timeval startTime;
-        gettimeofday (&startTime, NULL);  // Capture the current time to calculate the total time
-
-        // Reset watchdog before starting time-critical FT8 transmission
-        ESP_ERROR_CHECK (esp_task_wdt_reset());
-
-        // Tell the radio to turn on the CW tone
-        if (kxRadio.get_radio_type() == RadioType::KH1)
-            uart_write_bytes (UART_NUM, "HK1;", strlen ("HK1;"));
-        else
-            uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;")); 
-
-        TickType_t lastWakeTime = xTaskGetTickCount();             // Initialize lastWakeTime
-
-        // Now tell the radio to play the array of 79 tones
-        // Note that the Elecraft KX2/KX3 and KH1 radios do not allow fractional Hz, so we round to the nearest Hz.
-        for (int j = 0; j < FT8_NN; ++j) {
-            long next_frequency = info->baseFreq + (long)round (info->tones[j] * 6.25);
-
-            sendFT8Tone (info->baseFreq,
-                         prior_frequency,
-                         next_frequency,
-                         &lastWakeTime,
-                         toneInterval);
-
-            prior_frequency = next_frequency;
-
-            if (CancelRadioFT8ModeTime <= 1)
-                break;
-        }
-
-        // Tell the radio to turn off the CW tone
-        if (kxRadio.get_radio_type() == RadioType::KH1) {
-            uart_write_bytes (UART_NUM, "HK0;", strlen ("HK0;"));
-            uart_write_bytes (UART_NUM, "FO99;", strlen ("FO99;")); // Take KH1 out of FO mode
-        }
-        else
-            uart_write_bytes (UART_NUM, "SWH16;", strlen ("SWH16;"));
-
-        // Reset watchdog after completing time-critical FT8 transmission
-        ESP_ERROR_CHECK (esp_task_wdt_reset());
-
-        // Stop the timer and calculate the total time
-        struct timeval endTime;
-        gettimeofday (&endTime, NULL);
-        long totalTime = (endTime.tv_sec - startTime.tv_sec) * 1000 + (endTime.tv_usec - startTime.tv_usec) / 1000;
-        ESP_LOGI (TAG8, "ft8 transmission time: %ld ms", totalTime);
+    TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FT8_MS, "FT8 transmission");
+    if (!lock.acquired()) {
+        ESP_LOGE (TAG8, "Failed to acquire radio lock for FT8 transmission");
+        ft8TaskInProgress = false;
+        esp_task_wdt_delete (NULL);
+        vTaskDelete (NULL);
+        return;
     }
+
+    ft8TaskInProgress = true;
+
+    ESP_LOGI (TAG8, "ft8 transmission starting--");
+
+    // Get ready, do any pre-work before the 'waitForFT8Window()' call so we start at the right time
+    ft8_task_pack_t * info            = (ft8_task_pack_t *)pvParameter;
+    const TickType_t  toneInterval    = pdMS_TO_TICKS (160);  // 160ms interval for each tone
+    long              prior_frequency = info->baseFreq + (long)round (info->tones[0] * 6.25);
+
+    waitForFT8Window();
+
+    // Update the timer for when to cancel the radio FT8 mode
+    int64_t watchdogTime = esp_timer_get_time() + (15LL * 1000LL * 1000LL);  // 15 seconds from now, converted to microseconds
+    if (watchdogTime > CancelRadioFT8ModeTime)
+        CancelRadioFT8ModeTime = watchdogTime;
+
+    int64_t startTime = esp_timer_get_time();  // Capture the current time to calculate the total time
+
+    // Reset watchdog before starting time-critical FT8 transmission
+    ESP_ERROR_CHECK (esp_task_wdt_reset());
+
+    // Tell the radio to turn on the CW tone
+    kxRadio.ft8_tone_on();
+    TickType_t lastWakeTime = xTaskGetTickCount();                 // Initialize lastWakeTime
+
+    // Now tell the radio to play the array of 79 tones
+    // Note that the Elecraft KX2/KX3 and KH1 radios do not allow fractional Hz, so we round to the nearest Hz.
+    for (int j = 0; j < FT8_NN; ++j) {
+        long next_frequency = info->baseFreq + (long)round (info->tones[j] * 6.25);
+
+        sendFT8Tone (info->baseFreq,
+                     prior_frequency,
+                     next_frequency,
+                     &lastWakeTime,
+                     toneInterval);
+
+        prior_frequency = next_frequency;
+
+        if (CancelRadioFT8ModeTime <= 1)
+            break;
+    }
+
+    // Tell the radio to turn off the CW tone
+    kxRadio.ft8_tone_off();
+
+    // Reset watchdog after completing time-critical FT8 transmission
+    ESP_ERROR_CHECK (esp_task_wdt_reset());
+
+    // Stop the timer and calculate the total time
+    int64_t endTime   = esp_timer_get_time();
+    long    totalTime = (endTime - startTime) / 1000;  // Convert microseconds to milliseconds
+    ESP_LOGI (TAG8, "ft8 transmission time: %ld ms", totalTime);
+    // TimedLock auto-unlocks here
 
     // Note that the cleanup will happen in the watchdog 'cleanup_ft8_task' function
     ft8TaskInProgress = false;
@@ -269,11 +253,21 @@ static void cleanup_ft8_task (void * pvParameter) {
     }
 
     // Restore the radio to its prior state (including TUN PWR)
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
-        ESP_LOGI (TAG8, "Restoring radio state including TUN PWR to original settings");
-        kxRadio.restore_kx_state (ft8ConfigInfo->kx_state, 4);
+    TimedLock lock2 = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "FT8 cleanup");
+    if (!lock2.acquired()) {
+        ESP_LOGE (TAG8, "Failed to acquire radio lock for FT8 cleanup - radio state not restored");
+        delete ft8ConfigInfo->kx_state;
+        delete ft8ConfigInfo;
+        ft8ConfigInfo     = nullptr;
+        CommandInProgress = false;
+        esp_task_wdt_delete (NULL);
+        vTaskDelete (NULL);
+        return;
     }
+
+    ESP_LOGI (TAG8, "Restoring radio state including TUN PWR to original settings");
+    kxRadio.restore_radio_state (ft8ConfigInfo->kx_state, 4);
+    // TimedLock auto-unlocks here
 
     // Release ft8ConfigInfo
     delete ft8ConfigInfo->kx_state;
@@ -381,37 +375,27 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     ft8_encode (packed, tones);
 
     // this block encapsulates our exclusive access to the radio port
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
-
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "FT8 setup")) {
         // First capture the current state of the radio before changing it:
         kx_state_t * kx_state = new kx_state_t;
-        kxRadio.get_kx_state (kx_state);
+        if (!kxRadio.get_radio_state (kx_state)) {
+            delete kx_state;
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to read radio state");
+        }
 
         // Prepare the radio to send the FT8 FSK tones using CW tone with proper power setting.
         long baseFreq = rfFreq + audioFreq;
 
-        if (kxRadio.get_radio_type() == RadioType::KH1) {
-            kxRadio.put_to_kx_command_string ("FO00;", 1);   // FO00; - Turn on OFFSET mode
-            kxRadio.put_to_kx ("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
-        }
-        else {
-            kxRadio.put_to_kx ("FR", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FR0; - Cancels split mode
-            kxRadio.put_to_kx ("FT", 1, 0, SC_KX_COMMUNICATION_RETRIES);          // FT0; - Select VFO A
-            kxRadio.put_to_kx ("FA", 11, baseFreq, SC_KX_COMMUNICATION_RETRIES);  // FAnnnnnnnnnnn; - Set the radio to transmit on the middle of the FT8 frequency
-            kxRadio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);    // MD3; - To set the Peaking Filter mode, we have to be in CW mode: MD3;
-            kxRadio.put_to_kx ("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);          // AP1; - Enable Audio Peaking filter
-
-            // Set TUN PWR to 10W (100 = 10.0W in 0.1W units) with verification
-            kxRadio.put_to_kx_menu_item (58, 100, SC_KX_COMMUNICATION_RETRIES);  // MN058;MP100; - Set TUN PWR to 10 watts
-            ESP_LOGI (TAG8, "TUN PWR set to 10W for FT8 transmission");
+        if (!kxRadio.ft8_prepare (baseFreq)) {
+            delete kx_state;
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to prepare radio for ft8");
         }
         // Offload playing the FT8 audio
         ft8ConfigInfo           = new ft8_task_pack_t;
         ft8ConfigInfo->baseFreq = baseFreq;
         ft8ConfigInfo->tones    = tones;
         ft8ConfigInfo->kx_state = kx_state;  // will be deleted later in cleanup
-    }
+    }  // TimedLock auto-unlocks here
 
     // We have prepared the radio to send FT8, but we don't know if the user will
     // cancel or send FT8.  We set the cleanup watchdog timer to be 1 second after

@@ -1,355 +1,366 @@
-<script src="settings.js"></script>
 <div class="settings-container">
-  <!-- Time Sync Card -->
-  <div class="settings-card">
-    <h2>Clock Sync</h2>
-    <p class="settings-info">
-      Set your KX or KH clock to UTC using your phone's time.
-    </p>
-    <button class="btn-primary" onclick="syncTime()">Set Radio Clock</button>
-  </div>
-
-  <!-- GPS Location Card -->
-  <div class="settings-card">
-    <h2>GPS Location Override</h2>
-    <p class="settings-info">
-      Override IP address location detection (inaccurate) with a specific
-      location. Clear to use location detection via IP address.
-    </p>
-    <div class="input-group-vertical">
-      <input
-        type="text"
-        id="gps-location"
-        placeholder="e.g. 37.93389, -122.01136"
-        pattern="^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$"
-        title="Enter as latitude, longitude (e.g. 37.93389, -122.01136)"
-      />
-      <div class="button-group">
-        <button class="btn-primary" onclick="saveGpsLocation()">Save</button>
-        <button class="btn-secondary" onclick="clearGpsLocation()">
-          Clear
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SDR Integration Card -->
-  <div class="settings-card">
-    <h2>SDR Integration</h2>
-    <p class="settings-info">
-      Optionally open a WebSDR page when you click on a frequency. The WebSDR
-      tab opens in the background and updates automatically as you click
-      different spots. Leave blank to disable.
-    </p>
-    <p class="settings-info">
-      <strong>Frequency placeholders:</strong>
-      <code>&lt;FREQ-MHZ&gt;</code>, <code>&lt;FREQ-KHZ&gt;</code>, or
-      <code>&lt;FREQ-HZ&gt;</code>
-    </p>
-    <p class="settings-info">
-      <strong>Mode placeholders:</strong> <code>&lt;MODE&gt;</code> substitutes
-      the sideband (USB/LSB/CW/AM/FM/DATA).
-      <code>&lt;MODE-SSB&gt;</code> substitutes "SSB" for any sideband mode.
-    </p>
-    <p class="settings-info">
-      <strong>Example:</strong>
-      <code
-        >http://websdr1.kfsdr.com:8901/?allow_kbd&amp;tune=&lt;FREQ-KHZ&gt;&lt;MODE&gt</code
-      >
-    </p>
-    <div class="input-group-vertical">
-      <input
-        type="text"
-        id="sdr-url"
-        placeholder="e.g. http://websdr.example.com/?tune=<FREQ-KHZ><MODE>"
-        maxlength="255"
-      />
-      <label class="checkbox-label">
-        <input type="checkbox" id="sdr-mobile" />
-        <span>Allow SDR launch from mobile browsers</span>
-      </label>
-      <div class="button-group">
-        <button class="btn-primary" onclick="saveSdrUrl()">Save</button>
-        <button class="btn-secondary" onclick="clearSdrUrl()">Clear</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- WiFi Settings Card -->
-  <div class="settings-card">
-    <h2>
-      WiFi Configuration
-      <button type="button" class="btn-info" onclick="toggleWifiHelp()">
-        <span class="info-icon">ⓘ</span>
-      </button>
-    </h2>
-
-    <!-- WiFi Help Popup -->
-    <div id="wifi-help-popup" class="help-popup" style="display: none">
-      <div class="help-popup-content">
-        <div class="help-popup-header">
-          <h3>WiFi Configuration Help</h3>
-          <button type="button" class="btn-close" onclick="toggleWifiHelp()">
-            ×
-          </button>
+    <!-- Call Sign & License Card -->
+    <div class="settings-card">
+        <h2>Call Sign & License</h2>
+        <p class="settings-info">Your amateur radio call sign and FCC license class</p>
+        <div class="input-group-vertical">
+            <div class="callsign-license-row">
+                <input
+                    type="text"
+                    id="callsign"
+                    placeholder="e.g. W1AW"
+                    pattern="^[A-Z0-9\/]*$"
+                    inputmode="text"
+                    autocapitalize="characters"
+                    class="text-uppercase"
+                    maxlength="15"
+                />
+                <select id="license-class" class="select-control">
+                    <option value="" selected>Unlicensed</option>
+                    <option value="N">Novice</option>
+                    <option value="T">Tech</option>
+                    <option value="G">General</option>
+                    <option value="A">Advanced</option>
+                    <option value="E">Extra</option>
+                </select>
+            </div>
+            <div class="button-group">
+                <button id="save-callsign-button" class="btn btn-secondary" disabled>Save</button>
+            </div>
         </div>
-        <div class="help-popup-body">
-          <p>
-            When SOTACAT boots, it will try to connect to one of two WiFi
-            networks (Client-1 and Client-2) in order. If those connections
-            fail, it will create its own WiFi hotspot (Server) so that you can
-            connect to the SOTACAT WiFi from your mobile device.
-          </p>
-          <p>
-            <strong>Apple iPhone users</strong> in the field should connect to
-            the SOTACAT hotspot (Server) since the iPhone supports 'split
-            networking' where the phone is connected to both the SOTACAT via
-            WiFi and the cellular data network (when available) for retrieving
-            current spots. Thus iPhone users, when in the field, don't want a
-            valid Client-1 or Client-2. There are many ways to prevent a
-            connection to Client-1 or Client-2 (be out of range of home WiFi,
-            configure the settings to a blank SSID/password, turn off the iPhone
-            mobile hotspot, etc.).
-          </p>
-          <p>
-            <strong>Android phones</strong> do not support 'split networking'.
-            You should fill in the "Client-1" or "Client-2" settings with your
-            Android phone's hotspot information and enable the hotspot when
-            operating in the field. SOTACAT will connect to your phone's mobile
-            hotspot using Client-1 or Client-2 settings via WiFi while the phone
-            will also be connected to the cellular data network.
-          </p>
-          <p>
-            <strong>When you are at home</strong>, your phone will likely be
-            connected to your home WiFi network, and thus unavailable for a
-            direct WiFi connection to/from the SOTACAT. The remaining unused
-            Client-1 or Client-2 settings are available for you to add your home
-            WiFi network information into the SOTACAT. This will allow your
-            SOTACAT to be connected to the same network as your phone when at
-            home, so both devices can communicate. It is up to you to decide the
-            priority order of the Client-1 and Client-2 settings as to which is
-            for your phone's hotspot and which is for your home WiFi network.
-            The only difference is how long it will take to connect when booting
-            the SOTACAT, as the SOTACAT will try to connect to Client-1 first,
-            then Client-2. And again, Apple iPhone users won't even use the
-            mobile hotspot settings.
-          </p>
-          <p>
-            Once connected to a network, you open your phone's browser and
-            navigate to either
-            <a href="http://sotacat.local" target="_blank" rel="noopener"
-              >http://sotacat.local</a
-            >
-            (iPhone, MacOS, Windows) or to
-            <a href="http://192.168.4.1" target="_blank" rel="noopener"
-              >http://192.168.4.1</a
-            >
-            or when using an Android hotspot, install the
-            <a
-              href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser"
-              target="_blank"
-              rel="noopener"
-              >Bonjour Browser</a
-            >
-            app from the Google Play store and use that app to navigate to the
-            "sotacat.local" address.
-          </p>
-          <br /><br />
-        </div>
-      </div>
     </div>
 
-    <form id="wifi-settings">
-      <!-- Client 1 -->
-      <div class="wifi-config sub-card">
-        <h3>Primary Client (ex. Android hotspot)</h3>
-        <div class="input-grid">
-          <input
-            type="text"
-            id="sta1-ssid"
-            placeholder="Network Name (SSID)"
-            pattern=".{0}|.{2,31}"
-            title="Empty or 2-31 characters"
-          />
-          <input
-            type="password"
-            id="sta1-pass"
-            placeholder="Password"
-            pattern=".{0}|.{8,63}"
-            title="Empty or 8-63 characters"
-          />
-        </div>
-        <label class="checkbox-label">
-          <input
-            type="checkbox"
-            onclick="togglePasswordVisibility('sta1-pass')"
-          />
-          <span>Show password</span>
-        </label>
-      </div>
+    <!-- WiFi Settings Card -->
+    <div class="settings-card">
+        <h2>
+            WiFi Configuration
+            <button type="button" id="wifi-help-button" class="btn btn-info">
+                <span class="info-icon">ⓘ</span>
+            </button>
+        </h2>
+        <p class="settings-info">Configure up to 3 client networks and 1 access point with SSID and Password</p>
 
-      <!-- Client 2 -->
-      <div class="wifi-config sub-card">
-        <h3>Secondary Client (ex. Home WiFi)</h3>
-        <div class="input-grid">
-          <input
-            type="text"
-            id="sta2-ssid"
-            placeholder="Network Name (SSID)"
-            pattern=".{0}|.{2,31}"
-            title="Empty or 2-31 characters"
-          />
-          <input
-            type="password"
-            id="sta2-pass"
-            placeholder="Password"
-            pattern=".{0}|.{8,63}"
-            title="Empty or 8-63 characters"
-          />
+        <!-- WiFi Help Popup -->
+        <div id="wifi-help-popup" class="help-popup hidden">
+            <div class="help-popup-content">
+                <div class="help-popup-header">
+                    <h3>WiFi Configuration Help</h3>
+                    <button type="button" id="wifi-help-close-button" class="btn btn-close">×</button>
+                </div>
+                <div class="help-popup-body">
+                    <p>
+                        When SOTACAT boots, it will try to connect to one of two WiFi networks (Client-1 and Client-2)
+                        in order. If those connections fail, it will create its own WiFi hotspot (Server) so that you
+                        can connect to the SOTACAT WiFi from your mobile device.
+                    </p>
+                    <p>
+                        <strong>Apple iPhone users</strong> in the field should connect to the SOTACAT hotspot (Server)
+                        since the iPhone supports 'split networking' where the phone is connected to both the SOTACAT
+                        via WiFi and the cellular data network (when available) for retrieving current spots. Thus
+                        iPhone users, when in the field, don't want a valid Client-1 or Client-2. There are many ways to
+                        prevent a connection to Client-1 or Client-2 (be out of range of home WiFi, configure the
+                        settings to a blank SSID/password, turn off the iPhone mobile hotspot, etc.).
+                    </p>
+                    <p>
+                        <strong>Android phones</strong> do not support 'split networking'. You should fill in the
+                        "Client-1" or "Client-2" settings with your Android phone's hotspot information and enable the
+                        hotspot when operating in the field. SOTACAT will connect to your phone's mobile hotspot using
+                        Client-1 or Client-2 settings via WiFi while the phone will also be connected to the cellular
+                        data network.
+                    </p>
+                    <p>
+                        <strong>When you are at home</strong>, your phone will likely be connected to your home WiFi
+                        network, and thus unavailable for a direct WiFi connection to/from the SOTACAT. The remaining
+                        unused Client-1 or Client-2 settings are available for you to add your home WiFi network
+                        information into the SOTACAT. This will allow your SOTACAT to be connected to the same network
+                        as your phone when at home, so both devices can communicate. It is up to you to decide the
+                        priority order of the Client-1 and Client-2 settings as to which is for your phone's hotspot and
+                        which is for your home WiFi network. The only difference is how long it will take to connect
+                        when booting the SOTACAT, as the SOTACAT will try to connect to Client-1 first, then Client-2.
+                        And again, Apple iPhone users won't even use the mobile hotspot settings.
+                    </p>
+                    <p>
+                        Once connected to a network, you open your phone's browser and navigate to either
+                        <a href="http://sotacat.local" target="_blank" rel="noopener">http://sotacat.local</a> (iPhone,
+                        MacOS, Windows) or to
+                        <a href="http://192.168.4.1" target="_blank" rel="noopener">http://192.168.4.1</a> or when using
+                        an Android hotspot, install the
+                        <a
+                            href="https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser"
+                            target="_blank"
+                            rel="noopener"
+                            >Bonjour Browser</a
+                        >
+                        app from the Google Play store and use that app to navigate to the "sotacat.local" address.
+                    </p>
+                    <br />
+                </div>
+            </div>
         </div>
-        <label class="checkbox-label">
-          <input
-            type="checkbox"
-            onclick="togglePasswordVisibility('sta2-pass')"
-          />
-          <span>Show password</span>
-        </label>
-      </div>
 
-      <!-- Client 3 -->
-      <div class="wifi-config sub-card">
-        <h3>Tertiary Client (ex. Other WiFi)</h3>
-        <div class="input-grid">
-          <input
-            type="text"
-            id="sta3-ssid"
-            placeholder="Network Name (SSID)"
-            pattern=".{0}|.{2,31}"
-            title="Empty or 2-31 characters"
-          />
-          <input
-            type="password"
-            id="sta3-pass"
-            placeholder="Password"
-            pattern=".{0}|.{8,63}"
-            title="Empty or 8-63 characters"
-          />
-        </div>
-        <label class="checkbox-label">
-          <input
-            type="checkbox"
-            onclick="togglePasswordVisibility('sta3-pass')"
-          />
-          <span>Show password</span>
-        </label>
-      </div>
+        <form id="wifi-settings">
+            <!-- Client 1 -->
+            <div class="wifi-config">
+                <h3>Client 1 - Primary Network</h3>
+                <div class="input-grid">
+                    <input
+                        type="text"
+                        id="sta1-ssid"
+                        placeholder="Network Name (SSID)"
+                        pattern=".{0}|.{2,31}"
+                        title="Empty or 2-31 characters"
+                    />
+                    <input
+                        type="password"
+                        id="sta1-pass"
+                        placeholder="Password"
+                        pattern=".{0}|.{8,63}"
+                        title="Empty or 8-63 characters"
+                    />
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" class="password-visibility-toggle" data-target="sta1-pass" />
+                    <span>Show password</span>
+                </label>
+            </div>
 
-      <!-- Access Point -->
-      <div class="wifi-config sub-card">
-        <h3>SOTACAT as Hotspot (ex. for iOS)</h3>
-        <div class="input-grid">
-          <input
-            type="text"
-            id="ap-ssid"
-            placeholder="Hotspot Name"
-            pattern=".{0}|.{2,31}"
-            title="Empty or 2-31 characters"
-          />
-          <input
-            type="password"
-            id="ap-pass"
-            placeholder="Hotspot Password"
-            pattern=".{0}|.{8,63}"
-            title="Empty or 8-63 characters"
-          />
-        </div>
-        <label class="checkbox-label">
-          <input
-            type="checkbox"
-            onclick="togglePasswordVisibility('ap-pass')"
-          />
-          <span>Show password</span>
-        </label>
-      </div>
+            <!-- Client 2 -->
+            <div class="wifi-config">
+                <h3>Client 2 - Secondary Network</h3>
+                <div class="input-grid">
+                    <input
+                        type="text"
+                        id="sta2-ssid"
+                        placeholder="Network Name (SSID)"
+                        pattern=".{0}|.{2,31}"
+                        title="Empty or 2-31 characters"
+                    />
+                    <input
+                        type="password"
+                        id="sta2-pass"
+                        placeholder="Password"
+                        pattern=".{0}|.{8,63}"
+                        title="Empty or 8-63 characters"
+                    />
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" class="password-visibility-toggle" data-target="sta2-pass" />
+                    <span>Show password</span>
+                </label>
+            </div>
 
-      <button type="submit" class="btn-primary btn-large">
-        Save and Reboot
-      </button>
-    </form>
-  </div>
-  <hr />
-  <div class="settings-card">
-    <h2>Firmware Update</h2>
-    <p class="settings-info">
-      Keep your SOTACAT updated with the latest features. You download the
-      firmware from the internet to your local device (ex. your phone), and then
-      from your local device to the SOTACAT.
-    </p>
-    <p class="settings-info">
-      Running version <span id="buildVersionSettings">Loading...</span>
-    </p>
+            <!-- Client 3 -->
+            <div class="wifi-config">
+                <h3>Client 3 - Tertiary Network</h3>
+                <div class="input-grid">
+                    <input
+                        type="text"
+                        id="sta3-ssid"
+                        placeholder="Network Name (SSID)"
+                        pattern=".{0}|.{2,31}"
+                        title="Empty or 2-31 characters"
+                    />
+                    <input
+                        type="password"
+                        id="sta3-pass"
+                        placeholder="Password"
+                        pattern=".{0}|.{8,63}"
+                        title="Empty or 8-63 characters"
+                    />
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" class="password-visibility-toggle" data-target="sta3-pass" />
+                    <span>Show password</span>
+                </label>
+            </div>
 
-    <div class="firmware-steps">
-      <div class="step sub-card">
-        <span class="step-number">1</span>
-        <div class="step-content">
-          <button
-            class="btn-primary firmware-step-btn"
-            onclick="manualCheckFirmwareVersion()"
-          >
-            Check for Updates
-          </button>
-        </div>
-      </div>
+            <!-- Access Point -->
+            <div class="wifi-config">
+                <h3>Access Point - SOTACAT Hotspot</h3>
+                <div class="input-grid">
+                    <input
+                        type="text"
+                        id="ap-ssid"
+                        placeholder="Hotspot Name"
+                        pattern=".{0}|.{2,31}"
+                        title="Empty or 2-31 characters"
+                    />
+                    <input
+                        type="password"
+                        id="ap-pass"
+                        placeholder="Hotspot Password"
+                        pattern=".{0}|.{8,63}"
+                        title="Empty or 8-63 characters"
+                    />
+                </div>
+                <label class="checkbox-label">
+                    <input type="checkbox" class="password-visibility-toggle" data-target="ap-pass" />
+                    <span>Show password</span>
+                </label>
+            </div>
 
-      <div class="step sub-card">
-        <span class="step-number">2</span>
-        <div class="step-content">
-          <button
-            class="btn-primary firmware-step-btn"
-            onclick="window.location.href='https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin'"
-          >
-            Download Firmware to phone
-          </button>
-        </div>
-      </div>
-
-      <div class="step sub-card">
-        <span class="step-number">3</span>
-        <div class="step-content">
-          <button
-            class="btn-primary firmware-step-btn"
-            onclick="document.getElementById('ota-file').click()"
-          >
-            Select Firmware on phone
-          </button>
-          <input
-            type="file"
-            id="ota-file"
-            accept=".bin"
-            onchange="updateButtonText()"
-            style="display: none"
-          />
-        </div>
-      </div>
-
-      <div class="step sub-card">
-        <span class="step-number">4</span>
-        <div class="step-content">
-          <button
-            class="btn-primary firmware-step-btn"
-            id="upload-button"
-            onclick="uploadFirmware()"
-            disabled
-          >
-            Install Firmware to SOTACAT
-          </button>
-        </div>
-      </div>
+            <button type="submit" id="save-wifi-button" class="btn btn-secondary btn-large" disabled>Save and Reboot</button>
+        </form>
     </div>
 
-    <div id="ota-status" class="status-message"></div>
-  </div>
+    <!-- Tune Targets Card -->
+    <div class="settings-card">
+        <h2>
+            Tune Targets
+            <button type="button" id="tune-targets-help-button" class="btn btn-info">
+                <span class="info-icon">ⓘ</span>
+            </button>
+        </h2>
+        <p class="settings-info">
+            When you tune to a frequency, also open these URLs in background browser tabs.
+            Useful for WebSDR, KiwiSDR, or other remote receivers.
+        </p>
 
-  <iframe name="hiddenFrame" style="display: none"></iframe>
+        <!-- Tune Targets Help Popup -->
+        <div id="tune-targets-help-popup" class="help-popup hidden">
+            <div class="help-popup-content">
+                <div class="help-popup-header">
+                    <h3>Tune Targets Help</h3>
+                    <button type="button" id="tune-targets-help-close-button" class="btn btn-close">×</button>
+                </div>
+                <div class="help-popup-body">
+                    <p>
+                        <strong>What are Tune Targets?</strong> When you click on a spot in the Chase table to tune
+                        your radio, SOTACAT can simultaneously open one or more web-based SDR receivers in background
+                        browser tabs, tuned to the same frequency. This lets you monitor your signal on a remote
+                        receiver, check propagation, or listen via WebSDR when local conditions are poor.
+                    </p>
+                    <p>
+                        <strong>How it works:</strong> Each tune target is a URL template containing placeholders
+                        that get replaced with the actual frequency and mode when you tune. For example,
+                        <code>{FREQ-KHZ}</code> becomes <code>14074</code> and <code>{MODE}</code>
+                        becomes <code>usb</code>.
+                    </p>
+                    <p>
+                        <strong>Available placeholders:</strong>
+                    </p>
+                    <ul>
+                        <li><code>{FREQ-HZ}</code> — Frequency in Hertz (e.g., 14074000)</li>
+                        <li><code>{FREQ-KHZ}</code> — Frequency in kilohertz (e.g., 14074)</li>
+                        <li><code>{FREQ-MHZ}</code> — Frequency in megahertz (e.g., 14.074)</li>
+                        <li><code>{MODE}</code> — Mode in lowercase (e.g., usb, lsb, cw, am)</li>
+                    </ul>
+                    <p>
+                        <strong>Supported SDR types:</strong> Most web-based SDRs work. The two most common formats are:
+                    </p>
+                    <ul>
+                        <li><strong>WebSDR</strong> (PA3FWM) — Uses <code>?tune={FREQ-KHZ}{MODE}</code></li>
+                        <li><strong>KiwiSDR</strong> — Uses <code>?f={FREQ-KHZ}{MODE}</code></li>
+                    </ul>
+                    <p>
+                        <strong>Mobile browsers:</strong> Opening background tabs can be problematic on phones due to
+                        popup blockers. Check "Enable on mobile browsers" if you want to use tune targets on your
+                        phone, but be aware some browsers may block the popups.
+                    </p>
+                    <p>
+                        <strong>Tips:</strong> You can add up to 5 tune targets. Each opens in its own reusable tab,
+                        so clicking different spots updates the existing tabs rather than opening new ones. Use the
+                        example buttons below to quickly add popular SDR receivers.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="tune-target-examples">
+            <p class="settings-info">Examples:</p>
+            <div class="tune-target-example">
+                <code>http://websdr1.kfsdr.com:8901/?tune={FREQ-KHZ}{MODE}</code>
+                <button type="button" class="btn-add-example" data-url="http://websdr1.kfsdr.com:8901/?tune={FREQ-KHZ}{MODE}">+ add</button>
+            </div>
+            <div class="tune-target-example">
+                <code>http://kphsdr.com:8074/?f={FREQ-KHZ}{MODE}</code>
+                <button type="button" class="btn-add-example" data-url="http://kphsdr.com:8074/?f={FREQ-KHZ}{MODE}">+ add</button>
+            </div>
+        </div>
+
+        <div id="tune-targets-list" class="tune-targets-list">
+            <!-- Dynamic list of URL inputs will be populated by JavaScript -->
+        </div>
+
+        <div class="button-group tune-targets-buttons">
+            <button type="button" id="add-tune-target-button" class="btn btn-icon" title="Add empty target">+</button>
+        </div>
+
+        <label class="checkbox-label">
+            <input type="checkbox" id="tune-targets-mobile" />
+            <span>Enable on mobile browsers</span>
+        </label>
+
+        <div class="button-group">
+            <button id="save-tune-targets-button" class="btn btn-secondary" disabled>Save Tune Targets</button>
+        </div>
+    </div>
+
+    <!-- Display Settings Card -->
+    <div class="settings-card">
+        <h2>Display</h2>
+        <p class="settings-info">Adjust how information is displayed</p>
+        <label class="checkbox-label">
+            <input type="checkbox" id="ui-compact-mode" />
+            <span>Compact mode (denser tables, no word wrap)</span>
+        </label>
+    </div>
+
+    <!-- Chase Filters Card -->
+    <div class="settings-card">
+        <h2>Chase Filters</h2>
+        <p class="settings-info">Filter chase spots based on your radio's capabilities</p>
+        <label class="checkbox-label">
+            <input type="checkbox" id="filter-bands-enabled" />
+            <span>Show only bands my radio can access</span>
+        </label>
+        <p class="settings-info small">
+            When enabled, spots on bands your KX2/KX3 cannot receive will be hidden.
+            Disable to see all bands (useful if you have another radio like an HT).
+        </p>
+    </div>
+
+    <!-- Firmware Update Card -->
+    <div class="settings-card">
+        <h2>Firmware Update</h2>
+        <p class="settings-info">Keep your SOTACAT updated with the latest features</p>
+        <p class="settings-info">Running firmware version <span id="build-version">Loading...</span></p>
+
+        <div class="firmware-steps">
+            <div class="step">
+                <span class="step-number">1</span>
+                <div class="step-content">
+                    <p>Check for available updates</p>
+                    <button id="check-updates-button" class="btn btn-secondary">Check Updates</button>
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">2</span>
+                <div class="step-content">
+                    <p>Download firmware to your device</p>
+                    <button id="download-firmware-button" class="btn btn-secondary">Download Firmware</button>
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number">3</span>
+                <div class="step-content">
+                    <p>Select downloaded firmware file</p>
+                    <button id="select-file-button" class="btn btn-secondary">Select File</button>
+                    <input type="file" id="ota-file" accept=".bin" class="hidden" />
+                </div>
+            </div>
+
+            <div class="step">
+                <span class="step-number step-number-disabled" id="upload-step-number">4</span>
+                <div class="step-content">
+                    <p>Install firmware to SOTACAT</p>
+                    <button class="btn btn-secondary" id="upload-button" disabled>Install Firmware</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="ota-status" class="status-message"></div>
+    </div>
 </div>

@@ -122,4 +122,3 @@ The firmware can:
 - Boot logging is disabled to avoid confusing Elecraft radios
 - Deep sleep support for battery conservation
 - OTA update capability for field updates
-

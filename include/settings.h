@@ -35,11 +35,19 @@ extern char g_ap_pass[MAX_WIFI_PASS_SIZE];
 extern char g_gps_lat[MAX_GPS_LAT_SIZE];
 extern char g_gps_lon[MAX_GPS_LON_SIZE];
 
-#define MAX_SDR_URL_SIZE 256
-extern char g_sdr_url[MAX_SDR_URL_SIZE];
+#define MAX_CALLSIGN_SIZE 16
+extern char g_callsign[MAX_CALLSIGN_SIZE];
 
-#define MAX_SDR_MOBILE_SIZE 8
-extern char g_sdr_mobile[MAX_SDR_MOBILE_SIZE];
+#define MAX_LICENSE_CLASS_SIZE 4  // "T", "G", "E", or ""
+extern char g_license_class[MAX_LICENSE_CLASS_SIZE];
+
+// Tune targets - URLs to open when tuning (e.g., WebSDR, KiwiSDR)
+// Format: [{"url": "...", "enabled": true}, ...]
+#define MAX_TUNE_TARGETS      5
+#define MAX_TUNE_TARGET_SIZE  256
+#define MAX_TUNE_TARGETS_JSON 1600  // 5 URLs * 256 chars + JSON object overhead
+extern char g_tune_targets[MAX_TUNE_TARGETS_JSON];
+extern bool g_tune_targets_mobile;
 
 void      init_settings ();
 esp_err_t retrieve_and_send_settings (httpd_req_t * req);
@@ -47,5 +55,10 @@ esp_err_t handler_settings_get (httpd_req_t * req);
 esp_err_t handler_settings_post (httpd_req_t * req);
 esp_err_t handler_gps_settings_get (httpd_req_t * req);
 esp_err_t handler_gps_settings_post (httpd_req_t * req);
-esp_err_t handler_sdr_settings_get (httpd_req_t * req);
-esp_err_t handler_sdr_settings_post (httpd_req_t * req);
+esp_err_t handler_callsign_settings_get (httpd_req_t * req);
+esp_err_t handler_callsign_settings_post (httpd_req_t * req);
+esp_err_t handler_license_settings_get (httpd_req_t * req);
+esp_err_t handler_license_settings_post (httpd_req_t * req);
+esp_err_t handler_tune_targets_get (httpd_req_t * req);
+esp_err_t handler_tune_targets_post (httpd_req_t * req);
+esp_err_t handler_radio_type_get (httpd_req_t * req);

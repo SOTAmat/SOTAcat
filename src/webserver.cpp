@@ -15,21 +15,23 @@ static const char * TAG8 = "sc:webserve";
     extern const uint8_t asset##_end[] asm ("_binary_" #asset "_end"); \
     extern const uint8_t asset##_srt[] asm ("_binary_" #asset "_start");
 
-DECLARE_ASSET (about_html)
-DECLARE_ASSET (about_js)
-DECLARE_ASSET (cat_html)
-DECLARE_ASSET (cat_js)
+DECLARE_ASSET (about_htmlgz)
+DECLARE_ASSET (about_jsgz)
+DECLARE_ASSET (bandprivileges_jsgz)
+DECLARE_ASSET (run_htmlgz)
+DECLARE_ASSET (run_jsgz)
+DECLARE_ASSET (chase_api_jsgz)
+DECLARE_ASSET (chase_htmlgz)
+DECLARE_ASSET (chase_jsgz)
 DECLARE_ASSET (favicon_ico)
-DECLARE_ASSET (index_html)
-DECLARE_ASSET (main_js)
-DECLARE_ASSET (pota_html)
-DECLARE_ASSET (pota_js)
-DECLARE_ASSET (sclogo_png)
-DECLARE_ASSET (settings_html)
-DECLARE_ASSET (settings_js)
-DECLARE_ASSET (sota_html)
-DECLARE_ASSET (sota_js)
-DECLARE_ASSET (style_css)
+DECLARE_ASSET (index_htmlgz)
+DECLARE_ASSET (main_jsgz)
+DECLARE_ASSET (sclogo_jpg)
+DECLARE_ASSET (settings_htmlgz)
+DECLARE_ASSET (settings_jsgz)
+DECLARE_ASSET (style_cssgz)
+DECLARE_ASSET (qrx_htmlgz)
+DECLARE_ASSET (qrx_jsgz)
 
 /**
  * Structure to map web URI to embedded binary asset locations.
@@ -40,6 +42,7 @@ typedef struct
     const uint8_t * asset_start;
     const uint8_t * asset_end;
     const char *    asset_type;
+    bool            gzipped;
     long            cache_time;  // Cache time in seconds
 } asset_entry_t;
 
@@ -47,25 +50,30 @@ typedef struct
  * Represents an array of asset entries to facilitate URI to asset mapping.
  */
 static const asset_entry_t asset_map[] = {
-    // uri               asset_start        asset_end          asset_type         cache_time
-    // ================= ================== ================== ================== ======================
-    {"/",              index_html_srt,    index_html_end,    "text/html",       60}, // 1 minute cache
-    {"/index.html",    index_html_srt,    index_html_end,    "text/html",       60},
-    {"/style.css",     style_css_srt,     style_css_end,     "text/css",        60},
-    {"/main.js",       main_js_srt,       main_js_end,       "text/javascript", 60},
-    {"/sclogo.png",    sclogo_png_srt,    sclogo_png_end,    "image/png",       0 }, // Cache forever
-    {"/favicon.ico",   favicon_ico_srt,   favicon_ico_end,   "image/x-icon",    0 },
-    {"/sota.html",     sota_html_srt,     sota_html_end,     "text/html",       60},
-    {"/sota.js",       sota_js_srt,       sota_js_end,       "text/javascript", 60},
-    {"/pota.html",     pota_html_srt,     pota_html_end,     "text/html",       60},
-    {"/pota.js",       pota_js_srt,       pota_js_end,       "text/javascript", 60},
-    {"/settings.html", settings_html_srt, settings_html_end, "text/html",       60},
-    {"/settings.js",   settings_js_srt,   settings_js_end,   "text/javascript", 60},
-    {"/cat.html",      cat_html_srt,      cat_html_end,      "text/html",       60},
-    {"/cat.js",        cat_js_srt,        cat_js_end,        "text/javascript", 60},
-    {"/about.html",    about_html_srt,    about_html_end,    "text/html",       60},
-    {"/about.js",      about_js_srt,      about_js_end,      "text/javascript", 60},
-    {NULL,             NULL,              NULL,              NULL,              0 }  // Sentinel to mark end of array
+    // uri                 asset_start              asset_end                asset_type         gzip   cache_time
+    // =================== ======================== ======================== ================== ====== ==============
+    // HTML pages - short cache (content may change)
+    {"/",                  index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  }, // 5 min
+    {"/index.html",        index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  },
+    {"/about.html",        about_htmlgz_srt,        about_htmlgz_end,        "text/html",       true,  300  },
+    {"/run.html",          run_htmlgz_srt,          run_htmlgz_end,          "text/html",       true,  300  },
+    {"/chase.html",        chase_htmlgz_srt,        chase_htmlgz_end,        "text/html",       true,  300  },
+    {"/settings.html",     settings_htmlgz_srt,     settings_htmlgz_end,     "text/html",       true,  300  },
+    {"/qrx.html",          qrx_htmlgz_srt,          qrx_htmlgz_end,          "text/html",       true,  300  },
+    // JS/CSS - medium cache (versioned with firmware)
+    {"/about.js",          about_jsgz_srt,          about_jsgz_end,          "text/javascript", true,  3600 }, // 1 hour
+    {"/bandprivileges.js", bandprivileges_jsgz_srt, bandprivileges_jsgz_end, "text/javascript", true,  3600 },
+    {"/run.js",            run_jsgz_srt,            run_jsgz_end,            "text/javascript", true,  3600 },
+    {"/chase.js",          chase_jsgz_srt,          chase_jsgz_end,          "text/javascript", true,  3600 },
+    {"/chase_api.js",      chase_api_jsgz_srt,      chase_api_jsgz_end,      "text/javascript", true,  3600 },
+    {"/main.js",           main_jsgz_srt,           main_jsgz_end,           "text/javascript", true,  3600 },
+    {"/settings.js",       settings_jsgz_srt,       settings_jsgz_end,       "text/javascript", true,  3600 },
+    {"/qrx.js",            qrx_jsgz_srt,            qrx_jsgz_end,            "text/javascript", true,  3600 },
+    {"/style.css",         style_cssgz_srt,         style_cssgz_end,         "text/css",        true,  3600 },
+    // Images - long cache (never change)
+    {"/favicon.ico",       favicon_ico_srt,         favicon_ico_end,         "image/x-icon",    false, 86400}, // 1 day
+    {"/sclogo.jpg",        sclogo_jpg_srt,          sclogo_jpg_end,          "image/jpeg",      false, 86400},
+    {NULL,                 NULL,                    NULL,                    NULL,              true,  0    }  // Sent to mark end of array
 };
 
 /**
@@ -84,36 +92,43 @@ typedef struct
  */
 static const api_handler_t api_handlers[] = {
     // method     api_name            handler_func                  requires_radio
-    // ========== =================== ============================= =============
-    {HTTP_GET,  "batteryPercent",   handler_batteryPercent_get,   false},
-    {HTTP_GET,  "batteryVoltage",   handler_batteryVoltage_get,   false},
-    {HTTP_GET,  "connectionStatus", handler_connectionStatus_get, false}, // disconnected radio /is/ a status
-    {HTTP_GET,  "frequency",        handler_frequency_get,        true },
-    {HTTP_GET,  "mode",             handler_mode_get,             true },
-    {HTTP_GET,  "power",            handler_power_get,            true },
-    {HTTP_GET,  "reboot",           handler_reboot_get,           false},
-    {HTTP_GET,  "rxBandwidth",      handler_mode_get,             true }, // alias for "mode"
-    {HTTP_GET,  "settings",         handler_settings_get,         false},
-    {HTTP_GET,  "version",          handler_version_get,          false},
-    {HTTP_PUT,  "frequency",        handler_frequency_put,        true },
-    {HTTP_PUT,  "keyer",            handler_keyer_put,            true },
-    {HTTP_PUT,  "mode",             handler_mode_put,             true },
-    {HTTP_PUT,  "msg",              handler_msg_put,              true },
-    {HTTP_PUT,  "power",            handler_power_put,            true },
-    {HTTP_PUT,  "rxBandwidth",      handler_mode_put,             true }, // alias for "mode"
-    {HTTP_PUT,  "time",             handler_time_put,             true },
-    {HTTP_PUT,  "xmit",             handler_xmit_put,             true },
-    {HTTP_PUT,  "atu",              handler_atu_put,              true },
-    {HTTP_POST, "prepareft8",       handler_prepareft8_post,      true },
-    {HTTP_POST, "ft8",              handler_ft8_post,             true },
-    {HTTP_POST, "cancelft8",        handler_cancelft8_post,       true },
-    {HTTP_POST, "settings",         handler_settings_post,        false},
-    {HTTP_POST, "ota",              handler_ota_post,             false},
-    {HTTP_GET,  "gps",              handler_gps_settings_get,     false},
-    {HTTP_POST, "gps",              handler_gps_settings_post,    false},
-    {HTTP_GET,  "sdr",              handler_sdr_settings_get,     false},
-    {HTTP_POST, "sdr",              handler_sdr_settings_post,    false},
-    {0,         NULL,               NULL,                         false}  // Sentinel to mark end of array
+    // ========  ================== =============================== =============
+    {HTTP_GET,  "connectionStatus", handler_connectionStatus_get,   false}, // disconnected radio /is/ a status
+    {HTTP_GET,  "batteryInfo",      handler_batteryInfo_get,        false},
+    {HTTP_GET,  "rssi",             handler_rssi_get,               false},
+    {HTTP_GET,  "frequency",        handler_frequency_get,          true },
+    {HTTP_GET,  "mode",             handler_mode_get,               true },
+    {HTTP_GET,  "power",            handler_power_get,              true },
+    {HTTP_GET,  "volume",           handler_volume_get,             true },
+    {HTTP_GET,  "reboot",           handler_reboot_get,             false},
+    {HTTP_GET,  "rxBandwidth",      handler_mode_get,               true }, // alias for "mode"
+    {HTTP_GET,  "settings",         handler_settings_get,           false},
+    {HTTP_GET,  "version",          handler_version_get,            false},
+    {HTTP_PUT,  "frequency",        handler_frequency_put,          true },
+    {HTTP_PUT,  "keyer",            handler_keyer_put,              true },
+    {HTTP_PUT,  "mode",             handler_mode_put,               true },
+    {HTTP_PUT,  "msg",              handler_msg_put,                true },
+    {HTTP_PUT,  "power",            handler_power_put,              true },
+    {HTTP_PUT,  "volume",           handler_volume_put,             true },
+    {HTTP_PUT,  "rxBandwidth",      handler_mode_put,               true }, // alias for "mode"
+    {HTTP_PUT,  "time",             handler_time_put,               true },
+    {HTTP_PUT,  "xmit",             handler_xmit_put,               true },
+    {HTTP_PUT,  "atu",              handler_atu_put,                true },
+    {HTTP_POST, "prepareft8",       handler_prepareft8_post,        true },
+    {HTTP_POST, "ft8",              handler_ft8_post,               true },
+    {HTTP_POST, "cancelft8",        handler_cancelft8_post,         true },
+    {HTTP_POST, "settings",         handler_settings_post,          false},
+    {HTTP_POST, "ota",              handler_ota_post,               false},
+    {HTTP_GET,  "gps",              handler_gps_settings_get,       false},
+    {HTTP_POST, "gps",              handler_gps_settings_post,      false},
+    {HTTP_GET,  "callsign",         handler_callsign_settings_get,  false},
+    {HTTP_POST, "callsign",         handler_callsign_settings_post, false},
+    {HTTP_GET,  "license",          handler_license_settings_get,   false},
+    {HTTP_POST, "license",          handler_license_settings_post,  false},
+    {HTTP_GET,  "tuneTargets",      handler_tune_targets_get,       false},
+    {HTTP_POST, "tuneTargets",      handler_tune_targets_post,      false},
+    {HTTP_GET,  "radioType",        handler_radio_type_get,         false},
+    {0,         NULL,               NULL,                           false}  // Sentinel to mark end of array
 };
 
 /**
@@ -142,33 +157,51 @@ static int find_and_execute_api_handler (int method, const char * api_name, cons
     REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "handler not found");
 }
 
+static const size_t CHUNK_SIZE = 8192;  // Increased from 1KB to 8KB for efficiency
+
 /**
- * Sends a memory region as an HTTP chunked response.
+ * Sends a memory region as an HTTP chunked response with retry logic.
  * @param req Pointer to the HTTP request.
  * @param start Pointer to the beginning of the data buffer.
  * @param end Pointer to one past the last byte of the data buffer.
  * @return ESP_OK on successful transmission, or an error code if the send fails.
  */
 static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, const uint8_t * end) {
-    const size_t CHUNK_SIZE = 1024;  // Send in 1KB chunks
-    size_t       total_size = end - start - 1;
-    size_t       sent       = 0;
+    const int MAX_RETRIES    = 3;
+    const int RETRY_DELAY_MS = 10;
+    size_t    total_size     = end - start;
+    size_t    sent           = 0;
 
     while (sent < total_size) {
         size_t to_send = MIN (CHUNK_SIZE, total_size - sent);
-        int    ret     = httpd_resp_send_chunk (req, (const char *)(start + sent), to_send);
+        int    ret     = ESP_FAIL;
 
-        if (ret != ESP_OK) {
-            // Connection closed by client
-            httpd_resp_send_chunk (req, NULL, 0);  // Terminate chunked response
-            return ret;
+        // Retry loop for EAGAIN/EWOULDBLOCK errors
+        for (int retry = 0; retry <= MAX_RETRIES; retry++) {
+            ret = httpd_resp_send_chunk (req, (const char *)(start + sent), to_send);
+
+            if (ret == ESP_OK) {
+                break;  // Success, continue with next chunk
+            }
+
+            // If error is not EAGAIN or we've exhausted retries, give up
+            if (ret != ESP_ERR_HTTPD_RESP_SEND && retry >= MAX_RETRIES) {
+                ESP_LOGW (TAG8, "Failed to send chunk after %d retries, error: %d", MAX_RETRIES, ret);
+                httpd_resp_send_chunk (req, NULL, 0);  // Terminate chunked response
+                return ret;
+            }
+
+            // EAGAIN error - wait and retry
+            if (retry < MAX_RETRIES) {
+                vTaskDelay (pdMS_TO_TICKS (RETRY_DELAY_MS));
+            }
         }
 
         sent += to_send;
 
-        // Give other tasks a chance to run
-        if (sent < total_size) {
-            vTaskDelay (1);  // 1 tick delay
+        // Cooperative yield every 4 chunks to allow other tasks to run
+        if (sent < total_size && (sent % (CHUNK_SIZE * 4)) == 0) {
+            taskYIELD();
         }
     }
 
@@ -184,11 +217,15 @@ static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, co
 static esp_err_t dynamic_file_handler (httpd_req_t * req) {
     const char * requested_path = req->uri;
 
+    // Ignore any query string when matching assets
+    size_t path_length = strcspn (requested_path, "?");
+
     bool                  found_file = false;
     const asset_entry_t * asset_ptr  = asset_map;
 
     while (asset_ptr->uri != NULL && !found_file)
-        if (strcmp (requested_path, asset_ptr->uri) == 0)
+        if (strlen (asset_ptr->uri) == path_length &&
+            strncmp (requested_path, asset_ptr->uri, path_length) == 0)
             found_file = true;
         else
             ++asset_ptr;
@@ -198,18 +235,28 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
 
     // Set headers
     httpd_resp_set_type (req, asset_ptr->asset_type);
+    if (asset_ptr->gzipped)
+        httpd_resp_set_hdr (req, "Content-Encoding", "gzip");
 
-    // Add cache headers
+    // Add cache headers with immutable directive for long-cached assets
     char cache_header[64];
-    if (asset_ptr->cache_time > 0)
-        snprintf (cache_header, sizeof (cache_header), "max-age=%ld", asset_ptr->cache_time);
-    else
-        snprintf (cache_header, sizeof (cache_header), "max-age=31536000");  // 1 year (cache forever)
+    if (asset_ptr->cache_time > 0) {
+        if (asset_ptr->cache_time >= 86400) {
+            // Long cache: add immutable directive (browser never revalidates)
+            snprintf (cache_header, sizeof (cache_header), "max-age=%ld, immutable", asset_ptr->cache_time);
+        }
+        else {
+            snprintf (cache_header, sizeof (cache_header), "max-age=%ld", asset_ptr->cache_time);
+        }
+    }
+    else {
+        snprintf (cache_header, sizeof (cache_header), "max-age=31536000, immutable");  // 1 year (cache forever)
+    }
     httpd_resp_set_hdr (req, "Cache-Control", cache_header);
 
     // Use chunked transfer for large files
-    size_t file_size = asset_ptr->asset_end - asset_ptr->asset_start - 1;
-    if (file_size > 4096) {  // Chunk files larger than 4KB
+    size_t file_size = asset_ptr->asset_end - asset_ptr->asset_start;
+    if (file_size > CHUNK_SIZE) {  // Chunk large files
         ESP_LOGI (TAG8, "sending chunked asset");
         return send_file_chunked (req,
                                   asset_ptr->asset_start,
@@ -270,10 +317,10 @@ void start_webserver () {
     config.uri_match_fn        = custom_uri_matcher;
     config.server_port         = 80;  // Explicitly set port 80 for mobile compatibility
     config.lru_purge_enable    = true;
-    config.max_open_sockets    = 7;     // Increase from default of 4
-    config.recv_wait_timeout   = 30;    // seconds
-    config.send_wait_timeout   = 30;    // seconds
-    config.stack_size          = 8192;  // bytes
+    config.max_open_sockets    = 12;     // Accommodate 6+ parallel Chrome connections
+    config.recv_wait_timeout   = 5;      // seconds - faster recovery from stalled requests
+    config.send_wait_timeout   = 5;      // seconds - faster timeout detection
+    config.stack_size          = 10240;  // bytes - increased from 8KB for complex handlers
     config.keep_alive_enable   = true;
     config.keep_alive_idle     = 5;  // 5 seconds
     config.keep_alive_interval = 5;  // 5 seconds

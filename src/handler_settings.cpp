@@ -1,4 +1,5 @@
 #include "globals.h"
+#include "kx_radio.h"
 #include "settings.h"
 #include "webserver.h"
 
@@ -39,10 +40,16 @@ static const char s_gps_lat_key[] = "gps_lat";
 char              g_gps_lat[MAX_GPS_LAT_SIZE];
 static const char s_gps_lon_key[] = "gps_lon";
 char              g_gps_lon[MAX_GPS_LON_SIZE];
-static const char s_sdr_url_key[] = "sdr_url";
-char              g_sdr_url[MAX_SDR_URL_SIZE];
-static const char s_sdr_mobile_key[] = "sdr_mobi";  // NVS key max 15 chars
-char              g_sdr_mobile[MAX_SDR_MOBILE_SIZE];
+static const char s_callsign_key[] = "callsign";
+char              g_callsign[MAX_CALLSIGN_SIZE];
+static const char s_license_class_key[] = "license";
+char              g_license_class[MAX_LICENSE_CLASS_SIZE];
+
+// Tune targets - URLs to open when tuning (e.g., WebSDR, KiwiSDR)
+static const char s_tune_targets_key[]        = "tune_targets";
+char              g_tune_targets[MAX_TUNE_TARGETS_JSON];
+static const char s_tune_targets_mobile_key[] = "tune_mobile";
+bool              g_tune_targets_mobile       = false;
 
 /**
  * Handle to our Non-Volatile Storage while we're in communication with it.
@@ -80,7 +87,7 @@ static esp_err_t initialize_nvs () {
  */
 static void get_nv_string (const char * key, char * value, const char * default_value, size_t size) {
     if (nvs_get_str (s_nvs_settings_handle, key, value, &size) != ESP_OK)
-        strncpy (value, default_value, size);
+        snprintf (value, size, "%s", default_value);
 }
 
 /**
@@ -105,8 +112,20 @@ static void populate_settings () {
     GET_NV_STRING (ap_pass, "12345678");
     GET_NV_STRING (gps_lat, "");
     GET_NV_STRING (gps_lon, "");
-    GET_NV_STRING (sdr_url, "");
-    GET_NV_STRING (sdr_mobile, "false");
+    GET_NV_STRING (callsign, "");
+    GET_NV_STRING (license_class, "");
+
+    // Load tune targets (stored as JSON array string)
+    size_t tune_targets_size = sizeof (g_tune_targets);
+    if (nvs_get_str (s_nvs_settings_handle, s_tune_targets_key, g_tune_targets, &tune_targets_size) != ESP_OK)
+        g_tune_targets[0] = '\0';
+
+    // Load tune targets mobile setting
+    uint8_t mobile_val = 0;
+    if (nvs_get_u8 (s_nvs_settings_handle, s_tune_targets_mobile_key, &mobile_val) == ESP_OK)
+        g_tune_targets_mobile = (mobile_val != 0);
+    else
+        g_tune_targets_mobile = false;
 }
 
 /**
@@ -156,12 +175,11 @@ static std::shared_ptr<char[]> get_settings_json () {
                            sizeof (s_sta3_pass_key) + sizeof (g_sta3_pass) + 6 +
                            sizeof (s_ap_ssid_key) + sizeof (g_ap_ssid) + 6 +
                            sizeof (s_ap_pass_key) + sizeof (g_ap_pass) + 6 +
-                           sizeof (s_sdr_url_key) + sizeof (g_sdr_url) + 6 +
                            1;
-    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\"}";
+    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\"}";
 
     std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_sta1_ssid_key, g_sta1_ssid, s_sta1_pass_key, g_sta1_pass, s_sta2_ssid_key, g_sta2_ssid, s_sta2_pass_key, g_sta2_pass, s_sta3_ssid_key, g_sta3_ssid, s_sta3_pass_key, g_sta3_pass, s_ap_ssid_key, g_ap_ssid, s_ap_pass_key, g_ap_pass, s_sdr_url_key, g_sdr_url);
+    snprintf (buf.get(), required_size, format, s_sta1_ssid_key, g_sta1_ssid, s_sta1_pass_key, g_sta1_pass, s_sta2_ssid_key, g_sta2_ssid, s_sta2_pass_key, g_sta2_pass, s_sta3_ssid_key, g_sta3_ssid, s_sta3_pass_key, g_sta3_pass, s_ap_ssid_key, g_ap_ssid, s_ap_pass_key, g_ap_pass);
 
     return buf;
 }
@@ -360,38 +378,37 @@ esp_err_t handler_gps_settings_post (httpd_req_t * req) {
     return retrieve_and_send_gps_settings (req);
 }
 
-static std::shared_ptr<char[]> get_sdr_settings_json () {
+static std::shared_ptr<char[]> get_callsign_settings_json () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     size_t required_size = 1 +
-                           sizeof (s_sdr_url_key) + sizeof (g_sdr_url) + 6 +
-                           sizeof (s_sdr_mobile_key) + sizeof (g_sdr_mobile) + 6 +
+                           sizeof (s_callsign_key) + sizeof (g_callsign) + 6 +
                            1;
-    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\"}";
+    const char format[] = "{\"%s\":\"%s\"}";
 
     std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_sdr_url_key, g_sdr_url, s_sdr_mobile_key, g_sdr_mobile);
+    snprintf (buf.get(), required_size, format, s_callsign_key, g_callsign);
 
     return buf;
 }
 
-static esp_err_t retrieve_and_send_sdr_settings (httpd_req_t * req) {
+static esp_err_t retrieve_and_send_callsign_settings (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     httpd_resp_set_type (req, "application/json");
-    auto settings_json = get_sdr_settings_json();
+    auto settings_json = get_callsign_settings_json();
     return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
 }
 
-esp_err_t handler_sdr_settings_get (httpd_req_t * req) {
+esp_err_t handler_callsign_settings_get (httpd_req_t * req) {
     showActivity();
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    return retrieve_and_send_sdr_settings (req);
+    return retrieve_and_send_callsign_settings (req);
 }
 
-esp_err_t handler_sdr_settings_post (httpd_req_t * req) {
+esp_err_t handler_callsign_settings_post (httpd_req_t * req) {
     showActivity();
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
@@ -419,5 +436,172 @@ esp_err_t handler_sdr_settings_post (httpd_req_t * req) {
 
     populate_settings();
 
-    return retrieve_and_send_sdr_settings (req);
+    return retrieve_and_send_callsign_settings (req);
+}
+
+// ====================================================================================================
+// License Class Settings
+// ====================================================================================================
+
+static std::shared_ptr<char[]> get_license_settings_json () {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    size_t required_size = 1 +
+                           sizeof (s_license_class_key) + sizeof (g_license_class) + 6 +
+                           1;
+    const char format[] = "{\"%s\":\"%s\"}";
+
+    std::shared_ptr<char[]> buf (new char[required_size]);
+    snprintf (buf.get(), required_size, format, s_license_class_key, g_license_class);
+
+    return buf;
+}
+
+static esp_err_t retrieve_and_send_license_settings (httpd_req_t * req) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    httpd_resp_set_type (req, "application/json");
+    auto settings_json = get_license_settings_json();
+    return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t handler_license_settings_get (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    return retrieve_and_send_license_settings (req);
+}
+
+esp_err_t handler_license_settings_post (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    if (!buf)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+
+    char * unsafe_buf = buf.get();
+
+    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
+    if (ret <= 0) {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408 (req);
+        }
+        return ESP_FAIL;
+    }
+
+    unsafe_buf[req->content_len] = '\0';
+
+    parse_and_process_json (unsafe_buf);
+
+    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
+
+    populate_settings();
+
+    return retrieve_and_send_license_settings (req);
+}
+
+// ====================================================================================================
+// Tune Targets Settings
+// ====================================================================================================
+
+static std::shared_ptr<char[]> get_tune_targets_json () {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    // Return JSON: {"targets": [...], "mobile": true/false}
+    size_t required_size = 32 + sizeof (g_tune_targets);
+    const char format[]  = "{\"targets\":%s,\"mobile\":%s}";
+
+    std::shared_ptr<char[]> buf (new char[required_size]);
+    // If g_tune_targets is empty, use empty array
+    const char * targets = (g_tune_targets[0] == '\0') ? "[]" : g_tune_targets;
+    snprintf (buf.get(), required_size, format, targets, g_tune_targets_mobile ? "true" : "false");
+
+    return buf;
+}
+
+static esp_err_t retrieve_and_send_tune_targets (httpd_req_t * req) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    httpd_resp_set_type (req, "application/json");
+    auto settings_json = get_tune_targets_json();
+    return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t handler_tune_targets_get (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    return retrieve_and_send_tune_targets (req);
+}
+
+esp_err_t handler_tune_targets_post (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    if (!buf)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+
+    char * unsafe_buf = buf.get();
+
+    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
+    if (ret <= 0) {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408 (req);
+        }
+        return ESP_FAIL;
+    }
+
+    unsafe_buf[req->content_len] = '\0';
+
+    // Parse JSON to extract "targets" array and "mobile" boolean
+    // Expected format: {"targets": ["url1", "url2"], "mobile": true}
+
+    // Find targets array
+    char * targets_start = strstr (unsafe_buf, "\"targets\"");
+    if (targets_start) {
+        char * array_start = strchr (targets_start, '[');
+        if (array_start) {
+            char * array_end = strchr (array_start, ']');
+            if (array_end) {
+                size_t array_len = array_end - array_start + 1;
+                if (array_len < sizeof (g_tune_targets)) {
+                    strncpy (g_tune_targets, array_start, array_len);
+                    g_tune_targets[array_len] = '\0';
+                    nvs_set_str (s_nvs_settings_handle, s_tune_targets_key, g_tune_targets);
+                    ESP_LOGI (TAG8, "Stored tune targets: %s", g_tune_targets);
+                }
+            }
+        }
+    }
+
+    // Find mobile boolean
+    char * mobile_start = strstr (unsafe_buf, "\"mobile\"");
+    if (mobile_start) {
+        g_tune_targets_mobile = (strstr (mobile_start, "true") != nullptr);
+        nvs_set_u8 (s_nvs_settings_handle, s_tune_targets_mobile_key, g_tune_targets_mobile ? 1 : 0);
+        ESP_LOGI (TAG8, "Stored tune targets mobile: %s", g_tune_targets_mobile ? "true" : "false");
+    }
+
+    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
+
+    return retrieve_and_send_tune_targets (req);
+}
+
+// ====================================================================================================
+// Radio Type
+// ====================================================================================================
+
+esp_err_t handler_radio_type_get (httpd_req_t * req) {
+    showActivity();
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+    const char * type = kxRadio.get_radio_type_string();
+    REPLY_WITH_STRING (req, type, "radio type");
 }

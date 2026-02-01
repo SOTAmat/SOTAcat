@@ -1,6 +1,8 @@
 #pragma once
 
 #include <esp_http_server.h>
+#include <memory>
+#include <strings.h>  // for size_t
 
 extern void      start_webserver ();
 extern bool      url_decode_in_place (char * str);
@@ -15,12 +17,14 @@ extern esp_err_t handler_msg_put (httpd_req_t *);
 extern esp_err_t handler_ota_post (httpd_req_t *);
 extern esp_err_t handler_power_get (httpd_req_t *);
 extern esp_err_t handler_power_put (httpd_req_t *);
+extern esp_err_t handler_volume_get (httpd_req_t *);
+extern esp_err_t handler_volume_put (httpd_req_t *);
 extern esp_err_t handler_prepareft8_post (httpd_req_t *);
 extern esp_err_t handler_reboot_get (httpd_req_t *);
 extern esp_err_t handler_ft8_post (httpd_req_t *);
 extern esp_err_t handler_cancelft8_post (httpd_req_t *);
-extern esp_err_t handler_batteryPercent_get (httpd_req_t *);
-extern esp_err_t handler_batteryVoltage_get (httpd_req_t *);
+extern esp_err_t handler_batteryInfo_get (httpd_req_t *);
+extern esp_err_t handler_rssi_get (httpd_req_t *);
 extern esp_err_t handler_connectionStatus_get (httpd_req_t *);
 extern esp_err_t handler_time_put (httpd_req_t *);
 extern esp_err_t handler_settings_get (httpd_req_t *);

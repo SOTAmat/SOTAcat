@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import subprocess
 import sys
 
 Import("env")
@@ -57,6 +58,26 @@ def should_update_version():
 
 manifest_path = "firmware/webtools/manifest.json"
 header_path = "include/build_info.h"
+
+# Pre-compress web assets with gzip
+log_message("Compressing web assets...")
+try:
+    result = subprocess.run(
+        [sys.executable, "scripts/compress_web_assets.py"],
+        check=True,
+        capture_output=True,
+        text=True
+    )
+    # Print the output from the compression script
+    for line in result.stdout.splitlines():
+        log_message(f"  {line}")
+except subprocess.CalledProcessError as e:
+    log_message(f"ERROR: Failed to compress web assets: {e}")
+    log_message(f"  {e.stderr}")
+    sys.exit(1)
+except FileNotFoundError as e:
+    log_message(f"ERROR: Compression script not found - cannot continue: {e}")
+    sys.exit(1)
 
 # Only update version strings during actual builds
 if should_update_version():

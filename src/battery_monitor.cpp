@@ -3,6 +3,7 @@
 #include "hardware_specific.h"
 #include "max17260.h"
 #include "settings.h"
+#include <driver/i2c_master.h>
 #include <esp_task_wdt.h>
 
 #include <esp_log.h>
@@ -76,12 +77,16 @@ float get_analog_battery_percentage (float voltage) {
 #define SMBUS_TIMEOUT_MS     (1000)  // Timeout after this time if no ack received
 #define BATTERY_POLL_TIME_MS (5000)  // Approximate rate at which to poll the battery info
 
-static bool                    max17260_detected = false;
-static float                   vbat_analog       = 0;
-static float                   vpct_analog       = 0;
-static float                   vbat_digital      = 0;
-static float                   vpct_digital      = 0;
 static max17260_saved_params_t params;
+static bool                    max17260_detected      = false;
+static float                   vbat_analog            = 0;
+static float                   vpct_analog            = 0;
+static float                   vbat_digital           = 0;
+static float                   vpct_digital           = 0;
+static i2c_master_bus_handle_t i2c_bus_handle         = NULL;
+
+static max17260_info_t   bat_info;  // Smart Battery info struct
+static SemaphoreHandle_t bat_info_mutex;
 
 float get_battery_voltage (void) {
     if (max17260_detected)
@@ -97,38 +102,96 @@ float get_battery_percentage (void) {
         return vpct_analog;
 }
 
-static void i2c_setup (void) {
-    i2c_config_t conf;
-    conf.mode             = I2C_MODE_MASTER;
-    conf.sda_io_num       = I2C_SDA_PIN;
-    conf.scl_io_num       = I2C_SCL_PIN;
-    conf.sda_pullup_en    = GPIO_PULLUP_DISABLE;
-    conf.scl_pullup_en    = GPIO_PULLUP_DISABLE;
-    conf.clk_flags        = 0;
-    conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
-    i2c_param_config (I2C_MASTER_NUM, &conf);
-
-    i2c_driver_install (I2C_MASTER_NUM, I2C_MODE_MASTER, 0, 0, 0);
+bool get_battery_is_smart (void) {
+    return max17260_detected;
 }
 
-static void i2c_teardown (void) {
-    i2c_driver_delete (I2C_MASTER_NUM);
+/**
+ * Accessor for thread-safe access to battery info, provide a batteryInfo_t * to populate
+ *
+ * @param info Pointer to a batteryInfo_t to overwrite
+ * @return ESP_OK on success, or an error code on failure.
+ */
+esp_err_t get_battery_info (batteryInfo_t * info) {
+    esp_err_t ret = ESP_FAIL;
+    if (pdTRUE == xSemaphoreTake (bat_info_mutex, 100 / portTICK_PERIOD_MS)) {
+        memcpy (info, &bat_info, sizeof (batteryInfo_t));
+        xSemaphoreGive (bat_info_mutex);
+        ret = ESP_OK;
+    }
+    else {
+        ret = ESP_ERR_TIMEOUT;
+    }
+
+    return ret;
+}
+
+static esp_err_t i2c_setup (void) {
+    ESP_LOGD (TAG8, "I2C setup: SDA=GPIO%d, SCL=GPIO%d, freq=%dHz", I2C_SDA_PIN, I2C_SCL_PIN, I2C_MASTER_FREQ_HZ);
+
+    i2c_master_bus_config_t i2c_bus_config = {
+        .i2c_port          = I2C_MASTER_NUM,
+        .sda_io_num        = I2C_SDA_PIN,
+        .scl_io_num        = I2C_SCL_PIN,
+        .clk_source        = I2C_CLK_SRC_DEFAULT,
+        .glitch_ignore_cnt = 7,
+        .intr_priority     = 0,
+        .trans_queue_depth = 0,
+        .flags             = {
+                              .enable_internal_pullup = false,
+                              .allow_pd               = false,
+                              },
+    };
+
+    esp_err_t err = i2c_new_master_bus (&i2c_bus_config, &i2c_bus_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE (TAG8, "Failed to create I2C master bus: %s", esp_err_to_name (err));
+    }
+    return err;
+}
+
+static esp_err_t i2c_teardown (void) {
+    if (i2c_bus_handle != NULL) {
+        esp_err_t err = i2c_del_master_bus (i2c_bus_handle);
+        if (err == ESP_OK) {
+            i2c_bus_handle = NULL;
+        }
+        return err;
+    }
+    return ESP_OK;
 }
 
 void battery_monitor_task (void * _pvParameter) {
     // Register with watchdog timer
     ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
+    bat_info_mutex = xSemaphoreCreateMutex();
 
     Max17620 dig_bat_mon;
 
     if (HW_TYPE == SOTAcat_HW_Type::K5EM_1) {
         // Determine if we have a digital battery monitor
-        i2c_setup();
+        if (i2c_setup() != ESP_OK) {
+            ESP_LOGE (TAG8, "Failed to initialize I2C bus");
+            return;
+        }
 
         // Set up the SMBus for the digital battery monitor
         smbus_info_t * smbus_info = smbus_malloc();
-        smbus_init (smbus_info, I2C_MASTER_NUM, MAX_1726x_ADDR);
-        smbus_set_timeout (smbus_info, SMBUS_TIMEOUT_MS / portTICK_PERIOD_MS);
+        if (smbus_info == NULL) {
+            ESP_LOGE (TAG8, "Failed to allocate SMBus structure");
+            i2c_teardown();
+            return;
+        }
+
+        esp_err_t smbus_err = smbus_init (smbus_info, i2c_bus_handle, MAX_1726x_ADDR);
+        if (smbus_err != ESP_OK) {
+            ESP_LOGE (TAG8, "SMBus init failed: %s", esp_err_to_name (smbus_err));
+            smbus_free (&smbus_info);
+            i2c_teardown();
+            return;
+        }
+
+        smbus_set_timeout (smbus_info, SMBUS_TIMEOUT_MS);
 
         // Instantiate the digital battery monitor driver
         max17620_setup_t battery_setup;
@@ -141,6 +204,7 @@ void battery_monitor_task (void * _pvParameter) {
             dig_bat_mon.read_learned_params (&params);
         }
         else {  // No digital battery monitor dectected, free resources
+            ESP_LOGW (TAG8, "MAX17260 init failed: %s - falling back to analog battery monitoring", esp_err_to_name (bat_mon_err));
             smbus_free (&smbus_info);
             i2c_teardown();
         }
@@ -154,15 +218,16 @@ void battery_monitor_task (void * _pvParameter) {
         vbat_analog = get_analog_battery_voltage();
         vpct_analog = get_analog_battery_percentage (vbat_analog);
         if (max17260_detected) {
-            max17260_info_t bat_info;
+            xSemaphoreTake (bat_info_mutex, 100 / portTICK_PERIOD_MS);
             dig_bat_mon.poll (&bat_info);
+            xSemaphoreGive (bat_info_mutex);
+
             // Reset watchdog again after I2C operations
             ESP_ERROR_CHECK (esp_task_wdt_reset());
-            vbat_digital = bat_info.voltage_average;
-            vpct_digital = bat_info.reported_state_of_charge;
-            if (!(cnt % REPORTING_TIME_SEC)) {
+            vbat_digital           = bat_info.voltage_average;
+            vpct_digital           = bat_info.reported_state_of_charge;
+            if (!(cnt % REPORTING_TIME_SEC))
                 ESP_LOGI (TAG8, "battery: %4.2fV %4.1f%% %5.1fmA %s", vbat_digital, vpct_digital, bat_info.current_average, (bat_info.charging ? "charging" : "discharging"));
-            }
         }
         else {
             if (!(cnt % REPORTING_TIME_SEC))

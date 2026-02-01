@@ -1,9 +1,7 @@
-// handler_atu.cpp
 #include "globals.h"
 #include "kx_radio.h"
+#include "timed_lock.h"
 #include "webserver.h"
-
-#include <memory>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:hdl_atu.";
@@ -23,34 +21,10 @@ esp_err_t handler_atu_put (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    const char * command = nullptr;
-
-    {
-        const std::lock_guard<Lockable> lock (kxRadio);
-
-        // Determine the correct command based on radio type
-        switch (kxRadio.get_radio_type()) {
-        case RadioType::KX3:
-            command = "SWT44;";
-            ESP_LOGI (TAG8, "Initiating ATU tune on KX3");
-            break;
-        case RadioType::KX2:
-            command = "SWT20;";
-            ESP_LOGI (TAG8, "Initiating ATU tune on KX2");
-            break;
-        case RadioType::KH1:
-            command = "SW3T;";
-            ESP_LOGI (TAG8, "Initiating ATU tune on KH1");
-            break;
-        default:
-            ESP_LOGE (TAG8, "Unknown radio type, cannot initiate ATU tune");
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Unknown radio type");
-        }
-
-        // Send the command to the radio
-        if (!kxRadio.put_to_kx_command_string (command, 1)) {
+    // Tier 3: Critical timeout for ATU tuning operation
+    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "ATU tune")) {
+        if (!kxRadio.tune_atu())
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send ATU command");
-        }
     }
 
     REPLY_WITH_SUCCESS();

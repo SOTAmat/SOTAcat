@@ -1,0 +1,14 @@
+# Dependencies
+node_modules
+
+# Build outputs
+.pio
+build
+dist
+
+# Version control
+.git
+
+# IDE
+.vscode
+.idea

@@ -1,5 +1,7 @@
 #include "max17260.h"
-#include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <cstring>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:max17260";
@@ -108,21 +110,24 @@ uint16_t Max17620::devnum (uint16_t devname) {
 
 esp_err_t Max17620::present (void) {
     uint16_t data = 0;
-    if (ESP_OK == smbus_quick (m_smb, 0)) {
-        ESP_LOGV (TAG8, "Device found at address 0x%02x", MAX_1726x_ADDR);
-    }
-    else {
-        ESP_LOGE (TAG8, "No device found at address 0x%02x", MAX_1726x_ADDR);
+
+    // Note: smbus_quick() doesn't work with ESP-IDF (0-byte transfers not supported)
+    // So we skip the probe and go directly to reading the DEVNAME register
+    ESP_LOGD (TAG8, "Probing for MAX1726x device at address 0x%02x", MAX_1726x_ADDR);
+
+    esp_err_t read_err = smbus_read_word (m_smb, DEVNAME, &data);
+    if (read_err != ESP_OK) {
+        ESP_LOGE (TAG8, "Failed to read DEVNAME register: %s", esp_err_to_name (read_err));
         return ESP_FAIL;
     }
+    ESP_LOGD (TAG8, "DEVNAME register value: 0x%04x", data);
 
-    smbus_read_word (m_smb, DEVNAME, &data);
     uint16_t num = devnum (data);
     if (num != 0) {
-        ESP_LOGV (TAG8, "Battery monitor of type MAX%05d found", num);
+        ESP_LOGI (TAG8, "Battery monitor MAX%05d detected at address 0x%02x", num, MAX_1726x_ADDR);
     }
     else {
-        ESP_LOGE (TAG8, "Battery monitor device not found");
+        ESP_LOGE (TAG8, "Unknown device ID 0x%04x - not a recognized MAX1726x device", data);
         return ESP_FAIL;
     }
     return ESP_OK;
@@ -132,7 +137,7 @@ esp_err_t Max17620::init (smbus_info_t * smb, max17620_setup_t * setup) {
     uint16_t data = 0;
 
     m_smb = smb;
-    memcpy (&m_setup, setup, sizeof (max17620_setup_t));
+    std::memcpy (&m_setup, setup, sizeof (max17620_setup_t));
 
     if (ESP_OK != present())
         return ESP_FAIL;

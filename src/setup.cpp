@@ -7,6 +7,7 @@
 #include "kx_radio.h"
 #include "settings.h"
 #include "setup_adc.h"
+#include "timed_lock.h"
 #include "webserver.h"
 #include "wifi.h"
 
@@ -15,6 +16,7 @@
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <ctime>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:setup...";
@@ -50,7 +52,8 @@ void radio_connection_task (void * pvParameters) {
     // kxRadio is statically initialized as a singleton, but we
     // do need to connect SOTACAT to its ACC port
     {
-        const std::lock_guard<Lockable> lock (kxRadio);
+        // Use infinite timeout for initial connection during setup
+        TimedLock lock = kxRadio.timed_lock (portMAX_DELAY, "radio connect");
         kxRadio.connect();
     }
     ESP_LOGI (TAG8, "Radio connected, exiting search task.");
@@ -98,7 +101,7 @@ void setup () {
     ESP_LOGI (TAG8, "current setup() task priority is %d", currentPriority);
 
     // Note the current time since our inactivity power down time will be based on this.
-    time (&LastUserActivityUnixTime);
+    std::time (&LastUserActivityUnixTime);
     // Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds.
     TaskHandle_t xSetupWatchdogHandle = NULL;
     xTaskCreate (&startup_watchdog_timer, "startup_watchdog_task", 2048, NULL, SC_TASK_PRIORITY_NORMAL, &xSetupWatchdogHandle);
@@ -126,7 +129,7 @@ void setup () {
 
     // Setup battery monitoring task
     TaskHandle_t xBatteryMonitorHandle = NULL;
-    xTaskCreate (&battery_monitor_task, "battery_monitor_task", 2048, NULL, SC_TASK_PRIORITY_IDLE + 1, &xBatteryMonitorHandle);
+    xTaskCreate (&battery_monitor_task, "battery_monitor_task", 4096, NULL, SC_TASK_PRIORITY_IDLE + 1, &xBatteryMonitorHandle);
     ESP_LOGI (TAG8, "battery_monitor task started.");
 
     gpio_set_level (LED_RED, LED_OFF);
