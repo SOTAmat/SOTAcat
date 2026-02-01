@@ -1,6 +1,7 @@
 # ab6d/jk2main Integration Document
 
 **Branch Base:** kowalski/wip (commit `55fac9f`)  
+**Comparison Target:** kowalski/wip (up to commit `a089d86`)
 **Last Updated:** February 1, 2026  
 **Purpose:** Integrate KH1 radio support from `main` into `kowalski/wip` architecture using a driver abstraction layer
 
@@ -13,6 +14,45 @@ The `ab6d/jk2main` branch was created from `kowalski/wip` to:
 2. Refactor radio-specific code into device drivers (`IRadioDriver` interface)
 3. Keep handlers and web UI radio-agnostic
 4. Incorporate minimal, targeted changes to `kowalski/wip` architecture
+
+---
+
+## Code Review Findings (Feb 1, 2026)
+
+A deep review of `ab6d/jk2main` relative to `kowalski/wip` was performed.
+
+### 1. Feature Parity with kowalski/wip
+The `ab6d/jk2main` branch successfully integrates recent features from `kowalski/wip` (commits up to `a089d86`), including:
+- **UI Modernization**: `SPOT` -> `RUN` tab rename, Tune target delimiters `{}`, compact mode, connection loss overlay.
+- **QRX Page**: Location-based references, Nearest SOTA, Setup PoLo button.
+- **WiFi**: STA IP pinning to `.200`, RSSI reporting for AP clients.
+- **Documentation**: New structure in `Documentation/`.
+
+### 2. Architectural Integrity
+The driver pattern has been implemented cleanly without disrupting the `kowalski/wip` architecture:
+- `KXRadio` class delegates efficiently to `m_driver`.
+- Handlers (`handler_cat.cpp`, `handler_frequency.cpp`, etc.) are now agnostic to the specific radio hardware.
+- KH1-specific logic is confined to `src/radio_driver_kh1.cpp`.
+
+### 3. Cleanups & Refactoring
+- **RunState**: The `SpotState` object has been correctly renamed to `RunState` in `run.js`.
+- **CSS Classes**: `spot-container` has been renamed to `run-container` in HTML and CSS.
+- **Styling**: Miles column alignment in Chase table is implemented.
+
+### 4. Deviations
+No unsupported deviations were found. All changes in `ab6d/jk2main` are either:
+- Part of the KH1/Driver refactoring.
+- Integrations of features from `kowalski/wip`.
+
+---
+
+## Missing Features from `origin/main`
+
+The following features were added to `origin/main` after the `kowalski/wip` branch diverged and are **not yet present** in `kowalski/wip` (and thus missing from `ab6d/jk2main`). These should be considered for future integration.
+
+### 1. FT8 Power Readback Verification (`586baf4`)
+- **Main:** Ensures FT8 power is at 10 watts by reading back the value after setting it.
+- **Current:** `ab6d/jk2main` sets the power blindly (via `put_to_kx_menu_item`) in `KXRadioDriver::ft8_prepare` without an explicit read-back verification loop.
 
 ---
 
@@ -48,7 +88,7 @@ The `ab6d/jk2main` branch was created from `kowalski/wip` to:
    - `supports_keyer()` returns false (KH1 has no CW keyer memories)
    - `supports_volume()` returns false (KH1 has no AF gain CAT control)
 
-4. **kowalski/wip UI Features** - Integrated in local working tree
+4. **kowalski/wip UI Features** - Integrated & Committed
    - SPOT → RUN tab rename completed (`run.html`, `run.js`)
    - Connection loss overlay HTML/CSS/JS (index.html, main.js, style.css)
    - QRX as default tab on initial load
@@ -59,7 +99,7 @@ The `ab6d/jk2main` branch was created from `kowalski/wip` to:
    - Compact mode toggle in Settings page
    - CSS class refactoring (hidden, feedback classes)
 
-5. **WiFi Improvements** - Integrated in local working tree
+5. **WiFi Improvements** - Integrated & Committed
    - STA IP pinning to `.200` on hotspot connect
    - DHCP revert on disconnect
    - AP client RSSI reporting (weakest client signal)
@@ -69,42 +109,16 @@ The `ab6d/jk2main` branch was created from `kowalski/wip` to:
    - Updated README.md with modern structure
    - KH1 code review document at `Docs/AI-docs/.../CR_PR77.md`
 
-### Minor Cleanup Needed (🔶)
-
-1. **CSS class rename:** `spot-container` → `run-container`
-   - In `src/web/style.css` and `src/web/run.html`
-
-2. **State object rename:** `SpotState` → `RunState` in `run.js`
-
-3. **Miles column alignment:** Add `#chase-table td:nth-child(7) { text-align: right; }` to style.css
-
-4. **localStorage key migration:** `spotCwMessage*` → `runCwMessage*` (if not already done)
+7. **Cleanup Tasks** (Previously Pending)
+   - **CSS class rename:** `spot-container` → `run-container` ✅
+   - **State object rename:** `SpotState` → `RunState` in `run.js` ✅
+   - **Miles column alignment:** Add `#chase-table td:nth-child(7) { text-align: right; }` to style.css ✅
+   - **localStorage key migration:** `spotCwMessage*` → `runCwMessage*` (Present in `run.js`) ✅
 
 ### Locking and Timing (Needs Verification)
 
 - Handlers use `TimedLock` and `TIMED_LOCK_OR_FAIL` macro ✅
 - FT8 timing, cache fallback, and timeout tiers should be validated on hardware
-
----
-
-## Working Tree Status
-
-The local working tree has uncommitted changes that incorporate features from kowalski/wip commits made after the branch was created. These changes were manually integrated rather than merged/cherry-picked, so they don't appear in the commit history.
-
-**Uncommitted files with kowalski/wip integrations:**
-- `src/web/main.js` - Connection detection, compact mode, tune targets
-- `src/web/index.html` - QRX default tab, connection overlay
-- `src/web/style.css` - Compact mode CSS, connection overlay styles
-- `src/web/settings.html` - Compact mode checkbox
-- `src/web/settings.js` - Compact mode handlers
-- `src/wifi.cpp` - STA IP pinning, AP client RSSI
-- `src/web/qrx.js` - Location-based references, Nearest SOTA
-- And others (see `git status`)
-
-**New untracked files:**
-- `src/web/run.html` / `run.js` - Renamed from spot.html/js
-- `Documentation/` - New documentation tree
-- `test/unit/test_qrx.js` - QRX page unit tests
 
 ---
 
@@ -138,85 +152,19 @@ Handlers call driver-abstracted methods instead of raw CAT commands. This is nec
 - Time sync (different menu system on KH1)
 - ATU tuning (different switch commands per radio)
 
-Example - `handler_cat.cpp` TX toggle:
-```cpp
-// kowalski/wip (KX-only):
-const char * command = xmit ? "TX;" : "RX;";
-kxRadio.put_to_kx_command_string(command, 1);
-
-// jk2main (driver abstraction - supports KX and KH1):
-kxRadio.set_xmit_state(xmit != 0);
-// Driver routes to "TX;"/"RX;" for KX, "HK1;"/"HK0;" for KH1
-```
-
 ---
 
 ## Remaining Tasks
 
-### Before Commit
+### Hardware Validation
+1. **Test on KX2, KX3, and KH1 radios:**
+   - Verify all CAT endpoints work correctly.
+   - Test FT8 transmission and time sync.
+   - Verify `run.js` interactions (frequency tuning, mode switching, etc.).
 
-1. **Rename CSS class:** `spot-container` → `run-container`
-   - `src/web/style.css`: Change `.spot-container` to `.run-container`
-   - `src/web/run.html`: Change `class="spot-container"` to `class="run-container"`
-
-2. **Rename state object:** `SpotState` → `RunState` in `run.js`
-
-3. **Add Miles column alignment:**
-   ```css
-   #chase-table td:nth-child(7) {
-       text-align: right;
-   }
-   ```
-
-4. **Commit all changes** with a descriptive message
-
-### After Commit (Validation)
-
-5. **Hardware validation:**
-   - Test on KX2, KX3, and KH1 radios
-   - Verify all CAT endpoints work correctly
-   - Test FT8 transmission and time sync
-
-6. **Complete locking/timing review:**
-   - Verify FT8 task lock behavior
-   - Check cache fallback for frequency/mode
-
----
-
-## Files to Commit
-
-Based on `git status`, the following changes need to be committed:
-
-**Modified files:**
-- `.clangd`
-- `Docs/AI-docs/feature-branch-chats/ab6d/jk2main/JK_MERGE.md`
-- `README.md`
-- `firmware/webtools/manifest.json`
-- `include/build_info.h`
-- `platformio.ini`
-- `src/CMakeLists.txt`
-- `src/web/chase.js`
-- `src/web/index.html`
-- `src/web/main.js`
-- `src/web/qrx.html`
-- `src/web/qrx.js`
-- `src/web/settings.html`
-- `src/web/settings.js`
-- `src/web/style.css`
-- `src/webserver.cpp`
-- `src/wifi.cpp`
-- `test/integration/*`
-
-**Deleted files:**
-- `src/web/spot.html`
-- `src/web/spot.js`
-
-**New untracked files:**
-- `Docs/README.md`
-- `Documentation/` (entire directory)
-- `src/web/run.html`
-- `src/web/run.js`
-- `test/unit/test_qrx.js`
+2. **Complete locking/timing review:**
+   - Verify FT8 task lock behavior.
+   - Check cache fallback for frequency/mode.
 
 ---
 

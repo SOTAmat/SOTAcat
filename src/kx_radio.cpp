@@ -438,12 +438,12 @@ bool KXRadio::put_to_kx_menu_item (uint8_t menu_item, long value, int tries) {
     put_to_kx ("MN", 3, menu_item, SC_KX_COMMUNICATION_RETRIES);  // Ex. MN058;  - Switch into menu mode and select the TUN PWR menu item
 
     // Set the menu item value
-    put_to_kx ("MP", 3, value, tries);  // Ex. MP010; - Set the TUN PWR to 1.0 watts
+    bool success = put_to_kx ("MP", 3, value, tries);  // Ex. MP010; - Set the TUN PWR to 1.0 watts
 
     // Switch out of Menu mode
     put_to_kx ("MN", 3, 255, SC_KX_COMMUNICATION_RETRIES);  // Switch out of Menu mode
 
-    return value;
+    return success;
 }
 
 /**

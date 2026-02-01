@@ -243,7 +243,9 @@ bool KXRadioDriver::ft8_prepare (KXRadio & radio, long base_freq) {
     radio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);
     radio.put_to_kx ("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);
 
-    radio.put_to_kx_menu_item (58, 100, SC_KX_COMMUNICATION_RETRIES);
+    if (!radio.put_to_kx_menu_item (58, 100, SC_KX_COMMUNICATION_RETRIES)) {
+        return false;
+    }
     return true;
 }
 
