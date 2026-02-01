@@ -237,11 +237,14 @@ bool KXRadioDriver::restore_radio_state (KXRadio & radio, const kx_state_t * sta
 }
 
 bool KXRadioDriver::ft8_prepare (KXRadio & radio, long base_freq) {
-    radio.put_to_kx ("FR", 1, 0, SC_KX_COMMUNICATION_RETRIES);
-    radio.put_to_kx ("FT", 1, 0, SC_KX_COMMUNICATION_RETRIES);
-    radio.put_to_kx ("FA", 11, base_freq, SC_KX_COMMUNICATION_RETRIES);
-    radio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);
-    radio.put_to_kx ("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);
+    bool ok = true;
+    ok &= radio.put_to_kx ("FR", 1, 0, SC_KX_COMMUNICATION_RETRIES);
+    ok &= radio.put_to_kx ("FT", 1, 0, SC_KX_COMMUNICATION_RETRIES);
+    ok &= radio.put_to_kx ("FA", 11, base_freq, SC_KX_COMMUNICATION_RETRIES);
+    ok &= radio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);
+    ok &= radio.put_to_kx ("AP", 1, 1, SC_KX_COMMUNICATION_RETRIES);
+    if (!ok)
+        return false;
 
     // Set TUN PWR to 10W (100 = 10.0W in 0.1W units) with readback verification
     constexpr long FT8_TUN_PWR = 100;  // 10.0 watts
