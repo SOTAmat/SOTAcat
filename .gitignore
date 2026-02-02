@@ -92,6 +92,7 @@ test/integration/*.json
 test/integration/baseline_*.json
 test/integration/test_results_*.json
 test_results/
+webserver_test_results.json
 
 # Pre-compressed web assets (generated at build time)
 src/web/*.htmlgz
