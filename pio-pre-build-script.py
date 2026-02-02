@@ -51,7 +51,7 @@ try:
         [sys.executable, "scripts/compress_web_assets.py"],
         check=True,
         capture_output=True,
-        text=True
+        text=True,
     )
     # Print the output from the compression script
     for line in result.stdout.splitlines():
@@ -86,6 +86,4 @@ else:
 # Update build_info.h
 with open(header_path, "w") as f:
     f.write('#define BUILD_DATE_TIME "{}"\n'.format(short_build_datetime_str))
-log_message(
-    f"Updated {header_path} with build date/time {short_build_datetime_str}"
-)
+log_message(f"Updated {header_path} with build date/time {short_build_datetime_str}")
