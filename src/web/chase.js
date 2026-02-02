@@ -142,7 +142,7 @@ function saveAutoRefreshEnabled(enabled) {
 // Utility Functions
 // ============================================================================
 
-// Update the "Last refresh X ago" display or countdown for auto-refresh
+// Update the "Refreshed X ago" display or countdown for auto-refresh
 function updateRefreshTimer() {
     const timerElement = document.getElementById("last-refresh-time");
     if (!timerElement) return;
@@ -1054,10 +1054,6 @@ async function onChaseAppearing() {
     // Load radio type and filter settings for band filtering
     await loadRadioType();
     loadFilterBandsSetting();
-
-    // Apply UI density preference
-    loadUiCompactMode();
-    applyUiCompactMode();
 
     // Subscribe to VFO changes and start polling for row highlighting
     subscribeToVfo(updateTunedRowHighlight);

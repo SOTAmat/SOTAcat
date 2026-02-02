@@ -6,8 +6,6 @@
 #include <cstdint>
 #include <cstdlib>
 
-#include <cstdlib>
-
 #define SC_KX_COMMUNICATION_RETRIES 3
 
 /**

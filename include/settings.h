@@ -49,9 +49,6 @@ extern char g_license_class[MAX_LICENSE_CLASS_SIZE];
 extern char g_tune_targets[MAX_TUNE_TARGETS_JSON];
 extern bool g_tune_targets_mobile;
 
-#define MAX_SDR_MOBILE_SIZE 8
-extern char g_sdr_mobile[MAX_SDR_MOBILE_SIZE];
-
 void      init_settings ();
 esp_err_t retrieve_and_send_settings (httpd_req_t * req);
 esp_err_t handler_settings_get (httpd_req_t * req);
