@@ -1444,6 +1444,14 @@ tbody tr:active {
     margin: var(--space-md) 0;
 }
 
+.aboutParagraph .version-details {
+    margin-top: var(--space-sm);
+}
+
+.aboutParagraph .version-details-hidden {
+    display: none;
+}
+
 /* About page section titles */
 #content-area h2 {
     margin-left: var(--space-md);

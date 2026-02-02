@@ -44,12 +44,10 @@ DEFAULT_STATE = {
     "power": 15,
     "xmit": 0,  # 0 = RX, 1 = TX
     "radio_type": "KX2",  # "KX2", "KX3", or "Unknown"
-
-    # Device info
-    "version": "2025-01-01_mock-dev",
+    # Device info (format: {HW}_{VER}:{YYMMDD}:{HHMM}-{R|D})
+    "version": "TEST_1:260101:0101-D",
     "rssi": -62,
     "connected": True,
-
     # Battery info (matches handler_batteryInfo_get JSON format)
     "batteryInfo": {
         "is_smart": True,
@@ -62,20 +60,17 @@ DEFAULT_STATE = {
         "time_to_full_hrs": 0.0,
         "charging": False,
     },
-
     # User settings (persisted to NVRAM on real device)
     "callsign": "N0CALL",
     "license": "G",  # License class: T, G, E, or empty
     "gps_lat": "38.0522",
     "gps_lon": "-122.9694",
-
     # Tune targets
     "tune_targets": [
         {"url": "http://websdr.ewi.utwente.nl:8901/", "enabled": True},
         {"url": "http://rx.linkfanel.net/", "enabled": False},
     ],
     "tune_targets_mobile": False,
-
     # WiFi settings
     "sta1_ssid": "HomeNetwork",
     "sta1_pass": "********",
@@ -98,11 +93,11 @@ class MockSOTAcatServer:
 
     def _setup_routes(self):
         # Static file serving
-        @self.app.route('/')
+        @self.app.route("/")
         def index():
-            return send_from_directory(self.web_dir, 'index.html')
+            return send_from_directory(self.web_dir, "index.html")
 
-        @self.app.route('/<path:filename>')
+        @self.app.route("/<path:filename>")
         def static_files(filename):
             return send_from_directory(self.web_dir, filename)
 
@@ -111,214 +106,227 @@ class MockSOTAcatServer:
         # ============================================================
 
         # Version
-        @self.app.route('/api/v1/version', methods=['GET'])
+        @self.app.route("/api/v1/version", methods=["GET"])
         def get_version():
             return self.state["version"]
 
         # Frequency
-        @self.app.route('/api/v1/frequency', methods=['GET'])
+        @self.app.route("/api/v1/frequency", methods=["GET"])
         def get_frequency():
             return jsonify({"frequency": self.state["frequency"]})
 
-        @self.app.route('/api/v1/frequency', methods=['PUT'])
+        @self.app.route("/api/v1/frequency", methods=["PUT"])
         def set_frequency():
-            freq = request.args.get('frequency')
+            freq = request.args.get("frequency")
             if freq:
                 self.state["frequency"] = int(freq)
                 print(f"[MOCK] Frequency set to {self.state['frequency']} Hz")
-            return '', 200
+            return "", 200
 
         # Mode
-        @self.app.route('/api/v1/mode', methods=['GET'])
+        @self.app.route("/api/v1/mode", methods=["GET"])
         def get_mode():
             return jsonify({"mode": self.state["mode"]})
 
-        @self.app.route('/api/v1/mode', methods=['PUT'])
+        @self.app.route("/api/v1/mode", methods=["PUT"])
         def set_mode():
-            mode = request.args.get('bw')
+            mode = request.args.get("bw")
             if mode:
                 self.state["mode"] = mode
                 print(f"[MOCK] Mode set to {self.state['mode']}")
-            return '', 200
+            return "", 200
 
         # Callsign
-        @self.app.route('/api/v1/callsign', methods=['GET'])
+        @self.app.route("/api/v1/callsign", methods=["GET"])
         def get_callsign():
             return jsonify({"callsign": self.state["callsign"]})
 
-        @self.app.route('/api/v1/callsign', methods=['POST'])
+        @self.app.route("/api/v1/callsign", methods=["POST"])
         def set_callsign():
             data = request.get_json() or {}
-            if 'callsign' in data:
+            if "callsign" in data:
                 self.state["callsign"] = data["callsign"].upper()
                 print(f"[MOCK] Callsign set to {self.state['callsign']}")
-            return '', 200
+            return "", 200
 
         # License class
-        @self.app.route('/api/v1/license', methods=['GET'])
+        @self.app.route("/api/v1/license", methods=["GET"])
         def get_license():
             return jsonify({"license": self.state["license"]})
 
-        @self.app.route('/api/v1/license', methods=['POST'])
+        @self.app.route("/api/v1/license", methods=["POST"])
         def set_license():
             data = request.get_json() or {}
-            if 'license' in data:
+            if "license" in data:
                 self.state["license"] = data["license"].upper()
                 print(f"[MOCK] License set to {self.state['license']}")
-            return '', 200
+            return "", 200
 
         # GPS
-        @self.app.route('/api/v1/gps', methods=['GET'])
+        @self.app.route("/api/v1/gps", methods=["GET"])
         def get_gps():
-            return jsonify({
-                "gps_lat": self.state["gps_lat"],
-                "gps_lon": self.state["gps_lon"]
-            })
+            return jsonify(
+                {"gps_lat": self.state["gps_lat"], "gps_lon": self.state["gps_lon"]}
+            )
 
-        @self.app.route('/api/v1/gps', methods=['POST'])
+        @self.app.route("/api/v1/gps", methods=["POST"])
         def set_gps():
             data = request.get_json() or {}
-            if 'gps_lat' in data:
+            if "gps_lat" in data:
                 self.state["gps_lat"] = data["gps_lat"]
-            if 'gps_lon' in data:
+            if "gps_lon" in data:
                 self.state["gps_lon"] = data["gps_lon"]
             print(f"[MOCK] GPS set to {self.state['gps_lat']}, {self.state['gps_lon']}")
-            return '', 200
+            return "", 200
 
         # Tune Targets
-        @self.app.route('/api/v1/tuneTargets', methods=['GET'])
+        @self.app.route("/api/v1/tuneTargets", methods=["GET"])
         def get_tune_targets():
-            return jsonify({
-                "targets": self.state["tune_targets"],
-                "mobile": self.state["tune_targets_mobile"]
-            })
+            return jsonify(
+                {
+                    "targets": self.state["tune_targets"],
+                    "mobile": self.state["tune_targets_mobile"],
+                }
+            )
 
-        @self.app.route('/api/v1/tuneTargets', methods=['POST'])
+        @self.app.route("/api/v1/tuneTargets", methods=["POST"])
         def set_tune_targets():
             data = request.get_json() or {}
-            if 'targets' in data:
+            if "targets" in data:
                 self.state["tune_targets"] = data["targets"]
-            if 'mobile' in data:
+            if "mobile" in data:
                 self.state["tune_targets_mobile"] = data["mobile"]
-            print(f"[MOCK] Tune targets updated: {len(self.state['tune_targets'])} targets")
-            return '', 200
+            print(
+                f"[MOCK] Tune targets updated: {len(self.state['tune_targets'])} targets"
+            )
+            return "", 200
 
         # WiFi Settings
-        @self.app.route('/api/v1/settings', methods=['GET'])
+        @self.app.route("/api/v1/settings", methods=["GET"])
         def get_settings():
-            return jsonify({
-                "sta1_ssid": self.state["sta1_ssid"],
-                "sta1_pass": self.state["sta1_pass"],
-                "sta2_ssid": self.state["sta2_ssid"],
-                "sta2_pass": self.state["sta2_pass"],
-                "sta3_ssid": self.state["sta3_ssid"],
-                "sta3_pass": self.state["sta3_pass"],
-                "ap_ssid": self.state["ap_ssid"],
-                "ap_pass": self.state["ap_pass"],
-            })
+            return jsonify(
+                {
+                    "sta1_ssid": self.state["sta1_ssid"],
+                    "sta1_pass": self.state["sta1_pass"],
+                    "sta2_ssid": self.state["sta2_ssid"],
+                    "sta2_pass": self.state["sta2_pass"],
+                    "sta3_ssid": self.state["sta3_ssid"],
+                    "sta3_pass": self.state["sta3_pass"],
+                    "ap_ssid": self.state["ap_ssid"],
+                    "ap_pass": self.state["ap_pass"],
+                }
+            )
 
-        @self.app.route('/api/v1/settings', methods=['POST'])
+        @self.app.route("/api/v1/settings", methods=["POST"])
         def set_settings():
             data = request.get_json() or {}
-            for key in ["sta1_ssid", "sta1_pass", "sta2_ssid", "sta2_pass",
-                        "sta3_ssid", "sta3_pass", "ap_ssid", "ap_pass"]:
+            for key in [
+                "sta1_ssid",
+                "sta1_pass",
+                "sta2_ssid",
+                "sta2_pass",
+                "sta3_ssid",
+                "sta3_pass",
+                "ap_ssid",
+                "ap_pass",
+            ]:
                 if key in data:
                     self.state[key] = data[key]
             print(f"[MOCK] WiFi settings updated")
-            return '', 200
+            return "", 200
 
         # Battery and Signal
-        @self.app.route('/api/v1/batteryInfo', methods=['GET'])
+        @self.app.route("/api/v1/batteryInfo", methods=["GET"])
         def get_battery_info():
             # Returns comprehensive battery JSON (matches handler_batteryInfo_get format)
             return jsonify(self.state["batteryInfo"])
-        
-        @self.app.route('/api/v1/rssi', methods=['GET'])
+
+        @self.app.route("/api/v1/rssi", methods=["GET"])
         def get_rssi():
             return jsonify({"rssi": self.state["rssi"]})
 
-        @self.app.route('/api/v1/connectionStatus', methods=['GET'])
+        @self.app.route("/api/v1/connectionStatus", methods=["GET"])
         def get_connection_status():
             return jsonify({"connected": self.state["connected"]})
 
         # Radio type
-        @self.app.route('/api/v1/radioType', methods=['GET'])
+        @self.app.route("/api/v1/radioType", methods=["GET"])
         def get_radio_type():
             # Returns plain text: "KX2", "KX3", or "Unknown"
             return self.state["radio_type"]
 
         # Time sync
-        @self.app.route('/api/v1/time', methods=['PUT'])
+        @self.app.route("/api/v1/time", methods=["PUT"])
         def set_time():
-            time_val = request.args.get('time')
+            time_val = request.args.get("time")
             if time_val:
                 print(f"[MOCK] Time sync received: {time_val}")
-            return '', 200
+            return "", 200
 
         # Power control
-        @self.app.route('/api/v1/power', methods=['PUT'])
+        @self.app.route("/api/v1/power", methods=["PUT"])
         def set_power():
-            power = request.args.get('power')
+            power = request.args.get("power")
             if power:
                 self.state["power"] = int(power)
                 print(f"[MOCK] Power set to {self.state['power']}W")
-            return '', 200
+            return "", 200
 
         # Transmit control
-        @self.app.route('/api/v1/xmit', methods=['PUT'])
+        @self.app.route("/api/v1/xmit", methods=["PUT"])
         def set_xmit():
-            state_val = request.args.get('state')
+            state_val = request.args.get("state")
             if state_val:
                 self.state["xmit"] = int(state_val)
                 status = "TX" if self.state["xmit"] else "RX"
                 print(f"[MOCK] Transmit state: {status}")
-            return '', 200
+            return "", 200
 
         # CW message playback
-        @self.app.route('/api/v1/msg', methods=['PUT'])
+        @self.app.route("/api/v1/msg", methods=["PUT"])
         def play_message():
-            bank = request.args.get('bank')
+            bank = request.args.get("bank")
             print(f"[MOCK] Playing CW message bank {bank}")
-            return '', 200
+            return "", 200
 
         # CW keyer
-        @self.app.route('/api/v1/keyer', methods=['PUT'])
+        @self.app.route("/api/v1/keyer", methods=["PUT"])
         def send_keyer():
-            message = request.args.get('message', '')
+            message = request.args.get("message", "")
             print(f"[MOCK] Keying CW: {message}")
-            return '', 200
+            return "", 200
 
         # ATU tune
-        @self.app.route('/api/v1/atu', methods=['PUT'])
+        @self.app.route("/api/v1/atu", methods=["PUT"])
         def tune_atu():
             print(f"[MOCK] ATU tune initiated")
-            return '', 200
+            return "", 200
 
         # OTA update (just acknowledge, don't do anything)
-        @self.app.route('/api/v1/ota', methods=['POST'])
+        @self.app.route("/api/v1/ota", methods=["POST"])
         def ota_update():
             print(f"[MOCK] OTA update received (ignored in mock mode)")
-            return '', 200
+            return "", 200
 
         # Debug endpoint to view/modify state
-        @self.app.route('/api/v1/_debug/state', methods=['GET'])
+        @self.app.route("/api/v1/_debug/state", methods=["GET"])
         def debug_get_state():
             return jsonify(self.state)
 
-        @self.app.route('/api/v1/_debug/state', methods=['POST'])
+        @self.app.route("/api/v1/_debug/state", methods=["POST"])
         def debug_set_state():
             data = request.get_json() or {}
             self.state.update(data)
             print(f"[MOCK] State updated via debug endpoint")
             return jsonify(self.state)
 
-        @self.app.route('/api/v1/_debug/reset', methods=['POST'])
+        @self.app.route("/api/v1/_debug/reset", methods=["POST"])
         def debug_reset_state():
             self.state = dict(DEFAULT_STATE)
             print(f"[MOCK] State reset to defaults")
             return jsonify(self.state)
 
-    def run(self, host='0.0.0.0', port=8080, debug=True):
+    def run(self, host="0.0.0.0", port=8080, debug=True):
         print(f"\n{'='*60}")
         print(f"SOTAcat Mock Server")
         print(f"{'='*60}")
@@ -331,13 +339,19 @@ class MockSOTAcatServer:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='SOTAcat Mock API Server')
-    parser.add_argument('--port', type=int, default=8080,
-                        help='Port to run server on (default: 8080)')
-    parser.add_argument('--web-dir', type=str, default='../../src/web',
-                        help='Path to web UI directory (default: ../../src/web)')
-    parser.add_argument('--host', type=str, default='0.0.0.0',
-                        help='Host to bind to (default: 0.0.0.0)')
+    parser = argparse.ArgumentParser(description="SOTAcat Mock API Server")
+    parser.add_argument(
+        "--port", type=int, default=8080, help="Port to run server on (default: 8080)"
+    )
+    parser.add_argument(
+        "--web-dir",
+        type=str,
+        default="../../src/web",
+        help="Path to web UI directory (default: ../../src/web)",
+    )
+    parser.add_argument(
+        "--host", type=str, default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)"
+    )
     args = parser.parse_args()
 
     # Resolve web directory relative to script location
@@ -348,7 +362,7 @@ def main():
         print(f"Error: Web directory not found: {web_dir}")
         sys.exit(1)
 
-    if not (web_dir / 'index.html').exists():
+    if not (web_dir / "index.html").exists():
         print(f"Error: index.html not found in {web_dir}")
         sys.exit(1)
 
@@ -356,5 +370,5 @@ def main():
     server.run(host=args.host, port=args.port)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

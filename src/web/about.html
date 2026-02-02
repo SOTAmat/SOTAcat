@@ -1,7 +1,16 @@
 <div>
     <br />
     <h2>VERSION</h2>
-    <div class="aboutParagraph"><strong>Firmware</strong> <span id="build-version">Loading...</span></div>
+    <div class="aboutParagraph">
+        <strong>Firmware</strong> <span id="build-version">Loading...</span>
+        <div id="build-version-details" class="version-details version-details-hidden" hidden>
+            <ul>
+                <li>Hardware version: <span id="build-hardware">—</span></li>
+                <li>Build date: <span id="build-date">—</span></li>
+                <li>Build type: <span id="build-type">—</span></li>
+            </ul>
+        </div>
+    </div>
     <h2>ABOUT</h2>
     <div class="aboutParagraph">
         SOTACAT is a hardware module you can build that allows your mobile device to wirelessly control your transceiver
@@ -60,9 +69,9 @@
                 was later created for encoding use in SOTACAT, and ported to C# for encoding in SOTAMAT by AB6D.
             </li>
             <li>
-                N6KR, Wayne, and N1AL, Alan, provided guidance on control of Elecraft radios and Mathcad analysis of FT8
-                FSK harmonics. Also added a special API (FOnn;) to the KH1 to allow 1Hz tuning steps needed to transmit
-                FSK (ex. FT8) in response to SOTACAT's needs. (Thank-you N6KR!)
+                <strong>N6KR, Wayne, and N1AL, Alan</strong>, provided guidance on control of Elecraft radios and
+                Mathcad analysis of FT8 FSK harmonics. Also added a special API (FOnn;) to the KH1 to allow 1Hz tuning
+                steps needed to transmit FSK (ex. FT8) in response to SOTACAT's needs. (Thank-you N6KR!)
             </li>
             <li>
                 <strong>WR7D, Ken:</strong> added support for the Elecraft KH1 radio, using the new KH1 "FOnn;" command.

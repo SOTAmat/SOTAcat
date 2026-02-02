@@ -61,7 +61,7 @@ static const asset_entry_t asset_map[] = {
     {"/settings.html",     settings_htmlgz_srt,     settings_htmlgz_end,     "text/html",       true,  300  },
     {"/qrx.html",          qrx_htmlgz_srt,          qrx_htmlgz_end,          "text/html",       true,  300  },
     // JS/CSS - medium cache (versioned with firmware)
-    {"/about.js",          about_jsgz_srt,          about_jsgz_end,          "text/javascript", true,  3600 }, // 1 hour
+    {"/about.js",          about_jsgz_srt,          about_jsgz_end,          "text/javascript", true,  300  }, // 5 min
     {"/bandprivileges.js", bandprivileges_jsgz_srt, bandprivileges_jsgz_end, "text/javascript", true,  3600 },
     {"/run.js",            run_jsgz_srt,            run_jsgz_end,            "text/javascript", true,  3600 },
     {"/chase.js",          chase_jsgz_srt,          chase_jsgz_end,          "text/javascript", true,  3600 },
@@ -69,7 +69,7 @@ static const asset_entry_t asset_map[] = {
     {"/main.js",           main_jsgz_srt,           main_jsgz_end,           "text/javascript", true,  3600 },
     {"/settings.js",       settings_jsgz_srt,       settings_jsgz_end,       "text/javascript", true,  3600 },
     {"/qrx.js",            qrx_jsgz_srt,            qrx_jsgz_end,            "text/javascript", true,  3600 },
-    {"/style.css",         style_cssgz_srt,         style_cssgz_end,         "text/css",        true,  3600 },
+    {"/style.css",         style_cssgz_srt,         style_cssgz_end,         "text/css",        true,  300  },
     // Images - long cache (never change)
     {"/favicon.ico",       favicon_ico_srt,         favicon_ico_end,         "image/x-icon",    false, 86400}, // 1 day
     {"/sclogo.jpg",        sclogo_jpg_srt,          sclogo_jpg_end,          "image/jpeg",      false, 86400},
