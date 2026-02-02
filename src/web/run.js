@@ -776,6 +776,8 @@ function isSotaReference(ref) {
 }
 
 // Update spot action buttons enabled state based on reference validity
+// SOTAmāt button is always enabled - the app has its own GPS and summit logic
+// SMS and Polo buttons require a valid reference (location-based)
 function updateSpotButtonStates() {
     const ref = getLocationBasedReference() || "";
     const isValid = isValidSpotReference(ref);
@@ -785,12 +787,12 @@ function updateSpotButtonStates() {
     const smsQrtBtn = document.getElementById("sms-qrt-button");
     const poloSpotBtn = document.getElementById("polo-spot-button");
 
-    if (sotamatBtn) sotamatBtn.disabled = !isValid;
+    if (sotamatBtn) sotamatBtn.disabled = false; // SOTAmāt app handles location itself
     if (smsSpotBtn) smsSpotBtn.disabled = !isValid;
     if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
     if (poloSpotBtn) poloSpotBtn.disabled = !isValid;
 
-    Log.debug("Spot", `Spot buttons ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
+    Log.debug("Spot", `SOTAmāt enabled, SMS/Polo ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
 }
 
 // Build SMS URI for spotting current activation
@@ -1061,6 +1063,10 @@ async function onSpotAppearing() {
 
     // Update Send button states based on loaded input values
     updateSendButtonStates();
+
+    // Ensure location is loaded before checking reference (getLocationBasedReference needs AppState.gpsOverride)
+    // Without this, SOTAmāt button stays disabled when opening RUN directly without visiting QRX first
+    await getLocation();
 
     // Update spot action buttons based on reference validity
     updateSpotButtonStates();
