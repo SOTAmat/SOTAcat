@@ -660,20 +660,27 @@ async function tuneAtu() {
 // ============================================================================
 
 const CW_MESSAGE_STORAGE_KEYS = ["runCwMessage1", "runCwMessage2", "runCwMessage3"];
-const LEGACY_CW_MESSAGE_KEYS = ["spotCWMessage1", "spotCWMessage2", "spotCWMessage3"];
+const LEGACY_CW_MESSAGE_KEYS = [
+    ["runCWMessage1", "spotCWMessage1"],
+    ["runCWMessage2", "spotCWMessage2"],
+    ["runCWMessage3", "spotCWMessage3"],
+];
 
 function migrateCwMessageKeys() {
     CW_MESSAGE_STORAGE_KEYS.forEach((newKey, index) => {
-        const legacyKey = LEGACY_CW_MESSAGE_KEYS[index];
+        const legacyKeys = LEGACY_CW_MESSAGE_KEYS[index];
         const existingValue = localStorage.getItem(newKey);
         if (existingValue !== null) {
             return;
         }
 
-        const legacyValue = localStorage.getItem(legacyKey);
-        if (legacyValue !== null) {
-            localStorage.setItem(newKey, legacyValue);
-            localStorage.removeItem(legacyKey);
+        for (const legacyKey of legacyKeys) {
+            const legacyValue = localStorage.getItem(legacyKey);
+            if (legacyValue !== null) {
+                localStorage.setItem(newKey, legacyValue);
+                localStorage.removeItem(legacyKey);
+                break;
+            }
         }
     });
 }
