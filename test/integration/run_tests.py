@@ -50,9 +50,7 @@ class TestRunner:
         self.results.append(("Performance Test", result.returncode))
         return result.returncode
 
-    def run_mutex_stress_test(
-        self, duration: int = 60, clients: int = 7
-    ) -> int:
+    def run_mutex_stress_test(self, duration: int = 60, clients: int = 7) -> int:
         """Run multi-client mutex stress test"""
         print("\n" + "=" * 70)
         print("Running Multi-Client Mutex Stress Test")
@@ -123,9 +121,11 @@ class TestRunner:
             base_url = f"http://{self.host}"
 
         cmd = [
-            "pipx", "run",
+            "pipx",
+            "run",
             str(self.test_dir / "test_ui.py"),
-            "--base-url", base_url,
+            "--base-url",
+            base_url,
         ]
         if headed:
             cmd.append("--headed")
@@ -158,12 +158,8 @@ class TestRunner:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="SOTAcat Unified Test Runner"
-    )
-    parser.add_argument(
-        "--host", default="sotacat.local", help="Target hostname or IP"
-    )
+    parser = argparse.ArgumentParser(description="SOTAcat Unified Test Runner")
+    parser.add_argument("--host", default="sotacat.local", help="Target hostname or IP")
     parser.add_argument(
         "--all", action="store_true", help="Run all device tests (performance + mutex)"
     )
@@ -173,23 +169,32 @@ def main():
     parser.add_argument(
         "--mutex", action="store_true", help="Run mutex stress test only"
     )
-    parser.add_argument(
-        "--ui", action="store_true", help="Run UI tests only"
-    )
+    parser.add_argument("--ui", action="store_true", help="Run UI tests only")
     parser.add_argument(
         "--mock", action="store_true", help="Use mock server for UI tests (auto-start)"
     )
     parser.add_argument(
-        "--headed", action="store_true", help="Run UI tests in headed mode (visible browser)"
+        "--headed",
+        action="store_true",
+        help="Run UI tests in headed mode (visible browser)",
     )
     parser.add_argument(
-        "--iterations", type=int, default=10, help="Performance test iterations (default: 10)"
+        "--iterations",
+        type=int,
+        default=10,
+        help="Performance test iterations (default: 10)",
     )
     parser.add_argument(
-        "--duration", type=int, default=60, help="Stress test duration in seconds (default: 60)"
+        "--duration",
+        type=int,
+        default=60,
+        help="Stress test duration in seconds (default: 60)",
     )
     parser.add_argument(
-        "--clients", type=int, default=7, help="Number of concurrent clients (default: 7)"
+        "--clients",
+        type=int,
+        default=7,
+        help="Number of concurrent clients (default: 7)",
     )
     parser.add_argument(
         "--port", type=int, default=8080, help="Mock server port (default: 8080)"
@@ -197,8 +202,12 @@ def main():
 
     args = parser.parse_args()
 
-    # Determine Python interpreter (for device tests)
-    venv_python = Path(__file__).parent.parent.parent / ".venv" / "bin" / "python3"
+    # Determine Python interpreter (for device tests) - cross-platform venv path
+    root = Path(__file__).parent.parent.parent
+    if sys.platform == "win32":
+        venv_python = root / ".venv" / "Scripts" / "python.exe"
+    else:
+        venv_python = root / ".venv" / "bin" / "python3"
 
     runner = TestRunner(args.host, venv_python)
 
@@ -212,7 +221,9 @@ def main():
             if venv_python.exists():
                 run_device_tests = True
             else:
-                print("No venv found. Use --ui --mock to run UI tests with mock server.")
+                print(
+                    "No venv found. Use --ui --mock to run UI tests with mock server."
+                )
                 sys.exit(1)
 
         # Device tests require venv
@@ -233,7 +244,9 @@ def main():
             if args.all or args.performance:
                 runner.run_performance_test(iterations=args.iterations)
             if args.all or args.mutex:
-                runner.run_mutex_stress_test(duration=args.duration, clients=args.clients)
+                runner.run_mutex_stress_test(
+                    duration=args.duration, clients=args.clients
+                )
 
         # Run UI tests
         if run_ui_tests:

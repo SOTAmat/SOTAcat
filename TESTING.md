@@ -1,14 +1,23 @@
 # SOTAcat Testing Guide
 
+Works on **Linux**, **macOS**, and **Windows**.
+
 ## Quick Start
 
 ```bash
-# From project root
+# From project root – Linux/macOS
 make test-setup     # One-time setup: create venv and install dependencies
 make test           # Run test suite (default: 10 iterations, 60s stress)
 
 # Quick validation
 make test ITERATIONS=5 STRESS_DURATION=30
+```
+
+```powershell
+# From project root – Windows (no make required)
+python test/integration/setup_env.py                    # One-time setup
+python test/integration/run_tests.py --all              # Run full test suite
+python test/integration/run_tests.py --all --host 192.168.1.100
 ```
 
 ## Test Overview
@@ -90,7 +99,7 @@ make test-performance ITERATIONS=20
 ### Compare
 
 ```bash
-python3 -c "
+python -c "
 import json
 before = json.load(open('baseline_20251126.json'))
 after = json.load(open('webserver_test_results.json'))
@@ -137,6 +146,7 @@ make test HOST=192.168.1.100  # Use IP instead
 **Virtual environment not found**
 ```bash
 make test-setup
+# Windows: python test/integration/setup_env.py
 ```
 
 **Low stress test success rate**

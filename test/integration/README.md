@@ -25,13 +25,17 @@ This directory contains integration tests for the SOTAcat firmware and UI.
 
 ### For Device Tests
 ```bash
-# From test/integration directory
+# From test/integration directory (Linux/macOS)
 make setup
 
-# Or manually:
+# Or manually (Linux/macOS):
 cd ../..  # to project root
 python3 -m venv .venv
-.venv/bin/pip install requests zeroconf
+.venv/bin/pip install requests zeroconf pytest playwright pytest-playwright
+.venv/bin/playwright install chromium
+
+# Windows (from project root):
+python test/integration/setup_env.py
 ```
 
 ### For UI Tests
