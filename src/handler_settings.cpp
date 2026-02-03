@@ -108,6 +108,7 @@ static void populate_settings () {
     snprintf (&default_ap_ssid[8], 5, "%02X%02X", base_mac_addr[4], base_mac_addr[5]);
 
 #define GET_NV_STRING(base, def) get_nv_string (s_##base##_key, g_##base, def, sizeof (g_##base) - 1)
+
     GET_NV_STRING (sta1_ssid, "ham-hotspot");
     GET_NV_STRING (sta1_pass, "sotapota");
     GET_NV_STRING (sta2_ssid, "");
@@ -120,37 +121,21 @@ static void populate_settings () {
     GET_NV_STRING (gps_lon, "");
     GET_NV_STRING (callsign, "");
     GET_NV_STRING (license_class, "");
+    GET_NV_STRING (tune_targets, "");
 
-    // Load tune targets (stored as JSON array string)
-    size_t tune_targets_size = sizeof (g_tune_targets);
-    if (nvs_get_str (s_nvs_settings_handle, s_tune_targets_key, g_tune_targets, &tune_targets_size) != ESP_OK)
-        g_tune_targets[0] = '\0';
+#define GET_NV_BOOL(base)                                                       \
+    {                                                                           \
+        uint8_t val = 0;                                                        \
+        if (nvs_get_u8 (s_nvs_settings_handle, s_##base##_key, &val) == ESP_OK) \
+            g_##base = (val != 0);                                              \
+        else                                                                    \
+            g_##base = false;                                                   \
+    }
 
-    // Load tune targets mobile setting
-    uint8_t mobile_val = 0;
-    if (nvs_get_u8 (s_nvs_settings_handle, s_tune_targets_mobile_key, &mobile_val) == ESP_OK)
-        g_tune_targets_mobile = (mobile_val != 0);
-    else
-        g_tune_targets_mobile = false;
-
-    // Load IP pinning settings (default to disabled)
-    uint8_t ip_pin_val = 0;
-    if (nvs_get_u8 (s_nvs_settings_handle, s_sta1_ip_pin_key, &ip_pin_val) == ESP_OK)
-        g_sta1_ip_pin = (ip_pin_val != 0);
-    else
-        g_sta1_ip_pin = false;
-
-    ip_pin_val = 0;
-    if (nvs_get_u8 (s_nvs_settings_handle, s_sta2_ip_pin_key, &ip_pin_val) == ESP_OK)
-        g_sta2_ip_pin = (ip_pin_val != 0);
-    else
-        g_sta2_ip_pin = false;
-
-    ip_pin_val = 0;
-    if (nvs_get_u8 (s_nvs_settings_handle, s_sta3_ip_pin_key, &ip_pin_val) == ESP_OK)
-        g_sta3_ip_pin = (ip_pin_val != 0);
-    else
-        g_sta3_ip_pin = false;
+    GET_NV_BOOL (tune_targets_mobile);
+    GET_NV_BOOL (sta1_ip_pin);
+    GET_NV_BOOL (sta2_ip_pin);
+    GET_NV_BOOL (sta3_ip_pin);
 }
 
 /**
@@ -190,6 +175,7 @@ static std::shared_ptr<char[]> get_settings_json () {
 
     // {              // 1
     // "foo":"bar",   // sizeof(foo) + sizeof(bar) + 6 for extras
+    // "foo":false,   // sizeof(foo) + sizeof(false) + 4 for extras
     // }              // 1
     size_t required_size = 1 +
                            sizeof (s_sta1_ssid_key) + sizeof (g_sta1_ssid) + 6 +
@@ -200,9 +186,9 @@ static std::shared_ptr<char[]> get_settings_json () {
                            sizeof (s_sta3_pass_key) + sizeof (g_sta3_pass) + 6 +
                            sizeof (s_ap_ssid_key) + sizeof (g_ap_ssid) + 6 +
                            sizeof (s_ap_pass_key) + sizeof (g_ap_pass) + 6 +
-                           sizeof (s_sta1_ip_pin_key) + 6 + 5 +
-                           sizeof (s_sta2_ip_pin_key) + 6 + 5 +
-                           sizeof (s_sta3_ip_pin_key) + 6 + 5 +
+                           sizeof (s_sta1_ip_pin_key) + 5 + 4 +
+                           sizeof (s_sta2_ip_pin_key) + 5 + 4 +
+                           sizeof (s_sta3_ip_pin_key) + 5 + 4 +
                            1;
     const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":%s,\"%s\":%s,\"%s\":%s}";
 
