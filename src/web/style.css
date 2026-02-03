@@ -1190,6 +1190,51 @@ tbody tr:active {
     margin-bottom: var(--space-sm);
 }
 
+/* Password field with inline visibility toggle */
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-wrapper input {
+    flex: 1;
+    padding-right: 44px;
+}
+
+button.password-visibility-toggle {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-xs);
+    color: var(--gray-5);
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    border-radius: var(--radius-sm);
+}
+
+button.password-visibility-toggle:hover {
+    color: var(--gray-7);
+}
+
+button.password-visibility-toggle.active {
+    color: var(--primary);
+}
+
+button.password-visibility-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
 /* Tune Targets */
 .tune-targets-list {
     display: flex;

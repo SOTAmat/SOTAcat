@@ -573,7 +573,17 @@ function handleClickOutsidePopup(event) {
 // Toggle password field visibility (inputId: 'sta1-pass', 'sta2-pass', etc.)
 function togglePasswordVisibility(inputId) {
     const passwordInput = document.getElementById(inputId);
-    passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+    const isPassword = passwordInput.type === "password";
+    passwordInput.type = isPassword ? "text" : "password";
+
+    const button = document.querySelector(`.password-visibility-toggle[data-target="${inputId}"]`);
+    if (button) {
+        button.classList.toggle("active", isPassword);
+        button.querySelector(".eye-icon").style.display = isPassword ? "none" : "";
+        button.querySelector(".eye-off-icon").style.display = isPassword ? "" : "none";
+        button.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+        button.setAttribute("title", isPassword ? "Hide password" : "Show password");
+    }
 }
 
 // ============================================================================
@@ -934,8 +944,8 @@ function attachSettingsEventListeners() {
     }
 
     // Password visibility toggles
-    document.querySelectorAll(".password-visibility-toggle").forEach((checkbox) => {
-        checkbox.addEventListener("change", function () {
+    document.querySelectorAll(".password-visibility-toggle").forEach((button) => {
+        button.addEventListener("click", function () {
             const targetId = this.getAttribute("data-target");
             togglePasswordVisibility(targetId);
         });
