@@ -389,6 +389,19 @@ class SOTAcatUITests:
         sta1 = self.page.locator('#sta1-ssid')
         assert sta1.count() > 0, "WiFi STA1 SSID input should exist"
 
+    def test_settings_ip_pin_checkboxes(self):
+        """Settings page has IP pinning checkboxes for each STA network"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        sta1_pin = self.page.locator('#sta1-ip-pin')
+        sta2_pin = self.page.locator('#sta2-ip-pin')
+        sta3_pin = self.page.locator('#sta3-ip-pin')
+        assert sta1_pin.count() > 0, "STA1 IP pin checkbox should exist"
+        assert sta2_pin.count() > 0, "STA2 IP pin checkbox should exist"
+        assert sta3_pin.count() > 0, "STA3 IP pin checkbox should exist"
+
     def test_settings_tune_targets_section(self):
         """Settings page has tune targets section"""
         self.page.goto(self.url('/'))
@@ -1059,6 +1072,7 @@ class SOTAcatUITests:
             print("\nSettings Page Elements:")
             self.run_test("Callsign input", self.test_settings_callsign_input)
             self.run_test("WiFi section", self.test_settings_wifi_section)
+            self.run_test("IP pin checkboxes", self.test_settings_ip_pin_checkboxes)
             self.run_test("Tune targets section", self.test_settings_tune_targets_section)
 
             # QRX page elements

@@ -38,14 +38,33 @@ static std::atomic<int8_t> s_rssi{0};
 // ---- Optional: try to keep a stable STA address on phone hotspots ----
 // Strategy:
 //   - Let DHCP run to learn subnet/netmask/gateway.
-//   - Then pin the STA IP to (subnet + pinned host octet).
+//   - Then pin the STA IP to (subnet + pinned host octet) if enabled for this network.
 // Notes:
 //   - This cannot be *guaranteed* to be stable on Android hotspots if subnet changes.
 //   - Risk: IP collision if the pinned address is within the phone's DHCP pool.
-//   - Using a high octet (e.g., 200) reduces collision risk.
-static constexpr bool    k_pin_sta_host_octet = true;
-static constexpr uint8_t k_pinned_host_octet  = 200;
+//   - Using a high octet (e.g., 222) reduces collision risk.
+//   - Per-STA setting: g_sta1_ip_pin, g_sta2_ip_pin, g_sta3_ip_pin (default: disabled).
+static constexpr uint8_t k_pinned_host_octet = 222;
 static std::atomic<bool> s_sta_using_static_ip{false};
+
+// Determine if IP pinning is enabled for the currently connected network
+static bool should_pin_sta_ip () {
+    wifi_ap_record_t ap_info;
+    if (esp_wifi_sta_get_ap_info (&ap_info) != ESP_OK)
+        return false;
+
+    const char * connected_ssid = (const char *)ap_info.ssid;
+
+    if (std::strcmp (connected_ssid, g_sta1_ssid) == 0)
+        return g_sta1_ip_pin;
+    if (std::strcmp (connected_ssid, g_sta2_ssid) == 0)
+        return g_sta2_ip_pin;
+    if (std::strcmp (connected_ssid, g_sta3_ssid) == 0)
+        return g_sta3_ip_pin;
+
+    // Unknown network - default to pinning enabled
+    return true;
+}
 
 #define WIFI_CONNECT_TIMEOUT_MS          6000  // Slightly increased for mobile hotspots
 #define WIFI_STATE_TRANSITION_TIMEOUT_MS 3000
@@ -74,7 +93,7 @@ static void sta_revert_to_dhcp_if_needed () {
 // After DHCP gives us an IP, pin to a fixed host octet on the same subnet.
 // Returns true if IP was changed (caller should re-announce mDNS).
 static bool maybe_pin_sta_ip (const ip_event_got_ip_t * event) {
-    if (!k_pin_sta_host_octet || !sta_netif || !event)
+    if (!should_pin_sta_ip() || !sta_netif || !event)
         return false;
 
     const esp_netif_ip_info_t & got     = event->ip_info;

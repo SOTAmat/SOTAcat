@@ -93,6 +93,14 @@
                         >
                         app from the Google Play store and use that app to navigate to the "sotacat.local" address.
                     </p>
+                    <p>
+                        <strong>Pin IP to .222:</strong> Recommended for Android hotspot networks. When the mobile
+                        cell network flaps (switching towers, brief signal loss), Android hotspots can reassign
+                        SOTACAT's IP address, causing your browser to lose its connection. Enabling this option pins
+                        SOTACAT to a fixed .222 address on the subnet (e.g., 192.168.43.222), so your browser
+                        reconnects automatically after brief interruptions. Leave this disabled for home networks
+                        where .222 might conflict with another device.
+                    </p>
                     <br />
                 </div>
             </div>
@@ -122,6 +130,10 @@
                     <input type="checkbox" class="password-visibility-toggle" data-target="sta1-pass" />
                     <span>Show password</span>
                 </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="sta1-ip-pin" />
+                    <span>Pin IP to .222</span>
+                </label>
             </div>
 
             <!-- Client 2 -->
@@ -147,6 +159,10 @@
                     <input type="checkbox" class="password-visibility-toggle" data-target="sta2-pass" />
                     <span>Show password</span>
                 </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="sta2-ip-pin" />
+                    <span>Pin IP to .222</span>
+                </label>
             </div>
 
             <!-- Client 3 -->
@@ -171,6 +187,10 @@
                 <label class="checkbox-label">
                     <input type="checkbox" class="password-visibility-toggle" data-target="sta3-pass" />
                     <span>Show password</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="sta3-ip-pin" />
+                    <span>Pin IP to .222</span>
                 </label>
             </div>
 

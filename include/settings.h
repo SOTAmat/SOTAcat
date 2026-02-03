@@ -29,6 +29,9 @@ extern char g_sta3_ssid[MAX_WIFI_SSID_SIZE];
 extern char g_sta3_pass[MAX_WIFI_PASS_SIZE];
 extern char g_ap_ssid[MAX_WIFI_SSID_SIZE];
 extern char g_ap_pass[MAX_WIFI_PASS_SIZE];
+extern bool g_sta1_ip_pin;
+extern bool g_sta2_ip_pin;
+extern bool g_sta3_ip_pin;
 
 #define MAX_GPS_LAT_SIZE 32
 #define MAX_GPS_LON_SIZE 32

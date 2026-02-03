@@ -39,18 +39,17 @@ SOTAcat joins your phone's hotspot.
 > **[ 📷 IMAGE: Settings WiFi configuration help popup ]**
 > `../images/settings-wifi-help.png`
 
-#### Stable IP Address (.200)
+#### Recommended: Pin IP to .222
 
-When connecting to a phone hotspot, SOTAcat automatically pins itself to `.200` on whatever subnet your phone assigns. For example, if your hotspot uses `192.168.43.x`, SOTAcat will always be at `192.168.43.200`.
+For each Client network, you can enable **Pin IP to .222** in Settings. When enabled, SOTAcat pins itself to `.222` on whatever subnet the network assigns. For example, if your hotspot uses `192.168.43.x`, SOTAcat will be at `192.168.43.222`.
 
-**Why this matters:** Android hotspots can briefly disconnect when mobile data flaps (switching towers, signal drops, etc.). Without a stable IP, you'd need to rediscover SOTAcat's address each time. With the pinned `.200` address, your browser reconnects automatically after brief interruptions.
+**Why this matters for Android hotspots:** When the mobile cell network flaps (switching towers, brief signal loss), Android hotspots can reassign SOTAcat's IP address. Without a stable IP, your browser loses its connection and you have to rediscover SOTAcat each time. With the pinned `.222` address, your browser reconnects automatically after brief interruptions.
 
-**First-time setup:**
-1. Use [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover SOTAcat
-2. Note the address (e.g., `192.168.43.200`)
-3. Bookmark it — this address stays stable as long as your hotspot uses the same subnet
+**Why you might NOT want this:** On home networks with many devices, the `.222` address might already be in use by another device, causing an IP conflict. For home networks, leave this disabled and use `sotacat.local` instead.
 
-**When you need to rediscover:** If your phone's hotspot changes subnets (rare — usually only after phone reboot or hotspot reconfiguration), use Bonjour Browser once to find the new `.200` address.
+**Setup:**
+1. In Settings, enable "Pin IP to .222" for your hotspot network
+2. Use [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover SOTAcat's `.222` address
 
 ## One-Time Setup
 

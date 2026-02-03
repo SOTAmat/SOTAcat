@@ -587,10 +587,13 @@ let originalWifiValues = {};
 const WIFI_FIELD_IDS = [
     "sta1-ssid",
     "sta1-pass",
+    "sta1-ip-pin",
     "sta2-ssid",
     "sta2-pass",
+    "sta2-ip-pin",
     "sta3-ssid",
     "sta3-pass",
+    "sta3-ip-pin",
     "ap-ssid",
     "ap-pass",
 ];
@@ -601,7 +604,7 @@ function storeOriginalWifiValues() {
     WIFI_FIELD_IDS.forEach((id) => {
         const element = document.getElementById(id);
         if (element) {
-            originalWifiValues[id] = element.value;
+            originalWifiValues[id] = element.type === "checkbox" ? element.checked : element.value;
         }
     });
 }
@@ -610,7 +613,9 @@ function storeOriginalWifiValues() {
 function hasWifiChanged() {
     return WIFI_FIELD_IDS.some((id) => {
         const element = document.getElementById(id);
-        return element && element.value !== originalWifiValues[id];
+        if (!element) return false;
+        const currentValue = element.type === "checkbox" ? element.checked : element.value;
+        return currentValue !== originalWifiValues[id];
     });
 }
 
@@ -640,6 +645,14 @@ async function fetchSettings() {
         document.getElementById("ap-ssid").value = data.ap_ssid;
         document.getElementById("ap-pass").value = data.ap_pass;
 
+        // Load IP pinning checkboxes (default to false if not present)
+        const sta1IpPin = document.getElementById("sta1-ip-pin");
+        if (sta1IpPin) sta1IpPin.checked = data.sta1_ip_pin === true;
+        const sta2IpPin = document.getElementById("sta2-ip-pin");
+        if (sta2IpPin) sta2IpPin.checked = data.sta2_ip_pin === true;
+        const sta3IpPin = document.getElementById("sta3-ip-pin");
+        if (sta3IpPin) sta3IpPin.checked = data.sta3_ip_pin === true;
+
         // Store original values and reset save button
         storeOriginalWifiValues();
         updateWifiSaveButton();
@@ -656,10 +669,13 @@ async function saveSettings() {
     const settings = {
         sta1_ssid: document.getElementById("sta1-ssid").value,
         sta1_pass: document.getElementById("sta1-pass").value,
+        sta1_ip_pin: document.getElementById("sta1-ip-pin").checked,
         sta2_ssid: document.getElementById("sta2-ssid").value,
         sta2_pass: document.getElementById("sta2-pass").value,
+        sta2_ip_pin: document.getElementById("sta2-ip-pin").checked,
         sta3_ssid: document.getElementById("sta3-ssid").value,
         sta3_pass: document.getElementById("sta3-pass").value,
+        sta3_ip_pin: document.getElementById("sta3-ip-pin").checked,
         ap_ssid: document.getElementById("ap-ssid").value,
         ap_pass: document.getElementById("ap-pass").value,
     };
@@ -929,7 +945,9 @@ function attachSettingsEventListeners() {
     WIFI_FIELD_IDS.forEach((id) => {
         const element = document.getElementById(id);
         if (element) {
-            element.addEventListener("input", updateWifiSaveButton);
+            // Use 'change' for checkboxes, 'input' for text fields
+            const eventType = element.type === "checkbox" ? "change" : "input";
+            element.addEventListener(eventType, updateWifiSaveButton);
         }
     });
 

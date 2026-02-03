@@ -13,7 +13,7 @@
 Android's Chrome browser doesn't support mDNS (`.local` addresses). Use numeric IPs instead:
 
 - **Mode 1 (Phone → SOTAcat AP):** Use `http://192.168.4.1`
-- **Mode 3 (Android Hotspot):** SOTAcat pins to `.200` on your hotspot's subnet (e.g., `http://192.168.43.200`)
+- **Mode 3 (Android Hotspot):** Enable "Pin IP to .222" in Settings to prevent losing connectivity when cell network flaps. SOTAcat will be at `.222` on your hotspot's subnet (e.g., `http://192.168.43.222`)
 
 Use [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover the exact address, then bookmark it.
 

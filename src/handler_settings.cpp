@@ -32,7 +32,13 @@ static const char s_sta3_ssid_key[] = "sta3_ssid";
 char              g_sta3_ssid[MAX_WIFI_SSID_SIZE];
 static const char s_sta3_pass_key[] = "sta3_pass";
 char              g_sta3_pass[MAX_WIFI_PASS_SIZE];
-static const char s_ap_ssid_key[] = "ap_ssid";
+static const char s_sta1_ip_pin_key[] = "sta1_ip_pin";
+bool              g_sta1_ip_pin       = false;
+static const char s_sta2_ip_pin_key[] = "sta2_ip_pin";
+bool              g_sta2_ip_pin       = false;
+static const char s_sta3_ip_pin_key[] = "sta3_ip_pin";
+bool              g_sta3_ip_pin       = false;
+static const char s_ap_ssid_key[]     = "ap_ssid";
 char              g_ap_ssid[MAX_WIFI_SSID_SIZE];
 static const char s_ap_pass_key[] = "ap_pass";
 char              g_ap_pass[MAX_WIFI_PASS_SIZE];
@@ -46,7 +52,7 @@ static const char s_license_class_key[] = "license";
 char              g_license_class[MAX_LICENSE_CLASS_SIZE];
 
 // Tune targets - URLs to open when tuning (e.g., WebSDR, KiwiSDR)
-static const char s_tune_targets_key[]        = "tune_targets";
+static const char s_tune_targets_key[] = "tune_targets";
 char              g_tune_targets[MAX_TUNE_TARGETS_JSON];
 static const char s_tune_targets_mobile_key[] = "tune_mobile";
 bool              g_tune_targets_mobile       = false;
@@ -126,6 +132,25 @@ static void populate_settings () {
         g_tune_targets_mobile = (mobile_val != 0);
     else
         g_tune_targets_mobile = false;
+
+    // Load IP pinning settings (default to disabled)
+    uint8_t ip_pin_val = 0;
+    if (nvs_get_u8 (s_nvs_settings_handle, s_sta1_ip_pin_key, &ip_pin_val) == ESP_OK)
+        g_sta1_ip_pin = (ip_pin_val != 0);
+    else
+        g_sta1_ip_pin = false;
+
+    ip_pin_val = 0;
+    if (nvs_get_u8 (s_nvs_settings_handle, s_sta2_ip_pin_key, &ip_pin_val) == ESP_OK)
+        g_sta2_ip_pin = (ip_pin_val != 0);
+    else
+        g_sta2_ip_pin = false;
+
+    ip_pin_val = 0;
+    if (nvs_get_u8 (s_nvs_settings_handle, s_sta3_ip_pin_key, &ip_pin_val) == ESP_OK)
+        g_sta3_ip_pin = (ip_pin_val != 0);
+    else
+        g_sta3_ip_pin = false;
 }
 
 /**
@@ -175,17 +200,20 @@ static std::shared_ptr<char[]> get_settings_json () {
                            sizeof (s_sta3_pass_key) + sizeof (g_sta3_pass) + 6 +
                            sizeof (s_ap_ssid_key) + sizeof (g_ap_ssid) + 6 +
                            sizeof (s_ap_pass_key) + sizeof (g_ap_pass) + 6 +
+                           sizeof (s_sta1_ip_pin_key) + 6 + 5 +
+                           sizeof (s_sta2_ip_pin_key) + 6 + 5 +
+                           sizeof (s_sta3_ip_pin_key) + 6 + 5 +
                            1;
-    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\"}";
+    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":%s,\"%s\":%s,\"%s\":%s}";
 
     std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_sta1_ssid_key, g_sta1_ssid, s_sta1_pass_key, g_sta1_pass, s_sta2_ssid_key, g_sta2_ssid, s_sta2_pass_key, g_sta2_pass, s_sta3_ssid_key, g_sta3_ssid, s_sta3_pass_key, g_sta3_pass, s_ap_ssid_key, g_ap_ssid, s_ap_pass_key, g_ap_pass);
+    snprintf (buf.get(), required_size, format, s_sta1_ssid_key, g_sta1_ssid, s_sta1_pass_key, g_sta1_pass, s_sta2_ssid_key, g_sta2_ssid, s_sta2_pass_key, g_sta2_pass, s_sta3_ssid_key, g_sta3_ssid, s_sta3_pass_key, g_sta3_pass, s_ap_ssid_key, g_ap_ssid, s_ap_pass_key, g_ap_pass, s_sta1_ip_pin_key, g_sta1_ip_pin ? "true" : "false", s_sta2_ip_pin_key, g_sta2_ip_pin ? "true" : "false", s_sta3_ip_pin_key, g_sta3_ip_pin ? "true" : "false");
 
     return buf;
 }
 
 /**
- * Helper function to store key value pairs in NVS.
+ * Helper function to store string key-value pairs in NVS.
  * Simply a convenient aliasing to keep the caller clean.
  */
 static esp_err_t process (const char * key, const char * value) {
@@ -195,15 +223,28 @@ static esp_err_t process (const char * key, const char * value) {
 }
 
 /**
+ * Helper function to store boolean key-value pairs in NVS.
+ * Booleans are stored as u8 (0 = false, 1 = true).
+ */
+static esp_err_t process (const char * key, bool value) {
+    ESP_LOGI (TAG8, "Storing into NVS the key: %s, with bool value: %s", key, value ? "true" : "false");
+    return nvs_set_u8 (s_nvs_settings_handle, key, value ? 1 : 0);
+}
+
+/**
  * Parse the JSON string in content and call the process function for each key-value pair.
  * Incoming string will look like:
  *   {"sta1_ssid":"foo","sta1_pass":"barbarbar","sta2_ssid":"baz","sta2_pass":"quuxquux","ap_ssid":"SOTAcat-A480","ap_pass":"12345678"}
+ * Also handles boolean values (unquoted true/false):
+ *   {"sta1_ip_pin":true,"sta2_ip_pin":false}
  * NOTE: incoming json variable's content is modified during this operation
  */
 static void parse_and_process_json (char * json) {
-    char * keyStart = nullptr;
-    char * valStart = nullptr;
-    bool   isKey    = true;  // Start by assuming the first token will be a key.
+    char * keyStart  = nullptr;
+    char * valStart  = nullptr;
+    bool   isKey     = true;   // Start by assuming the first token will be a key.
+    bool   isBoolVal = false;  // Track if current value is a boolean
+    bool   boolValue = false;  // Store the boolean value
 
     for (char * p = json; *p; ++p) {
         if (*p == '\\') {
@@ -229,17 +270,40 @@ static void parse_and_process_json (char * json) {
                     process (keyStart, valStart);   // Process the current key-value pair.
                     keyStart = valStart = nullptr;  // Reset for the next pair.
                     isKey               = true;     // Next token will be a key.
+                    isBoolVal           = false;
                 }
                 else  // This is the start of a value.
                     valStart = p + 1;
             }
         }
-        else if (*p == ':')
-            continue;  // Skip the colon itself.
+        else if (*p == ':') {
+            // Check if the value is an unquoted boolean (true/false)
+            if (!isKey && !valStart) {
+                if (*(p + 1) == 't' && strncmp (p + 1, "true", 4) == 0) {
+                    valStart  = p + 1;
+                    isBoolVal = true;
+                    boolValue = true;
+                    p += 4;  // Skip to 'e' of 'true', loop will increment past it
+                }
+                else if (*(p + 1) == 'f' && strncmp (p + 1, "false", 5) == 0) {
+                    valStart  = p + 1;
+                    isBoolVal = true;
+                    boolValue = false;
+                    p += 5;  // Skip to 'e' of 'false', loop will increment past it
+                }
+            }
+            // If not a boolean, continue (next char should be '"' for string value)
+        }
         else if (*p == ',' || *p == '}') {
-            if (keyStart && valStart) {  // In case of no closing quote for value.
-                process (keyStart, valStart);
+            if (keyStart && valStart) {
+                if (isBoolVal) {
+                    process (keyStart, boolValue);  // Boolean overload
+                }
+                else {
+                    process (keyStart, valStart);  // String overload
+                }
                 keyStart = valStart = nullptr;
+                isBoolVal           = false;
             }
             isKey = true;  // Reset for the next key-value pair.
         }
@@ -282,7 +346,7 @@ esp_err_t handler_settings_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    std::unique_ptr<char[]> buf (new char[req->content_len]);
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]);
     if (!buf)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
 
@@ -292,6 +356,8 @@ esp_err_t handler_settings_post (httpd_req_t * req) {
     int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
     if (ret <= 0)
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "post content not received");
+
+    unsafe_buf[req->content_len] = '\0';  // Null-terminate for string operations
 
     parse_and_process_json (unsafe_buf);
 
@@ -512,8 +578,8 @@ static std::shared_ptr<char[]> get_tune_targets_json () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     // Return JSON: {"targets": [...], "mobile": true/false}
-    size_t required_size = 32 + sizeof (g_tune_targets);
-    const char format[]  = "{\"targets\":%s,\"mobile\":%s}";
+    size_t     required_size = 32 + sizeof (g_tune_targets);
+    const char format[]      = "{\"targets\":%s,\"mobile\":%s}";
 
     std::shared_ptr<char[]> buf (new char[required_size]);
     // If g_tune_targets is empty, use empty array
@@ -601,7 +667,9 @@ esp_err_t handler_tune_targets_post (httpd_req_t * req) {
 
 esp_err_t handler_radio_type_get (httpd_req_t * req) {
     showActivity();
+
     ESP_LOGV (TAG8, "trace: %s()", __func__);
+
     const char * type = kxRadio.get_radio_type_string();
     REPLY_WITH_STRING (req, type, "radio type");
 }
