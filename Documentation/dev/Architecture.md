@@ -6,8 +6,8 @@
 
 ```
 ┌─────────────┐     WiFi      ┌─────────────┐     CAT      ┌─────────────┐
-│   Browser   │◄────────────►│   SOTAcat   │◄────────────►│  KX2/KX3    │
-│   (Phone)   │    HTTP       │   (ESP32)   │    Serial    │   Radio     │
+│   Browser   │◄────────────►│   SOTAcat   │◄────────────►│  KX2/KX3/KH1 │
+│   (Phone)   │    HTTP       │   (ESP32)   │    Serial    │   Radio    │
 └─────────────┘               └─────────────┘               └─────────────┘
                                     │
                                     ▼
@@ -33,8 +33,9 @@
 - See `src/` for full endpoint list
 
 ### CAT Driver
-- Serial communication with Elecraft KX2/KX3
-- 38400 baud default
+- Serial communication with Elecraft radio
+- 38400 baud default (KX2 / KX3)
+- 9600 baud default (KH1)
 - Handles command/response protocol
 
 ### FT8 Synthesis

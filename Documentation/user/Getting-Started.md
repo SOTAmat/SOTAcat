@@ -2,11 +2,11 @@
 
 **Who this is for:** First-time SOTAcat users
 **Time:** 5 minutes
-**Prereqs:** SOTAcat device, Elecraft KX2/KX3, smartphone
+**Prereqs:** SOTAcat device, Elecraft KX2/KX3/KH1, smartphone
 
 ## Connect to SOTAcat
 
-1. Power on your KX radio with SOTAcat attached
+1. Power on your radio with SOTAcat attached
 2. On your phone, go to WiFi settings
 3. Connect to `SOTACAT_xxxx` (password: `12345678`)
 
