@@ -387,6 +387,13 @@
                         from a nearby RF quiet web based SDR receiver, but transmit from their actual (home) location.
                     </p>
                     <p>
+                        <strong>Note:</strong> Most browsers will either block all popups or limit popups to a single
+                        popup tab by default. You may need to enable popups in your browser settings for this feature to
+                        work, especially if you want to open multiple SDR tabs. You may need to enable popups for each
+                        URL that your browser uses to connect to the SOTACAT, such as http://sotacat.local and
+                        http://192.168.4.1.
+                    </p>
+                    <p>
                         <strong>How it works:</strong> Each tune target is a URL template containing placeholders that
                         get replaced with the actual frequency and mode when you tune. For example,
                         <code>{FREQ-KHZ}</code> becomes <code>14074</code> and <code>{MODE}</code> becomes
