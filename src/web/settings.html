@@ -379,10 +379,12 @@
                 </div>
                 <div class="help-popup-body">
                     <p>
-                        <strong>What are Tune Targets?</strong> When you click on a spot in the Chase table to tune your
-                        radio, SOTACAT can simultaneously open one or more web-based SDR receivers in background browser
-                        tabs, tuned to the same frequency. This lets you monitor your signal on a remote receiver, check
-                        propagation, or listen via WebSDR when local conditions are poor.
+                        <strong>What are Tune Targets?</strong> When you click on a spot in the 'CHASE' table to tune
+                        your radio, SOTACAT can simultaneously open one or more web-based SDR receivers in background
+                        browser tabs, tuned to the same frequency. This lets you monitor your signal on a remote
+                        receiver, check propagation, or listen via WebSDR when local conditions are poor. This can be
+                        useful for chasers operating from RF noisy (home) locations who want to listen to the signal
+                        from a nearby RF quiet web based SDR receiver, but transmit from their actual (home) location.
                     </p>
                     <p>
                         <strong>How it works:</strong> Each tune target is a URL template containing placeholders that
@@ -471,15 +473,14 @@
     <!-- Chase Filters Card -->
     <div class="settings-card">
         <h2>Chase Filters</h2>
-        <p class="settings-info">Filter chase spots based on your radio's capabilities</p>
+        <p class="settings-info">
+            Enable to show only 'spots' your radio can access on the 'CHASE' tab. Disable to show all spots (useful if
+            you have another radio like an HT).
+        </p>
         <label class="checkbox-label">
             <input type="checkbox" id="filter-bands-enabled" />
             <span>Show only bands my radio can access</span>
         </label>
-        <p class="settings-info small">
-            When enabled, spots on bands your radio cannot receive will be hidden. Disable to see all bands (useful if
-            you have another radio like an HT).
-        </p>
     </div>
 
     <!-- Firmware Update Card -->
