@@ -1191,6 +1191,7 @@ async function saveGpsToDevice(lat, lon) {
     if (response.ok) {
         // Update cached location to new value (don't clear - needed for location-based keys)
         AppState.gpsOverride = { latitude: lat, longitude: lon };
+        localStorage.setItem("cachedGpsLocation", JSON.stringify(AppState.gpsOverride));
         clearDistanceCache();
         AppState.latestChaseJson = null;
         return true;
@@ -1204,6 +1205,9 @@ async function saveGpsToDevice(lat, lon) {
 async function saveGeolocationFromBridge(lat, lon, accuracy) {
     // Store coords for QRX page to pick up (in case page isn't loaded yet)
     sessionStorage.setItem("pendingGeolocation", JSON.stringify({ lat, lon }));
+
+    // Cache GPS in localStorage so it survives page reloads even if device is unreachable
+    localStorage.setItem("cachedGpsLocation", JSON.stringify({ latitude: lat, longitude: lon }));
 
     // Update input field immediately (if on QRX page)
     const gpsInput = document.getElementById("gps-location");
@@ -1310,22 +1314,45 @@ function setLocationBasedReference(value) {
 
 // Get user location from NVRAM or default to KPH (returns {latitude, longitude})
 async function getLocation() {
-    // Return cached location if available
+    // Return in-memory cached location if available (fastest path)
     if (AppState.gpsOverride) {
         return AppState.gpsOverride;
     }
 
-    // Try to fetch from NVRAM
+    // Check localStorage for GPS cached across page reloads
+    const cached = localStorage.getItem("cachedGpsLocation");
+    let localStorageLocation = null;
+    if (cached) {
+        try {
+            const parsed = JSON.parse(cached);
+            if (parsed.latitude != null && parsed.longitude != null) {
+                localStorageLocation = { latitude: parseFloat(parsed.latitude), longitude: parseFloat(parsed.longitude) };
+                // Populate in-memory cache immediately so location-based keys work
+                AppState.gpsOverride = localStorageLocation;
+                Log.debug("GPS", "Restored location from localStorage");
+            }
+        } catch (e) {
+            Log.warn("GPS", "Invalid cachedGpsLocation in localStorage");
+        }
+    }
+
+    // Try to fetch from NVRAM (authoritative source)
     try {
         const response = await fetch("/api/v1/gps");
         const data = await response.json();
         if (data.gps_lat && data.gps_lon) {
             Log.debug("GPS", "Using location from NVRAM");
             AppState.gpsOverride = { latitude: parseFloat(data.gps_lat), longitude: parseFloat(data.gps_lon) };
+            localStorage.setItem("cachedGpsLocation", JSON.stringify(AppState.gpsOverride));
             return AppState.gpsOverride;
         }
     } catch (error) {
         Log.warn("GPS", "Failed to fetch from NVRAM:", error);
+    }
+
+    // If localStorage had a valid location, use it (already set in AppState above)
+    if (localStorageLocation) {
+        return localStorageLocation;
     }
 
     // Fall back to default location (KPH) - cache it so location-based keys work
