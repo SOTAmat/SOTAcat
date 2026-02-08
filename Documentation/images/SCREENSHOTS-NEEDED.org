@@ -40,3 +40,42 @@
 - [ ] Hand-built SOTAcat
   - Filename: hand-built.png
 
+* Screenshots / Photos Needed (by PNG)
+- [ ] *chase-spots.png*
+  - README.md :: CHASE page with spots and tap-to-tune (reused from UI-Tour)
+  - Documentation/user/UI-Tour.md :: CHASE page with spots and filter dropdowns
+
+- [ ] *connection-lost.png*
+  - Documentation/user/Networking.md :: Connection lost overlay
+
+- [ ] *hand-built.png*
+  - Documentation/Hardware.md :: Hand-built SOTAcat
+
+- [ ] *header-status.png*
+  - Documentation/user/Getting-Started.md :: Header bar with all status indicators
+  - Note :: Your text says "same as above" but the filename differs from wifi-list.png; if you intend reuse, pick one filename and reference it in both places.
+
+- [ ] *k5em-pcb.png*
+  - Documentation/Hardware.md :: K5EM PCB version
+
+- [ ] *qrx-page.png*
+  - Documentation/user/UI-Tour.md :: QRX page showing location and reference fields
+
+- [ ] *run-controls.png*
+  - README.md :: RUN page with rig controls and spotting (reused from UI-Tour)
+  - Documentation/user/UI-Tour.md :: RUN page with Tune/Spot/Transmit sections
+
+- [ ] *settings-page.png*
+  - Documentation/user/UI-Tour.md :: Settings page
+
+- [ ] *settings-tune-targets-help.png*
+  - Documentation/user/Tune-Targets.md :: Settings Tune Targets help popup
+
+- [ ] *settings-wifi-help.png*
+  - Documentation/user/Networking.md :: Settings WiFi configuration help popup
+
+- [ ] *sotacat-on-radio.png*
+  - Documentation/Hardware.md :: SOTAcat plugged into KX radio
+
+- [ ] *wifi-list.png*
+  - Documentation/user/Getting-Started.md :: Phone WiFi list showing SOTACAT_xxxx
