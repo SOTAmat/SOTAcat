@@ -48,6 +48,43 @@ const ChaseState = {
 // State Management Functions
 // ============================================================================
 
+// Save spot data to localStorage for cross-reload persistence
+function saveSpotsToCache(spots) {
+    try {
+        localStorage.setItem("chaseSpotCache", JSON.stringify({
+            spots: spots,
+            timestamp: Date.now()
+        }));
+    } catch (e) {
+        Log.warn("Chase", "Failed to save spots to localStorage:", e);
+    }
+}
+
+// Restore spot data from localStorage if not stale.
+// Returns true if cache was restored, false otherwise.
+function restoreSpotsFromCache() {
+    try {
+        const cached = localStorage.getItem("chaseSpotCache");
+        if (!cached) return false;
+
+        const { spots, timestamp } = JSON.parse(cached);
+        const ageMs = Date.now() - timestamp;
+        if (ageMs > CHASE_HISTORY_DURATION_SECONDS * 1000) {
+            localStorage.removeItem("chaseSpotCache");
+            return false;
+        }
+
+        AppState.latestChaseJson = spots;
+        ChaseState.lastRefreshCompleteTime = timestamp;
+        Log.info("Chase", `Restored ${spots.length} spots from localStorage (age ${Math.round(ageMs / 1000)}s)`);
+        return true;
+    } catch (e) {
+        Log.warn("Chase", "Failed to restore spots from localStorage:", e);
+        localStorage.removeItem("chaseSpotCache");
+        return false;
+    }
+}
+
 // Load saved sort preferences from localStorage and update ChaseState
 function loadSortState() {
     const savedSortField = localStorage.getItem("chaseSortField");
@@ -905,6 +942,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
         const spots = await fetchAndProcessSpots(fetchOptions, location, true);
 
         AppState.latestChaseJson = spots;
+        saveSpotsToCache(spots);
         Log.info("Chase", `Json updated: ${spots.length} spots`);
 
         if (typeof updateChaseTable === "function") {
@@ -1082,9 +1120,12 @@ async function onChaseAppearing() {
         typeSelector.value = ChaseState.typeFilter;
     }
 
-    // Load data
+    // Load data: prefer in-memory cache, then localStorage, then fresh fetch
     if (AppState.latestChaseJson !== null) {
-        Log.debug("Chase", "tab appearing: Using existing data");
+        Log.debug("Chase", "tab appearing: Using in-memory data");
+        updateChaseTable();
+    } else if (restoreSpotsFromCache()) {
+        Log.debug("Chase", "tab appearing: Restored from localStorage");
         updateChaseTable();
     } else {
         Log.debug("Chase", "tab appearing: Fetching new data");

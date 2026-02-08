@@ -1194,6 +1194,7 @@ async function saveGpsToDevice(lat, lon) {
         localStorage.setItem("cachedGpsLocation", JSON.stringify(AppState.gpsOverride));
         clearDistanceCache();
         AppState.latestChaseJson = null;
+        localStorage.removeItem("chaseSpotCache");
         return true;
     }
 
