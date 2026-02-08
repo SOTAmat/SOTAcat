@@ -1,8 +1,9 @@
 #pragma once
 
 #include <esp_adc/adc_oneshot.h>
+#include <atomic>
 
-extern bool CommandInProgress;
+extern std::atomic<bool> CommandInProgress;
 extern bool Ft8RadioExclusive;
 extern void showActivity ();
 
