@@ -322,11 +322,24 @@ function onReferenceInputChange() {
             referenceInput.value = cleaned;
         }
 
+        const hasChanged = referenceInput.value !== originalReferenceValue;
+
         // Enable save button if value changed from original
         if (saveBtn) {
-            const hasChanged = referenceInput.value !== originalReferenceValue;
             saveBtn.disabled = !hasChanged;
             saveBtn.className = hasChanged ? "btn btn-primary" : "btn btn-secondary";
+        }
+
+        // Hide summit info when reference is being edited;
+        // restore it from cache if reverted to original value
+        const summitInfoDiv = document.getElementById("summit-info");
+        if (summitInfoDiv) {
+            if (hasChanged) {
+                summitInfoDiv.textContent = "";
+            } else if (!summitInfoDiv.textContent && AppState.gpsOverride) {
+                const cacheKey = buildLocationKey("summitInfo", AppState.gpsOverride.latitude, AppState.gpsOverride.longitude);
+                summitInfoDiv.textContent = localStorage.getItem(cacheKey) || "";
+            }
         }
     }
 }
@@ -344,26 +357,15 @@ function onReferenceBlur() {
 }
 
 // Save reference to localStorage
-async function saveReference() {
+function saveReference() {
     const referenceInput = document.getElementById("reference-input");
     const saveBtn = document.getElementById("save-reference-button");
-    const summitInfoDiv = document.getElementById("summit-info");
 
     if (referenceInput) {
         const value = referenceInput.value.trim();
         setLocationBasedReference(value);
         originalReferenceValue = value;
         Log.debug("QRX")("Reference saved:", value);
-    }
-
-    // Clear summit info (manually entered reference invalidates Nearest SOTA result)
-    const location = await getLocation();
-    if (location && location.latitude && location.longitude) {
-        const cacheKey = buildLocationKey("summitInfo", location.latitude, location.longitude);
-        localStorage.removeItem(cacheKey);
-    }
-    if (summitInfoDiv) {
-        summitInfoDiv.textContent = "";
     }
 
     if (saveBtn) {
