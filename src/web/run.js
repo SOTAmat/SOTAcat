@@ -149,10 +149,10 @@ function updateBandDisplay() {
         const bandButton = document.getElementById(`btn-${currentBand}`);
         if (bandButton) {
             bandButton.classList.add("active");
-            Log.debug("Spot", `Band display updated: ${currentBand} active`);
+            Log.debug("Spot")(`Band display updated: ${currentBand} active`);
         }
     } else {
-        Log.debug("Spot", "Current frequency not in any supported band range");
+        Log.debug("Spot")("Current frequency not in any supported band range");
     }
 }
 
@@ -276,10 +276,10 @@ function enableFrequencyEditing() {
             // Valid frequency - apply it
             setFrequency(result.frequencyHz);
             exitEditMode();
-            Log.debug("Spot", `Frequency set to ${result.frequencyHz} Hz (${result.band})`);
+            Log.debug("Spot")(`Frequency set to ${result.frequencyHz} Hz (${result.band})`);
         } else {
             // Invalid frequency - show error
-            Log.error("Spot", "Invalid frequency input:", result.error);
+            Log.error("Spot")("Invalid frequency input:", result.error);
             alert(result.error);
             exitEditMode();
         }
@@ -337,7 +337,7 @@ function notifyVfoSubscribers() {
         try {
             callback(AppState.vfoFrequencyHz, AppState.vfoMode);
         } catch (error) {
-            Log.error("Spot", "VFO callback error:", error);
+            Log.error("Spot")("VFO callback error:", error);
         }
     });
 }
@@ -367,14 +367,14 @@ function setFrequency(frequencyHz) {
             const response = await fetch(url, { method: "PUT" });
 
             if (response.ok) {
-                Log.debug("Spot", "Frequency updated:", frequencyHz);
+                Log.debug("Spot")("Frequency updated:", frequencyHz);
             } else {
-                Log.error("Spot", "Frequency update failed");
+                Log.error("Spot")("Frequency update failed");
                 // Revert display on error
                 getCurrentVfoState();
             }
         } catch (error) {
-            Log.error("Spot", "Frequency fetch error:", error);
+            Log.error("Spot")("Frequency fetch error:", error);
             // Revert display on error
             getCurrentVfoState();
         } finally {
@@ -391,7 +391,7 @@ function adjustFrequency(deltaHz) {
     if (newFrequency >= HF_MIN_FREQUENCY_HZ && newFrequency <= HF_MAX_FREQUENCY_HZ) {
         setFrequency(newFrequency);
     } else {
-        Log.warn("Spot", "Frequency out of bounds:", newFrequency);
+        Log.warn("Spot")("Frequency out of bounds:", newFrequency);
     }
 }
 
@@ -417,14 +417,14 @@ async function setMode(mode) {
             updateModeDisplay();
             updatePrivilegeDisplay();
             notifyVfoSubscribers();
-            Log.debug("Spot", "Mode updated:", actualMode);
+            Log.debug("Spot")("Mode updated:", actualMode);
         } else {
-            Log.error("Spot", "Mode update failed");
+            Log.error("Spot")("Mode update failed");
             // Revert display on error
             getCurrentVfoState();
         }
     } catch (error) {
-        Log.error("Spot", "Mode fetch error:", error);
+        Log.error("Spot")("Mode fetch error:", error);
         // Revert display on error
         getCurrentVfoState();
     }
@@ -467,7 +467,7 @@ function selectBand(band) {
                 }
                 // If not in SSB mode (AM, FM, DATA, CW, etc.), leave mode unchanged
             } catch (error) {
-                Log.error("Spot", "Error checking current mode:", error);
+                Log.error("Spot")("Error checking current mode:", error);
             }
         }, MODE_CHECK_DELAY_MS);
     }
@@ -486,7 +486,7 @@ async function getCurrentVfoState() {
 
     // Back off if we've had consecutive errors
     if (RunState.consecutiveErrors > 2) {
-        Log.debug("Spot", "Backing off due to errors, skipping poll");
+        Log.debug("Spot")("Backing off due to errors, skipping poll");
         return;
     }
 
@@ -522,7 +522,7 @@ async function getCurrentVfoState() {
                 RunState.lastFrequencyChange = Date.now(); // Track that frequency changed
                 updateFrequencyDisplay();
                 updateBandDisplay(); // Update band button active state
-                Log.debug("Spot", "Frequency updated from radio:", AppState.vfoFrequencyHz);
+                Log.debug("Spot")("Frequency updated from radio:", AppState.vfoFrequencyHz);
                 changed = true;
             }
         }
@@ -533,7 +533,7 @@ async function getCurrentVfoState() {
             if (newMode !== AppState.vfoMode) {
                 AppState.vfoMode = newMode;
                 updateModeDisplay();
-                Log.debug("Spot", "Mode updated from radio:", AppState.vfoMode);
+                Log.debug("Spot")("Mode updated from radio:", AppState.vfoMode);
                 changed = true;
             }
         }
@@ -546,7 +546,7 @@ async function getCurrentVfoState() {
         }
     } catch (error) {
         RunState.consecutiveErrors++;
-        Log.error("Spot", `VFO state error (${RunState.consecutiveErrors} consecutive):`, error);
+        Log.error("Spot")(`VFO state error (${RunState.consecutiveErrors} consecutive):`, error);
         // After 3 consecutive errors, we'll back off automatically
     } finally {
         RunState.isUpdatingVfo = false;
@@ -579,12 +579,12 @@ async function startVfoUpdates() {
             AppState.vfoFrequencyHz = parseInt(frequency, 10);
             updateFrequencyDisplay();
             updateBandDisplay();
-            Log.debug("Spot", "Initial frequency loaded:", AppState.vfoFrequencyHz);
+            Log.debug("Spot")("Initial frequency loaded:", AppState.vfoFrequencyHz);
         }
         if (mode) {
             AppState.vfoMode = mode.toUpperCase();
             updateModeDisplay();
-            Log.debug("Spot", "Initial mode loaded:", AppState.vfoMode);
+            Log.debug("Spot")("Initial mode loaded:", AppState.vfoMode);
         }
         // Update privilege display with initial state
         updatePrivilegeDisplay();
@@ -592,7 +592,7 @@ async function startVfoUpdates() {
         AppState.vfoLastUpdated = Date.now();
         notifyVfoSubscribers();
     } catch (error) {
-        Log.error("Spot", "Error loading initial VFO state:", error);
+        Log.error("Spot")("Error loading initial VFO state:", error);
     } finally {
         RunState.isUpdatingVfo = false;
 
@@ -605,7 +605,7 @@ async function startVfoUpdates() {
                 RunState.consecutiveErrors > 0 &&
                 Date.now() - RunState.lastFrequencyChange > ERROR_RESET_STABILITY_MS
             ) {
-                Log.debug("Spot", "System stable, resetting error counter");
+                Log.debug("Spot")("System stable, resetting error counter");
                 RunState.consecutiveErrors = 0;
             }
         }, VFO_POLLING_INTERVAL_MS);
@@ -638,7 +638,7 @@ async function tuneAtu() {
         const response = await fetch("/api/v1/atu", { method: "PUT" });
 
         if (!response.ok) {
-            Log.error("Spot", "ATU tune failed");
+            Log.error("Spot")("ATU tune failed");
             return;
         }
 
@@ -651,7 +651,7 @@ async function tuneAtu() {
             }, ATU_FEEDBACK_DURATION_MS);
         }
     } catch (error) {
-        Log.error("Spot", "ATU fetch error:", error);
+        Log.error("Spot")("ATU fetch error:", error);
     }
 }
 
@@ -792,7 +792,7 @@ function updateSpotButtonStates() {
     if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
     if (poloSpotBtn) poloSpotBtn.disabled = !isValid;
 
-    Log.debug("Spot", `SOTAmāt enabled, SMS/Polo ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
+    Log.debug("Spot")(`SOTAmāt enabled, SMS/Polo ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
 }
 
 // Build SMS URI for spotting current activation
@@ -827,7 +827,7 @@ function buildQrtSmsUri() {
 function sendSpotSms() {
     const uri = buildSpotSmsUri();
     if (uri) {
-        Log.info("Spot", "Opening SMS for spot:", uri);
+        Log.info("Spot")("Opening SMS for spot:", uri);
         window.location.href = uri;
     }
 }
@@ -836,7 +836,7 @@ function sendSpotSms() {
 function sendQrtSms() {
     const uri = buildQrtSmsUri();
     if (uri) {
-        Log.info("Spot", "Opening SMS for QRT:", uri);
+        Log.info("Spot")("Opening SMS for QRT:", uri);
         window.location.href = uri;
     }
 }
@@ -882,11 +882,11 @@ function buildPoloSpotLink() {
 function launchPoloSpot() {
     const url = buildPoloSpotLink();
     if (url) {
-        Log.info("Spot", "Launching Polo for spot:", url);
+        Log.info("Spot")("Launching Polo for spot:", url);
         // Use location.href for mobile deep link compatibility
         window.location.href = url;
     } else {
-        Log.warn("Spot", "Cannot launch Polo - no valid reference set");
+        Log.warn("Spot")("Cannot launch Polo - no valid reference set");
     }
 }
 
@@ -897,12 +897,12 @@ function launchPoloSpot() {
 // Attach all Spot page event listeners
 function attachSpotEventListeners() {
     // Only attach once to prevent memory leaks
-    Log.debug("Spot", `attachSpotEventListeners called, flag: ${RunState.spotEventListenersAttached}`);
+    Log.debug("Spot")(`attachSpotEventListeners called, flag: ${RunState.spotEventListenersAttached}`);
     if (RunState.spotEventListenersAttached) {
-        Log.debug("Spot", "Event listeners already attached, skipping");
+        Log.debug("Spot")("Event listeners already attached, skipping");
         return;
     }
-    Log.debug("Spot", "Attaching event listeners to DOM");
+    Log.debug("Spot")("Attaching event listeners to DOM");
     RunState.spotEventListenersAttached = true;
 
     // Section toggle handlers
@@ -1051,7 +1051,7 @@ function updateSendButtonStates() {
 
 // Called when Spot tab becomes visible
 async function onSpotAppearing() {
-    Log.info("Spot", "tab appearing");
+    Log.info("Spot")("tab appearing");
     loadInputValues();
     loadCollapsibleStates();
 
@@ -1079,7 +1079,7 @@ async function onSpotAppearing() {
 
 // Called when Spot tab is hidden
 function onSpotLeaving() {
-    Log.info("Spot", "tab leaving");
+    Log.info("Spot")("tab leaving");
     stopVfoUpdates();
 
     // Reset event listener flag so they can be reattached when returning to this tab

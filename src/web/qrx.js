@@ -17,14 +17,14 @@ async function syncTime() {
         const response = await fetch(`/api/v1/time?time=${now}`, { method: "PUT" });
 
         if (response.status === 204) {
-            Log.debug("QRX", "Time sync successful");
+            Log.debug("QRX")("Time sync successful");
             return; // No content, sync was successful
         } else if (!response.ok) {
             const data = await response.json();
             throw new Error(data.error || "Unknown error");
         }
     } catch (error) {
-        Log.error("QRX", "Time sync failed:", error.message);
+        Log.error("QRX")("Time sync failed:", error.message);
     }
 }
 
@@ -91,7 +91,7 @@ async function loadGpsLocation() {
                 if (localityDiv) localityDiv.textContent = "";
             }
         } catch (error) {
-            Log.error("QRX", "Failed to load GPS location:", error);
+            Log.error("QRX")("Failed to load GPS location:", error);
             gpsLocationInput.value = "";
             gpsLocationInput.placeholder = "default: 38.0522, -122.9694";
             if (localityDiv) localityDiv.textContent = "";
@@ -157,7 +157,7 @@ async function saveGpsLocation() {
         // Reload reference/summit info for new location (will be empty if not cached)
         await loadReference();
     } catch (error) {
-        Log.error("QRX", "Failed to save GPS location:", error);
+        Log.error("QRX")("Failed to save GPS location:", error);
         alert("Failed to save location.");
     }
 }
@@ -203,7 +203,7 @@ async function fetchNearestSota() {
 
         while (summits.length === 0 && range <= maxRange) {
             const url = `${SOTA_DISTANCE_API_URL}/${latitude}/${longitude}/${range}`;
-            Log.debug("QRX", `Fetching SOTA summits: ${url}`);
+            Log.debug("QRX")(`Fetching SOTA summits: ${url}`);
 
             const response = await fetch(url);
             if (!response.ok) {
@@ -245,9 +245,9 @@ async function fetchNearestSota() {
             localStorage.setItem(cacheKey, summitInfoDiv.textContent);
         }
 
-        Log.info("QRX", `Nearest SOTA: ${nearest.summitCode} - ${nearest.name}`);
+        Log.info("QRX")(`Nearest SOTA: ${nearest.summitCode} - ${nearest.name}`);
     } catch (error) {
-        Log.error("QRX", "Failed to fetch nearest SOTA:", error);
+        Log.error("QRX")("Failed to fetch nearest SOTA:", error);
         alert(`Failed to find nearest SOTA summit: ${error.message}`);
     } finally {
         // Restore button state
@@ -353,7 +353,7 @@ async function saveReference() {
         const value = referenceInput.value.trim();
         setLocationBasedReference(value);
         originalReferenceValue = value;
-        Log.debug("QRX", "Reference saved:", value);
+        Log.debug("QRX")("Reference saved:", value);
     }
 
     // Clear summit info (manually entered reference invalidates Nearest SOTA result)
@@ -393,7 +393,7 @@ async function clearReference() {
     }
 
     originalReferenceValue = "";
-    Log.debug("QRX", "Reference cleared");
+    Log.debug("QRX")("Reference cleared");
 
     if (summitInfoDiv) {
         summitInfoDiv.textContent = "";
@@ -478,10 +478,10 @@ function buildPoloSetupLink() {
 function launchPoloSetup() {
     const url = buildPoloSetupLink();
     if (url) {
-        Log.info("QRX", "Launching Polo for operation setup:", url);
+        Log.info("QRX")("Launching Polo for operation setup:", url);
         window.location.href = url;
     } else {
-        Log.warn("QRX", "Cannot launch Polo - no valid reference set");
+        Log.warn("QRX")("Cannot launch Polo - no valid reference set");
     }
 }
 
@@ -572,7 +572,7 @@ function attachQrxEventListeners() {
 
 // Called when QRX tab becomes visible
 async function onQrxAppearing() {
-    Log.info("QRX", "tab appearing");
+    Log.info("QRX")("tab appearing");
     attachQrxEventListeners();
     loadGpsLocation();
     await loadReference();
@@ -580,7 +580,7 @@ async function onQrxAppearing() {
 
 // Called when QRX tab is hidden
 function onQrxLeaving() {
-    Log.info("QRX", "tab leaving");
+    Log.info("QRX")("tab leaving");
     // Reset event listener flag so they can be reattached when returning
     qrxEventListenersAttached = false;
 }

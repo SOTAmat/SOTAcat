@@ -112,7 +112,7 @@ async function saveCallSign() {
 
         alert("Settings saved successfully.");
     } catch (error) {
-        Log.error("Settings", "Failed to save settings:", error);
+        Log.error("Settings")("Failed to save settings:", error);
         alert("Failed to save settings.");
     }
 }
@@ -144,7 +144,7 @@ async function loadTuneTargets() {
             loadedFromDevice = true;
         }
     } catch (error) {
-        Log.warn("Settings", "Device unavailable for tune targets load:", error);
+        Log.warn("Settings")("Device unavailable for tune targets load:", error);
     }
 
     // Fall back to AppState if device unavailable (may have session or cached data)
@@ -152,14 +152,14 @@ async function loadTuneTargets() {
         if (AppState.tuneTargets && AppState.tuneTargets.length > 0) {
             originalTuneTargets = [...AppState.tuneTargets];
             originalTuneTargetsMobile = AppState.tuneTargetsMobile || false;
-            Log.debug("Settings", "Using tune targets from session state");
+            Log.debug("Settings")("Using tune targets from session state");
         } else {
             // Try localStorage cache as last resort
             loadTuneTargetsFromLocalStorage();
             if (AppState.tuneTargets && AppState.tuneTargets.length > 0) {
                 originalTuneTargets = [...AppState.tuneTargets];
                 originalTuneTargetsMobile = AppState.tuneTargetsMobile || false;
-                Log.debug("Settings", "Using tune targets from localStorage cache");
+                Log.debug("Settings")("Using tune targets from localStorage cache");
             } else {
                 originalTuneTargets = [];
                 originalTuneTargetsMobile = false;
@@ -423,7 +423,7 @@ async function saveTuneTargets() {
             savedToDevice = true;
         }
     } catch (error) {
-        Log.warn("Settings", "Device unavailable for tune targets save:", error);
+        Log.warn("Settings")("Device unavailable for tune targets save:", error);
     }
 
     // Always update session state (AppState) so targets work for this session
@@ -469,7 +469,7 @@ function onFilterBandsChange() {
         const enabled = checkbox.checked;
         localStorage.setItem("sotacat_filter_bands", enabled ? "true" : "false");
         AppState.filterBandsEnabled = enabled;
-        Log.info("Settings", `Filter bands: ${enabled ? "enabled" : "disabled"}`);
+        Log.info("Settings")(`Filter bands: ${enabled ? "enabled" : "disabled"}`);
     }
 }
 
@@ -489,7 +489,7 @@ function onUiCompactModeChange() {
     localStorage.setItem("sotacat_ui_compact", enabled ? "true" : "false");
     AppState.uiCompactMode = enabled;
     applyUiCompactMode();
-    Log.info("Settings", `Compact mode: ${enabled ? "enabled" : "disabled"}`);
+    Log.info("Settings")(`Compact mode: ${enabled ? "enabled" : "disabled"}`);
 }
 
 // ============================================================================
@@ -667,13 +667,13 @@ async function fetchSettings() {
         storeOriginalWifiValues();
         updateWifiSaveButton();
     } catch (error) {
-        Log.error("Settings", "Failed to fetch settings:", error);
+        Log.error("Settings")("Failed to fetch settings:", error);
     }
 }
 
 // Save WiFi settings to device (causes immediate device reboot)
 async function saveSettings() {
-    Log.debug("Settings", "Saving settings...");
+    Log.debug("Settings")("Saving settings...");
     if (isLocalhost) return;
 
     const settings = {
@@ -699,7 +699,7 @@ async function saveSettings() {
 
         // If the response is OK but empty (likely due to reboot), assume success
         if (response.ok) {
-            Log.debug("Settings", "Settings saved successfully");
+            Log.debug("Settings")("Settings saved successfully");
             alert(
                 "Settings saved successfully!\nYour SOTAcat is rebooting with the new settings.\nPlease restart your browser."
             );
@@ -712,11 +712,11 @@ async function saveSettings() {
     } catch (error) {
         // If the error is a network error (likely due to reboot), ignore it
         if (error.message.includes("NetworkError")) {
-            Log.warn("Settings", "Ignoring expected network error due to reboot.");
+            Log.warn("Settings")("Ignoring expected network error due to reboot.");
             return;
         }
 
-        Log.error("Settings", "Failed to save settings:", error);
+        Log.error("Settings")("Failed to save settings:", error);
         alert("Failed to save settings.");
     }
 }
@@ -853,7 +853,7 @@ async function uploadFirmware() {
         }
         throw new Error(errorData.error || "Unknown error occurred");
     } catch (error) {
-        Log.error("Settings", "Firmware upload error:", error);
+        Log.error("Settings")("Firmware upload error:", error);
         otaStatus.innerHTML = `Firmware upload failed: ${error.message}`;
         alert(`Firmware upload failed: ${error.message}`);
 
@@ -874,7 +874,7 @@ async function manualCheckFirmwareVersion() {
             alert(result);
         }
     } catch (error) {
-        Log.error("Settings", "Manual version check error:", error);
+        Log.error("Settings")("Manual version check error:", error);
         alert("Error checking for firmware updates. Please try again later.");
     }
 }
@@ -1050,7 +1050,7 @@ function onSettingsAppearing() {
 
 // Called when Settings tab is hidden
 function onSettingsLeaving() {
-    Log.info("Settings", "tab leaving");
+    Log.info("Settings")("tab leaving");
     // Clean up document-level event listener to prevent memory leaks
     document.removeEventListener("click", handleClickOutsidePopup);
 
