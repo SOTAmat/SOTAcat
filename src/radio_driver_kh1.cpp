@@ -124,11 +124,11 @@ static void adjust_kh1_time_component (KXRadio & radio, const char * selector, i
 }
 
 bool KH1RadioDriver::supports_keyer () const {
-    return false;
+    return true;
 }
 
 bool KH1RadioDriver::supports_volume () const {
-    return false;
+    return true;
 }
 
 bool KH1RadioDriver::get_frequency (KXRadio & radio, long & out_hz) {
@@ -203,15 +203,26 @@ bool KH1RadioDriver::set_power (KXRadio & radio, long power) {
 }
 
 bool KH1RadioDriver::get_volume (KXRadio & radio, long & out_volume) {
-    (void)radio;
-    out_volume = -1;
-    return false;
+    radio.put_to_kx_command_string ("ENAU;ENAD;", 1); // Raise/lower volume so it is displayed
+    char buf[sizeof ("DS1AFx15xxxxxxxxxxx;")];
+    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, buf, sizeof (buf) - 1))
+        return false;
+
+    char vol_char[3];
+    strncpy (vol_char, buf + 6, 2); // Characters 7-8 represent volume as a string
+    vol_char[sizeof(vol_char) - 1] = '\0';
+    long volume = atol(vol_char);
+    if (volume < 0)
+        return false;
+    out_volume = volume;
+    return true;
 }
 
 bool KH1RadioDriver::set_volume (KXRadio & radio, long volume) {
-    (void)radio;
-    (void)volume;
-    return false;
+    const char * dir = (volume > 0 ? "ENAU;ENAU;ENAU;" : "ENAD;ENAD;ENAD;"); // bump volume up or down 3 units
+    radio.put_to_kx_command_string (dir, 1);
+    
+    return true;
 }
 
 bool KH1RadioDriver::get_xmit_state (KXRadio & radio, long & out_state) {
@@ -239,9 +250,51 @@ bool KH1RadioDriver::tune_atu (KXRadio & radio) {
 }
 
 bool KH1RadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
-    (void)radio;
-    (void)message;
-    return false;
+    // get keyer speed from kh radio
+    long kh_wpm;
+    radio.put_to_kx_command_string ("SW2T;SW1T;", 1); // Raise/lower speed so it is displayed
+    char buf[sizeof ("DS1XX WPM          ;")];
+    if (radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES,  buf, sizeof (buf) - 1)) {
+        buf[sizeof (buf) - 1] = '\0';
+        char speed_char[3];
+        strncpy(speed_char, buf + 3, 2);  // Characters 4-5 represent speed as a string
+        speed_char[sizeof(speed_char) - 1] = '\0';
+        kh_wpm = atoi(speed_char);
+    }
+    else {
+        kh_wpm = 20;  // default to 20 wpm if we can't read it
+    }
+
+    int ditPeriod = 1200 / kh_wpm;  // dit period in ms
+    while (*message) {
+        char ch = *message++;
+        if (ch == '\0')
+            break;
+        if (ch > 96)
+            ch -= 32;                                   // convert lower case to upper case
+        if (ch == 32)
+            vTaskDelay(pdMS_TO_TICKS (4*ditPeriod));    // 7 total (last char includes 3)
+        else {
+            // send the character
+            char* ptr = std::strchr(morse, ch);
+            uint8_t bt = ptr - morse;
+            while (bt>1) {
+                uart_write_bytes (UART_NUM, "HK1;", sizeof ("HK1;") - 1);
+                if (bt & 1) {
+                    vTaskDelay(pdMS_TO_TICKS (ditPeriod));
+                }
+                else {
+                    vTaskDelay(pdMS_TO_TICKS (ditPeriod*3));
+                }
+                uart_write_bytes (UART_NUM, "HK0;", sizeof ("HK0;") - 1);
+                vTaskDelay(pdMS_TO_TICKS (ditPeriod));
+                bt >>= 1;
+            }
+            vTaskDelay(pdMS_TO_TICKS (2*ditPeriod));     // add inter-character spacing
+        }
+    }
+
+    return true;
 }
 
 bool KH1RadioDriver::sync_time (KXRadio & radio, const RadioTimeHms & client_time) {
