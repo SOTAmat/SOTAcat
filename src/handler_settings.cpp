@@ -624,8 +624,7 @@ esp_err_t handler_tune_targets_post (httpd_req_t * req) {
             if (array_end) {
                 size_t array_len = array_end - array_start + 1;
                 if (array_len < sizeof (g_tune_targets)) {
-                    strncpy (g_tune_targets, array_start, array_len);
-                    g_tune_targets[array_len] = '\0';
+                    snprintf (g_tune_targets, sizeof (g_tune_targets), "%.*s", (int)array_len, array_start);
                     nvs_set_str (s_nvs_settings_handle, s_tune_targets_key, g_tune_targets);
                     ESP_LOGI (TAG8, "Stored tune targets: %s", g_tune_targets);
                 }
