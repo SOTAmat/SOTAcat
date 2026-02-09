@@ -683,8 +683,9 @@ function buildChaseRow(spot, isMySpot) {
         }
     };
 
-    // 1. UTC time
-    const formattedTime = `${spot.timestamp.getUTCHours().toString().padStart(2, "0")}:${spot.timestamp.getUTCMinutes().toString().padStart(2, "0")}`;
+    // 1. UTC time (ensure Date object — cache round-trip deserializes as string)
+    const ts = spot.timestamp instanceof Date ? spot.timestamp : new Date(spot.timestamp);
+    const formattedTime = `${ts.getUTCHours().toString().padStart(2, "0")}:${ts.getUTCMinutes().toString().padStart(2, "0")}`;
     row.insertCell().textContent = formattedTime;
 
     // 2. Callsign
