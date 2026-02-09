@@ -180,7 +180,6 @@ a {
     background: var(--gray-1);
     padding: var(--space-md);
     display: flex;
-    justify-content: space-between;
     align-items: center;
     cursor: pointer;
     user-select: none;
@@ -190,6 +189,19 @@ a {
 .section-header h2 {
     font-size: var(--text-lg);
     font-weight: 600;
+    color: var(--text-primary);
+}
+
+.solo-icon {
+    font-size: var(--text-md);
+    color: var(--gray-5);
+    margin-left: auto;
+    margin-right: var(--space-sm);
+    cursor: pointer;
+    padding: var(--space-xs);
+}
+
+.solo-icon:hover {
     color: var(--text-primary);
 }
 

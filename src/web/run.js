@@ -725,6 +725,42 @@ function toggleSection(sectionId) {
     }
 }
 
+// Solo a section: expand it and collapse all others.
+// If it's already the only expanded section, expand all others back.
+function soloSection(sectionId) {
+    const allSections = ["tune-section", "spot-section", "transmit-section"];
+
+    // Check if this section is already solo (only one expanded, and it's this one)
+    const expandedSections = allSections.filter(
+        (id) => !document.getElementById(id).classList.contains("collapsed")
+    );
+    const isSolo = expandedSections.length === 1 && expandedSections[0] === sectionId;
+
+    allSections.forEach((id) => {
+        const content = document.getElementById(id);
+        const iconId = id.replace("-section", "-icon");
+        const icon = document.getElementById(iconId);
+        const key = SECTION_STORAGE_KEYS[id];
+
+        if (isSolo) {
+            // Un-solo: expand all
+            content.classList.remove("collapsed");
+            icon.innerHTML = "&#9660;";
+            localStorage.setItem(key, "true");
+        } else if (id === sectionId) {
+            // Solo: expand this one
+            content.classList.remove("collapsed");
+            icon.innerHTML = "&#9660;";
+            localStorage.setItem(key, "true");
+        } else {
+            // Solo: collapse others
+            content.classList.add("collapsed");
+            icon.innerHTML = "&#9654;";
+            localStorage.setItem(key, "false");
+        }
+    });
+}
+
 // Load saved collapsed/expanded state for all sections
 function loadCollapsibleStates() {
     const sections = ["tune-section", "spot-section", "transmit-section"];
@@ -910,6 +946,14 @@ function attachSpotEventListeners() {
         header.addEventListener("click", () => {
             const sectionId = header.getAttribute("data-section");
             toggleSection(sectionId);
+        });
+    });
+
+    // Solo icon handlers (expand one, collapse others; or unsolo)
+    document.querySelectorAll(".solo-icon[data-solo]").forEach((icon) => {
+        icon.addEventListener("click", (e) => {
+            e.stopPropagation();
+            soloSection(icon.getAttribute("data-solo"));
         });
     });
 
