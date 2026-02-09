@@ -831,6 +831,16 @@ function updateSpotButtonStates() {
     Log.debug("Spot")(`SOTAmāt enabled, SMS/Polo ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
 }
 
+// Map radio mode to SOTAMAT-compatible mode string
+function mapModeForSotamat(mode) {
+    if (!mode) return "ssb";
+    const upper = mode.toUpperCase();
+    if (upper === "USB" || upper === "LSB") return "ssb";
+    if (upper === "CW_R") return "cw";
+    if (upper === "FT8" || upper === "FT4") return "data";
+    return upper.toLowerCase();
+}
+
 // Build SMS URI for spotting current activation
 // SOTA uses "sm" command, POTA uses "psm" command
 function buildSpotSmsUri() {
@@ -839,7 +849,7 @@ function buildSpotSmsUri() {
 
     const cmd = isSotaReference(ref) ? "sm" : "psm";
     const freqMhz = ((AppState.vfoFrequencyHz || 14285000) / 1000000).toFixed(4);
-    const mode = (AppState.vfoMode || "SSB").toLowerCase();
+    const mode = mapModeForSotamat(AppState.vfoMode || "SSB");
 
     const message = `${cmd} ${ref} ${freqMhz} ${mode}`;
     return `sms:${SOTAMAT_SMS_NUMBER}?body=${encodeURIComponent(message)}`;
@@ -853,9 +863,8 @@ function buildQrtSmsUri() {
 
     const cmd = isSotaReference(ref) ? "sm" : "psm";
     const freqMhz = ((AppState.vfoFrequencyHz || 14285000) / 1000000).toFixed(4);
-    const mode = (AppState.vfoMode || "SSB").toLowerCase();
 
-    const message = `${cmd} ${ref} ${freqMhz} ${mode} QRT`;
+    const message = `${cmd} ${ref} ${freqMhz} QRT`;
     return `sms:${SOTAMAT_SMS_NUMBER}?body=${encodeURIComponent(message)}`;
 }
 
