@@ -123,10 +123,22 @@ bool KXRadioDriver::get_volume (KXRadio & radio, long & out_volume) {
     return true;
 }
 
-bool KXRadioDriver::set_volume (KXRadio & radio, long volume) {
-    if (volume < 0 || volume > 255)
+bool KXRadioDriver::set_volume (KXRadio & radio, long delta) {
+    // Read current volume
+    long current_volume = -1;
+    if (!kxRadio.get_volume (current_volume))
         return false;
-    return radio.put_to_kx ("AG", 3, volume, SC_KX_COMMUNICATION_RETRIES);
+
+    // Calculate new volume, clamped to 0-255
+    long new_volume = current_volume + delta*20;
+    if (new_volume < 0)
+        new_volume = 0;
+    if (new_volume > 255)
+        new_volume = 255;
+
+    ESP_LOGI (TAG8, "volume: %ld + %ld = %ld", current_volume, delta, new_volume);
+
+    return radio.put_to_kx ("AG", 3, new_volume, SC_KX_COMMUNICATION_RETRIES);
 }
 
 bool KXRadioDriver::get_xmit_state (KXRadio & radio, long & out_state) {
