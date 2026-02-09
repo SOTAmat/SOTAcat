@@ -266,7 +266,7 @@ class SOTAcatUITests:
         assert sms_qrt.count() > 0, "SMS QRT button should exist"
 
     def test_run_buttons_disabled_without_reference(self):
-        """Run buttons are disabled when no reference is set"""
+        """SMS buttons are disabled when no reference is set; SOTAmat is always enabled"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
         # Clear any existing location-based references (use a known test location)
@@ -288,7 +288,7 @@ class SOTAcatUITests:
         sotamat = self.page.locator('#sotamat-button')
         sms_spot = self.page.locator('#sms-spot-button')
         sms_qrt = self.page.locator('#sms-qrt-button')
-        assert sotamat.is_disabled(), "SOTAmat button should be disabled without reference"
+        assert not sotamat.is_disabled(), "SOTAmat button should always be enabled (app handles location itself)"
         assert sms_spot.is_disabled(), "SMS spot button should be disabled without reference"
         assert sms_qrt.is_disabled(), "SMS QRT button should be disabled without reference"
 
