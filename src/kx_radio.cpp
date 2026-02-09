@@ -27,7 +27,7 @@ static const char * TAG8 = "sc:kx_radio";
 // Global static instance
 KXRadio & kxRadio = KXRadio::getInstance();
 
-static KXRadioDriver g_kx_driver;
+static KXRadioDriver  g_kx_driver;
 static KH1RadioDriver g_kh1_driver;
 
 // UART timeouts for radio commands
@@ -135,7 +135,7 @@ TimedLock KXRadio::timed_lock (TickType_t timeout_ms, const char * operation) {
     return TimedLock (m_mutex, timeout_ms, operation);
 }
 
-void KXRadio::select_driver () {
+void KXRadio::select_driver() {
     if (m_radio_type == RadioType::KH1)
         m_driver = &g_kh1_driver;
     else
@@ -206,8 +206,8 @@ int KXRadio::connect() {
 
                     if (strstr ((char *)buffer, "KH1;") != NULL) {
                         ESP_LOGI (TAG8, "detected KH1 radio");
-                        m_radio_type    = RadioType::KH1;
-                        m_is_connected  = true;
+                        m_radio_type   = RadioType::KH1;
+                        m_is_connected = true;
                         select_driver();
                         empty_kx_input_buffer (100);
                         return baud_rates[i];
@@ -496,106 +496,79 @@ bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
 }
 
 /**
- * Retrieves and updates the current state of the radio into the provided structure. It gathers
- * settings such as the current mode, frequency of VFO A, active VFO, tuning power, and the status
- * of the audio peaking filter. This function also temporarily switches the radio mode to ensure
- * accurate retrieval of the audio peaking filter status.
+ * Driver-delegation macros.  Each KXRadio public method below is a thin wrapper
+ * that forwards to the corresponding method on the currently-selected driver
+ * (m_driver), which is either KXRadioDriver or KH1RadioDriver.
  *
- * @param in_state Structure to store the current state of the radio.
+ * Three variants are defined:
  *
- * Preconditions:
- *   The radio must be locked before calling this function. If not, an error is logged.
+ *   DELEGATE_BOOL(name, PARAMS, ...)
+ *     Generates: bool KXRadio::name PARAMS
+ *     Preconditions: radio must be locked (logged error if not), m_driver must be set.
+ *     Returns false if m_driver is null; otherwise returns the driver result.
+ *
+ *   DELEGATE_BOOL_CONST(name)
+ *     Generates: bool KXRadio::name() const
+ *     Preconditions: m_driver must be set (no lock required).
+ *     Returns false if m_driver is null; otherwise returns the driver result.
+ *
+ *   DELEGATE_VOID(name, PARAMS, ...)
+ *     Generates: void KXRadio::name PARAMS
+ *     Preconditions: radio must be locked (logged error if not), m_driver must be set.
+ *     Does nothing if m_driver is null.
+ *
+ * All three variants add LOGV tracing; the non-const variants also check is_locked().
  */
-bool KXRadio::get_frequency (long & out_hz) {
-    return m_driver && m_driver->get_frequency (*this, out_hz);
-}
+#define DELEGATE_BOOL(name, PARAMS, ...)                                   \
+    bool KXRadio::name PARAMS {                                            \
+        ESP_LOGV (TAG8, "trace: %s()", __func__);                          \
+        if (!is_locked())                                                  \
+            ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)"); \
+        return m_driver && m_driver->name (*this, ##__VA_ARGS__);          \
+    }
+#define DELEGATE_BOOL_CONST(name)                 \
+    bool KXRadio::name() const {                  \
+        ESP_LOGV (TAG8, "trace: %s()", __func__); \
+        return m_driver && m_driver->name();      \
+    }
+#define DELEGATE_VOID(name, PARAMS, ...)                                   \
+    void KXRadio::name PARAMS {                                            \
+        ESP_LOGV (TAG8, "trace: %s()", __func__);                          \
+        if (!is_locked())                                                  \
+            ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)"); \
+        if (m_driver)                                                      \
+            m_driver->name (*this, ##__VA_ARGS__);                         \
+    }
+// clang-format off
+DELEGATE_BOOL (ft8_prepare,         (long base_freq),                         base_freq)
+DELEGATE_BOOL (get_frequency,       (long & out_hz),                          out_hz)
+DELEGATE_BOOL (get_mode,            (radio_mode_t & out_mode),                out_mode)
+DELEGATE_BOOL (get_power,           (long & out_power),                       out_power)
+DELEGATE_BOOL (get_radio_state,     (kx_state_t * in_state),                  in_state)
+DELEGATE_BOOL (get_volume,          (long & out_volume),                      out_volume)
+DELEGATE_BOOL (get_xmit_state,      (long & out_state),                       out_state)
+DELEGATE_BOOL (play_message_bank,   (int bank),                               bank)
+DELEGATE_BOOL (restore_radio_state, (const kx_state_t * in_state, int tries), in_state, tries)
+DELEGATE_BOOL (send_keyer_message,  (const char * message),                   message)
+DELEGATE_BOOL (set_frequency,       (long hz, int tries),                     hz, tries)
+DELEGATE_BOOL (set_mode,            (radio_mode_t mode, int tries),           mode, tries)
+DELEGATE_BOOL (set_power,           (long power),                             power)
+DELEGATE_BOOL (set_volume,          (long volume),                            volume)
+DELEGATE_BOOL (set_xmit_state,      (bool on),                                on)
+DELEGATE_BOOL (sync_time,           (const RadioTimeHms & client_time),       client_time)
+DELEGATE_BOOL (tune_atu,            ())
 
-bool KXRadio::set_frequency (long hz, int tries) {
-    return m_driver && m_driver->set_frequency (*this, hz, tries);
-}
+DELEGATE_BOOL_CONST (supports_keyer)
+DELEGATE_BOOL_CONST (supports_volume)
 
-bool KXRadio::get_mode (radio_mode_t & out_mode) {
-    return m_driver && m_driver->get_mode (*this, out_mode);
-}
+DELEGATE_VOID (ft8_set_tone, (long base_freq, long frequency), base_freq, frequency)
+DELEGATE_VOID (ft8_tone_off, ())
+DELEGATE_VOID (ft8_tone_on,  ())
+// clang-format on
 
-bool KXRadio::set_mode (radio_mode_t mode, int tries) {
-    return m_driver && m_driver->set_mode (*this, mode, tries);
-}
-
-bool KXRadio::get_power (long & out_power) {
-    return m_driver && m_driver->get_power (*this, out_power);
-}
-
-bool KXRadio::set_power (long power) {
-    return m_driver && m_driver->set_power (*this, power);
-}
-
-bool KXRadio::get_volume (long & out_volume) {
-    return m_driver && m_driver->get_volume (*this, out_volume);
-}
-
-bool KXRadio::set_volume (long volume) {
-    return m_driver && m_driver->set_volume (*this, volume);
-}
-
-bool KXRadio::get_xmit_state (long & out_state) {
-    return m_driver && m_driver->get_xmit_state (*this, out_state);
-}
-
-bool KXRadio::set_xmit_state (bool on) {
-    return m_driver && m_driver->set_xmit_state (*this, on);
-}
-
-bool KXRadio::play_message_bank (int bank) {
-    return m_driver && m_driver->play_message_bank (*this, bank);
-}
-
-bool KXRadio::tune_atu () {
-    return m_driver && m_driver->tune_atu (*this);
-}
-
-bool KXRadio::supports_keyer () const {
-    return m_driver && m_driver->supports_keyer();
-}
-
-bool KXRadio::supports_volume () const {
-    return m_driver && m_driver->supports_volume();
-}
-
-bool KXRadio::send_keyer_message (const char * message) {
-    return m_driver && m_driver->send_keyer_message (*this, message);
-}
-
-bool KXRadio::sync_time (const RadioTimeHms & client_time) {
-    return m_driver && m_driver->sync_time (*this, client_time);
-}
-
-bool KXRadio::get_radio_state (kx_state_t * in_state) {
-    return m_driver && m_driver->get_radio_state (*this, in_state);
-}
-
-bool KXRadio::restore_radio_state (const kx_state_t * in_state, int tries) {
-    return m_driver && m_driver->restore_radio_state (*this, in_state, tries);
-}
-
-bool KXRadio::ft8_prepare (long base_freq) {
-    return m_driver && m_driver->ft8_prepare (*this, base_freq);
-}
-
-void KXRadio::ft8_tone_on () {
-    if (m_driver)
-        m_driver->ft8_tone_on (*this);
-}
-
-void KXRadio::ft8_tone_off () {
-    if (m_driver)
-        m_driver->ft8_tone_off (*this);
-}
-
-void KXRadio::ft8_set_tone (long base_freq, long frequency) {
-    if (m_driver)
-        m_driver->ft8_set_tone (*this, base_freq, frequency);
-}
+#undef DELEGATE_BOOL
+#undef DELEGATE_BOOL_CONST
+#undef DELEGATE_VOID
 
 /**
  * Detects the type of radio (KX2 or KX3) by using the OM command.
