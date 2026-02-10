@@ -467,6 +467,86 @@
         </div>
     </div>
 
+    <!-- CW Macros Card -->
+    <div class="settings-card">
+        <h2>
+            CW Macros
+            <button type="button" id="cw-macros-help-button" class="btn btn-info">
+                <span class="info-icon">ⓘ</span>
+            </button>
+        </h2>
+        <p class="settings-info">
+            Configure one-tap CW keyer buttons for the RUN page. Each macro has a short label and a message template
+            with placeholder support.
+        </p>
+
+        <!-- CW Macros Help Popup -->
+        <div id="cw-macros-help-popup" class="help-popup hidden">
+            <div class="help-popup-content">
+                <div class="help-popup-header">
+                    <h3>CW Macros Help</h3>
+                    <button type="button" id="cw-macros-help-close-button" class="btn btn-close">×</button>
+                </div>
+                <div class="help-popup-body">
+                    <p>
+                        <strong>What are CW Macros?</strong> CW macros are configurable one-tap buttons on the RUN
+                        page's Transmit section. Each macro has a short label (shown on the button) and a message
+                        template that gets expanded and sent to the radio's CW keyer when tapped.
+                    </p>
+                    <p>
+                        <strong>Available placeholders:</strong>
+                    </p>
+                    <ul>
+                        <li><code>{MYCALL}</code> — Your callsign (e.g., AB6D)</li>
+                        <li><code>{MYREF}</code> — Your SOTA/POTA reference (e.g., W6/NC-298)</li>
+                        <li><code>{FREQ-KHZ}</code> — Frequency in kilohertz (e.g., 14062)</li>
+                        <li><code>{FREQ-MHZ}</code> — Frequency in megahertz (e.g., 14.062)</li>
+                        <li><code>{MODE}</code> — Mode in lowercase (e.g., cw)</li>
+                    </ul>
+                    <p>
+                        <strong>Tips:</strong> You can have up to 8 macros. Labels should be short (12 chars max) so
+                        buttons fit on screen. Templates can be up to 64 characters — the radio handles splitting long
+                        messages automatically. Use the example buttons below to quickly add common SOTA macros.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cw-macro-examples">
+            <p class="settings-info">Examples:</p>
+            <div class="cw-macro-example">
+                <code>CQ SOTA</code> → <code>CQ SOTA DE {MYCALL} {MYCALL} K</code>
+                <button type="button" class="btn-add-cw-example" data-label="CQ SOTA" data-template="CQ SOTA DE {MYCALL} {MYCALL} K">
+                    + add
+                </button>
+            </div>
+            <div class="cw-macro-example">
+                <code>UR 5NN</code> → <code>UR 5NN {MYREF} BK</code>
+                <button type="button" class="btn-add-cw-example" data-label="UR 5NN" data-template="UR 5NN {MYREF} BK">
+                    + add
+                </button>
+            </div>
+            <div class="cw-macro-example">
+                <code>TU 73 QRZ</code> → <code>TU 73 QRZ</code>
+                <button type="button" class="btn-add-cw-example" data-label="TU 73 QRZ" data-template="TU 73 QRZ">
+                    + add
+                </button>
+            </div>
+        </div>
+
+        <div id="cw-macros-list" class="cw-macros-list">
+            <!-- Dynamic list of macro rows will be populated by JavaScript -->
+        </div>
+
+        <div class="button-group cw-macros-buttons">
+            <button type="button" id="add-cw-macro-button" class="btn btn-icon" title="Add empty macro">+</button>
+        </div>
+
+        <div class="button-group">
+            <button id="save-cw-macros-button" class="btn btn-secondary" disabled>Save CW Macros</button>
+        </div>
+    </div>
+
     <!-- Display Settings Card -->
     <div class="settings-card">
         <h2>Display</h2>

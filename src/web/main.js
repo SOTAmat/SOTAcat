@@ -118,6 +118,9 @@ const AppState = {
     tuneTargetsMobile: false,
     tuneTargetWindows: [],     // references to opened windows
 
+    // CW Macros (configurable keyer buttons)
+    cwMacros: null,            // null = not loaded, [] = loaded but empty
+
     // Transmit state (shared between Spot and Chase pages)
     isXmitActive: false,
 };
@@ -207,6 +210,74 @@ function loadTuneTargetsFromLocalStorage() {
         AppState.tuneTargets = [];
         AppState.tuneTargetsMobile = false;
     }
+}
+
+// ============================================================================
+// CW Macros Functions
+// ============================================================================
+
+// Load CW macros into AppState - called at app startup
+// Falls back to localStorage cache when hardware API is unavailable
+async function loadCwMacrosAsync() {
+    try {
+        const response = await fetch("/api/v1/cwMacros");
+        if (response.ok) {
+            const data = await response.json();
+            AppState.cwMacros = Array.isArray(data.macros) ? data.macros : [];
+            saveCwMacrosToLocalStorage(AppState.cwMacros);
+            Log.debug("App")("CW macros loaded from API:", AppState.cwMacros.length);
+        } else {
+            loadCwMacrosFromLocalStorage();
+        }
+    } catch (error) {
+        Log.warn("App")("Failed to load CW macros from API:", error);
+        loadCwMacrosFromLocalStorage();
+    }
+}
+
+// Save CW macros to localStorage for offline/local dev use
+function saveCwMacrosToLocalStorage(macros) {
+    try {
+        localStorage.setItem("cwMacros", JSON.stringify(macros));
+    } catch (error) {
+        Log.warn("App")("Failed to cache CW macros to localStorage:", error);
+    }
+}
+
+// Load CW macros from localStorage cache
+function loadCwMacrosFromLocalStorage() {
+    try {
+        const cached = localStorage.getItem("cwMacros");
+        if (cached) {
+            AppState.cwMacros = JSON.parse(cached);
+            Log.debug("App")("CW macros loaded from localStorage cache:", AppState.cwMacros.length);
+        } else {
+            AppState.cwMacros = [];
+            Log.debug("App")("No cached CW macros in localStorage");
+        }
+    } catch (error) {
+        Log.warn("App")("Failed to load CW macros from localStorage:", error);
+        AppState.cwMacros = [];
+    }
+}
+
+// Expand placeholders in a CW macro template
+// Uses same {UPPERCASE} syntax as Tune Targets, case-insensitive
+function expandCwMacroTemplate(template) {
+    if (!template) return "";
+
+    let expanded = template;
+    expanded = expanded.replace(/\{MYCALL\}/gi, AppState.callSign || "");
+    expanded = expanded.replace(/\{MYREF\}/gi, getLocationBasedReference() || "");
+
+    const freqHz = AppState.vfoFrequencyHz || 0;
+    expanded = expanded.replace(/\{FREQ-KHZ\}/gi, String(Math.round(freqHz / 1000)));
+    expanded = expanded.replace(/\{FREQ-MHZ\}/gi, String(freqHz / 1000000));
+    expanded = expanded.replace(/\{MODE\}/gi, (AppState.vfoMode || "").toLowerCase());
+
+    // Collapse multiple spaces (from empty substitutions) and trim
+    expanded = expanded.replace(/  +/g, " ").trim();
+    return expanded;
 }
 
 // Check if we're running on a mobile browser
@@ -1090,6 +1161,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // Preload tune targets at startup (required for Safari popup blocker compatibility)
     // This must happen early so openTuneTargets() can be synchronous
     loadTuneTargetsAsync();
+
+    // Preload CW macros at startup so RUN page can render buttons immediately
+    loadCwMacrosAsync();
 
     // Apply UI density preference from localStorage
     loadUiCompactMode();

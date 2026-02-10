@@ -37,7 +37,8 @@ src/web/
 | Tap spot in CHASE | `PUT /api/v1/frequency` + `PUT /api/v1/mode` |
 | Change band | `PUT /api/v1/frequency` |
 | Change mode | `PUT /api/v1/mode` |
-| Send CW message | `PUT /api/v1/keyer?message=...` |
+| Send CW macro | `PUT /api/v1/keyer?message=...` (expanded) |
+| Save CW macros | `POST /api/v1/cwMacros` |
 | Toggle TX | `PUT /api/v1/xmit` |
 | Sync clock | `PUT /api/v1/time` |
 | Tune ATU | `PUT /api/v1/atu` |

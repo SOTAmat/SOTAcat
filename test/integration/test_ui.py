@@ -228,15 +228,29 @@ class SOTAcatUITests:
         mode = self.page.locator('#current-mode')
         assert mode.count() > 0, "Mode display should exist"
 
-    def test_run_cw_message_inputs(self):
-        """RUN page has CW message inputs"""
+    def test_run_cw_macro_buttons(self):
+        """RUN page has CW macro buttons"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="run"]')
         time.sleep(0.5)
-        for i in range(1, 4):
-            input_el = self.page.locator(f'#cw-message-{i}')
-            assert input_el.count() > 0, f"CW message input {i} should exist"
+        container = self.page.locator('#cw-macro-buttons')
+        assert container.count() > 0, "CW macro buttons container should exist"
+        buttons = self.page.locator('.btn-cw-macro')
+        assert buttons.count() > 0, "Should have at least one CW macro button"
+
+    def test_run_cw_macro_buttons_have_labels(self):
+        """RUN page CW macro buttons have non-empty labels"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="run"]')
+        time.sleep(0.5)
+        buttons = self.page.locator('.btn-cw-macro')
+        count = buttons.count()
+        assert count > 0, "Should have at least one CW macro button"
+        for i in range(count):
+            text = buttons.nth(i).text_content().strip()
+            assert len(text) > 0, f"Macro button {i} should have non-empty label"
 
     def test_run_band_buttons(self):
         """RUN page has band selection buttons"""
@@ -410,6 +424,43 @@ class SOTAcatUITests:
         time.sleep(0.5)
         targets = self.page.locator('#tune-targets-list')
         assert targets.count() > 0, "Tune targets list should exist"
+
+    def test_settings_cw_macros_section(self):
+        """Settings page has CW Macros section"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        macros_list = self.page.locator('#cw-macros-list')
+        assert macros_list.count() > 0, "CW macros list should exist"
+
+    def test_settings_cw_macros_add_button(self):
+        """Settings page has CW Macros add button"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        add_btn = self.page.locator('#add-cw-macro-button')
+        assert add_btn.count() > 0, "Add CW macro button should exist"
+
+    def test_settings_cw_macros_save_button(self):
+        """Settings page has CW Macros save button (initially disabled)"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        save_btn = self.page.locator('#save-cw-macros-button')
+        assert save_btn.count() > 0, "Save CW macros button should exist"
+        assert save_btn.is_disabled(), "Save button should be initially disabled"
+
+    def test_settings_cw_macros_help_button(self):
+        """Settings page has CW Macros help button"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="settings"]')
+        time.sleep(0.5)
+        help_btn = self.page.locator('#cw-macros-help-button')
+        assert help_btn.count() > 0, "CW macros help button should exist"
 
     def test_settings_display_compact_mode_checkbox(self):
         """Settings page has compact mode checkbox in Display section"""
@@ -954,15 +1005,15 @@ class SOTAcatUITests:
     # Interaction Tests
     # =========================================================================
 
-    def test_cw_message_input_accepts_text(self):
-        """CW message input accepts text"""
+    def test_cw_macro_button_is_clickable(self):
+        """CW macro buttons are clickable"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="run"]')
         time.sleep(0.5)
-        input_el = self.page.locator('#cw-message-1')
-        input_el.fill('CQ CQ CQ')
-        assert input_el.input_value() == 'CQ CQ CQ', "Input should accept text"
+        buttons = self.page.locator('.btn-cw-macro')
+        assert buttons.count() > 0, "Should have at least one CW macro button"
+        assert buttons.first.is_enabled(), "First macro button should be enabled"
 
     def test_callsign_input_accepts_text(self):
         """Callsign input accepts text"""
@@ -1059,7 +1110,8 @@ class SOTAcatUITests:
             print("\nRUN Page Elements:")
             self.run_test("Frequency display", self.test_run_frequency_display)
             self.run_test("Mode display", self.test_run_mode_display)
-            self.run_test("CW message inputs", self.test_run_cw_message_inputs)
+            self.run_test("CW macro buttons", self.test_run_cw_macro_buttons)
+            self.run_test("CW macro buttons have labels", self.test_run_cw_macro_buttons_have_labels)
             self.run_test("Band buttons", self.test_run_band_buttons)
             self.run_test("SMS spot button", self.test_run_sms_spot_button)
             self.run_test("SMS QRT button", self.test_run_sms_qrt_button)
@@ -1074,6 +1126,10 @@ class SOTAcatUITests:
             self.run_test("WiFi section", self.test_settings_wifi_section)
             self.run_test("IP pin checkboxes", self.test_settings_ip_pin_checkboxes)
             self.run_test("Tune targets section", self.test_settings_tune_targets_section)
+            self.run_test("CW macros section", self.test_settings_cw_macros_section)
+            self.run_test("CW macros add button", self.test_settings_cw_macros_add_button)
+            self.run_test("CW macros save button", self.test_settings_cw_macros_save_button)
+            self.run_test("CW macros help button", self.test_settings_cw_macros_help_button)
 
             # QRX page elements
             print("\nQRX Page Elements:")
@@ -1123,7 +1179,7 @@ class SOTAcatUITests:
 
             # Interaction tests
             print("\nInteraction Tests:")
-            self.run_test("CW message input accepts text", self.test_cw_message_input_accepts_text)
+            self.run_test("CW macro button is clickable", self.test_cw_macro_button_is_clickable)
             self.run_test("Callsign input accepts text", self.test_callsign_input_accepts_text)
 
             # License privilege tests

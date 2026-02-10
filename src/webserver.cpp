@@ -127,6 +127,8 @@ static const api_handler_t api_handlers[] = {
     {HTTP_POST, "license",          handler_license_settings_post,  false},
     {HTTP_GET,  "tuneTargets",      handler_tune_targets_get,       false},
     {HTTP_POST, "tuneTargets",      handler_tune_targets_post,      false},
+    {HTTP_GET,  "cwMacros",         handler_cw_macros_get,          false},
+    {HTTP_POST, "cwMacros",         handler_cw_macros_post,         false},
     {HTTP_GET,  "radioType",        handler_radio_type_get,         false},
     {0,         NULL,               NULL,                           false}  // Sentinel to mark end of array
 };

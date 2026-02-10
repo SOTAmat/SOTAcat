@@ -57,6 +57,10 @@ char              g_tune_targets[MAX_TUNE_TARGETS_JSON];
 static const char s_tune_targets_mobile_key[] = "tune_mobile";
 bool              g_tune_targets_mobile       = false;
 
+// CW Macros - configurable keyer buttons with placeholder support
+static const char s_cw_macros_key[] = "cw_macros";
+char              g_cw_macros[MAX_CW_MACROS_JSON];
+
 /**
  * Handle to our Non-Volatile Storage while we're in communication with it.
  */
@@ -122,6 +126,7 @@ static void populate_settings () {
     GET_NV_STRING (callsign, "");
     GET_NV_STRING (license_class, "");
     GET_NV_STRING (tune_targets, "");
+    GET_NV_STRING (cw_macros, "");
 
 #define GET_NV_BOOL(base)                                                       \
     {                                                                           \
@@ -644,6 +649,99 @@ esp_err_t handler_tune_targets_post (httpd_req_t * req) {
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
 
     return retrieve_and_send_tune_targets (req);
+}
+
+// ====================================================================================================
+// CW Macros Settings
+// ====================================================================================================
+
+static std::shared_ptr<char[]> get_cw_macros_json () {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    // Return JSON: {"macros": [...]}
+    size_t     required_size = 16 + sizeof (g_cw_macros);
+    const char format[]      = "{\"macros\":%s}";
+
+    std::shared_ptr<char[]> buf (new char[required_size]);
+    // If g_cw_macros is empty, use empty array
+    const char * macros = (g_cw_macros[0] == '\0') ? "[]" : g_cw_macros;
+    snprintf (buf.get(), required_size, format, macros);
+
+    return buf;
+}
+
+static esp_err_t retrieve_and_send_cw_macros (httpd_req_t * req) {
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    httpd_resp_set_type (req, "application/json");
+    auto settings_json = get_cw_macros_json();
+    return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t handler_cw_macros_get (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    return retrieve_and_send_cw_macros (req);
+}
+
+esp_err_t handler_cw_macros_post (httpd_req_t * req) {
+    showActivity();
+
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    if (!buf)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+
+    char * unsafe_buf = buf.get();
+
+    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
+    if (ret <= 0) {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408 (req);
+        }
+        return ESP_FAIL;
+    }
+
+    unsafe_buf[req->content_len] = '\0';
+
+    // Parse JSON to extract "macros" array
+    // Expected format: {"macros": [{"label":"...","template":"..."},...]  }
+    char * macros_start = strstr (unsafe_buf, "\"macros\"");
+    if (macros_start) {
+        char * array_start = strchr (macros_start, '[');
+        if (array_start) {
+            // Find matching closing bracket (handles nested objects)
+            int    depth     = 0;
+            char * array_end = nullptr;
+            for (char * p = array_start; *p; ++p) {
+                if (*p == '[')
+                    depth++;
+                else if (*p == ']') {
+                    depth--;
+                    if (depth == 0) {
+                        array_end = p;
+                        break;
+                    }
+                }
+            }
+            if (array_end) {
+                size_t array_len = array_end - array_start + 1;
+                if (array_len < sizeof (g_cw_macros)) {
+                    snprintf (g_cw_macros, sizeof (g_cw_macros), "%.*s", (int)array_len, array_start);
+                    nvs_set_str (s_nvs_settings_handle, s_cw_macros_key, g_cw_macros);
+                    ESP_LOGI (TAG8, "Stored CW macros: %s", g_cw_macros);
+                }
+            }
+        }
+    }
+
+    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
+
+    return retrieve_and_send_cw_macros (req);
 }
 
 // ====================================================================================================

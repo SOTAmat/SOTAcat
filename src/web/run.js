@@ -75,14 +75,14 @@ function changeVolume(delta) {
 // Keyer Functions
 // ============================================================================
 
-// Send CW message to radio keyer (message: string, 1-24 characters)
+// Send CW message to radio keyer (message: string, up to ~128 characters)
+// Backend handles splitting into <=24-char KYW commands at whitespace boundaries.
 function sendKeys(message) {
-    if (message.length < 1 || message.length > 24) {
-        alert("Text length must be 1-24 characters.");
+    if (!message || message.length < 1) {
         return;
     }
 
-    const url = `/api/v1/keyer?message=${message}`;
+    const url = `/api/v1/keyer?message=${encodeURIComponent(message)}`;
     fetchQuiet(url, { method: "PUT" }, "Spot");
 }
 
@@ -656,48 +656,44 @@ async function tuneAtu() {
 }
 
 // ============================================================================
-// UI State Persistence Functions
+// CW Macro Button Functions
 // ============================================================================
 
-const CW_MESSAGE_STORAGE_KEYS = ["runCwMessage1", "runCwMessage2", "runCwMessage3"];
-const LEGACY_CW_MESSAGE_KEYS = [
-    ["runCWMessage1", "spotCWMessage1"],
-    ["runCWMessage2", "spotCWMessage2"],
-    ["runCWMessage3", "spotCWMessage3"],
+const DEFAULT_CW_MACROS = [
+    { label: "CQ SOTA", template: "CQ SOTA DE {MYCALL} {MYCALL} K" },
+    { label: "UR 5NN", template: "UR 5NN {MYREF} BK" },
+    { label: "MY REF", template: "{MYREF}" },
+    { label: "PSE AGN", template: "PSE AGN" },
+    { label: "TU 73 QRZ", template: "TU 73 QRZ" },
 ];
 
-function migrateCwMessageKeys() {
-    CW_MESSAGE_STORAGE_KEYS.forEach((newKey, index) => {
-        const legacyKeys = LEGACY_CW_MESSAGE_KEYS[index];
-        const existingValue = localStorage.getItem(newKey);
-        if (existingValue !== null) {
-            return;
-        }
+// Render CW macro buttons into the #cw-macro-buttons container
+function renderCwMacroButtons() {
+    const container = document.getElementById("cw-macro-buttons");
+    if (!container) return;
 
-        for (const legacyKey of legacyKeys) {
-            const legacyValue = localStorage.getItem(legacyKey);
-            if (legacyValue !== null) {
-                localStorage.setItem(newKey, legacyValue);
-                localStorage.removeItem(legacyKey);
-                break;
-            }
-        }
+    const macros = AppState.cwMacros && AppState.cwMacros.length > 0 ? AppState.cwMacros : DEFAULT_CW_MACROS;
+    container.innerHTML = "";
+
+    macros.forEach((macro, index) => {
+        const btn = document.createElement("button");
+        btn.className = "btn btn-cw-macro";
+        btn.textContent = macro.label;
+        btn.title = macro.template;
+        btn.addEventListener("click", () => onCwMacroButtonPress(index));
+        container.appendChild(btn);
     });
 }
 
-// Load saved CW message text from localStorage
-function loadInputValues() {
-    migrateCwMessageKeys();
-    document.getElementById("cw-message-1").value = localStorage.getItem(CW_MESSAGE_STORAGE_KEYS[0]) || "";
-    document.getElementById("cw-message-2").value = localStorage.getItem(CW_MESSAGE_STORAGE_KEYS[1]) || "";
-    document.getElementById("cw-message-3").value = localStorage.getItem(CW_MESSAGE_STORAGE_KEYS[2]) || "";
-}
+// Handle CW macro button press: expand template and send
+function onCwMacroButtonPress(index) {
+    const macros = AppState.cwMacros && AppState.cwMacros.length > 0 ? AppState.cwMacros : DEFAULT_CW_MACROS;
+    if (index < 0 || index >= macros.length) return;
 
-// Save CW message text to localStorage
-function saveInputValues() {
-    localStorage.setItem(CW_MESSAGE_STORAGE_KEYS[0], document.getElementById("cw-message-1").value);
-    localStorage.setItem(CW_MESSAGE_STORAGE_KEYS[1], document.getElementById("cw-message-2").value);
-    localStorage.setItem(CW_MESSAGE_STORAGE_KEYS[2], document.getElementById("cw-message-3").value);
+    const expanded = expandCwMacroTemplate(macros[index].template);
+    if (expanded) {
+        sendKeys(expanded);
+    }
 }
 
 // Mapping from DOM section IDs to localStorage keys
@@ -1061,41 +1057,6 @@ function attachSpotEventListeners() {
         xmitBtn.addEventListener("click", toggleXmit);
     }
 
-    // CW send buttons
-    document.querySelectorAll(".btn-send[data-message-input]").forEach((button) => {
-        button.addEventListener("click", () => {
-            const inputId = button.getAttribute("data-message-input");
-            const inputElement = document.getElementById(inputId);
-            if (inputElement) {
-                sendKeys(inputElement.value);
-            }
-        });
-    });
-
-    // CW input validation - enable/disable Send buttons and persist values
-    ["cw-message-1", "cw-message-2", "cw-message-3"].forEach((inputId) => {
-        const input = document.getElementById(inputId);
-        const button = document.querySelector(`.btn-send[data-message-input="${inputId}"]`);
-        if (input && button) {
-            input.addEventListener("input", () => {
-                const hasContent = input.value.trim().length > 0;
-                button.disabled = !hasContent;
-                saveInputValues();
-            });
-        }
-    });
-}
-
-// Update Send button states based on current input values
-// Called on tab appear after loading saved values
-function updateSendButtonStates() {
-    ["cw-message-1", "cw-message-2", "cw-message-3"].forEach((inputId) => {
-        const input = document.getElementById(inputId);
-        const button = document.querySelector(`.btn-send[data-message-input="${inputId}"]`);
-        if (input && button) {
-            button.disabled = input.value.trim().length === 0;
-        }
-    });
 }
 
 // ============================================================================
@@ -1105,17 +1066,16 @@ function updateSendButtonStates() {
 // Called when Spot tab becomes visible
 async function onSpotAppearing() {
     Log.info("Spot")("tab appearing");
-    loadInputValues();
     loadCollapsibleStates();
+
+    // Render CW macro buttons from AppState (or defaults)
+    renderCwMacroButtons();
 
     // Attach event listeners for all controls
     attachSpotEventListeners();
 
     // Sync xmit button state with global state
     syncXmitButtonState();
-
-    // Update Send button states based on loaded input values
-    updateSendButtonStates();
 
     // Ensure location is loaded before checking reference (getLocationBasedReference needs AppState.gpsOverride)
     // Without this, SOTAmāt button stays disabled when opening RUN directly without visiting QRX first

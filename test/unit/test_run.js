@@ -73,6 +73,7 @@ const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;
 const AppState = {
     vfoFrequencyHz: null,
     vfoMode: null,
+    callSign: null,
 };
 
 let mockReference = "";
@@ -333,6 +334,107 @@ describe('buildQrtSmsUri', () => {
     it('returns null for invalid reference', () => {
         mockReference = "INVALID";
         assertEqual(buildQrtSmsUri(), null);
+    });
+});
+
+// ============================================================================
+// expandCwMacroTemplate Tests
+// ============================================================================
+
+// Copied from main.js for unit testing
+function getLocationBasedReference_forMacro() { return mockReference; }
+
+function expandCwMacroTemplate(template) {
+    if (!template) return "";
+    const freqHz = AppState.vfoFrequencyHz || 0;
+    const replacements = {
+        MYCALL: AppState.callSign || "",
+        MYREF: getLocationBasedReference_forMacro() || "",
+        "FREQ-KHZ": freqHz ? Math.round(freqHz / 1000).toString() : "",
+        "FREQ-MHZ": freqHz ? (freqHz / 1e6).toFixed(3) : "",
+        MODE: (AppState.vfoMode || "").toLowerCase(),
+    };
+    let result = template;
+    for (const [key, value] of Object.entries(replacements)) {
+        result = result.replace(new RegExp("\\{" + key + "\\}", "gi"), value);
+    }
+    return result.replace(/  +/g, " ").trim();
+}
+
+describe('expandCwMacroTemplate', () => {
+    it('substitutes {MYCALL} with callSign', () => {
+        AppState.callSign = "AB6D";
+        AppState.vfoFrequencyHz = 14062000;
+        AppState.vfoMode = "CW";
+        mockReference = "W6/NC-298";
+
+        const result = expandCwMacroTemplate("CQ SOTA DE {MYCALL} K");
+        assertEqual(result, "CQ SOTA DE AB6D K", "MYCALL substitution");
+    });
+
+    it('substitutes {MYREF} with reference', () => {
+        AppState.callSign = "AB6D";
+        mockReference = "W6/NC-298";
+
+        const result = expandCwMacroTemplate("UR 5NN {MYREF} BK");
+        assertEqual(result, "UR 5NN W6/NC-298 BK", "MYREF substitution");
+    });
+
+    it('substitutes {FREQ-KHZ} from vfoFrequencyHz', () => {
+        AppState.vfoFrequencyHz = 14062000;
+
+        const result = expandCwMacroTemplate("QSY {FREQ-KHZ}");
+        assertEqual(result, "QSY 14062", "FREQ-KHZ substitution");
+    });
+
+    it('substitutes {FREQ-MHZ} from vfoFrequencyHz', () => {
+        AppState.vfoFrequencyHz = 14062000;
+
+        const result = expandCwMacroTemplate("ON {FREQ-MHZ}");
+        assertEqual(result, "ON 14.062", "FREQ-MHZ substitution");
+    });
+
+    it('substitutes {MODE} as lowercase', () => {
+        AppState.vfoMode = "CW";
+
+        const result = expandCwMacroTemplate("MODE {MODE}");
+        assertEqual(result, "MODE cw", "MODE substitution lowercase");
+    });
+
+    it('is case-insensitive for placeholders', () => {
+        AppState.callSign = "AB6D";
+        const result = expandCwMacroTemplate("DE {mycall} K");
+        assertEqual(result, "DE AB6D K", "case-insensitive matching");
+    });
+
+    it('collapses double spaces from empty substitutions', () => {
+        AppState.callSign = "";
+        mockReference = "";
+        const result = expandCwMacroTemplate("CQ {MYCALL} {MYREF} K");
+        assertEqual(result, "CQ K", "double spaces collapsed");
+    });
+
+    it('returns template unchanged when no placeholders', () => {
+        const result = expandCwMacroTemplate("PSE AGN");
+        assertEqual(result, "PSE AGN", "no placeholders");
+    });
+
+    it('handles multiple placeholders in one template', () => {
+        AppState.callSign = "AB6D";
+        mockReference = "W6/NC-298";
+        AppState.vfoFrequencyHz = 7030000;
+        AppState.vfoMode = "CW";
+
+        const result = expandCwMacroTemplate("{MYCALL} {MYREF} {FREQ-KHZ} {MODE}");
+        assertEqual(result, "AB6D W6/NC-298 7030 cw", "multiple placeholders");
+    });
+
+    it('returns empty string for null template', () => {
+        assertEqual(expandCwMacroTemplate(null), "", "null template");
+    });
+
+    it('returns empty string for empty template', () => {
+        assertEqual(expandCwMacroTemplate(""), "", "empty template");
     });
 });
 

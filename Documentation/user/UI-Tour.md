@@ -55,11 +55,12 @@ Control your radio during activation.
 
 **Transmit section:**
 - TX toggle
-- CW keyer (3 message slots, 24 chars each)
+- Configurable CW macro buttons with placeholder support (`{MYCALL}`, `{MYREF}`, etc.)
+- Configure macros in Settings → CW Macros
 
 ![Transmit controls](../images/run-transmit.png)
 
-**Tip:** After self-spotting, use split-screen mode with PoLo (or your preferred logging app) on top and SOTAcat's Transmit section on the bottom. This gives you one-tap access to TX, CW keyer messages, and your log — ideal for working a pileup right after spotting yourself.
+**Tip:** After self-spotting, use split-screen mode with PoLo (or your preferred logging app) on top and SOTAcat's Transmit section on the bottom. This gives you one-tap access to TX, CW macro buttons, and your log — ideal for working a pileup right after spotting yourself.
 
 ![Split-screen with PoLo logging and SOTAcat Transmit](../images/splitscreen-polo-sotacat-run.png)
 
@@ -76,6 +77,7 @@ One-time setup and preferences.
 
 ![Tune targets settings](../images/settings-tune-targets.png)
 
+- CW macros (configurable keyer buttons with placeholders)
 - Display settings (compact mode)
 
 ![Display and chase filter settings](../images/settings-display-and-chase-filters.png)

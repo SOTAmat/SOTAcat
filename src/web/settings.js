@@ -450,6 +450,285 @@ async function saveTuneTargets() {
 }
 
 // ============================================================================
+// CW Macros Functions
+// ============================================================================
+
+// Maximum number of CW macros allowed
+const MAX_CW_MACROS = 8;
+
+// Track original CW macros state for change detection
+let originalCwMacros = [];
+
+// Load CW macros from device (falls back to AppState if device unavailable)
+async function loadCwMacros() {
+    const saveBtn = document.getElementById("save-cw-macros-button");
+
+    let loadedFromDevice = false;
+    try {
+        const response = await fetch("/api/v1/cwMacros");
+        if (response.ok) {
+            const data = await response.json();
+            originalCwMacros = data.macros || [];
+            loadedFromDevice = true;
+        }
+    } catch (error) {
+        Log.warn("Settings")("Device unavailable for CW macros load:", error);
+    }
+
+    if (!loadedFromDevice) {
+        if (AppState.cwMacros && AppState.cwMacros.length > 0) {
+            originalCwMacros = [...AppState.cwMacros];
+            Log.debug("Settings")("Using CW macros from session state");
+        } else {
+            loadCwMacrosFromLocalStorage();
+            if (AppState.cwMacros && AppState.cwMacros.length > 0) {
+                originalCwMacros = [...AppState.cwMacros];
+                Log.debug("Settings")("Using CW macros from localStorage cache");
+            } else {
+                originalCwMacros = [];
+            }
+        }
+    }
+
+    renderCwMacrosList();
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.className = "btn btn-secondary";
+    }
+
+    updateCwExampleButtonStates();
+}
+
+// Render the CW macros list UI from originalCwMacros
+function renderCwMacrosList() {
+    const macros = originalCwMacros.length > 0 ? originalCwMacros : [{ label: "", template: "" }];
+    renderCwMacrosFromArray(macros);
+}
+
+// Get current CW macros from the UI
+function getCurrentCwMacros() {
+    const rows = document.querySelectorAll(".cw-macro-row");
+    const macros = [];
+
+    rows.forEach((row) => {
+        const labelInput = row.querySelector(".cw-macro-label");
+        const templateInput = row.querySelector(".cw-macro-template");
+        if (labelInput && templateInput) {
+            macros.push({
+                label: labelInput.value,
+                template: templateInput.value,
+            });
+        }
+    });
+
+    return macros.length > 0 ? macros : [{ label: "", template: "" }];
+}
+
+// Add a new CW macro row
+function addCwMacro() {
+    const macros = getCurrentCwMacros();
+    if (macros.length >= MAX_CW_MACROS) return;
+
+    macros.push({ label: "", template: "" });
+    renderCwMacrosFromArray(macros);
+    updateCwMacrosSaveButton();
+    updateCwExampleButtonStates();
+}
+
+// Remove a CW macro by index
+function removeCwMacro(index) {
+    const macros = getCurrentCwMacros();
+    if (macros.length <= 1) {
+        macros[0] = { label: "", template: "" };
+    } else {
+        macros.splice(index, 1);
+    }
+    renderCwMacrosFromArray(macros);
+    updateCwMacrosSaveButton();
+    updateCwExampleButtonStates();
+}
+
+// Render CW macros list from an array of {label, template} objects
+function renderCwMacrosFromArray(macros) {
+    const listContainer = document.getElementById("cw-macros-list");
+    if (!listContainer) return;
+
+    listContainer.innerHTML = "";
+
+    macros.forEach((macro, index) => {
+        const row = document.createElement("div");
+        row.className = "cw-macro-row";
+
+        const labelInput = document.createElement("input");
+        labelInput.type = "text";
+        labelInput.className = "cw-macro-label";
+        labelInput.placeholder = "Label";
+        labelInput.value = macro.label;
+        labelInput.maxLength = 12;
+        labelInput.addEventListener("input", onCwMacroInputChange);
+
+        const templateInput = document.createElement("input");
+        templateInput.type = "text";
+        templateInput.className = "cw-macro-template";
+        templateInput.placeholder = "Template, e.g. CQ SOTA DE {MYCALL} K";
+        templateInput.value = macro.template;
+        templateInput.maxLength = 64;
+        templateInput.addEventListener("input", onCwMacroInputChange);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn btn-icon btn-remove";
+        removeBtn.textContent = "\u2212";
+        removeBtn.title = "Remove macro";
+        removeBtn.addEventListener("click", () => removeCwMacro(index));
+
+        row.appendChild(labelInput);
+        row.appendChild(templateInput);
+        row.appendChild(removeBtn);
+        listContainer.appendChild(row);
+    });
+
+    updateCwAddButtonState();
+}
+
+// Update add button state based on count
+function updateCwAddButtonState() {
+    const addBtn = document.getElementById("add-cw-macro-button");
+    const macros = getCurrentCwMacros();
+    if (addBtn) {
+        addBtn.disabled = macros.length >= MAX_CW_MACROS;
+    }
+}
+
+// Handle CW macro input change
+function onCwMacroInputChange() {
+    updateCwMacrosSaveButton();
+    updateCwExampleButtonStates();
+}
+
+// Check if CW macros have changed from original
+function haveCwMacrosChanged() {
+    const currentMacros = getCurrentCwMacros().filter((m) => m.label.trim() !== "" || m.template.trim() !== "");
+    const originalNonEmpty = originalCwMacros.filter((m) => m.label.trim() !== "" || m.template.trim() !== "");
+
+    if (currentMacros.length !== originalNonEmpty.length) return true;
+
+    for (let i = 0; i < currentMacros.length; i++) {
+        if (currentMacros[i].label !== originalNonEmpty[i].label) return true;
+        if (currentMacros[i].template !== originalNonEmpty[i].template) return true;
+    }
+
+    return false;
+}
+
+// Update save button state
+function updateCwMacrosSaveButton() {
+    const saveBtn = document.getElementById("save-cw-macros-button");
+    if (saveBtn) {
+        const hasChanged = haveCwMacrosChanged();
+        saveBtn.disabled = !hasChanged;
+        saveBtn.className = hasChanged ? "btn btn-primary" : "btn btn-secondary";
+    }
+}
+
+// Add an example CW macro
+function addExampleCwMacro(label, template) {
+    const macros = getCurrentCwMacros();
+
+    if (macros.length >= MAX_CW_MACROS) {
+        alert(`Maximum of ${MAX_CW_MACROS} CW macros allowed.`);
+        return;
+    }
+
+    if (macros.some((m) => m.label === label && m.template === template)) {
+        alert("This macro is already in your list.");
+        return;
+    }
+
+    if (macros.length === 1 && macros[0].label.trim() === "" && macros[0].template.trim() === "") {
+        macros[0] = { label, template };
+    } else {
+        macros.push({ label, template });
+    }
+
+    renderCwMacrosFromArray(macros);
+    updateCwMacrosSaveButton();
+    updateCwExampleButtonStates();
+}
+
+// Update example button states
+function updateCwExampleButtonStates() {
+    const macros = getCurrentCwMacros();
+    const exampleButtons = document.querySelectorAll(".btn-add-cw-example");
+
+    exampleButtons.forEach((btn) => {
+        const label = btn.dataset.label;
+        const template = btn.dataset.template;
+        const alreadyAdded = macros.some((m) => m.label === label && m.template === template);
+        const nonEmpty = macros.filter((m) => m.label.trim() !== "" || m.template.trim() !== "");
+        const atMax = nonEmpty.length >= MAX_CW_MACROS;
+
+        btn.disabled = alreadyAdded || atMax;
+        btn.textContent = alreadyAdded ? "added" : "+ add";
+    });
+}
+
+// Save CW macros to device
+async function saveCwMacros() {
+    const macros = getCurrentCwMacros().filter((m) => m.label.trim() !== "" || m.template.trim() !== "");
+
+    const payload = { macros };
+
+    let savedToDevice = false;
+    try {
+        const response = await fetch("/api/v1/cwMacros", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+            savedToDevice = true;
+        }
+    } catch (error) {
+        Log.warn("Settings")("Device unavailable for CW macros save:", error);
+    }
+
+    originalCwMacros = [...macros];
+    AppState.cwMacros = [...macros];
+    saveCwMacrosToLocalStorage(macros);
+
+    const saveBtn = document.getElementById("save-cw-macros-button");
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.className = "btn btn-secondary";
+    }
+
+    if (savedToDevice) {
+        alert("CW macros saved.");
+    } else {
+        alert("CW macros saved for this session (device unavailable).");
+    }
+}
+
+// ============================================================================
+// CW Macros Help Popup Functions
+// ============================================================================
+
+function toggleCwMacrosHelp() {
+    const popup = document.getElementById("cw-macros-help-popup");
+    const isVisible = popup && !popup.classList.contains("hidden");
+
+    if (isVisible) {
+        popup.classList.add("hidden");
+    } else {
+        popup.classList.remove("hidden");
+    }
+    updateBodyOverflowLock();
+}
+
+// ============================================================================
 // Chase Filters Functions
 // ============================================================================
 
@@ -499,9 +778,11 @@ function onUiCompactModeChange() {
 function updateBodyOverflowLock() {
     const wifiPopup = document.getElementById("wifi-help-popup");
     const tuneTargetsPopup = document.getElementById("tune-targets-help-popup");
+    const cwMacrosPopup = document.getElementById("cw-macros-help-popup");
     const anyOpen =
         (wifiPopup && !wifiPopup.classList.contains("hidden")) ||
-        (tuneTargetsPopup && !tuneTargetsPopup.classList.contains("hidden"));
+        (tuneTargetsPopup && !tuneTargetsPopup.classList.contains("hidden")) ||
+        (cwMacrosPopup && !cwMacrosPopup.classList.contains("hidden"));
     document.body.classList.toggle("overflow-hidden", anyOpen);
 }
 
@@ -563,6 +844,20 @@ function handleClickOutsidePopup(event) {
         !tuneTargetsHelpButton.contains(event.target)
     ) {
         toggleTuneTargetsHelp();
+    }
+
+    // Handle CW Macros help popup
+    const cwMacrosPopup = document.getElementById("cw-macros-help-popup");
+    const cwMacrosHelpButton = document.getElementById("cw-macros-help-button");
+
+    if (
+        cwMacrosPopup &&
+        !cwMacrosPopup.classList.contains("hidden") &&
+        !cwMacrosPopup.contains(event.target) &&
+        cwMacrosHelpButton &&
+        !cwMacrosHelpButton.contains(event.target)
+    ) {
+        toggleCwMacrosHelp();
     }
 }
 
@@ -1010,12 +1305,44 @@ function attachSettingsEventListeners() {
         tuneTargetsMobileCheckbox.addEventListener("change", onTuneTargetsMobileChange);
     }
 
-    // Example "add" buttons
+    // Tune Targets example "add" buttons
     document.querySelectorAll(".btn-add-example").forEach((btn) => {
         btn.addEventListener("click", function () {
             const url = this.dataset.url;
             if (url) {
                 addExampleTuneTarget(url);
+            }
+        });
+    });
+
+    // CW Macros buttons
+    const cwMacrosHelpBtn = document.getElementById("cw-macros-help-button");
+    if (cwMacrosHelpBtn) {
+        cwMacrosHelpBtn.addEventListener("click", toggleCwMacrosHelp);
+    }
+
+    const cwMacrosHelpCloseBtn = document.getElementById("cw-macros-help-close-button");
+    if (cwMacrosHelpCloseBtn) {
+        cwMacrosHelpCloseBtn.addEventListener("click", toggleCwMacrosHelp);
+    }
+
+    const addCwMacroBtn = document.getElementById("add-cw-macro-button");
+    if (addCwMacroBtn) {
+        addCwMacroBtn.addEventListener("click", addCwMacro);
+    }
+
+    const saveCwMacrosBtn = document.getElementById("save-cw-macros-button");
+    if (saveCwMacrosBtn) {
+        saveCwMacrosBtn.addEventListener("click", saveCwMacros);
+    }
+
+    // CW Macros example "add" buttons
+    document.querySelectorAll(".btn-add-cw-example").forEach((btn) => {
+        btn.addEventListener("click", function () {
+            const label = this.dataset.label;
+            const template = this.dataset.template;
+            if (label && template) {
+                addExampleCwMacro(label, template);
             }
         });
     });
@@ -1043,6 +1370,7 @@ function onSettingsAppearing() {
     attachSettingsEventListeners();
     loadCallSign();
     loadTuneTargets();
+    loadCwMacros();
     loadFilterBandsSettingUI();
     loadUiCompactModeSettingUI();
     fetchAndUpdateElement("/api/v1/version", "build-version");

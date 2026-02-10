@@ -71,6 +71,12 @@ DEFAULT_STATE = {
         {"url": "http://rx.linkfanel.net/", "enabled": False},
     ],
     "tune_targets_mobile": False,
+    # CW macros
+    "cw_macros": [
+        {"label": "CQ SOTA", "template": "CQ SOTA DE {MYCALL} {MYCALL} K"},
+        {"label": "UR 5NN", "template": "UR 5NN {MYREF} BK"},
+        {"label": "TU 73", "template": "TU 73 QRZ"},
+    ],
     # WiFi settings
     "sta1_ssid": "HomeNetwork",
     "sta1_pass": "********",
@@ -198,6 +204,21 @@ class MockSOTAcatServer:
                 self.state["tune_targets_mobile"] = data["mobile"]
             print(
                 f"[MOCK] Tune targets updated: {len(self.state['tune_targets'])} targets"
+            )
+            return "", 200
+
+        # CW Macros
+        @self.app.route("/api/v1/cwMacros", methods=["GET"])
+        def get_cw_macros():
+            return jsonify({"macros": self.state["cw_macros"]})
+
+        @self.app.route("/api/v1/cwMacros", methods=["POST"])
+        def set_cw_macros():
+            data = request.get_json() or {}
+            if "macros" in data:
+                self.state["cw_macros"] = data["macros"]
+            print(
+                f"[MOCK] CW macros updated: {len(self.state['cw_macros'])} macros"
             )
             return "", 200
 

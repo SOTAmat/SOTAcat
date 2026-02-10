@@ -64,7 +64,7 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
  * @param param_value extracted value of the named query parameter
  */
 #define STANDARD_DECODE_PARAMETER(unsafe_buf, param_name, param_value)                               \
-    char param_value[64] = {0};                                                                      \
+    char param_value[128] = {0};                                                                      \
     if (httpd_query_key_value (unsafe_buf, param_name, param_value, sizeof (param_value)) != ESP_OK) \
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
 
