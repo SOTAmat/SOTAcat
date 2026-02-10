@@ -6,8 +6,7 @@
 
 A small WiFi module that plugs into your Elecraft KX2 or KX3 ACC (CAT) port, providing wireless control from your phone.
 
-> **[ 📷 IMAGE: SOTAcat plugged into KX radio ]**
-> `images/sotacat-on-radio.png`
+![SOTAcat plugged into KX radio](images/sotacat-on-radio.png)
 
 ## Get a SOTAcat
 
@@ -20,8 +19,7 @@ A small WiFi module that plugs into your Elecraft KX2 or KX3 ACC (CAT) port, pro
 
 [Purchase from Inverted Labs Store →](https://store.invertedlabs.com/product/sotacat/)
 
-> **[ 📷 IMAGE: K5EM PCB version ]**
-> `images/k5em-pcb.png`
+![K5EM build](images/k5em-build.png)
 
 ### Option 2: Build Your Own
 
@@ -29,8 +27,7 @@ A small WiFi module that plugs into your Elecraft KX2 or KX3 ACC (CAT) port, pro
 - [Assembly PDF](Hardware/SOTACAT%20BOM%20-%20schematic%20-%20assembly%20instructions.pdf) — BOM, schematic, instructions
 - [YouTube build video](https://www.youtube.com/watch?v=iD3S-9icRn0)
 
-> **[ 📷 IMAGE: Hand-built SOTAcat ]**
-> `images/hand-built.png`
+![Hand-built SOTAcat](images/hand-built.png)
 
 ### Option 3: DIY from Scratch
 

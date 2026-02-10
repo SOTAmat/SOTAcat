@@ -36,8 +36,9 @@ SOTAcat joins your phone's hotspot.
 
 **Best for:** Android phones that drop cellular when on WiFi
 
-> **[ 📷 IMAGE: Settings WiFi configuration help popup ]**
-> `../images/settings-wifi-help.png`
+![WiFi settings](../images/settings-wifi.png)
+
+![WiFi help popup](../images/settings-wifi-help.png)
 
 #### Recommended: Pin IP to x.x.x.222
 
@@ -50,14 +51,6 @@ For each Client network, you can enable **Pin IP to x.x.x.222** in Settings. Whe
 **Setup:**
 1. In Settings, enable "Pin IP to x.x.x.222" for your hotspot network
 2. Use [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover SOTAcat's `x.x.x.222` address
-
-## One-Time Setup
-
-In Settings, configure:
-
-1. **Callsign** — Your amateur radio callsign
-2. **License class** — For band privilege indicators
-3. **WiFi networks** — Choose mode above
 
 ## Symptoms and Fixes
 
@@ -76,8 +69,9 @@ When you see "Connection lost. Reconnecting...":
 2. If not, reconnect to `SOTACAT_xxxx`
 3. Wait for auto-reconnect or tap **Retry**
 
-> **[ 📷 IMAGE: Connection lost overlay ]**
-> `../images/connection-lost.png`
+![Connection lost — reconnecting](../images/connection-lost-reconnecting.png)
+
+![Connection lost — failed](../images/connection-lost-failed.png)
 
 ---
 

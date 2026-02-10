@@ -10,9 +10,6 @@
 2. On your phone, go to WiFi settings
 3. Connect to `SOTACAT_xxxx` (password: `12345678`)
 
-> **[ 📷 IMAGE: Phone WiFi list showing SOTACAT_xxxx ]**
-> `../images/wifi-list.png`
-
 ## Open the Web Interface
 
 Browse to: `http://192.168.4.1`
@@ -27,16 +24,22 @@ You should see the SOTAcat header with:
 - WiFi signal strength (dBm)
 - Green connection indicator
 
-> **[ 📷 IMAGE: Header bar with all status indicators ]**
-> `../images/header-status.png`
+![Header bar with status indicators](../images/header-status.png)
 
 **Success!** You're connected.
 
+## One-Time Setup
+
+In Settings, configure:
+
+1. **Callsign** — Your amateur radio callsign
+2. **License class** — For band privilege indicators
+3. **WiFi networks** — See [Networking](Networking.md) for WiFi mode options
+
 ## Next Steps
 
-1. [Configure Settings](Networking.md#one-time-setup) — callsign, WiFi networks
-2. [UI Tour](UI-Tour.md) — learn what each tab does
-3. [Set up an activation](UI-Tour.md#qrx--setup--preparation) — clock, location, reference
+1. [UI Tour](UI-Tour.md) — learn what each tab does
+2. [Set up an activation](UI-Tour.md#qrx--setup--preparation) — clock, location, reference
 
 ---
 

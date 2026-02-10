@@ -14,6 +14,8 @@ In Settings → Tune Targets:
 2. Enter a URL with placeholders
 3. Save
 
+![Tune targets settings](../images/settings-tune-targets.png)
+
 ## Placeholders
 
 | Placeholder | Replaced With | Example |
@@ -35,8 +37,7 @@ http://websdr.example.com/?tune={FREQ-KHZ}{MODE}
 http://kiwisdr.example.com:8073/?f={FREQ-KHZ}{MODE}
 ```
 
-> **[ 📷 IMAGE: Settings Tune Targets help popup ]**
-> `../images/settings-tune-targets-help.png`
+![Tune targets help popup](../images/settings-tune-targets-help.png)
 
 ## Tips
 

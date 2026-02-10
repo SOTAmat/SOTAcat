@@ -8,15 +8,13 @@ WiFi CAT control for Elecraft KX2/KX3/KH1. Your phone becomes your radio console
 
 Tap a spot, radio tunes. SOTA, POTA, WWFF—all in one list.
 
-> **[ 📷 IMAGE: CHASE page with spots and tap-to-tune ]**
-> `Documentation/images/chase-spots.png`
+![CHASE page with spots and tap-to-tune](Documentation/images/chase-spots.png)
 
 ### Control your rig and spot in all conditions
 
 Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
 
-> **[ 📷 IMAGE: RUN page with rig controls and spotting ]**
-> `Documentation/images/run-controls.png`
+![RUN page with rig controls and spotting](Documentation/images/run-tune.png)
 
 ## Get Started in 60 Seconds
 
