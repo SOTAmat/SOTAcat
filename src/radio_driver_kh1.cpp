@@ -12,15 +12,13 @@
 
 static bool get_kh1_display_frequency (KXRadio & radio, long & out_hz) {
     char response[20];
-    const int freq_length = 10;
-    const int start_index = 3;  // "DS1" takes up first 3 characters
-    char      freq_char[freq_length];
+    char freq_char[10];
 
     if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response)))
         return false;
 
-    strncpy (freq_char, response + start_index, freq_length - 1);
-    freq_char[freq_length - 1] = '\0';
+    snprintf (freq_char, sizeof (freq_char), "%.*s", 8, response + 3); // Characters 4-11 represent frequency as a string
+
     double freq_dec            = strtod (freq_char, NULL);
     out_hz                     = static_cast<long> (freq_dec * 1000);
     return out_hz > 0;
@@ -44,15 +42,12 @@ static bool get_kh1_display_mode (KXRadio & radio, radio_mode_t & out_mode) {
 
 static bool get_kh1_display_power (KXRadio & radio, long & out_power) {
     char response[20];
-    const int power_length = 5;
-    const int start_index  = 3;  // "DS1" takes up first 3 characters
-    char      power_char[power_length];
+    char power_char[5];
 
     if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response)))
         return false;
 
-    strncpy (power_char, response + start_index, power_length - 1);
-    power_char[power_length - 1] = '\0';
+    snprintf (power_char, sizeof (power_char), "%.*s", 4, response + 3); // Characters 4-7 represent power level as a string
 
     if (!strcmp (power_char, "LOW "))
         out_power = 0;
@@ -66,14 +61,11 @@ static bool get_kh1_display_power (KXRadio & radio, long & out_power) {
 
 static bool set_kh1_power_level (KXRadio & radio, long power_level) {
     char power_return[20];
-    int  power_length = 5;
-    int  start_index  = 3;  // "DS1" takes up first 3 characters
-    char power_char[power_length];
+    char power_char[5];
 
     radio.put_to_kx_command_string ("SW2H;SW2H;", 1);
     if (radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, power_return, sizeof (power_return))) {
-        strncpy (power_char, power_return + start_index, power_length - 1);
-        power_char[power_length - 1] = '\0';
+        snprintf (power_char, sizeof (power_char), "%.*s", 4, power_return + 3); // Characters 4-7 represent power level as a string
         if (!strcmp (power_char, power_level > 0 ? "LOW " : "HIGH")) {
             radio.put_to_kx_command_string ("SW2H;SW2H;", 1);
         }
@@ -91,8 +83,8 @@ static bool get_kh1_display_time (KXRadio & radio, RadioTimeHms & radio_time) {
 
     char hour_char[3] = {0};
     char min_char[3]  = {0};
-    strncpy (hour_char, buf + 14, 2);
-    strncpy (min_char, buf + 17, 2);
+    snprintf (hour_char, sizeof (hour_char), "%.*s", 2, buf + 14); // Characters 15-16 represent hour as a string       
+    snprintf (min_char, sizeof (min_char), "%.*s", 2, buf + 17); // Characters 18-19 represent minute as a string       
     radio_time.hrs = atoi (hour_char);
     radio_time.min = atoi (min_char);
     radio_time.sec = 0;
@@ -209,8 +201,7 @@ bool KH1RadioDriver::get_volume (KXRadio & radio, long & out_volume) {
         return false;
 
     char vol_char[3];
-    strncpy (vol_char, buf + 6, 2); // Characters 7-8 represent volume as a string
-    vol_char[sizeof(vol_char) - 1] = '\0';
+    snprintf (vol_char, sizeof (vol_char), "%.*s", 2, buf + 6); // Characters 7-8 represent volume as a string
     long volume = atol(vol_char);
     if (volume < 0)
         return false;
@@ -257,8 +248,7 @@ bool KH1RadioDriver::send_keyer_message (KXRadio & radio, const char * message) 
     if (radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES,  buf, sizeof (buf) - 1)) {
         buf[sizeof (buf) - 1] = '\0';
         char speed_char[3];
-        strncpy(speed_char, buf + 3, 2);  // Characters 4-5 represent speed as a string
-        speed_char[sizeof(speed_char) - 1] = '\0';
+        snprintf (speed_char, sizeof (speed_char), "%.*s", 2, buf + 3); // Characters 4-5 represent speed as a string       
         kh_wpm = atoi(speed_char);
     }
     else {
