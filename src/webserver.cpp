@@ -277,6 +277,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
  */
 static esp_err_t my_http_request_handler (httpd_req_t * req) {
     ESP_LOGI (TAG8, "HTTP Request received: %s %s from %s session", req->method == HTTP_GET ? "GET" : req->method == HTTP_POST ? "POST"
+                                                                                                  : req->method == HTTP_PUT    ? "PUT"
                                                                                                                                : "OTHER",
               req->uri,
               req->sess_ctx ? "existing" : "new");
