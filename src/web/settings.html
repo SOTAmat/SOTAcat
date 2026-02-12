@@ -494,10 +494,10 @@
                         template that gets expanded and sent to the radio's CW keyer when tapped.
                     </p>
                     <p>
-                        <strong>Available placeholders:</strong>
+                        <strong>Available placeholders (note the curly braces):</strong>
                     </p>
                     <ul>
-                        <li><code>{MYCALL}</code> — Your callsign (e.g., AB6D)</li>
+                        <li><code>{MYCALL}</code> — Your callsign (e.g., KC6X)</li>
                         <li><code>{MYREF}</code> — Your SOTA/POTA reference (e.g., W6/NC-298)</li>
                         <li><code>{FREQ-KHZ}</code> — Frequency in kilohertz (e.g., 14062)</li>
                         <li><code>{FREQ-MHZ}</code> — Frequency in megahertz (e.g., 14.062)</li>
@@ -515,20 +515,26 @@
         <div class="cw-macro-examples">
             <p class="settings-info">Examples:</p>
             <div class="cw-macro-example">
-                <code>CQ SOTA</code> → <code>CQ SOTA DE {MYCALL} {MYCALL} K</code>
-                <button type="button" class="btn-add-cw-example" data-label="CQ SOTA" data-template="CQ SOTA DE {MYCALL} {MYCALL} K">
+                <code>CQ SOTA</code>:<code>CQ SOTA DE {MYCALL} K</code>
+                <button type="button" class="btn-add-cw-example" data-label="CQ SOTA" data-template="CQ SOTA DE {MYCALL} K">
                     + add
                 </button>
             </div>
             <div class="cw-macro-example">
-                <code>UR 5NN</code> → <code>UR 5NN {MYREF} BK</code>
-                <button type="button" class="btn-add-cw-example" data-label="UR 5NN" data-template="UR 5NN {MYREF} BK">
+                <code>MyRef</code>:<code>{MYREF}</code>
+                <button type="button" class="btn-add-cw-example" data-label="MyRef" data-template="{MYREF}">
                     + add
                 </button>
             </div>
             <div class="cw-macro-example">
-                <code>TU 73 QRZ</code> → <code>TU 73 QRZ</code>
-                <button type="button" class="btn-add-cw-example" data-label="TU 73 QRZ" data-template="TU 73 QRZ">
+                <code>QRZ</code>:<code>QRZ DE {MYCALL}</code>
+                <button type="button" class="btn-add-cw-example" data-label="QRZ" data-template="QRZ DE {MYCALL}">
+                    + add
+                </button>
+            </div>
+            <div class="cw-macro-example">
+                <code>MyCall</code>:<code>{MYCALL}</code>
+                <button type="button" class="btn-add-cw-example" data-label="MyCall" data-template="{MYCALL}">
                     + add
                 </button>
             </div>

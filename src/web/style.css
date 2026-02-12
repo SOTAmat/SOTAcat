@@ -622,7 +622,7 @@ input.frequency-display {
     color: var(--white);
     font-weight: 600;
     min-width: 80px;
-    padding: var(--space-sm) var(--space-md);
+    padding: var(--space-sm) var(--space-sm);
     border: none;
     border-radius: var(--radius-md);
     font-size: var(--text-md);
@@ -1455,6 +1455,7 @@ button.password-visibility-toggle svg {
 
 .cw-macro-template {
     flex: 1;
+    min-width: 0;
     min-height: var(--touch-target);
     padding: 0 var(--space-md);
     border: 1px solid var(--gray-3);
@@ -1490,9 +1491,9 @@ button.password-visibility-toggle svg {
 .cw-macro-example {
     display: flex;
     align-items: center;
-    gap: var(--space-sm);
+    gap: var(--space-xs);
     margin-bottom: var(--space-xs);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .cw-macro-example code {
@@ -1502,6 +1503,7 @@ button.password-visibility-toggle svg {
     font-size: var(--text-xs);
     font-family: monospace;
     border: 1px solid var(--gray-2);
+    white-space: nowrap;
 }
 
 .btn-add-cw-example {
@@ -1788,6 +1790,14 @@ button.password-visibility-toggle svg {
         width: 100%;
     }
 
+    .cw-macro-label {
+        width: 80px;
+        min-width: 60px;
+    }
+
+    .btn-cw-macro {
+        min-width: 60px;
+    }
 }
 
 /* Compact badges when all 5 are shown (Novice/Advanced license selected) */
