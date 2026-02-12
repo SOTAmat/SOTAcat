@@ -692,7 +692,7 @@ function onCwMacroButtonPress(index) {
 
     const expanded = expandCwMacroTemplate(macros[index].template);
     if (expanded) {
-        sendKeys(expanded);
+        sendKeys(expanded.toUpperCase());
     }
 }
 
@@ -1055,6 +1055,30 @@ function attachSpotEventListeners() {
     const xmitBtn = document.getElementById("xmit-button");
     if (xmitBtn) {
         xmitBtn.addEventListener("click", toggleXmit);
+    }
+
+    // Free-form CW input
+    const cwFreeformInput = document.getElementById("cw-freeform-input");
+    const cwFreeformSend = document.getElementById("cw-freeform-send");
+    if (cwFreeformInput && cwFreeformSend) {
+        cwFreeformInput.addEventListener("input", () => {
+            cwFreeformSend.disabled = !cwFreeformInput.value.trim();
+        });
+        cwFreeformSend.addEventListener("click", () => {
+            const text = cwFreeformInput.value.trim().toUpperCase();
+            if (text) {
+                const expanded = expandCwMacroTemplate(text);
+                if (expanded) {
+                    sendKeys(expanded);
+                }
+            }
+        });
+        cwFreeformInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && cwFreeformInput.value.trim()) {
+                e.preventDefault();
+                cwFreeformSend.click();
+            }
+        });
     }
 
 }

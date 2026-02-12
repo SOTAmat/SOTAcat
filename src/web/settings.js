@@ -517,7 +517,7 @@ function getCurrentCwMacros() {
         if (labelInput && templateInput) {
             macros.push({
                 label: labelInput.value,
-                template: templateInput.value,
+                template: templateInput.value.toUpperCase(),
             });
         }
     });

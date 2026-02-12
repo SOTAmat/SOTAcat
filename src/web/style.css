@@ -634,6 +634,31 @@ input.frequency-display {
     background: var(--primary-dark);
 }
 
+/* Free-form CW Input Row */
+.cw-freeform-row {
+    display: flex;
+    gap: var(--space-sm);
+    margin-top: var(--space-sm);
+}
+
+.cw-freeform-row input {
+    flex: 1;
+    min-width: 0;
+    min-height: var(--touch-target);
+    padding: 0 var(--space-md);
+    border: 2px solid var(--gray-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-md);
+    background: var(--white);
+    text-transform: uppercase;
+}
+
+.cw-freeform-row input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(34, 139, 230, 0.1);
+}
+
 /* Callsign and license class side by side */
 .callsign-license-row {
     display: flex;
@@ -1462,6 +1487,7 @@ button.password-visibility-toggle svg {
     border-radius: var(--radius-md);
     font-size: var(--text-sm);
     background: var(--white);
+    text-transform: uppercase;
 }
 
 .cw-macro-label:focus,
