@@ -134,6 +134,23 @@ function updateModeDisplay() {
     } else if (currentMode === "FM") {
         document.getElementById("btn-fm")?.classList.add("active");
     }
+
+    // Update Msg button colors to match current mode family
+    const modeClasses = ["msg-mode-cw", "msg-mode-voice", "msg-mode-data"];
+    const msgButtons = document.querySelectorAll(".btn-msg");
+    let msgClass = "msg-mode-voice"; // default for SSB
+
+    if (currentMode === "CW") {
+        msgClass = "msg-mode-cw";
+    } else if (currentMode === "DATA") {
+        msgClass = "msg-mode-data";
+    }
+    // SSB/USB/LSB/AM/FM all → msg-mode-voice
+
+    msgButtons.forEach((btn) => {
+        modeClasses.forEach((cls) => btn.classList.remove(cls));
+        btn.classList.add(msgClass);
+    });
 }
 
 // Update band button highlighting based on current frequency
@@ -218,6 +235,9 @@ function updatePrivilegeDisplay() {
         vfoDisplay.classList.add("warning-privilege");
     }
 
+    // Update button disabled states based on privilege
+    updateButtonPrivileges();
+
     // Update warning message
     if (warningEl) {
         if (!userLicense && status.inBand && status.modeAllowed) {
@@ -231,6 +251,43 @@ function updatePrivilegeDisplay() {
             warningEl.textContent = "";
         }
     }
+}
+
+// Update mode and msg button disabled states based on band privileges
+function updateButtonPrivileges() {
+    const frequencyHz = AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ;
+    const currentMode = AppState.vfoMode || "USB";
+    const userLicense = getUserLicenseClass();
+
+    // Check each mode category (3 calls — SSB/AM/FM share PHONE)
+    const cwStatus = checkPrivileges(frequencyHz, "CW", userLicense);
+    const phoneStatus = checkPrivileges(frequencyHz, "USB", userLicense);
+    const dataStatus = checkPrivileges(frequencyHz, "DATA", userLicense);
+
+    // No license configured → enforce band plan only (modeAllowed)
+    // License configured → enforce full privilege check (userCanTransmit)
+    function isPermitted(status) {
+        if (!status.inBand) return false;
+        return userLicense ? status.userCanTransmit : status.modeAllowed;
+    }
+
+    const cwOk = isPermitted(cwStatus);
+    const phoneOk = isPermitted(phoneStatus);
+    const dataOk = isPermitted(dataStatus);
+
+    // Mode buttons
+    const ids = { "btn-cw": cwOk, "btn-ssb": phoneOk, "btn-am": phoneOk, "btn-fm": phoneOk, "btn-data": dataOk };
+    for (const [id, ok] of Object.entries(ids)) {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = !ok;
+    }
+
+    // Msg buttons: disabled if current mode is not transmittable
+    const cat = getModeCategory(currentMode);
+    const txOk = cat === "CW" ? cwOk : cat === "DATA" ? dataOk : phoneOk;
+    document.querySelectorAll(".btn-msg").forEach((btn) => {
+        btn.disabled = !txOk;
+    });
 }
 
 // ============================================================================
