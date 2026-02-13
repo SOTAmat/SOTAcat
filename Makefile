@@ -102,6 +102,8 @@ monitor:
 	pio device monitor -e $(ENV)
 
 clean:
+	@echo "Removing derived sdkconfig files..."
+	@rm -f sdkconfig.seeed_xiao_esp32c3_debug sdkconfig.seeed_xiao_esp32c3_release
 	@echo "Cleaning build artifacts..."
 	pio run -t clean
 	@echo "Cleaning firmware directory..."
