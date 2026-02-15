@@ -69,6 +69,35 @@ pio run --target upload
 
 ## Common Issues
 
+**"x509_crt_bundle not found" or "file failed to open for reading: x509_crt_bundle"**
+
+The pre-build script pre-generates the certificate bundle. If it still fails, ensure `cryptography` is installed in the ESP-IDF Python environment:
+```bash
+# Windows:
+& "$env:USERPROFILE\.platformio\penv\.espidf-5.5.0\Scripts\python.exe" -m pip install cryptography
+
+# macOS/Linux:
+~/.platformio/penv/.espidf-5.5.0/bin/python -m pip install cryptography
+```
+
+**"ModuleNotFoundError: No module named 'intelhex'"**
+
+Install in PlatformIO's Python:
+```bash
+& "$env:USERPROFILE\.platformio\penv\Scripts\pip.exe" install intelhex
+```
+
+**"ModuleNotFoundError: No module named 'idf_component_manager'"**
+
+The pre-build script auto-installs this when missing. If it still fails, run manually:
+```bash
+# Windows (adjust path if your PlatformIO/IDF version differs):
+& "$env:USERPROFILE\.platformio\penv\.espidf-5.5.0\Scripts\python.exe" -m pip install idf-component-manager
+
+# macOS/Linux:
+~/.platformio/penv/.espidf-5.5.0/bin/python -m pip install idf-component-manager
+```
+
 **"Submodule not initialized"**
 ```bash
 git submodule update --init --recursive

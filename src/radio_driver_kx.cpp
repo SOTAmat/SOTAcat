@@ -178,20 +178,69 @@ bool KXRadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
     if (!message)
         return false;
 
-    char command[256];
-    snprintf (command, sizeof (command), "KYW%s;", message);
+    // Strip < and > characters (prosign markers not supported by radio keyer)
+    // and work with a mutable copy
+    size_t msg_len = std::strlen (message);
+    auto   cleaned = std::make_unique<char[]> (msg_len + 1);
+    char * dst     = cleaned.get();
+    for (const char * src = message; *src; ++src) {
+        if (*src != '<' && *src != '>')
+            *dst++ = *src;
+    }
+    *dst     = '\0';
+    msg_len  = dst - cleaned.get();
+
+    if (msg_len == 0)
+        return false;
 
     radio_mode_t mode      = static_cast<radio_mode_t> (radio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1));
     long         speed_wpm = radio.get_from_kx ("KS", SC_KX_COMMUNICATION_RETRIES, 3);
-    long         chars     = static_cast<long> (std::strlen (message));
 
     if (mode != MODE_CW)
         radio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);
 
-    radio.put_to_kx_command_string (command, 1);
+    // KYW command limit is 24 characters. Split longer messages at whitespace boundaries.
+    constexpr size_t KYW_MAX = 24;
+    const char *     pos     = cleaned.get();
+    const char *     end     = cleaned.get() + msg_len;
 
-    long duration_ms = 60 * 1000 * chars / (speed_wpm * 5);
-    vTaskDelay (pdMS_TO_TICKS (duration_ms));
+    while (pos < end) {
+        // Skip leading whitespace between chunks
+        while (pos < end && *pos == ' ')
+            ++pos;
+        if (pos >= end)
+            break;
+
+        size_t remaining = end - pos;
+        size_t chunk_len;
+
+        if (remaining <= KYW_MAX) {
+            chunk_len = remaining;
+        }
+        else {
+            // Find last space within the KYW_MAX window
+            chunk_len = KYW_MAX;
+            const char * space = nullptr;
+            for (size_t i = 0; i < KYW_MAX && (pos + i) < end; ++i) {
+                if (pos[i] == ' ')
+                    space = pos + i;
+            }
+            if (space && space > pos)
+                chunk_len = space - pos;
+            // else hard-split at KYW_MAX (no whitespace found)
+        }
+
+        char command[32];  // "KYW" + 24 chars + ";" + null = 29 max
+        snprintf (command, sizeof (command), "KYW%.*s;", (int)chunk_len, pos);
+        radio.put_to_kx_command_string (command, 1);
+
+        long duration_ms = 60 * 1000 * static_cast<long> (chunk_len) / (speed_wpm * 5);
+        vTaskDelay (pdMS_TO_TICKS (duration_ms));
+
+        pos += chunk_len;
+    }
+
+    // Tail delay for final character spacing
     vTaskDelay (pdMS_TO_TICKS (600));
 
     if (mode != MODE_CW)

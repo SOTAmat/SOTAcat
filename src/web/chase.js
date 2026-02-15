@@ -48,6 +48,43 @@ const ChaseState = {
 // State Management Functions
 // ============================================================================
 
+// Save spot data to localStorage for cross-reload persistence
+function saveSpotsToCache(spots) {
+    try {
+        localStorage.setItem("chaseSpotCache", JSON.stringify({
+            spots: spots,
+            timestamp: Date.now()
+        }));
+    } catch (e) {
+        Log.warn("Chase")("Failed to save spots to localStorage:", e);
+    }
+}
+
+// Restore spot data from localStorage if not stale.
+// Returns true if cache was restored, false otherwise.
+function restoreSpotsFromCache() {
+    try {
+        const cached = localStorage.getItem("chaseSpotCache");
+        if (!cached) return false;
+
+        const { spots, timestamp } = JSON.parse(cached);
+        const ageMs = Date.now() - timestamp;
+        if (ageMs > CHASE_HISTORY_DURATION_SECONDS * 1000) {
+            localStorage.removeItem("chaseSpotCache");
+            return false;
+        }
+
+        AppState.latestChaseJson = spots;
+        ChaseState.lastRefreshCompleteTime = timestamp;
+        Log.info("Chase")(`Restored ${spots.length} spots from localStorage (age ${Math.round(ageMs / 1000)}s)`);
+        return true;
+    } catch (e) {
+        Log.warn("Chase")("Failed to restore spots from localStorage:", e);
+        localStorage.removeItem("chaseSpotCache");
+        return false;
+    }
+}
+
 // Load saved sort preferences from localStorage and update ChaseState
 function loadSortState() {
     const savedSortField = localStorage.getItem("chaseSortField");
@@ -258,7 +295,7 @@ function scheduleNextAutoRefresh() {
 
     // Schedule the refresh
     ChaseState.autoRefreshTimeoutId = setTimeout(() => {
-        Log.debug("Chase", "Auto-refresh triggered");
+        Log.debug("Chase")("Auto-refresh triggered");
         refreshChaseJson(true, true); // force=true, isAutoRefresh=true
     }, CHASE_AUTO_REFRESH_INTERVAL_MS);
 
@@ -285,9 +322,9 @@ function trackManualRefresh() {
     // If we're now suggesting, set a timer to revert after 5 seconds
     if (shouldSuggest && !ChaseState.suggestionRevertTimeoutId) {
         // Only set the timeout if we don't already have one active
-        Log.debug("Chase", "Setting 5-second revert timer for auto-refresh suggestion");
+        Log.debug("Chase")("Setting 5-second revert timer for auto-refresh suggestion");
         ChaseState.suggestionRevertTimeoutId = setTimeout(() => {
-            Log.debug("Chase", "Reverting auto-refresh suggestion");
+            Log.debug("Chase")("Reverting auto-refresh suggestion");
             ChaseState.manualRefreshTimes = [];
             updateRefreshButtonLabel();
             ChaseState.suggestionRevertTimeoutId = null;
@@ -304,17 +341,17 @@ function updateRefreshButtonLabel() {
 
     if (ChaseState.autoRefreshEnabled) {
         // Auto-refresh is enabled
-        Log.debug("Chase", "Button state: Disable Auto-Refresh");
+        Log.debug("Chase")("Button state: Disable Auto-Refresh");
         refreshButton.textContent = "Disable Auto-Refresh";
         refreshButton.classList.add("btn-auto-refresh-active");
     } else if (shouldSuggestAutoRefresh()) {
         // Suggest enabling auto-refresh
-        Log.debug("Chase", "Button state: Enable Auto-Refresh?");
+        Log.debug("Chase")("Button state: Enable Auto-Refresh?");
         refreshButton.textContent = "Enable Auto-Refresh?";
         refreshButton.classList.remove("btn-auto-refresh-active");
     } else {
         // Normal manual refresh
-        Log.debug("Chase", "Button state: Refresh Now");
+        Log.debug("Chase")("Button state: Refresh Now");
         refreshButton.textContent = "Refresh Now";
         refreshButton.classList.remove("btn-auto-refresh-active");
     }
@@ -342,20 +379,20 @@ async function tuneRadioHz(frequency, mode) {
         const freqResponse = await fetch(`/api/v1/frequency?frequency=${frequency}`, { method: "PUT" });
 
         if (!freqResponse.ok) {
-            Log.error("Chase", "Frequency update failed");
+            Log.error("Chase")("Frequency update failed");
             return;
         }
 
-        Log.debug("Chase", "Frequency updated:", frequency);
+        Log.debug("Chase")("Frequency updated:", frequency);
 
         const modeResponse = await fetch(`/api/v1/mode?bw=${useMode}`, { method: "PUT" });
 
         if (!modeResponse.ok) {
-            Log.error("Chase", "Mode update failed");
+            Log.error("Chase")("Mode update failed");
             return;
         }
 
-        Log.debug("Chase", "Mode updated:", useMode);
+        Log.debug("Chase")("Mode updated:", useMode);
 
         // Update global VFO state and highlight matching row
         AppState.vfoFrequencyHz = frequency;
@@ -363,7 +400,7 @@ async function tuneRadioHz(frequency, mode) {
         AppState.vfoLastUpdated = Date.now();
         updateTunedRowHighlight();
     } catch (error) {
-        Log.error("Chase", "Tune radio error:", error);
+        Log.error("Chase")("Tune radio error:", error);
     }
 }
 
@@ -457,7 +494,7 @@ function isValidPoloSig(sig) {
 function getTunedSpotData() {
     const tunedRow = document.querySelector("#chase-table tbody tr.tuned-row");
     if (!tunedRow) {
-        Log.debug("Chase", "No tuned row found");
+        Log.debug("Chase")("No tuned row found");
         return null;
     }
 
@@ -468,7 +505,7 @@ function getTunedSpotData() {
         hertz: parseInt(tunedRow.dataset.hertz, 10) || 0,
         modeType: tunedRow.dataset.modeType || "",
     };
-    Log.debug("Chase", "Tuned spot data:", JSON.stringify(data));
+    Log.debug("Chase")("Tuned spot data:", JSON.stringify(data));
     return data;
 }
 
@@ -497,7 +534,7 @@ function updatePoloButtonState() {
 function buildPoloChaseLink() {
     const tunedSpot = getTunedSpotData();
     if (!tunedSpot) {
-        Log.debug("Chase", "buildPoloChaseLink: no tuned spot");
+        Log.debug("Chase")("buildPoloChaseLink: no tuned spot");
         return null;
     }
 
@@ -528,7 +565,7 @@ function buildPoloChaseLink() {
         params.mySig = mySig;
     }
 
-    Log.info("Chase", "Polo params:", JSON.stringify(params));
+    Log.info("Chase")("Polo params:", JSON.stringify(params));
     return buildPoloDeepLink(params);
 }
 
@@ -536,11 +573,11 @@ function buildPoloChaseLink() {
 function launchPoloChase() {
     const url = buildPoloChaseLink();
     if (url) {
-        Log.info("Chase", "Launching Polo for chase:", url);
+        Log.info("Chase")("Launching Polo for chase:", url);
         // Use location.href for mobile deep link compatibility
         window.location.href = url;
     } else {
-        Log.warn("Chase", "Cannot launch Polo - no valid xOTA spot tuned");
+        Log.warn("Chase")("Cannot launch Polo - no valid xOTA spot tuned");
         alert("Cannot launch Polo - tune to a SOTA/POTA spot first");
     }
 }
@@ -646,8 +683,9 @@ function buildChaseRow(spot, isMySpot) {
         }
     };
 
-    // 1. UTC time
-    const formattedTime = `${spot.timestamp.getUTCHours().toString().padStart(2, "0")}:${spot.timestamp.getUTCMinutes().toString().padStart(2, "0")}`;
+    // 1. UTC time (ensure Date object — cache round-trip deserializes as string)
+    const ts = spot.timestamp instanceof Date ? spot.timestamp : new Date(spot.timestamp);
+    const formattedTime = `${ts.getUTCHours().toString().padStart(2, "0")}:${ts.getUTCMinutes().toString().padStart(2, "0")}`;
     row.insertCell().textContent = formattedTime;
 
     // 2. Callsign
@@ -715,7 +753,7 @@ function buildChaseRow(spot, isMySpot) {
 async function updateChaseTable() {
     const data = await AppState.latestChaseJson;
     if (data === null) {
-        Log.info("Chase", "Json is null");
+        Log.info("Chase")("Json is null");
         return;
     }
 
@@ -735,7 +773,7 @@ async function updateChaseTable() {
     });
 
     tbody.parentNode.replaceChild(newTbody, tbody);
-    Log.info("Chase", "table updated");
+    Log.info("Chase")("table updated");
 
     setTimeout(applyTableFilters, 0);
 
@@ -751,13 +789,13 @@ async function updateChaseTable() {
 function applyTableFilters() {
     const tableBody = document.querySelector("#chase-table tbody");
     if (!tableBody) {
-        Log.warn("Chase", "Table body not found, cannot apply filters");
+        Log.warn("Chase")("Table body not found, cannot apply filters");
         return;
     }
 
     const allRows = tableBody.querySelectorAll("tr");
     if (allRows.length === 0) {
-        Log.warn("Chase", "No rows in table, skipping filter application");
+        Log.warn("Chase")("No rows in table, skipping filter application");
         return;
     }
 
@@ -771,7 +809,7 @@ function applyTableFilters() {
         allowedBands = getRadioBandCapabilities(AppState.radioType);
     }
 
-    Log.debug("Chase", `Applying filters - Mode: ${selectedMode}, Type: ${selectedType}, BandFilter: ${allowedBands ? "active" : "off"}, Rows: ${allRows.length}`);
+    Log.debug("Chase")(`Applying filters - Mode: ${selectedMode}, Type: ${selectedType}, BandFilter: ${allowedBands ? "active" : "off"}, Rows: ${allRows.length}`);
 
     let visibleRows = 0;
     let hiddenRows = 0;
@@ -829,7 +867,7 @@ function applyTableFilters() {
         }
     });
 
-    Log.debug("Chase", `Filter applied: ${visibleRows} visible, ${hiddenRows} hidden`);
+    Log.debug("Chase")(`Filter applied: ${visibleRows} visible, ${hiddenRows} hidden`);
 }
 
 // ============================================================================
@@ -871,7 +909,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
     const timeSinceLastFetch = now - ChaseState.lastRefreshTime;
 
     if (!force && timeSinceLastFetch < CHASE_MIN_REFRESH_INTERVAL_MS) {
-        Log.info("Chase", `rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`);
+        Log.info("Chase")(`rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`);
         if (typeof updateChaseTable === "function") {
             updateChaseTable();
         }
@@ -885,7 +923,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
             refreshButton.disabled = true;
         }
 
-        Log.debug("Chase", "Fetching data from Spothole API");
+        Log.debug("Chase")("Fetching data from Spothole API");
         ChaseState.lastRefreshTime = Date.now();
 
         // Build fetch options
@@ -905,12 +943,13 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
         const spots = await fetchAndProcessSpots(fetchOptions, location, true);
 
         AppState.latestChaseJson = spots;
-        Log.info("Chase", `Json updated: ${spots.length} spots`);
+        saveSpotsToCache(spots);
+        Log.info("Chase")(`Json updated: ${spots.length} spots`);
 
         if (typeof updateChaseTable === "function") {
             updateChaseTable();
         } else {
-            Log.error("Chase", "updateChaseTable function not found");
+            Log.error("Chase")("updateChaseTable function not found");
         }
 
         // Update refresh complete time and restart timer
@@ -922,7 +961,7 @@ async function refreshChaseJson(force, isAutoRefresh = false) {
             scheduleNextAutoRefresh();
         }
     } catch (error) {
-        Log.error("Chase", "Error fetching or processing data:", error);
+        Log.error("Chase")("Error fetching or processing data:", error);
         // Show error to user if this was a manual refresh
         if (force && !isAutoRefresh) {
             alert("Failed to fetch spots from Spothole API. Please check your internet connection and try again.");
@@ -1046,7 +1085,7 @@ function attachChaseEventListeners() {
 
 // Called when Chase tab becomes visible
 async function onChaseAppearing() {
-    Log.info("Chase", "tab appearing");
+    Log.info("Chase")("tab appearing");
 
     // Load callsign for spot pinning (non-blocking)
     ensureCallSignLoaded();
@@ -1082,12 +1121,15 @@ async function onChaseAppearing() {
         typeSelector.value = ChaseState.typeFilter;
     }
 
-    // Load data
+    // Load data: prefer in-memory cache, then localStorage, then fresh fetch
     if (AppState.latestChaseJson !== null) {
-        Log.debug("Chase", "tab appearing: Using existing data");
+        Log.debug("Chase")("tab appearing: Using in-memory data");
+        updateChaseTable();
+    } else if (restoreSpotsFromCache()) {
+        Log.debug("Chase")("tab appearing: Restored from localStorage");
         updateChaseTable();
     } else {
-        Log.debug("Chase", "tab appearing: Fetching new data");
+        Log.debug("Chase")("tab appearing: Fetching new data");
         refreshChaseJson(true);
     }
 
@@ -1101,7 +1143,7 @@ async function onChaseAppearing() {
 
 // Called when Chase tab is hidden
 function onChaseLeaving() {
-    Log.info("Chase", "tab leaving");
+    Log.info("Chase")("tab leaving");
 
     // Unsubscribe from VFO changes (this also stops polling if no other subscribers)
     unsubscribeFromVfo(updateTunedRowHighlight);

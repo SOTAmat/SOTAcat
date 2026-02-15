@@ -1,42 +1,56 @@
 * Screenshots Needed for Documentation
 
+NOTE: Original plan called for one composite image per tab.
+Actual images are more granular — multiple screenshots per tab
+showing individual sections, providing a richer experience.
+
 ** README.md
-- [ ] CHASE page with spots and tap-to-tune
-  - Filename: chase-spots.png (reused from UI-Tour)
-- [ ] RUN page with rig controls and spotting
-  - Filename: run-controls.png (reused from UI-Tour)
+- [X] CHASE page with spots and tap-to-tune
+  - Filename: chase-spots.png
 
 ** Documentation/user/Getting-Started.md
-- [ ] Phone WiFi list showing SOTACAT_xxxx
+- [-] Phone WiFi list showing SOTACAT_xxxx
   - Filename: wifi-list.png
-- [ ] Header bar with all status indicators
-  - Filename: header-status.png (same as above)
+  - Status: Deferred — text instructions are clear enough
+- [X] Header bar with all status indicators
+  - Filename: header-status.png
 
 ** Documentation/user/UI-Tour.md
-- [ ] QRX page showing location and reference fields
-  - Filename: qrx-page.png
-- [ ] CHASE page with spots and filter dropdowns
+- [X] QRX page — split into granular images:
+  - qrx-clock-sync.png (clock sync section)
+  - qrx-location-reference.png (location and reference fields)
+  - qrx-setup-polo.png (nearest SOTA / overview)
+- [X] CHASE page with spots and filter dropdowns
   - Filename: chase-spots.png
-- [ ] RUN page with Tune/Spot/Transmit sections
-  - Filename: run-controls.png
-- [ ] Settings page
-  - Filename: settings-page.png
+- [X] RUN page — split into granular images:
+  - run-tune.png (tune section)
+  - run-spot.png (spot section)
+  - run-transmit.png (transmit section)
+- [X] Settings page — split into granular images:
+  - settings-wifi.png
+  - settings-tune-targets.png
+  - settings-display-and-chase-filters.png
+  - settings-firmware.png
 
 ** Documentation/user/Networking.md
-- [ ] Settings WiFi configuration help popup
+- [X] Settings WiFi configuration panel
+  - Filename: settings-wifi.png
+- [X] Settings WiFi configuration help popup
   - Filename: settings-wifi-help.png
-- [ ] Connection lost overlay
-  - Filename: connection-lost.png
+- [X] Connection lost overlay — split into two states:
+  - connection-lost-reconnecting.png
+  - connection-lost-failed.png
 
 ** Documentation/user/Tune-Targets.md
-- [ ] Settings Tune Targets help popup
+- [X] Settings Tune Targets panel
+  - Filename: settings-tune-targets.png
+- [X] Settings Tune Targets help popup
   - Filename: settings-tune-targets-help.png
 
 ** Documentation/Hardware.md
-- [ ] SOTAcat plugged into KX radio
-  - Filename: sotacat-on-radio.png
-- [ ] K5EM PCB version
-  - Filename: k5em-pcb.png
-- [ ] Hand-built SOTAcat
-  - Filename: hand-built.png
-
+- [X] SOTAcat plugged into KX radio
+  - Filename: sotacat-on-radio.png (converted from JPG)
+- [X] K5EM build
+  - Filename: k5em-build.png (converted from JPG; was k5em-pcb.png in original plan)
+- [X] Hand-built SOTAcat
+  - Filename: hand-built.png (converted from JPG)

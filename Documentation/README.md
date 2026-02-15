@@ -1,5 +1,7 @@
 # SOTAcat Documentation
 
+![SOTAcat CHASE page](images/chase-spots.png)
+
 ## For Users
 - [Getting Started](user/Getting-Started.md) — 60-second setup
 - [UI Tour](user/UI-Tour.md) — What each tab does

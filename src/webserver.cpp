@@ -127,6 +127,8 @@ static const api_handler_t api_handlers[] = {
     {HTTP_POST, "license",          handler_license_settings_post,  false},
     {HTTP_GET,  "tuneTargets",      handler_tune_targets_get,       false},
     {HTTP_POST, "tuneTargets",      handler_tune_targets_post,      false},
+    {HTTP_GET,  "cwMacros",         handler_cw_macros_get,          false},
+    {HTTP_POST, "cwMacros",         handler_cw_macros_post,         false},
     {HTTP_GET,  "radioType",        handler_radio_type_get,         false},
     {0,         NULL,               NULL,                           false}  // Sentinel to mark end of array
 };
@@ -275,6 +277,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
  */
 static esp_err_t my_http_request_handler (httpd_req_t * req) {
     ESP_LOGI (TAG8, "HTTP Request received: %s %s from %s session", req->method == HTTP_GET ? "GET" : req->method == HTTP_POST ? "POST"
+                                                                                                  : req->method == HTTP_PUT    ? "PUT"
                                                                                                                                : "OTHER",
               req->uri,
               req->sess_ctx ? "existing" : "new");

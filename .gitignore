@@ -67,15 +67,12 @@ compile_commands.json
 # configs especially volatile during development
 dependencies.lock
 
-# Used by the ESP-IDF build system to store configuration options such as boot logging and partition table:
-# At one point we were ignoring these files, but there is a lot of important stuff in them needed to get
-# consistent builds across platforms.  For example: they have the instructions on not emmiting boot logs
-# that can confuse the Elecraft KX radios, and they also have WiFi power level info which we lower to save
-# battery and reduce WiFi noise into the radio HF bands.
-# sdkconfig.*
-# !sdkconfig.default
-# !sdkconfig.seeed_xiao_esp32c3
-
+# Used by the ESP-IDF build system to store configuration options such as boot logging, etc.
+# We store our custom setting overrides in sdkconfig.default, and should commit it to git
+# The system will use that to produce transient files like sdkconfig.seeed_xiao_esp32c3_{debug,release}.  Those we can ignore.
+sdkconfig.*
+!sdkconfig.defaults
+!sdkconfig.defaults.*
 
 # ESP-IDF managed_compoments
 managed_components/

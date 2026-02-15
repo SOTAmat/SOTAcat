@@ -52,6 +52,12 @@ extern char g_license_class[MAX_LICENSE_CLASS_SIZE];
 extern char g_tune_targets[MAX_TUNE_TARGETS_JSON];
 extern bool g_tune_targets_mobile;
 
+// CW Macros - configurable keyer buttons with placeholder support
+// Format: [{"label": "CQ SOTA", "template": "CQ SOTA DE {MYCALL} K"}, ...]
+#define MAX_CW_MACROS      8
+#define MAX_CW_MACROS_JSON 1024  // 8 macros * ~90 chars + JSON overhead
+extern char g_cw_macros[MAX_CW_MACROS_JSON];
+
 void      init_settings ();
 esp_err_t retrieve_and_send_settings (httpd_req_t * req);
 esp_err_t handler_settings_get (httpd_req_t * req);
@@ -64,4 +70,6 @@ esp_err_t handler_license_settings_get (httpd_req_t * req);
 esp_err_t handler_license_settings_post (httpd_req_t * req);
 esp_err_t handler_tune_targets_get (httpd_req_t * req);
 esp_err_t handler_tune_targets_post (httpd_req_t * req);
+esp_err_t handler_cw_macros_get (httpd_req_t * req);
+esp_err_t handler_cw_macros_post (httpd_req_t * req);
 esp_err_t handler_radio_type_get (httpd_req_t * req);

@@ -9,6 +9,7 @@
 #include "webserver.h"
 
 #include <cmath>
+#include <atomic>
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_task_wdt.h>
@@ -28,14 +29,51 @@ static const char * TAG8 = "sc:hdl_ft8.";
  * if the system time surpasses this timestamp without any new FT8 activity, the system will automatically exit
  * FT8 mode and revert the radio to its previous state. The value is in microseconds since the Unix epoch.
  */
-static int64_t CancelRadioFT8ModeTime = 0;
+static std::atomic<int64_t> CancelRadioFT8ModeTime {0};
 
 /**
  * Indicates whether an FT8 transmission task is currently in progress. This boolean flag helps prevent the
  * initiation of multiple concurrent FT8 transmission tasks, ensuring that only one FT8 task operates at any
  * given time, thus avoiding conflicts or resource contention in radio usage.
  */
-static bool ft8TaskInProgress = false;
+static std::atomic<bool> ft8TaskInProgress {false};
+
+static inline int64_t ft8_get_cancel_deadline_us () {
+    return CancelRadioFT8ModeTime.load (std::memory_order_acquire);
+}
+
+static inline bool ft8_is_cancel_requested () {
+    return ft8_get_cancel_deadline_us() <= 1;
+}
+
+static inline void ft8_set_cancel_deadline_us (int64_t deadline_us) {
+    CancelRadioFT8ModeTime.store (deadline_us, std::memory_order_release);
+}
+
+static inline void ft8_request_cancel () {
+    ft8_set_cancel_deadline_us (1);
+}
+
+static inline void ft8_extend_cancel_deadline_us (int64_t deadline_us) {
+    int64_t current = ft8_get_cancel_deadline_us();
+    while (deadline_us > current &&
+           !CancelRadioFT8ModeTime.compare_exchange_weak (current, deadline_us, std::memory_order_acq_rel, std::memory_order_acquire)) {
+        // retry until the larger deadline wins
+    }
+}
+
+static inline bool ft8_is_task_in_progress () {
+    return ft8TaskInProgress.load (std::memory_order_acquire);
+}
+
+static inline void ft8_set_task_in_progress (bool in_progress) {
+    ft8TaskInProgress.store (in_progress, std::memory_order_release);
+}
+
+static inline bool ft8_try_claim_task_in_progress () {
+    bool expected = false;
+    return ft8TaskInProgress.compare_exchange_strong (expected, true, std::memory_order_acq_rel, std::memory_order_acquire);
+}
 
 /**
  * A pointer to an `ft8_task_pack_t` structure containing configuration information needed for the FT8 transmission.
@@ -51,8 +89,16 @@ typedef struct
     kx_state_t * kx_state;
 } ft8_task_pack_t;
 
-static ft8_task_pack_t * ft8ConfigInfo     = NULL;
-bool                     Ft8RadioExclusive = false;
+static std::atomic<ft8_task_pack_t *> ft8ConfigInfo {nullptr};
+bool                                  Ft8RadioExclusive = false;
+
+static inline ft8_task_pack_t * ft8_get_config_info () {
+    return ft8ConfigInfo.load (std::memory_order_acquire);
+}
+
+static inline void ft8_set_config_info (ft8_task_pack_t * config) {
+    ft8ConfigInfo.store (config, std::memory_order_release);
+}
 
 constexpr size_t         FT8_QUEUE_MAX = 4;
 static long              ft8_queue[FT8_QUEUE_MAX];
@@ -87,7 +133,7 @@ static void ft8_tone_timer_cb (void * arg) {
     }
     else {
         // If we can't keep up with tone scheduling, abort the transmission
-        CancelRadioFT8ModeTime = 1;
+        ft8_request_cancel();
         ft8_tone_index         = FT8_NN;
     }
 }
@@ -223,7 +269,7 @@ static void waitForFT8Window () {
     // Note: pdMS_TO_TICKS converts milliseconds to ticks
     while (delay_ms > 0) {
         // If CancelRadioFT8ModeTime is <= 1, exit the function immediately
-        if (CancelRadioFT8ModeTime <= 1) {
+        if (ft8_is_cancel_requested()) {
             ESP_LOGI (TAG8, "CancelRadioFT8ModeTime triggered, returning early.");
             return;
         }
@@ -259,23 +305,23 @@ static void xmit_ft8_task (void * pvParameter) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
     bool wdt_registered = false;
     bool timer_started  = false;
+    ft8_task_pack_t * info = (ft8_task_pack_t *)pvParameter;
 
-    if (ft8ConfigInfo == NULL) {
-        ESP_LOGE (TAG8, "%s called with ft8ConfigInfo == NULL", __func__);
-        ft8TaskInProgress = false;
+    if (info == NULL) {
+        ESP_LOGE (TAG8, "%s called with pvParameter == NULL", __func__);
+        ft8_set_task_in_progress (false);
         vTaskDelete (NULL);
         return;
     }
 
-    ft8TaskInProgress = true;
+    ft8_set_task_in_progress (true);
 
     // this block encapsulates our exclusive access to the radio port
     {
         TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FT8_MS, "FT8 transmission");
         if (!lock.acquired()) {
             ESP_LOGE (TAG8, "Failed to acquire radio lock for FT8 transmission");
-            CancelRadioFT8ModeTime = 1;
-            ft8TaskInProgress      = false;
+            ft8_request_cancel();
             ft8_queue_clear();
             goto cleanup;
         }
@@ -286,14 +332,10 @@ static void xmit_ft8_task (void * pvParameter) {
 
         ESP_LOGI (TAG8, "ft8 transmission starting--");
 
-        // Get ready, do any pre-work before the 'waitForFT8Window()' call so we start at the right time
-        ft8_task_pack_t * info = (ft8_task_pack_t *)pvParameter;
-
         if (!ft8_tone_queue) {
             ft8_tone_queue = xQueueCreate (4, sizeof (Ft8ToneEvent));
             if (!ft8_tone_queue) {
                 ESP_LOGE (TAG8, "Failed to create FT8 tone queue");
-                ft8TaskInProgress = false;
                 goto cleanup;
             }
         }
@@ -308,24 +350,21 @@ static void xmit_ft8_task (void * pvParameter) {
             };
             if (esp_timer_create (&timer_args, &ft8_tone_timer) != ESP_OK) {
                 ESP_LOGE (TAG8, "Failed to create FT8 tone timer");
-                ft8TaskInProgress = false;
                 goto cleanup;
             }
         }
 
         while (true) {
             waitForFT8Window();
-            if (CancelRadioFT8ModeTime <= 1) {
+            if (ft8_is_cancel_requested()) {
                 ESP_LOGI (TAG8, "FT8 transmit cancelled before window start");
                 ft8_queue_clear();
-                ft8TaskInProgress = false;
                 goto cleanup;
             }
 
             // Update the timer for when to cancel the radio FT8 mode
             int64_t watchdogTime = esp_timer_get_time() + (15LL * 1000LL * 1000LL);  // 15 seconds from now, converted to microseconds
-            if (watchdogTime > CancelRadioFT8ModeTime)
-                CancelRadioFT8ModeTime = watchdogTime;
+            ft8_extend_cancel_deadline_us (watchdogTime);
 
             int64_t startTime = esp_timer_get_time();  // Capture the current time to calculate the total time
 
@@ -347,18 +386,18 @@ static void xmit_ft8_task (void * pvParameter) {
             timer_started = (esp_timer_start_periodic (ft8_tone_timer, 160000) == ESP_OK);
             if (!timer_started) {
                 ESP_LOGE (TAG8, "Failed to start FT8 tone timer");
-                CancelRadioFT8ModeTime = 1;
+                ft8_request_cancel();
             }
 
             // Now tell the radio to play the remaining tones (1..78)
             for (int j = 1; j < FT8_NN; ++j) {
-                if (CancelRadioFT8ModeTime <= 1)
+                if (ft8_is_cancel_requested())
                     break;
 
                 Ft8ToneEvent event;
                 if (xQueueReceive (ft8_tone_queue, &event, pdMS_TO_TICKS (200)) != pdTRUE) {
                     ESP_LOGW (TAG8, "FT8 tone queue timeout");
-                    CancelRadioFT8ModeTime = 1;
+                    ft8_request_cancel();
                     break;
                 }
 
@@ -383,7 +422,7 @@ static void xmit_ft8_task (void * pvParameter) {
             long    totalTime = (endTime - startTime) / 1000;  // Convert microseconds to milliseconds
             ESP_LOGI (TAG8, "ft8 transmission time: %ld ms", totalTime);
 
-            if (CancelRadioFT8ModeTime <= 1) {
+            if (ft8_is_cancel_requested()) {
                 ft8_queue_clear();
                 break;
             }
@@ -401,7 +440,7 @@ static void xmit_ft8_task (void * pvParameter) {
     // TimedLock auto-unlocks here
 
     // Note that the cleanup will happen in the watchdog 'cleanup_ft8_task' function
-    ft8TaskInProgress = false;
+    ft8_set_task_in_progress (false);
     ESP_LOGI (TAG8, "--ft8 transmission completed.");
     if (wdt_registered)
         esp_task_wdt_delete (NULL);  // Unregister before deletion
@@ -409,6 +448,7 @@ static void xmit_ft8_task (void * pvParameter) {
     return;
 
 cleanup:
+    ft8_set_task_in_progress (false);
     if (timer_started)
         esp_timer_stop (ft8_tone_timer);
     ft8_tone_active = false;
@@ -431,17 +471,18 @@ static void cleanup_ft8_task (void * pvParameter) {
     // Register with watchdog timer
     ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
 
-    while (esp_timer_get_time() < CancelRadioFT8ModeTime || ft8TaskInProgress) {
+    while (esp_timer_get_time() < ft8_get_cancel_deadline_us() || ft8_is_task_in_progress()) {
         ESP_ERROR_CHECK (esp_task_wdt_reset());  // Reset watchdog during wait
         vTaskDelay (pdMS_TO_TICKS (250));
     }
 
-    CancelRadioFT8ModeTime = 0;  // Race condition here, but minimize the probability by clearing immediately
+    ft8_set_cancel_deadline_us (0);
+    ft8_task_pack_t * configInfo = ft8_get_config_info();
 
-    if (ft8ConfigInfo == NULL) {
+    if (configInfo == NULL) {
         // This should never happen, but just in case...
         ESP_LOGE (TAG8, "cleanup_ft8_task called with ft8ConfigInfo == NULL");
-        CommandInProgress = false;
+        CommandInProgress.store (false, std::memory_order_release);
         Ft8RadioExclusive = false;
         esp_task_wdt_delete (NULL);  // Unregister before deletion
         vTaskDelete (NULL);
@@ -464,19 +505,19 @@ static void cleanup_ft8_task (void * pvParameter) {
         }
 
         ESP_LOGI (TAG8, "Restoring radio state including TUN PWR to original settings");
-        kxRadio.restore_radio_state (ft8ConfigInfo->kx_state, 4);
+        kxRadio.restore_radio_state (configInfo->kx_state, 4);
         restored = true;
         // TimedLock auto-unlocks here
     }
 
     // Release ft8ConfigInfo
     // Safe to free here: cleanup waits for ft8TaskInProgress to clear, so xmit no longer uses ft8ConfigInfo.
-    delete ft8ConfigInfo->kx_state;
-    delete[] ft8ConfigInfo->tones;
-    delete ft8ConfigInfo;
-    ft8ConfigInfo = NULL;
+    ft8_set_config_info (NULL);
+    delete configInfo->kx_state;
+    delete[] configInfo->tones;
+    delete configInfo;
 
-    CommandInProgress = false;
+    CommandInProgress.store (false, std::memory_order_release);
     Ft8RadioExclusive = false;
     ESP_LOGI (TAG8, "cleanup_ft8_task() completed.");
     esp_task_wdt_delete (NULL);  // Unregister before deletion
@@ -504,21 +545,33 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    if (CommandInProgress || ft8ConfigInfo != NULL) {
-        CancelRadioFT8ModeTime = 1;
+    bool expected_command = false;
+    if (!CommandInProgress.compare_exchange_strong (expected_command, true, std::memory_order_acq_rel, std::memory_order_acquire)) {
+        ft8_request_cancel();
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "prepare called while another command already in progress");
     }
 
-    /**
-     * In this short window of time between the check of CommandInProgress above,
-     * and the setting of the same to "true" below, we could have a race condition.
-     * But we'll assume it's rare, while we quickly decode the request.
-     * Otherwise, setting CommandInProgress to "true" beforehand would mean we would
-     * need to unwind the decoding macro to insert code setting it to "false" on error.
-     */
-    STANDARD_DECODE_QUERY (req, unsafe_buf);
+    struct CommandInProgressResetGuard {
+        explicit CommandInProgressResetGuard (std::atomic<bool> * flag) : flag_ (flag) {}
+        ~CommandInProgressResetGuard () {
+            if (flag_) {
+                flag_->store (false, std::memory_order_release);
+            }
+        }
+        void dismiss () { flag_ = nullptr; }
 
-    CommandInProgress = true;
+      private:
+        std::atomic<bool> * flag_;
+    } commandGuard (&CommandInProgress);
+    // Keep CommandInProgress from getting stuck true on any early return from
+    // this handler, including REPLY_WITH_FAILURE paths inside STANDARD_DECODE_QUERY.
+
+    if (ft8_get_config_info() != NULL) {
+        ft8_request_cancel();
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "prepare called while another command already in progress");
+    }
+
+    STANDARD_DECODE_QUERY (req, unsafe_buf);
     gpio_set_level (LED_BLUE, LED_ON);  // LED on
 
     char    ft8_msg[64];
@@ -540,7 +593,6 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
           (rfFreq = atol (rfFreq_str)) > 0 &&
           httpd_query_key_value (unsafe_buf, "audioFrequency", audioFreq_str, sizeof (audioFreq_str)) == ESP_OK &&
           (audioFreq = atoi (audioFreq_str)) > 0)) {
-        CommandInProgress = false;
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
     }
 
@@ -563,14 +615,12 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     uint8_t packed[FTX_LDPC_K_BYTES];
     int     rc = pack77 (ft8_msg, packed);
     if (rc < 0) {
-        CommandInProgress = false;
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "can't parse FT8 message");
     }
 
     // Second, encode the binary message as a sequence of FSK tones
     uint8_t * tones = new uint8_t[FT8_NN];  // Array of 79 tones (symbols)
     if (tones == NULL) {
-        CommandInProgress = false;
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "can't allocate memory for FT8 tones");
     }
 
@@ -580,7 +630,6 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     {
         TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "FT8 setup");
         if (!lock.acquired()) {
-            CommandInProgress = false;
             gpio_set_level (LED_BLUE, LED_OFF);
             delete[] tones;
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy, please retry");
@@ -591,7 +640,6 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
         if (!kxRadio.get_radio_state (kx_state)) {
             delete kx_state;
             delete[] tones;
-            CommandInProgress = false;
             gpio_set_level (LED_BLUE, LED_OFF);
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to read radio state");
         }
@@ -603,17 +651,17 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
             kxRadio.restore_radio_state (kx_state, 2);
             delete kx_state;
             delete[] tones;
-            CommandInProgress = false;
             gpio_set_level (LED_BLUE, LED_OFF);
             Ft8RadioExclusive = false;
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to prepare radio for ft8");
         }
         // Offload playing the FT8 audio
-        ft8ConfigInfo           = new ft8_task_pack_t;
-        ft8ConfigInfo->baseFreq = baseFreq;
-        ft8ConfigInfo->tones    = tones;
-        ft8ConfigInfo->kx_state = kx_state;  // will be deleted later in cleanup
-        Ft8RadioExclusive       = true;
+        ft8_task_pack_t * configInfo = new ft8_task_pack_t;
+        configInfo->baseFreq         = baseFreq;
+        configInfo->tones            = tones;
+        configInfo->kx_state         = kx_state;  // will be deleted later in cleanup
+        ft8_set_config_info (configInfo);
+        Ft8RadioExclusive = true;
     }  // TimedLock auto-unlocks here
 
     // We have prepared the radio to send FT8, but we don't know if the user will
@@ -622,14 +670,15 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     int64_t now_us              = esp_timer_get_time();
     int64_t next_window_timeout = now_us + ((msUntilFT8Window() + 1000) * 1000LL);
     int64_t min_prepare_timeout = now_us + (20LL * 1000LL * 1000LL);
-    CancelRadioFT8ModeTime      = (next_window_timeout > min_prepare_timeout) ? next_window_timeout : min_prepare_timeout;
+    ft8_set_cancel_deadline_us ((next_window_timeout > min_prepare_timeout) ? next_window_timeout : min_prepare_timeout);
 
     // Start the watchdog timer to cleanup whenever we are done with ft8.
     // This will set CommandInProgress=false; and restore the radio to its prior state.
     xTaskCreate (&cleanup_ft8_task, "cleanup_ft8_task", 5120, NULL, SC_TASK_PRIORITY_NORMAL, NULL);
 
     // Send a response back
-    CommandInProgress = false;
+    CommandInProgress.store (false, std::memory_order_release);
+    commandGuard.dismiss();
     REPLY_WITH_SUCCESS();
 }
 
@@ -648,23 +697,23 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
 
     STANDARD_DECODE_QUERY (req, unsafe_buf);
 
-    CommandInProgress = true;
-
-    if (!ft8TaskInProgress && CancelRadioFT8ModeTime <= 0 && ft8ConfigInfo == NULL) {
+    if (!ft8_is_task_in_progress() && ft8_get_cancel_deadline_us() <= 0 && ft8_get_config_info() == NULL) {
         // Nobody has called the 'handler_prepareft8_post' command yet, so we need to compute the FT8 tones
         // and prepare the radio, by calling the 'handler_prepareft8_post' command.
-        CommandInProgress = false;
+        if (CommandInProgress.load (std::memory_order_acquire)) {
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "prepare in progress");
+        }
         esp_err_t rslt    = handler_prepareft8_post (req);
         if (rslt != ESP_OK) {
             return rslt;
         }
-        // handler_prepareft8_post clears CommandInProgress; reassert for transmit workflow
-        CommandInProgress = true;
     }
 
+    CommandInProgress.store (true, std::memory_order_release);
+
     // If cleanup is in progress, do not try to transmit with stale state.
-    if (CancelRadioFT8ModeTime <= 0 && ft8ConfigInfo != NULL) {
-        CommandInProgress = false;
+    if (ft8_get_cancel_deadline_us() <= 0 && ft8_get_config_info() != NULL) {
+        CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "ft8 cleanup in progress");
     }
 
@@ -678,60 +727,82 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
           (rfFreq = atol (rfFreq_str)) > 0 &&
           httpd_query_key_value (unsafe_buf, "audioFrequency", audioFreq_str, sizeof (audioFreq_str)) == ESP_OK &&
           (audioFreq = atoi (audioFreq_str)) > 0)) {
-        CommandInProgress = false;
+        CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
     }
 
     long baseFreq = rfFreq + audioFreq;
 
-    if (ft8ConfigInfo == NULL) {
+    if (ft8_get_config_info() == NULL) {
         ft8_queue_clear();
-        ft8TaskInProgress = false;
-        CommandInProgress = false;
+        ft8_set_task_in_progress (false);
+        CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "ft8 not prepared");
     }
 
-    if (ft8TaskInProgress) {
+    if (ft8_is_task_in_progress()) {
         int64_t wait_deadline = esp_timer_get_time() + (20LL * 1000LL * 1000LL);
         if (!ft8_queue_push_with_timeout (baseFreq, wait_deadline)) {
-            CommandInProgress = false;
+            CommandInProgress.store (false, std::memory_order_release);
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "FT8 queue full");
         }
-        CommandInProgress = false;
+        CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_SUCCESS();
     }
 
     long initial_base_freq = baseFreq;
-    if (ft8_queue_size() > 0) {
+    bool has_orphan_work   = (ft8_queue_size() > 0);
+
+    // Atomically claim task startup (false -> true). This prevents two concurrent /ft8
+    // requests from both launching a new transmit task.
+    bool started_transmit_task = ft8_try_claim_task_in_progress();
+    if (!started_transmit_task) {
+        // Another request already has an FT8 task running, so queue this request for
+        // the next transmit slot instead of starting a second task.
+        int64_t wait_deadline = esp_timer_get_time() + (20LL * 1000LL * 1000LL);
+        if (!ft8_queue_push_with_timeout (baseFreq, wait_deadline)) {
+            CommandInProgress.store (false, std::memory_order_release);
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "FT8 queue full");
+        }
+        CommandInProgress.store (false, std::memory_order_release);
+        REPLY_WITH_SUCCESS();
+    }
+
+    if (has_orphan_work) {
         int64_t wait_deadline = esp_timer_get_time() + (20LL * 1000LL * 1000LL);
         long    queued_base   = 0;
         if (!ft8_queue_pop_with_timeout (queued_base, wait_deadline)) {
-            CommandInProgress = false;
+            ft8_set_task_in_progress (false);
+            CommandInProgress.store (false, std::memory_order_release);
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "FT8 queue busy");
         }
         initial_base_freq = queued_base;
         if (!ft8_queue_push_with_timeout (baseFreq, wait_deadline)) {
-            CommandInProgress = false;
+            ft8_set_task_in_progress (false);
+            CommandInProgress.store (false, std::memory_order_release);
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "FT8 queue full");
         }
         ESP_LOGW (TAG8, "FT8 queue orphan detected; restarting transmit task");
     }
 
-    ft8TaskInProgress = true;
-
     // Offload playing the FT8 audio
-    ft8ConfigInfo->baseFreq = initial_base_freq;
+    ft8_task_pack_t * configInfo = ft8_get_config_info();
+    if (configInfo == NULL) {
+        ft8_set_task_in_progress (false);
+        CommandInProgress.store (false, std::memory_order_release);
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "ft8 not prepared");
+    }
+    configInfo->baseFreq = initial_base_freq;
 
     // Update the watchdog timer to be 1 second after the next FT8 window starts.
     // The xmit_ft8_task will reset the watchdog timer if it is called again.
     int64_t watchdogTime = esp_timer_get_time() + ((msUntilFT8Window() + 1000) * 1000LL);  // 1 second after the next FT8 window starts, converted to microseconds
-    if (watchdogTime > CancelRadioFT8ModeTime)
-        CancelRadioFT8ModeTime = watchdogTime;
+    ft8_extend_cancel_deadline_us (watchdogTime);
 
     // The watchdog timer will clean up after the FT8 transmission is done.
-    if (xTaskCreate (&xmit_ft8_task, "xmit_ft8_task", 8192, ft8ConfigInfo, SC_TASK_PRIORITY_HIGHEST, NULL) != pdPASS) {
-        ft8TaskInProgress = false;
-        CommandInProgress = false;
+    if (xTaskCreate (&xmit_ft8_task, "xmit_ft8_task", 8192, configInfo, SC_TASK_PRIORITY_HIGHEST, NULL) != pdPASS) {
+        ft8_set_task_in_progress (false);
+        CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to start FT8 transmission task");
     }
 
@@ -748,7 +819,7 @@ esp_err_t handler_cancelft8_post (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     // Tell the watchdog timer to cancel the FT8 mode and restore the radio to its prior state
-    CancelRadioFT8ModeTime = 1;
+    ft8_request_cancel();
     ft8_queue_clear();
 
     REPLY_WITH_SUCCESS();

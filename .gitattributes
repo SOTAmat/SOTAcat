@@ -1,1 +1,5 @@
+# Line endings: use LF in repo and working tree (cross-platform with Windows, macOS, Linux).
+# When eol=lf is set, Git normalizes to LF on commit and checkout; set core.autocrlf=false.
+* text=auto eol=lf
+
 merged_firmware.bin filter=lfs diff=lfs merge=lfs -text

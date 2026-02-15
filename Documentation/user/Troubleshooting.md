@@ -13,7 +13,7 @@
 Android's Chrome browser doesn't support mDNS (`.local` addresses). Use numeric IPs instead:
 
 - **Mode 1 (Phone → SOTAcat AP):** Use `http://192.168.4.1`
-- **Mode 3 (Android Hotspot):** Enable "Pin IP to .222" in Settings to prevent losing connectivity when cell network flaps. SOTAcat will be at `.222` on your hotspot's subnet (e.g., `http://192.168.43.222`)
+- **Mode 3 (Android Hotspot):** Enable "Pin IP to x.x.x.222" in Settings to prevent losing connectivity when cell network flaps. SOTAcat will be at `x.x.x.222` on your hotspot's subnet (e.g., `http://192.168.43.222`)
 
 Use [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover the exact address, then bookmark it.
 
@@ -32,7 +32,7 @@ See [Networking](Networking.md) for setup instructions.
 1. Check KX radio is powered on
 2. Verify SOTAcat is plugged into CAT port
 3. Try a different CAT cable
-4. Check baud rate matches (38400 default for KX2/KX3)
+4. Check baud rate matches (38400 default for KX2/KX3, 9600 baud for KH1)
 
 ## Buttons Disabled or Missing Config
 

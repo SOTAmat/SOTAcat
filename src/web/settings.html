@@ -2,7 +2,7 @@
     <!-- Call Sign & License Card -->
     <div class="settings-card">
         <h2>Call Sign & License</h2>
-        <p class="settings-info">Your amateur radio call sign and FCC license class</p>
+        <p class="settings-info">Used by the 'RUN' tab's 'Tune' VFO display to provide band-plan feedback.</p>
         <div class="input-group-vertical">
             <div class="callsign-license-row">
                 <input
@@ -94,12 +94,12 @@
                         app from the Google Play store and use that app to navigate to the "sotacat.local" address.
                     </p>
                     <p>
-                        <strong>Pin IP to .222:</strong> Recommended for Android hotspot networks. When the mobile
+                        <strong>Pin IP to x.x.x.222:</strong> Recommended for Android hotspot networks. When the mobile
                         cell network flaps (switching towers, brief signal loss), Android hotspots can reassign
                         SOTACAT's IP address, causing your browser to lose its connection. Enabling this option pins
-                        SOTACAT to a fixed .222 address on the subnet (e.g., 192.168.43.222), so your browser
-                        reconnects automatically after brief interruptions. Leave this disabled for home networks
-                        where .222 might conflict with another device.
+                        SOTACAT to a fixed x.x.x.222 address on the subnet (e.g., 192.168.43.222), so your browser
+                        reconnects automatically after brief interruptions. Leave this disabled for home networks where
+                        x.x.x.222 might conflict with another device.
                     </p>
                     <br />
                 </div>
@@ -126,24 +126,46 @@
                             pattern=".{0}|.{8,63}"
                             title="Empty or 8-63 characters"
                         />
-                        <button type="button" class="password-visibility-toggle" data-target="sta1-pass"
-                                aria-label="Show password" title="Show password">
-                            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
+                        <button
+                            type="button"
+                            class="password-visibility-toggle"
+                            data-target="sta1-pass"
+                            aria-label="Show password"
+                            title="Show password"
+                        >
+                            <svg
+                                class="eye-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
                             </svg>
-                            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            <svg
+                                class="eye-off-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                style="display: none"
+                            >
+                                <path
+                                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                                />
+                                <line x1="1" y1="1" x2="23" y2="23" />
                             </svg>
                         </button>
                     </div>
                 </div>
                 <label class="checkbox-label">
                     <input type="checkbox" id="sta1-ip-pin" />
-                    <span>Pin IP to .222</span>
+                    <span>Pin IP to x.x.x.222</span>
                 </label>
             </div>
 
@@ -166,24 +188,46 @@
                             pattern=".{0}|.{8,63}"
                             title="Empty or 8-63 characters"
                         />
-                        <button type="button" class="password-visibility-toggle" data-target="sta2-pass"
-                                aria-label="Show password" title="Show password">
-                            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
+                        <button
+                            type="button"
+                            class="password-visibility-toggle"
+                            data-target="sta2-pass"
+                            aria-label="Show password"
+                            title="Show password"
+                        >
+                            <svg
+                                class="eye-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
                             </svg>
-                            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            <svg
+                                class="eye-off-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                style="display: none"
+                            >
+                                <path
+                                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                                />
+                                <line x1="1" y1="1" x2="23" y2="23" />
                             </svg>
                         </button>
                     </div>
                 </div>
                 <label class="checkbox-label">
                     <input type="checkbox" id="sta2-ip-pin" />
-                    <span>Pin IP to .222</span>
+                    <span>Pin IP to x.x.x.222</span>
                 </label>
             </div>
 
@@ -206,24 +250,46 @@
                             pattern=".{0}|.{8,63}"
                             title="Empty or 8-63 characters"
                         />
-                        <button type="button" class="password-visibility-toggle" data-target="sta3-pass"
-                                aria-label="Show password" title="Show password">
-                            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
+                        <button
+                            type="button"
+                            class="password-visibility-toggle"
+                            data-target="sta3-pass"
+                            aria-label="Show password"
+                            title="Show password"
+                        >
+                            <svg
+                                class="eye-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
                             </svg>
-                            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            <svg
+                                class="eye-off-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                style="display: none"
+                            >
+                                <path
+                                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                                />
+                                <line x1="1" y1="1" x2="23" y2="23" />
                             </svg>
                         </button>
                     </div>
                 </div>
                 <label class="checkbox-label">
                     <input type="checkbox" id="sta3-ip-pin" />
-                    <span>Pin IP to .222</span>
+                    <span>Pin IP to x.x.x.222</span>
                 </label>
             </div>
 
@@ -246,24 +312,48 @@
                             pattern=".{0}|.{8,63}"
                             title="Empty or 8-63 characters"
                         />
-                        <button type="button" class="password-visibility-toggle" data-target="ap-pass"
-                                aria-label="Show password" title="Show password">
-                            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
+                        <button
+                            type="button"
+                            class="password-visibility-toggle"
+                            data-target="ap-pass"
+                            aria-label="Show password"
+                            title="Show password"
+                        >
+                            <svg
+                                class="eye-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
                             </svg>
-                            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            <svg
+                                class="eye-off-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                style="display: none"
+                            >
+                                <path
+                                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                                />
+                                <line x1="1" y1="1" x2="23" y2="23" />
                             </svg>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <button type="submit" id="save-wifi-button" class="btn btn-secondary btn-large" disabled>Save and Reboot</button>
+            <button type="submit" id="save-wifi-button" class="btn btn-secondary btn-large" disabled>
+                Save and Reboot
+            </button>
         </form>
     </div>
 
@@ -276,8 +366,8 @@
             </button>
         </h2>
         <p class="settings-info">
-            When you tune to a frequency, also open these URLs in background browser tabs.
-            Useful for WebSDR, KiwiSDR, or other remote receivers.
+            When you tune to a frequency, also open these URLs in background browser tabs. Useful for WebSDR, KiwiSDR,
+            or other remote receivers.
         </p>
 
         <!-- Tune Targets Help Popup -->
@@ -289,16 +379,25 @@
                 </div>
                 <div class="help-popup-body">
                     <p>
-                        <strong>What are Tune Targets?</strong> When you click on a spot in the Chase table to tune
+                        <strong>What are Tune Targets?</strong> When you click on a spot in the 'CHASE' table to tune
                         your radio, SOTACAT can simultaneously open one or more web-based SDR receivers in background
                         browser tabs, tuned to the same frequency. This lets you monitor your signal on a remote
-                        receiver, check propagation, or listen via WebSDR when local conditions are poor.
+                        receiver, check propagation, or listen via WebSDR when local conditions are poor. This can be
+                        useful for chasers operating from RF noisy (home) locations who want to listen to the signal
+                        from a nearby RF quiet web based SDR receiver, but transmit from their actual (home) location.
                     </p>
                     <p>
-                        <strong>How it works:</strong> Each tune target is a URL template containing placeholders
-                        that get replaced with the actual frequency and mode when you tune. For example,
-                        <code>{FREQ-KHZ}</code> becomes <code>14074</code> and <code>{MODE}</code>
-                        becomes <code>usb</code>.
+                        <strong>Note:</strong> Most browsers will either block all popups or limit popups to a single
+                        popup tab by default. You may need to enable popups in your browser settings for this feature to
+                        work, especially if you want to open multiple SDR tabs. You may need to enable popups for each
+                        URL that your browser uses to connect to the SOTACAT, such as http://sotacat.local and
+                        http://192.168.4.1.
+                    </p>
+                    <p>
+                        <strong>How it works:</strong> Each tune target is a URL template containing placeholders that
+                        get replaced with the actual frequency and mode when you tune. For example,
+                        <code>{FREQ-KHZ}</code> becomes <code>14074</code> and <code>{MODE}</code> becomes
+                        <code>usb</code>.
                     </p>
                     <p>
                         <strong>Available placeholders:</strong>
@@ -318,13 +417,13 @@
                     </ul>
                     <p>
                         <strong>Mobile browsers:</strong> Opening background tabs can be problematic on phones due to
-                        popup blockers. Check "Enable on mobile browsers" if you want to use tune targets on your
-                        phone, but be aware some browsers may block the popups.
+                        popup blockers. Check "Enable on mobile browsers" if you want to use tune targets on your phone,
+                        but be aware some browsers may block the popups.
                     </p>
                     <p>
-                        <strong>Tips:</strong> You can add up to 5 tune targets. Each opens in its own reusable tab,
-                        so clicking different spots updates the existing tabs rather than opening new ones. Use the
-                        example buttons below to quickly add popular SDR receivers.
+                        <strong>Tips:</strong> You can add up to 5 tune targets. Each opens in its own reusable tab, so
+                        clicking different spots updates the existing tabs rather than opening new ones. Use the example
+                        buttons below to quickly add popular SDR receivers.
                     </p>
                 </div>
             </div>
@@ -334,11 +433,19 @@
             <p class="settings-info">Examples:</p>
             <div class="tune-target-example">
                 <code>http://websdr1.kfsdr.com:8901/?tune={FREQ-KHZ}{MODE}</code>
-                <button type="button" class="btn-add-example" data-url="http://websdr1.kfsdr.com:8901/?tune={FREQ-KHZ}{MODE}">+ add</button>
+                <button
+                    type="button"
+                    class="btn-add-example"
+                    data-url="http://websdr1.kfsdr.com:8901/?tune={FREQ-KHZ}{MODE}"
+                >
+                    + add
+                </button>
             </div>
             <div class="tune-target-example">
                 <code>http://kphsdr.com:8074/?f={FREQ-KHZ}{MODE}</code>
-                <button type="button" class="btn-add-example" data-url="http://kphsdr.com:8074/?f={FREQ-KHZ}{MODE}">+ add</button>
+                <button type="button" class="btn-add-example" data-url="http://kphsdr.com:8074/?f={FREQ-KHZ}{MODE}">
+                    + add
+                </button>
             </div>
         </div>
 
@@ -360,28 +467,113 @@
         </div>
     </div>
 
+    <!-- CW Macros Card -->
+    <div class="settings-card">
+        <h2>
+            CW Macros
+            <button type="button" id="cw-macros-help-button" class="btn btn-info">
+                <span class="info-icon">ⓘ</span>
+            </button>
+        </h2>
+        <p class="settings-info">
+            Configure one-tap CW keyer buttons for the RUN page. Each macro has a short label and a message template
+            with placeholder support.
+        </p>
+
+        <!-- CW Macros Help Popup -->
+        <div id="cw-macros-help-popup" class="help-popup hidden">
+            <div class="help-popup-content">
+                <div class="help-popup-header">
+                    <h3>CW Macros Help</h3>
+                    <button type="button" id="cw-macros-help-close-button" class="btn btn-close">×</button>
+                </div>
+                <div class="help-popup-body">
+                    <p>
+                        <strong>What are CW Macros?</strong> CW macros are configurable one-tap buttons on the RUN
+                        page's Transmit section. Each macro has a short label (shown on the button) and a message
+                        template that gets expanded and sent to the radio's CW keyer when tapped.
+                    </p>
+                    <p>
+                        <strong>Available placeholders (note the curly braces):</strong>
+                    </p>
+                    <ul>
+                        <li><code>{MYCALL}</code> — Your callsign (e.g., KC6X)</li>
+                        <li><code>{MYREF}</code> — Your SOTA/POTA reference (e.g., W6/NC-298)</li>
+                        <li><code>{FREQ-KHZ}</code> — Frequency in kilohertz (e.g., 14062)</li>
+                        <li><code>{FREQ-MHZ}</code> — Frequency in megahertz (e.g., 14.062)</li>
+                        <li><code>{MODE}</code> — Mode in lowercase (e.g., cw)</li>
+                    </ul>
+                    <p>
+                        <strong>Tips:</strong> You can have up to 8 macros. Labels should be short (12 chars max) so
+                        buttons fit on screen. Templates can be up to 64 characters — the radio handles splitting long
+                        messages automatically. Use the example buttons below to quickly add common SOTA macros.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cw-macro-examples">
+            <p class="settings-info">Examples:</p>
+            <div class="cw-macro-example">
+                <code>CQ SOTA</code>:<code>CQ SOTA DE {MYCALL} K</code>
+                <button type="button" class="btn-add-cw-example" data-label="CQ SOTA" data-template="CQ SOTA DE {MYCALL} K">
+                    + add
+                </button>
+            </div>
+            <div class="cw-macro-example">
+                <code>MyRef</code>:<code>{MYREF}</code>
+                <button type="button" class="btn-add-cw-example" data-label="MyRef" data-template="{MYREF}">
+                    + add
+                </button>
+            </div>
+            <div class="cw-macro-example">
+                <code>QRZ</code>:<code>QRZ DE {MYCALL}</code>
+                <button type="button" class="btn-add-cw-example" data-label="QRZ" data-template="QRZ DE {MYCALL}">
+                    + add
+                </button>
+            </div>
+            <div class="cw-macro-example">
+                <code>MyCall</code>:<code>{MYCALL}</code>
+                <button type="button" class="btn-add-cw-example" data-label="MyCall" data-template="{MYCALL}">
+                    + add
+                </button>
+            </div>
+        </div>
+
+        <div id="cw-macros-list" class="cw-macros-list">
+            <!-- Dynamic list of macro rows will be populated by JavaScript -->
+        </div>
+
+        <div class="button-group cw-macros-buttons">
+            <button type="button" id="add-cw-macro-button" class="btn btn-icon" title="Add empty macro">+</button>
+        </div>
+
+        <div class="button-group">
+            <button id="save-cw-macros-button" class="btn btn-secondary" disabled>Save CW Macros</button>
+        </div>
+    </div>
+
     <!-- Display Settings Card -->
     <div class="settings-card">
         <h2>Display</h2>
         <p class="settings-info">Adjust how information is displayed</p>
         <label class="checkbox-label">
             <input type="checkbox" id="ui-compact-mode" />
-            <span>Compact mode (denser tables, no word wrap)</span>
+            <span>Compact 'CHASE' table display</span>
         </label>
     </div>
 
     <!-- Chase Filters Card -->
     <div class="settings-card">
         <h2>Chase Filters</h2>
-        <p class="settings-info">Filter chase spots based on your radio's capabilities</p>
+        <p class="settings-info">
+            Enable to show only 'spots' your radio can access on the 'CHASE' tab. Disable to show all spots (useful if
+            you have another radio like an HT).
+        </p>
         <label class="checkbox-label">
             <input type="checkbox" id="filter-bands-enabled" />
             <span>Show only bands my radio can access</span>
         </label>
-        <p class="settings-info small">
-            When enabled, spots on bands your KX2/KX3 cannot receive will be hidden.
-            Disable to see all bands (useful if you have another radio like an HT).
-        </p>
     </div>
 
     <!-- Firmware Update Card -->

@@ -75,14 +75,14 @@ function changeVolume(delta) {
 // Keyer Functions
 // ============================================================================
 
-// Send CW message to radio keyer (message: string, 1-24 characters)
+// Send CW message to radio keyer (message: string, up to ~128 characters)
+// Backend handles splitting into <=24-char KYW commands at whitespace boundaries.
 function sendKeys(message) {
-    if (message.length < 1 || message.length > 24) {
-        alert("Text length must be 1-24 characters.");
+    if (!message || message.length < 1) {
         return;
     }
 
-    const url = `/api/v1/keyer?message=${message}`;
+    const url = `/api/v1/keyer?message=${encodeURIComponent(message)}`;
     fetchQuiet(url, { method: "PUT" }, "Spot");
 }
 
@@ -134,6 +134,23 @@ function updateModeDisplay() {
     } else if (currentMode === "FM") {
         document.getElementById("btn-fm")?.classList.add("active");
     }
+
+    // Update Msg button colors to match current mode family
+    const modeClasses = ["msg-mode-cw", "msg-mode-voice", "msg-mode-data"];
+    const msgButtons = document.querySelectorAll(".btn-msg");
+    let msgClass = "msg-mode-voice"; // default for SSB
+
+    if (currentMode === "CW") {
+        msgClass = "msg-mode-cw";
+    } else if (currentMode === "DATA") {
+        msgClass = "msg-mode-data";
+    }
+    // SSB/USB/LSB/AM/FM all → msg-mode-voice
+
+    msgButtons.forEach((btn) => {
+        modeClasses.forEach((cls) => btn.classList.remove(cls));
+        btn.classList.add(msgClass);
+    });
 }
 
 // Update band button highlighting based on current frequency
@@ -149,10 +166,10 @@ function updateBandDisplay() {
         const bandButton = document.getElementById(`btn-${currentBand}`);
         if (bandButton) {
             bandButton.classList.add("active");
-            Log.debug("Spot", `Band display updated: ${currentBand} active`);
+            Log.debug("Spot")(`Band display updated: ${currentBand} active`);
         }
     } else {
-        Log.debug("Spot", "Current frequency not in any supported band range");
+        Log.debug("Spot")("Current frequency not in any supported band range");
     }
 }
 
@@ -218,6 +235,9 @@ function updatePrivilegeDisplay() {
         vfoDisplay.classList.add("warning-privilege");
     }
 
+    // Update button disabled states based on privilege
+    updateButtonPrivileges();
+
     // Update warning message
     if (warningEl) {
         if (!userLicense && status.inBand && status.modeAllowed) {
@@ -231,6 +251,43 @@ function updatePrivilegeDisplay() {
             warningEl.textContent = "";
         }
     }
+}
+
+// Update mode and msg button disabled states based on band privileges
+function updateButtonPrivileges() {
+    const frequencyHz = AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ;
+    const currentMode = AppState.vfoMode || "USB";
+    const userLicense = getUserLicenseClass();
+
+    // Check each mode category (3 calls — SSB/AM/FM share PHONE)
+    const cwStatus = checkPrivileges(frequencyHz, "CW", userLicense);
+    const phoneStatus = checkPrivileges(frequencyHz, "USB", userLicense);
+    const dataStatus = checkPrivileges(frequencyHz, "DATA", userLicense);
+
+    // No license configured → enforce band plan only (modeAllowed)
+    // License configured → enforce full privilege check (userCanTransmit)
+    function isPermitted(status) {
+        if (!status.inBand) return false;
+        return userLicense ? status.userCanTransmit : status.modeAllowed;
+    }
+
+    const cwOk = isPermitted(cwStatus);
+    const phoneOk = isPermitted(phoneStatus);
+    const dataOk = isPermitted(dataStatus);
+
+    // Mode buttons
+    const ids = { "btn-cw": cwOk, "btn-ssb": phoneOk, "btn-am": phoneOk, "btn-fm": phoneOk, "btn-data": dataOk };
+    for (const [id, ok] of Object.entries(ids)) {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = !ok;
+    }
+
+    // Msg buttons: disabled if current mode is not transmittable
+    const cat = getModeCategory(currentMode);
+    const txOk = cat === "CW" ? cwOk : cat === "DATA" ? dataOk : phoneOk;
+    document.querySelectorAll(".btn-msg").forEach((btn) => {
+        btn.disabled = !txOk;
+    });
 }
 
 // ============================================================================
@@ -276,10 +333,10 @@ function enableFrequencyEditing() {
             // Valid frequency - apply it
             setFrequency(result.frequencyHz);
             exitEditMode();
-            Log.debug("Spot", `Frequency set to ${result.frequencyHz} Hz (${result.band})`);
+            Log.debug("Spot")(`Frequency set to ${result.frequencyHz} Hz (${result.band})`);
         } else {
             // Invalid frequency - show error
-            Log.error("Spot", "Invalid frequency input:", result.error);
+            Log.error("Spot")("Invalid frequency input:", result.error);
             alert(result.error);
             exitEditMode();
         }
@@ -337,7 +394,7 @@ function notifyVfoSubscribers() {
         try {
             callback(AppState.vfoFrequencyHz, AppState.vfoMode);
         } catch (error) {
-            Log.error("Spot", "VFO callback error:", error);
+            Log.error("Spot")("VFO callback error:", error);
         }
     });
 }
@@ -367,14 +424,14 @@ function setFrequency(frequencyHz) {
             const response = await fetch(url, { method: "PUT" });
 
             if (response.ok) {
-                Log.debug("Spot", "Frequency updated:", frequencyHz);
+                Log.debug("Spot")("Frequency updated:", frequencyHz);
             } else {
-                Log.error("Spot", "Frequency update failed");
+                Log.error("Spot")("Frequency update failed");
                 // Revert display on error
                 getCurrentVfoState();
             }
         } catch (error) {
-            Log.error("Spot", "Frequency fetch error:", error);
+            Log.error("Spot")("Frequency fetch error:", error);
             // Revert display on error
             getCurrentVfoState();
         } finally {
@@ -391,7 +448,7 @@ function adjustFrequency(deltaHz) {
     if (newFrequency >= HF_MIN_FREQUENCY_HZ && newFrequency <= HF_MAX_FREQUENCY_HZ) {
         setFrequency(newFrequency);
     } else {
-        Log.warn("Spot", "Frequency out of bounds:", newFrequency);
+        Log.warn("Spot")("Frequency out of bounds:", newFrequency);
     }
 }
 
@@ -417,14 +474,14 @@ async function setMode(mode) {
             updateModeDisplay();
             updatePrivilegeDisplay();
             notifyVfoSubscribers();
-            Log.debug("Spot", "Mode updated:", actualMode);
+            Log.debug("Spot")("Mode updated:", actualMode);
         } else {
-            Log.error("Spot", "Mode update failed");
+            Log.error("Spot")("Mode update failed");
             // Revert display on error
             getCurrentVfoState();
         }
     } catch (error) {
-        Log.error("Spot", "Mode fetch error:", error);
+        Log.error("Spot")("Mode fetch error:", error);
         // Revert display on error
         getCurrentVfoState();
     }
@@ -467,7 +524,7 @@ function selectBand(band) {
                 }
                 // If not in SSB mode (AM, FM, DATA, CW, etc.), leave mode unchanged
             } catch (error) {
-                Log.error("Spot", "Error checking current mode:", error);
+                Log.error("Spot")("Error checking current mode:", error);
             }
         }, MODE_CHECK_DELAY_MS);
     }
@@ -486,7 +543,7 @@ async function getCurrentVfoState() {
 
     // Back off if we've had consecutive errors
     if (RunState.consecutiveErrors > 2) {
-        Log.debug("Spot", "Backing off due to errors, skipping poll");
+        Log.debug("Spot")("Backing off due to errors, skipping poll");
         return;
     }
 
@@ -522,7 +579,7 @@ async function getCurrentVfoState() {
                 RunState.lastFrequencyChange = Date.now(); // Track that frequency changed
                 updateFrequencyDisplay();
                 updateBandDisplay(); // Update band button active state
-                Log.debug("Spot", "Frequency updated from radio:", AppState.vfoFrequencyHz);
+                Log.debug("Spot")("Frequency updated from radio:", AppState.vfoFrequencyHz);
                 changed = true;
             }
         }
@@ -533,7 +590,7 @@ async function getCurrentVfoState() {
             if (newMode !== AppState.vfoMode) {
                 AppState.vfoMode = newMode;
                 updateModeDisplay();
-                Log.debug("Spot", "Mode updated from radio:", AppState.vfoMode);
+                Log.debug("Spot")("Mode updated from radio:", AppState.vfoMode);
                 changed = true;
             }
         }
@@ -546,7 +603,7 @@ async function getCurrentVfoState() {
         }
     } catch (error) {
         RunState.consecutiveErrors++;
-        Log.error("Spot", `VFO state error (${RunState.consecutiveErrors} consecutive):`, error);
+        Log.error("Spot")(`VFO state error (${RunState.consecutiveErrors} consecutive):`, error);
         // After 3 consecutive errors, we'll back off automatically
     } finally {
         RunState.isUpdatingVfo = false;
@@ -579,12 +636,12 @@ async function startVfoUpdates() {
             AppState.vfoFrequencyHz = parseInt(frequency, 10);
             updateFrequencyDisplay();
             updateBandDisplay();
-            Log.debug("Spot", "Initial frequency loaded:", AppState.vfoFrequencyHz);
+            Log.debug("Spot")("Initial frequency loaded:", AppState.vfoFrequencyHz);
         }
         if (mode) {
             AppState.vfoMode = mode.toUpperCase();
             updateModeDisplay();
-            Log.debug("Spot", "Initial mode loaded:", AppState.vfoMode);
+            Log.debug("Spot")("Initial mode loaded:", AppState.vfoMode);
         }
         // Update privilege display with initial state
         updatePrivilegeDisplay();
@@ -592,7 +649,7 @@ async function startVfoUpdates() {
         AppState.vfoLastUpdated = Date.now();
         notifyVfoSubscribers();
     } catch (error) {
-        Log.error("Spot", "Error loading initial VFO state:", error);
+        Log.error("Spot")("Error loading initial VFO state:", error);
     } finally {
         RunState.isUpdatingVfo = false;
 
@@ -605,7 +662,7 @@ async function startVfoUpdates() {
                 RunState.consecutiveErrors > 0 &&
                 Date.now() - RunState.lastFrequencyChange > ERROR_RESET_STABILITY_MS
             ) {
-                Log.debug("Spot", "System stable, resetting error counter");
+                Log.debug("Spot")("System stable, resetting error counter");
                 RunState.consecutiveErrors = 0;
             }
         }, VFO_POLLING_INTERVAL_MS);
@@ -638,7 +695,7 @@ async function tuneAtu() {
         const response = await fetch("/api/v1/atu", { method: "PUT" });
 
         if (!response.ok) {
-            Log.error("Spot", "ATU tune failed");
+            Log.error("Spot")("ATU tune failed");
             return;
         }
 
@@ -651,53 +708,49 @@ async function tuneAtu() {
             }, ATU_FEEDBACK_DURATION_MS);
         }
     } catch (error) {
-        Log.error("Spot", "ATU fetch error:", error);
+        Log.error("Spot")("ATU fetch error:", error);
     }
 }
 
 // ============================================================================
-// UI State Persistence Functions
+// CW Macro Button Functions
 // ============================================================================
 
-const CW_MESSAGE_STORAGE_KEYS = ["runCwMessage1", "runCwMessage2", "runCwMessage3"];
-const LEGACY_CW_MESSAGE_KEYS = [
-    ["runCWMessage1", "spotCWMessage1"],
-    ["runCWMessage2", "spotCWMessage2"],
-    ["runCWMessage3", "spotCWMessage3"],
+const DEFAULT_CW_MACROS = [
+    { label: "CQ SOTA", template: "CQ SOTA DE {MYCALL} {MYCALL} K" },
+    { label: "UR 5NN", template: "UR 5NN {MYREF} BK" },
+    { label: "MY REF", template: "{MYREF}" },
+    { label: "PSE AGN", template: "PSE AGN" },
+    { label: "TU 73 QRZ", template: "TU 73 QRZ" },
 ];
 
-function migrateCwMessageKeys() {
-    CW_MESSAGE_STORAGE_KEYS.forEach((newKey, index) => {
-        const legacyKeys = LEGACY_CW_MESSAGE_KEYS[index];
-        const existingValue = localStorage.getItem(newKey);
-        if (existingValue !== null) {
-            return;
-        }
+// Render CW macro buttons into the #cw-macro-buttons container
+function renderCwMacroButtons() {
+    const container = document.getElementById("cw-macro-buttons");
+    if (!container) return;
 
-        for (const legacyKey of legacyKeys) {
-            const legacyValue = localStorage.getItem(legacyKey);
-            if (legacyValue !== null) {
-                localStorage.setItem(newKey, legacyValue);
-                localStorage.removeItem(legacyKey);
-                break;
-            }
-        }
+    const macros = AppState.cwMacros && AppState.cwMacros.length > 0 ? AppState.cwMacros : DEFAULT_CW_MACROS;
+    container.innerHTML = "";
+
+    macros.forEach((macro, index) => {
+        const btn = document.createElement("button");
+        btn.className = "btn btn-cw-macro";
+        btn.textContent = macro.label;
+        btn.title = macro.template;
+        btn.addEventListener("click", () => onCwMacroButtonPress(index));
+        container.appendChild(btn);
     });
 }
 
-// Load saved CW message text from localStorage
-function loadInputValues() {
-    migrateCwMessageKeys();
-    document.getElementById("cw-message-1").value = localStorage.getItem(CW_MESSAGE_STORAGE_KEYS[0]) || "";
-    document.getElementById("cw-message-2").value = localStorage.getItem(CW_MESSAGE_STORAGE_KEYS[1]) || "";
-    document.getElementById("cw-message-3").value = localStorage.getItem(CW_MESSAGE_STORAGE_KEYS[2]) || "";
-}
+// Handle CW macro button press: expand template and send
+function onCwMacroButtonPress(index) {
+    const macros = AppState.cwMacros && AppState.cwMacros.length > 0 ? AppState.cwMacros : DEFAULT_CW_MACROS;
+    if (index < 0 || index >= macros.length) return;
 
-// Save CW message text to localStorage
-function saveInputValues() {
-    localStorage.setItem(CW_MESSAGE_STORAGE_KEYS[0], document.getElementById("cw-message-1").value);
-    localStorage.setItem(CW_MESSAGE_STORAGE_KEYS[1], document.getElementById("cw-message-2").value);
-    localStorage.setItem(CW_MESSAGE_STORAGE_KEYS[2], document.getElementById("cw-message-3").value);
+    const expanded = expandCwMacroTemplate(macros[index].template);
+    if (expanded) {
+        sendKeys(expanded.toUpperCase());
+    }
 }
 
 // Mapping from DOM section IDs to localStorage keys
@@ -723,6 +776,42 @@ function toggleSection(sectionId) {
         icon.innerHTML = "&#9654;"; // Right triangle
         localStorage.setItem(storageKey, "false");
     }
+}
+
+// Solo a section: expand it and collapse all others.
+// If it's already the only expanded section, expand all others back.
+function soloSection(sectionId) {
+    const allSections = ["tune-section", "spot-section", "transmit-section"];
+
+    // Check if this section is already solo (only one expanded, and it's this one)
+    const expandedSections = allSections.filter(
+        (id) => !document.getElementById(id).classList.contains("collapsed")
+    );
+    const isSolo = expandedSections.length === 1 && expandedSections[0] === sectionId;
+
+    allSections.forEach((id) => {
+        const content = document.getElementById(id);
+        const iconId = id.replace("-section", "-icon");
+        const icon = document.getElementById(iconId);
+        const key = SECTION_STORAGE_KEYS[id];
+
+        if (isSolo) {
+            // Un-solo: expand all
+            content.classList.remove("collapsed");
+            icon.innerHTML = "&#9660;";
+            localStorage.setItem(key, "true");
+        } else if (id === sectionId) {
+            // Solo: expand this one
+            content.classList.remove("collapsed");
+            icon.innerHTML = "&#9660;";
+            localStorage.setItem(key, "true");
+        } else {
+            // Solo: collapse others
+            content.classList.add("collapsed");
+            icon.innerHTML = "&#9654;";
+            localStorage.setItem(key, "false");
+        }
+    });
 }
 
 // Load saved collapsed/expanded state for all sections
@@ -792,7 +881,17 @@ function updateSpotButtonStates() {
     if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
     if (poloSpotBtn) poloSpotBtn.disabled = !isValid;
 
-    Log.debug("Spot", `SOTAmāt enabled, SMS/Polo ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
+    Log.debug("Spot")(`SOTAmāt enabled, SMS/Polo ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
+}
+
+// Map radio mode to SOTAMAT-compatible mode string
+function mapModeForSotamat(mode) {
+    if (!mode) return "ssb";
+    const upper = mode.toUpperCase();
+    if (upper === "USB" || upper === "LSB") return "ssb";
+    if (upper === "CW_R") return "cw";
+    if (upper === "FT8" || upper === "FT4") return "data";
+    return upper.toLowerCase();
 }
 
 // Build SMS URI for spotting current activation
@@ -803,7 +902,7 @@ function buildSpotSmsUri() {
 
     const cmd = isSotaReference(ref) ? "sm" : "psm";
     const freqMhz = ((AppState.vfoFrequencyHz || 14285000) / 1000000).toFixed(4);
-    const mode = (AppState.vfoMode || "SSB").toLowerCase();
+    const mode = mapModeForSotamat(AppState.vfoMode || "SSB");
 
     const message = `${cmd} ${ref} ${freqMhz} ${mode}`;
     return `sms:${SOTAMAT_SMS_NUMBER}?body=${encodeURIComponent(message)}`;
@@ -817,9 +916,8 @@ function buildQrtSmsUri() {
 
     const cmd = isSotaReference(ref) ? "sm" : "psm";
     const freqMhz = ((AppState.vfoFrequencyHz || 14285000) / 1000000).toFixed(4);
-    const mode = (AppState.vfoMode || "SSB").toLowerCase();
 
-    const message = `${cmd} ${ref} ${freqMhz} ${mode} QRT`;
+    const message = `${cmd} ${ref} ${freqMhz} QRT`;
     return `sms:${SOTAMAT_SMS_NUMBER}?body=${encodeURIComponent(message)}`;
 }
 
@@ -827,7 +925,7 @@ function buildQrtSmsUri() {
 function sendSpotSms() {
     const uri = buildSpotSmsUri();
     if (uri) {
-        Log.info("Spot", "Opening SMS for spot:", uri);
+        Log.info("Spot")("Opening SMS for spot:", uri);
         window.location.href = uri;
     }
 }
@@ -836,7 +934,7 @@ function sendSpotSms() {
 function sendQrtSms() {
     const uri = buildQrtSmsUri();
     if (uri) {
-        Log.info("Spot", "Opening SMS for QRT:", uri);
+        Log.info("Spot")("Opening SMS for QRT:", uri);
         window.location.href = uri;
     }
 }
@@ -882,11 +980,11 @@ function buildPoloSpotLink() {
 function launchPoloSpot() {
     const url = buildPoloSpotLink();
     if (url) {
-        Log.info("Spot", "Launching Polo for spot:", url);
+        Log.info("Spot")("Launching Polo for spot:", url);
         // Use location.href for mobile deep link compatibility
         window.location.href = url;
     } else {
-        Log.warn("Spot", "Cannot launch Polo - no valid reference set");
+        Log.warn("Spot")("Cannot launch Polo - no valid reference set");
     }
 }
 
@@ -897,12 +995,12 @@ function launchPoloSpot() {
 // Attach all Spot page event listeners
 function attachSpotEventListeners() {
     // Only attach once to prevent memory leaks
-    Log.debug("Spot", `attachSpotEventListeners called, flag: ${RunState.spotEventListenersAttached}`);
+    Log.debug("Spot")(`attachSpotEventListeners called, flag: ${RunState.spotEventListenersAttached}`);
     if (RunState.spotEventListenersAttached) {
-        Log.debug("Spot", "Event listeners already attached, skipping");
+        Log.debug("Spot")("Event listeners already attached, skipping");
         return;
     }
-    Log.debug("Spot", "Attaching event listeners to DOM");
+    Log.debug("Spot")("Attaching event listeners to DOM");
     RunState.spotEventListenersAttached = true;
 
     // Section toggle handlers
@@ -910,6 +1008,14 @@ function attachSpotEventListeners() {
         header.addEventListener("click", () => {
             const sectionId = header.getAttribute("data-section");
             toggleSection(sectionId);
+        });
+    });
+
+    // Solo icon handlers (expand one, collapse others; or unsolo)
+    document.querySelectorAll(".solo-icon[data-solo]").forEach((icon) => {
+        icon.addEventListener("click", (e) => {
+            e.stopPropagation();
+            soloSection(icon.getAttribute("data-solo"));
         });
     });
 
@@ -1008,41 +1114,30 @@ function attachSpotEventListeners() {
         xmitBtn.addEventListener("click", toggleXmit);
     }
 
-    // CW send buttons
-    document.querySelectorAll(".btn-send[data-message-input]").forEach((button) => {
-        button.addEventListener("click", () => {
-            const inputId = button.getAttribute("data-message-input");
-            const inputElement = document.getElementById(inputId);
-            if (inputElement) {
-                sendKeys(inputElement.value);
+    // Free-form CW input
+    const cwFreeformInput = document.getElementById("cw-freeform-input");
+    const cwFreeformSend = document.getElementById("cw-freeform-send");
+    if (cwFreeformInput && cwFreeformSend) {
+        cwFreeformInput.addEventListener("input", () => {
+            cwFreeformSend.disabled = !cwFreeformInput.value.trim();
+        });
+        cwFreeformSend.addEventListener("click", () => {
+            const text = cwFreeformInput.value.trim().toUpperCase();
+            if (text) {
+                const expanded = expandCwMacroTemplate(text);
+                if (expanded) {
+                    sendKeys(expanded);
+                }
             }
         });
-    });
+        cwFreeformInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && cwFreeformInput.value.trim()) {
+                e.preventDefault();
+                cwFreeformSend.click();
+            }
+        });
+    }
 
-    // CW input validation - enable/disable Send buttons and persist values
-    ["cw-message-1", "cw-message-2", "cw-message-3"].forEach((inputId) => {
-        const input = document.getElementById(inputId);
-        const button = document.querySelector(`.btn-send[data-message-input="${inputId}"]`);
-        if (input && button) {
-            input.addEventListener("input", () => {
-                const hasContent = input.value.trim().length > 0;
-                button.disabled = !hasContent;
-                saveInputValues();
-            });
-        }
-    });
-}
-
-// Update Send button states based on current input values
-// Called on tab appear after loading saved values
-function updateSendButtonStates() {
-    ["cw-message-1", "cw-message-2", "cw-message-3"].forEach((inputId) => {
-        const input = document.getElementById(inputId);
-        const button = document.querySelector(`.btn-send[data-message-input="${inputId}"]`);
-        if (input && button) {
-            button.disabled = input.value.trim().length === 0;
-        }
-    });
 }
 
 // ============================================================================
@@ -1051,18 +1146,17 @@ function updateSendButtonStates() {
 
 // Called when Spot tab becomes visible
 async function onSpotAppearing() {
-    Log.info("Spot", "tab appearing");
-    loadInputValues();
+    Log.info("Spot")("tab appearing");
     loadCollapsibleStates();
+
+    // Render CW macro buttons from AppState (or defaults)
+    renderCwMacroButtons();
 
     // Attach event listeners for all controls
     attachSpotEventListeners();
 
     // Sync xmit button state with global state
     syncXmitButtonState();
-
-    // Update Send button states based on loaded input values
-    updateSendButtonStates();
 
     // Ensure location is loaded before checking reference (getLocationBasedReference needs AppState.gpsOverride)
     // Without this, SOTAmāt button stays disabled when opening RUN directly without visiting QRX first
@@ -1079,7 +1173,7 @@ async function onSpotAppearing() {
 
 // Called when Spot tab is hidden
 function onSpotLeaving() {
-    Log.info("Spot", "tab leaving");
+    Log.info("Spot")("tab leaving");
     stopVfoUpdates();
 
     // Reset event listener flag so they can be reattached when returning to this tab

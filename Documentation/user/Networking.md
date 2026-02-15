@@ -36,28 +36,21 @@ SOTAcat joins your phone's hotspot.
 
 **Best for:** Android phones that drop cellular when on WiFi
 
-> **[ 📷 IMAGE: Settings WiFi configuration help popup ]**
-> `../images/settings-wifi-help.png`
+![WiFi settings](../images/settings-wifi.png)
 
-#### Recommended: Pin IP to .222
+![WiFi help popup](../images/settings-wifi-help.png)
 
-For each Client network, you can enable **Pin IP to .222** in Settings. When enabled, SOTAcat pins itself to `.222` on whatever subnet the network assigns. For example, if your hotspot uses `192.168.43.x`, SOTAcat will be at `192.168.43.222`.
+#### Recommended: Pin IP to x.x.x.222
 
-**Why this matters for Android hotspots:** When the mobile cell network flaps (switching towers, brief signal loss), Android hotspots can reassign SOTAcat's IP address. Without a stable IP, your browser loses its connection and you have to rediscover SOTAcat each time. With the pinned `.222` address, your browser reconnects automatically after brief interruptions.
+For each Client network, you can enable **Pin IP to x.x.x.222** in Settings. When enabled, SOTAcat pins itself to `x.x.x.222` on whatever subnet the network assigns. For example, if your hotspot uses `192.168.43.x`, SOTAcat will be at `192.168.43.222`.
 
-**Why you might NOT want this:** On home networks with many devices, the `.222` address might already be in use by another device, causing an IP conflict. For home networks, leave this disabled and use `sotacat.local` instead.
+**Why this matters for Android hotspots:** When the mobile cell network flaps (switching towers, brief signal loss), Android hotspots can reassign SOTAcat's IP address. Without a stable IP, your browser loses its connection and you have to rediscover SOTAcat each time. With the pinned `x.x.x.222` address, your browser reconnects automatically after brief interruptions.
+
+**Why you might NOT want this:** On home networks with many devices, the `x.x.x.222` address might already be in use by another device, causing an IP conflict. For home networks, leave this disabled and use `sotacat.local` instead.
 
 **Setup:**
-1. In Settings, enable "Pin IP to .222" for your hotspot network
-2. Use [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover SOTAcat's `.222` address
-
-## One-Time Setup
-
-In Settings, configure:
-
-1. **Callsign** — Your amateur radio callsign
-2. **License class** — For band privilege indicators
-3. **WiFi networks** — Choose mode above
+1. In Settings, enable "Pin IP to x.x.x.222" for your hotspot network
+2. Use [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover SOTAcat's `x.x.x.222` address
 
 ## Symptoms and Fixes
 
@@ -76,8 +69,9 @@ When you see "Connection lost. Reconnecting...":
 2. If not, reconnect to `SOTACAT_xxxx`
 3. Wait for auto-reconnect or tap **Retry**
 
-> **[ 📷 IMAGE: Connection lost overlay ]**
-> `../images/connection-lost.png`
+![Connection lost — reconnecting](../images/connection-lost-reconnecting.png)
+
+![Connection lost — failed](../images/connection-lost-failed.png)
 
 ---
 

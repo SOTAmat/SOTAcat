@@ -3,6 +3,7 @@
     <div class="section-card">
         <div class="section-header" data-section="tune-section">
             <h2>Tune</h2>
+            <span class="solo-icon" data-solo="tune-section">&#8865;</span>
             <span class="collapse-icon" id="tune-icon">&#9660;</span>
         </div>
 
@@ -78,6 +79,7 @@
     <div class="section-card">
         <div class="section-header" data-section="spot-section">
             <h2>Spot</h2>
+            <span class="solo-icon" data-solo="spot-section">&#8865;</span>
             <span class="collapse-icon" id="spot-icon">&#9660;</span>
         </div>
 
@@ -94,6 +96,7 @@
     <div class="section-card">
         <div class="section-header" data-section="transmit-section">
             <h2>Transmit</h2>
+            <span class="solo-icon" data-solo="transmit-section">&#8865;</span>
             <span class="collapse-icon" id="transmit-icon">&#9660;</span>
         </div>
 
@@ -106,20 +109,13 @@
                 <button class="btn btn-spot" id="polo-spot-button" disabled>Log in PoLo</button>
             </div>
 
-            <!-- CW Text Input -->
-            <div class="cw-inputs">
-                <div class="input-row">
-                    <input type="text" id="cw-message-1" maxlength="24" placeholder="CW message 1" />
-                    <button class="btn btn-send" data-message-input="cw-message-1" disabled>Key</button>
-                </div>
-                <div class="input-row">
-                    <input type="text" id="cw-message-2" maxlength="24" placeholder="CW message 2" />
-                    <button class="btn btn-send" data-message-input="cw-message-2" disabled>Key</button>
-                </div>
-                <div class="input-row">
-                    <input type="text" id="cw-message-3" maxlength="24" placeholder="CW message 3" />
-                    <button class="btn btn-send" data-message-input="cw-message-3" disabled>Key</button>
-                </div>
+            <!-- CW Macro Buttons -->
+            <div id="cw-macro-buttons" class="cw-macro-grid"></div>
+
+            <!-- Free-form CW Input -->
+            <div class="cw-freeform-row">
+                <input type="text" id="cw-freeform-input" placeholder="CW text to key…">
+                <button class="btn btn-send" id="cw-freeform-send" disabled>Key</button>
             </div>
         </div>
     </div>

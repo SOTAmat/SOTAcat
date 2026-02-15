@@ -9,7 +9,7 @@ static const char * TAG8 = "sc:hdl_vol.";
 /**
  * Handles an HTTP GET request to retrieve the current audio gain (volume).
  *
- * This function retrieves the current AF gain level from the KX2/KX3 radio
+ * This function retrieves the current AF gain level from the radio
  * using the AG command. The value is returned as plain text (0-255).
  *
  * @param req Pointer to the HTTP request structure.
@@ -38,7 +38,7 @@ esp_err_t handler_volume_get (httpd_req_t * req) {
 /**
  * Handles an HTTP PUT request to adjust the audio gain (volume).
  *
- * This function adjusts the AF gain level on the KX2/KX3 radio by a delta value.
+ * This function adjusts the AF gain level on the radio by a delta value.
  * It reads the current volume, adds the delta (clamped to 0-255), and writes back.
  *
  * @param req Pointer to the HTTP request structure. The "delta" query parameter

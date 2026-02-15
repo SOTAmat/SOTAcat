@@ -50,7 +50,7 @@ async function fetchSpots(options = {}) {
     }
 
     const url = `${SPOTHOLE_BASE_URL}/spots?${params.toString()}`;
-    Log.debug("Spothole", "Fetching spots from:", url);
+    Log.debug("Spothole")("Fetching spots from:", url);
 
     try {
         const controller = new AbortController();
@@ -71,13 +71,13 @@ async function fetchSpots(options = {}) {
         }
 
         const data = await response.json();
-        Log.debug("Spothole", `Received ${data.length} spots`);
+        Log.debug("Spothole")(`Received ${data.length} spots`);
         return data;
     } catch (error) {
         if (error.name === "AbortError") {
             throw new Error("Spothole API request timed out");
         }
-        Log.error("Spothole", "Error fetching spots:", error);
+        Log.error("Spothole")("Error fetching spots:", error);
         throw error;
     }
 }
@@ -94,7 +94,7 @@ async function fetchReferenceDetails(sigRef) {
     }
 
     const url = `${SPOTHOLE_BASE_URL}/lookup/sigref?sigref=${encodeURIComponent(sigRef)}`;
-    Log.debug("Spothole", "Fetching reference details:", sigRef);
+    Log.debug("Spothole")("Fetching reference details:", sigRef);
 
     try {
         const controller = new AbortController();
@@ -110,7 +110,7 @@ async function fetchReferenceDetails(sigRef) {
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-            Log.warn("Spothole", `Reference lookup failed for ${sigRef}: ${response.status}`);
+            Log.warn("Spothole")(`Reference lookup failed for ${sigRef}: ${response.status}`);
             return null;
         }
 
@@ -120,7 +120,7 @@ async function fetchReferenceDetails(sigRef) {
         referenceDetailsCache[sigRef] = data;
         return data;
     } catch (error) {
-        Log.warn("Spothole", "Error fetching reference details:", error);
+        Log.warn("Spothole")("Error fetching reference details:", error);
         return null;
     }
 }
@@ -161,7 +161,7 @@ async function fetchCallsignDetails(callsign) {
         callsignDetailsCache[callsign] = data;
         return data;
     } catch (error) {
-        Log.warn("Spothole", "Error fetching callsign details:", error);
+        Log.warn("Spothole")("Error fetching callsign details:", error);
         return null;
     }
 }
@@ -270,7 +270,7 @@ function spothole_transformSpots(spotsData, location) {
  * @returns {Promise<Array>} Enriched spots
  */
 async function spothole_enrichSpots(spots, enrichReferences = true, enrichCallsigns = false) {
-    Log.debug("Spothole", `Enriching ${spots.length} spots (refs: ${enrichReferences}, calls: ${enrichCallsigns})`);
+    Log.debug("Spothole")(`Enriching ${spots.length} spots (refs: ${enrichReferences}, calls: ${enrichCallsigns})`);
 
     // Collect unique references and callsigns
     const uniqueRefs = new Set();
@@ -285,7 +285,7 @@ async function spothole_enrichSpots(spots, enrichReferences = true, enrichCallsi
     if (enrichReferences && uniqueRefs.size > 0) {
         const refPromises = Array.from(uniqueRefs).map((ref) =>
             fetchReferenceDetails(ref).catch((err) => {
-                Log.warn("Spothole", `Failed to fetch details for ${ref}:`, err);
+                Log.warn("Spothole")(`Failed to fetch details for ${ref}:`, err);
                 return null;
             })
         );
@@ -296,7 +296,7 @@ async function spothole_enrichSpots(spots, enrichReferences = true, enrichCallsi
     if (enrichCallsigns && uniqueCalls.size > 0) {
         const callPromises = Array.from(uniqueCalls).map((call) =>
             fetchCallsignDetails(call).catch((err) => {
-                Log.warn("Spothole", `Failed to fetch details for ${call}:`, err);
+                Log.warn("Spothole")(`Failed to fetch details for ${call}:`, err);
                 return null;
             })
         );
@@ -383,7 +383,7 @@ async function fetchAndProcessSpots(options, location, enrichDetails = true) {
 
         return spots;
     } catch (error) {
-        Log.error("Spothole", "Error in fetchAndProcessSpots:", error);
+        Log.error("Spothole")("Error in fetchAndProcessSpots:", error);
         throw error;
     }
 }
