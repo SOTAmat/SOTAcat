@@ -10,6 +10,8 @@
 
 #include <driver/uart.h>
 
+#include <esp_log.h>
+
 /* Morse code array
 The index of each character gives the morse code for that character in binary.
 The bits of the character are read from RIGHT to left,
@@ -253,7 +255,7 @@ bool KH1RadioDriver::tune_atu (KXRadio & radio) {
 
 bool KH1RadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
     // get keyer speed from kh radio
-    long kh_wpm;
+    long kh_wpm =20; // default to 20 wpm if we can't read it
     radio.put_to_kx_command_string ("SW2T;SW1T;", 1); // Raise/lower speed so it is displayed
     char buf[sizeof ("DS1XX WPM          ;")];
     if (radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES,  buf, sizeof (buf) - 1)) {
@@ -262,15 +264,10 @@ bool KH1RadioDriver::send_keyer_message (KXRadio & radio, const char * message) 
         snprintf (speed_char, sizeof (speed_char), "%.*s", 2, buf + 3); // Characters 4-5 represent speed as a string       
         kh_wpm = atoi(speed_char);
     }
-    else {
-        kh_wpm = 20;  // default to 20 wpm if we can't read it
-    }
 
     int ditPeriod = 1200 / kh_wpm;  // dit period in ms
     while (*message) {
         char ch = *message++;
-        if (ch == '\0')
-            break;
         if (ch > 96)
             ch -= 32;                                   // convert lower case to upper case
         if (ch == 32)
@@ -278,6 +275,10 @@ bool KH1RadioDriver::send_keyer_message (KXRadio & radio, const char * message) 
         else {
             // send the character
             char* ptr = std::strchr(morse, ch);
+            if (!ptr) {
+                ESP_LOGW ("KH1RadioDriver", "Character '%c' not found in Morse code array, skipping", ch);
+                continue;
+            }
             uint8_t bt = ptr - morse;
             while (bt>1) {
                 uart_write_bytes (UART_NUM, "HK1;", sizeof ("HK1;") - 1);
