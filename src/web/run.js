@@ -1068,12 +1068,12 @@ function attachSpotEventListeners() {
     // Volume control buttons
     const volDownBtn = document.getElementById("vol-down-button");
     if (volDownBtn) {
-        volDownBtn.addEventListener("click", () => changeVolume(-21));
+        volDownBtn.addEventListener("click", () => changeVolume(-1));
     }
 
     const volUpBtn = document.getElementById("vol-up-button");
     if (volUpBtn) {
-        volUpBtn.addEventListener("click", () => changeVolume(21));
+        volUpBtn.addEventListener("click", () => changeVolume(1));
     }
 
     // SOTAMAT button
