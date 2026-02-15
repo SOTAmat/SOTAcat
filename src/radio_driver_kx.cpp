@@ -126,7 +126,7 @@ bool KXRadioDriver::get_volume (KXRadio & radio, long & out_volume) {
 bool KXRadioDriver::set_volume (KXRadio & radio, long delta) {
     // Read current volume
     long current_volume = -1;
-    if (!kxRadio.get_volume (current_volume))
+    if (!radio.get_volume (current_volume))
         return false;
 
     // Calculate new volume, clamped to 0-255
