@@ -10,6 +10,17 @@
 
 #include <driver/uart.h>
 
+/* Morse code array
+The index of each character gives the morse code for that character in binary.
+The bits of the character are read from RIGHT to left,
+with a "1"=dit and "0"=dah and a final stop bit of "1"
+*/
+//                    0123456789112345678921234567893123456789412345678951234567896
+//                    0         1         2         3         4         5         6
+const char morse[] = "##TEMANIOWKUGRDS#JY#Q#XV#PCFZLBH01#2###3######=49#####/#8###"
+                     "7#65############,########.#*######-####################?####";
+//                    6         7         8         9         0         1         2
+
 static bool get_kh1_display_frequency (KXRadio & radio, long & out_hz) {
     char response[20];
     char freq_char[10];
