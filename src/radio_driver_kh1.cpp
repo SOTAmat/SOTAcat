@@ -255,7 +255,7 @@ bool KH1RadioDriver::tune_atu (KXRadio & radio) {
 
 bool KH1RadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
     // get keyer speed from kh radio
-    long kh_wpm =20; // default to 20 wpm if we can't read it
+    long kh_wpm = 20; // default to 20 wpm if we can't read it
     radio.put_to_kx_command_string ("SW2T;SW1T;", 1); // Raise/lower speed so it is displayed
     char buf[sizeof ("DS1XX WPM          ;")];
     if (radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES,  buf, sizeof (buf) - 1)) {
