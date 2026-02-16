@@ -3,6 +3,9 @@
 #include "timed_lock.h"
 #include "webserver.h"
 
+#include <cctype>
+#include <string>
+
 #include <esp_timer.h>
 
 #include <esp_log.h>
@@ -138,14 +141,24 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     STANDARD_DECODE_SOLE_PARAMETER (req, "bw", bw);
-    ESP_LOGI (TAG8, "requesting bw = '%s'", bw);
+
+    /*
+     * Normalize the incoming "bw" text so matching is consistent:
+     * 1) Copy the raw parameter.
+     * 2) Convert to uppercase for case-insensitive comparisons.
+     */
+    std::string bw_normalized = bw;
+    for (char & ch : bw_normalized)
+        ch = static_cast<char> (std::toupper (static_cast<unsigned char> (ch)));
+
+    ESP_LOGI (TAG8, "requesting bw = '%s' normalized='%s'", bw, bw_normalized.c_str());
 
     radio_mode_t mode = MODE_UNKNOWN;
 
     // Tier 2: Moderate timeout for SET operations
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "mode SET")) {
         // Determine the radio mode based on the "bw" parameter
-        if (!strcmp (bw, "SSB")) {
+        if (!strcmp (bw_normalized.c_str(), "SSB")) {
             // Get the current frequency and set the mode to LSB or USB based on the frequency
             long frequency = 0;
             if (!kxRadio.get_frequency (frequency))
@@ -159,7 +172,7 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
             for (radio_mode_map_t const * mode_kv = &radio_mode_map[COUNTOF (radio_mode_map) - 1];
                  mode_kv >= &radio_mode_map[0];
                  --mode_kv)
-                if (!strcmp (bw, mode_kv->name)) {
+                if (!strcmp (bw_normalized.c_str(), mode_kv->name)) {
                     mode = mode_kv->mode;
                     break;
                 }
