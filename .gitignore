@@ -61,7 +61,6 @@ dkms.conf
 
 # emacs / LSP / platformio
 .cache
-.ccls-cache
 compile_commands.json
 
 # configs especially volatile during development
