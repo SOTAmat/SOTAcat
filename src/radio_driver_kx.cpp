@@ -53,11 +53,11 @@ static void adjust_kx_time_component (KXRadio & radio, const char * selector, in
     vTaskDelay (pdMS_TO_TICKS (30 * num_steps));
 }
 
-bool KXRadioDriver::supports_keyer () const {
+bool KXRadioDriver::supports_keyer() const {
     return true;
 }
 
-bool KXRadioDriver::supports_volume () const {
+bool KXRadioDriver::supports_volume() const {
     return true;
 }
 
@@ -130,7 +130,7 @@ bool KXRadioDriver::set_volume (KXRadio & radio, long delta) {
         return false;
 
     // Calculate new volume, clamped to 0-255
-    long new_volume = current_volume + delta*20;
+    long new_volume = current_volume + delta * 20;
     if (new_volume < 0)
         new_volume = 0;
     if (new_volume > 255)
@@ -187,8 +187,8 @@ bool KXRadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
         if (*src != '<' && *src != '>')
             *dst++ = *src;
     }
-    *dst     = '\0';
-    msg_len  = dst - cleaned.get();
+    *dst    = '\0';
+    msg_len = dst - cleaned.get();
 
     if (msg_len == 0)
         return false;
@@ -219,7 +219,7 @@ bool KXRadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
         }
         else {
             // Find last space within the KYW_MAX window
-            chunk_len = KYW_MAX;
+            chunk_len          = KYW_MAX;
             const char * space = nullptr;
             for (size_t i = 0; i < KYW_MAX && (pos + i) < end; ++i) {
                 if (pos[i] == ' ')
