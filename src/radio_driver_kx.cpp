@@ -1,15 +1,10 @@
 #include "radio_driver_kx.h"
-
 #include "hardware_specific.h"
 
-#include <cassert>
-#include <cmath>
 #include <cstring>
 #include <memory>
 
-#include <driver/uart.h>
 #include <esp_log.h>
-
 static const char * TAG8 = "sc:radio_kx";
 
 static inline int decode_couplet (char ten, char one) {
