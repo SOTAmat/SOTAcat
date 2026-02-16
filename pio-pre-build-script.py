@@ -6,9 +6,28 @@ import subprocess
 import sys
 
 Import("env")
+from merge_binaries import merge_binaries
 
-# Skip during IDE integration scans - only run when actually building
+# During IDE integration scans, register custom targets so they appear in
+# PlatformIO task lists, but skip all heavy pre-build work.
 if env.IsIntegrationDump():
+    def _noop_action(source, target, env):
+        return None
+
+    env.AddCustomTarget(
+        "package_webtools",
+        "$BUILD_DIR/firmware.bin",
+        _noop_action,
+        title="SOTACAT: build and publish webtools binaries",
+        description="Build current env and publish OTA bin, merged bin, and manifest.json",
+    )
+    env.AddCustomTarget(
+        "verify_and_publish_webtools",
+        "$BUILD_DIR/firmware.bin",
+        _noop_action,
+        title="SOTACAT: build, test, and publish webtools binaries",
+        description="Build current env, run tests, and publish only if tests pass",
+    )
     Return()
 
 
@@ -51,7 +70,11 @@ def _ensure_espidf_python_deps():
     # cryptography is required by gen_crt_bundle.py (x509 certificate bundle generation)
     required = ["idf-component-manager", "esp-idf-kconfig", "cryptography"]
     missing = []
-    mod_map = {"idf-component-manager": "idf_component_manager", "esp-idf-kconfig": "kconfgen", "cryptography": "cryptography"}
+    mod_map = {
+        "idf-component-manager": "idf_component_manager",
+        "esp-idf-kconfig": "kconfgen",
+        "cryptography": "cryptography",
+    }
     for pkg in required:
         mod = mod_map.get(pkg, pkg.replace("-", "_"))
         try:
@@ -78,14 +101,17 @@ def _ensure_espidf_python_deps():
         )
         log_message("  Installed successfully")
     except subprocess.CalledProcessError as e:
-        log_message(f"  WARNING: pip install failed (exit {e.returncode}). Build may fail.")
+        log_message(
+            f"  WARNING: pip install failed (exit {e.returncode}). Build may fail."
+        )
     except subprocess.TimeoutExpired:
         log_message("  WARNING: pip install timed out. Build may fail.")
 
 
 def log_message(message):
     print(
-        "SOTACAT Pre-build step: " + message
+        "SOTACAT Pre-build step: " + message,
+        flush=True,
     )  # Or use logging module for more advanced logging
 
 
@@ -113,11 +139,19 @@ def access_build_flags():
     return "Error"
 
 
-manifest_path = "firmware/webtools/manifest.json"
 header_path = "include/build_info.h"
 
 # Ensure ESP-IDF Python deps are installed (avoids ModuleNotFoundError during build)
 _ensure_espidf_python_deps()
+
+
+def _get_webtools_paths():
+    project_dir = env.subst("$PROJECT_DIR")
+    webtools_dir = os.path.join(project_dir, "firmware", "webtools")
+    ota_bin = os.path.join(webtools_dir, "SOTACAT-ESP32C3-OTA.bin")
+    merged_bin = os.path.join(webtools_dir, "esp32c3.bin")
+    manifest_abs = os.path.join(webtools_dir, "manifest.json")
+    return webtools_dir, ota_bin, merged_bin, manifest_abs
 
 
 def _ensure_pio_python_deps():
@@ -128,7 +162,7 @@ def _ensure_pio_python_deps():
     """
     required = ["intelhex"]
     missing = []
-    
+
     for pkg in required:
         try:
             # sys.executable is the PIO python executable running this script
@@ -145,7 +179,9 @@ def _ensure_pio_python_deps():
     if not missing:
         return
 
-    log_message(f"Installing missing PlatformIO Python packages: {', '.join(missing)}...")
+    log_message(
+        f"Installing missing PlatformIO Python packages: {', '.join(missing)}..."
+    )
     try:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "--quiet"] + missing,
@@ -155,7 +191,9 @@ def _ensure_pio_python_deps():
         )
         log_message("  Installed successfully")
     except subprocess.CalledProcessError as e:
-        log_message(f"  WARNING: pip install failed (exit {e.returncode}). Build may fail.")
+        log_message(
+            f"  WARNING: pip install failed (exit {e.returncode}). Build may fail."
+        )
     except subprocess.TimeoutExpired:
         log_message("  WARNING: pip install timed out. Build may fail.")
 
@@ -235,6 +273,49 @@ def _ensure_x509_crt_bundle():
 
 _ensure_x509_crt_bundle()
 
+
+def _clear_webtools_outputs():
+    webtools_dir, ota_bin, merged_bin, manifest_abs = _get_webtools_paths()
+    os.makedirs(webtools_dir, exist_ok=True)
+    for path in (ota_bin, merged_bin, manifest_abs):
+        if os.path.exists(path):
+            os.remove(path)
+            log_message(f"Removed stale webtools artifact: {path}")
+
+
+def _write_manifest_file():
+    webtools_dir, _, _, manifest_abs = _get_webtools_paths()
+    os.makedirs(webtools_dir, exist_ok=True)
+
+    manifest_data = {}
+    if os.path.exists(manifest_abs):
+        try:
+            with open(manifest_abs, "r", encoding="utf-8") as f:
+                manifest_data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            manifest_data = {}
+
+    manifest_data["name"] = manifest_data.get(
+        "name", "SOTACAT for Elecraft KX2, KX3, and KH1"
+    )
+    manifest_data["version"] = long_build_datetime_str
+    manifest_data["builds"] = [
+        {
+            "chipFamily": "ESP32-C3",
+            "parts": [
+                {
+                    "path": "https://sotamat.com/wp-content/uploads/esp32c3.bin",
+                    "offset": 0,
+                }
+            ],
+        }
+    ]
+
+    with open(manifest_abs, "w", encoding="utf-8") as f:
+        json.dump(manifest_data, f, indent=4)
+    log_message(f"Wrote webtools manifest: {manifest_abs}")
+
+
 # Pre-compress web assets with gzip
 log_message("Compressing web assets...")
 try:
@@ -263,16 +344,77 @@ long_build_datetime_str = (
     datetime.datetime.now().strftime("%Y-%m-%d_%H:%M-") + build_type
 )
 
-# Check if manifest.json exists
-if os.path.exists(manifest_path):
-    with open(manifest_path, "r") as f:
-        manifest_data = json.load(f)
-    manifest_data["version"] = long_build_datetime_str
-    with open(manifest_path, "w") as f:
-        json.dump(manifest_data, f, indent=4)  # Indent for readability
-    log_message(f"Updated version in {manifest_path} to {long_build_datetime_str}")
-else:
-    log_message(f"Manifest file not found at {manifest_path}")
+# Remove previous webtools outputs for this build so only explicitly published
+# artifacts remain.
+_clear_webtools_outputs()
+
+
+def _package_webtools_action(source, target, env):
+    log_message("Running build-and-publish webtools step...")
+    merge_binaries(source, target, env)
+    _write_manifest_file()
+
+
+def _verify_and_publish_webtools_action(source, target, env):
+    def _safe_console_text(text):
+        return text.encode("ascii", "replace").decode("ascii")
+
+    project_dir = env.subst("$PROJECT_DIR")
+    host = os.environ.get("SOTACAT_TEST_HOST", "sotacat.local")
+    test_args = os.environ.get("SOTACAT_TEST_ARGS", "--all").split()
+    tests = [
+        sys.executable,
+        "-u",
+        os.path.join(project_dir, "test", "integration", "run_tests.py"),
+    ] + test_args
+    if "--host" not in tests:
+        tests.extend(["--host", host])
+    log_message("Running integration tests before publishing webtools artifacts...")
+    proc_env = os.environ.copy()
+    proc_env["PYTHONUNBUFFERED"] = "1"
+    process = subprocess.Popen(
+        tests,
+        cwd=project_dir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
+        env=proc_env,
+    )
+
+    if process.stdout is not None:
+        for line in process.stdout:
+            log_message(f"[tests] {_safe_console_text(line.rstrip())}")
+
+    return_code = process.wait()
+    if return_code != 0:
+        raise RuntimeError(
+            f"Integration tests failed with exit code {return_code}"
+        )
+    _package_webtools_action(source, target, env)
+
+
+# Manual target to generate firmware/webtools outputs without running upload.
+# Usage:
+#   pio run -e seeed_xiao_esp32c3_debug -t package_webtools
+#   pio run -e seeed_xiao_esp32c3_release -t package_webtools
+env.AddCustomTarget(
+    "package_webtools",
+    "$BUILD_DIR/firmware.bin",
+    _package_webtools_action,
+    title="SOTACAT: build and publish webtools binaries",
+    description="Build current env and publish OTA bin, merged bin, and manifest.json",
+)
+
+env.AddCustomTarget(
+    "verify_and_publish_webtools",
+    "$BUILD_DIR/firmware.bin",
+    _verify_and_publish_webtools_action,
+    title="SOTACAT: build, test, and publish webtools binaries",
+    description="Build current env, run tests, and publish only if tests pass",
+)
 
 # Update build_info.h
 with open(header_path, "w") as f:

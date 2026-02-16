@@ -1,18 +1,10 @@
 Import("env")
 
-# Assuming merge_binaries.py is in the same directory as this script
-from merge_binaries import merge_binaries
-
-# env.AddPostAction(
-#     "$BUILD_DIR/${PROGNAME}.elf", lambda *args, **kwargs: merge_binaries(env)
-# )
-
-
 def log_message(message):
     print(
         "SOTACAT Post-build step: " + message
     )  # Or use logging module for more advanced logging
 
 
-log_message("Defining post-build step to merge binaries...")
-env.AddPostAction("upload", merge_binaries)
+log_message("Post-build script loaded")
+log_message("No automatic webtools publish in post-build; use package_webtools or verify_and_publish_webtools targets")
