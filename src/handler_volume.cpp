@@ -59,22 +59,8 @@ esp_err_t handler_volume_put (httpd_req_t * req) {
         if (!kxRadio.supports_volume())
             REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "volume not supported on this radio");
 
-        // Read current volume
-        long current_volume = -1;
-        if (!kxRadio.get_volume (current_volume))
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to read current volume");
-
-        // Calculate new volume, clamped to 0-255
-        long new_volume = current_volume + delta;
-        if (new_volume < 0)
-            new_volume = 0;
-        if (new_volume > 255)
-            new_volume = 255;
-
-        ESP_LOGI (TAG8, "volume: %ld + %ld = %ld", current_volume, delta, new_volume);
-
-        // Set new volume
-        if (!kxRadio.set_volume (new_volume))
+         // Set new volume
+        if (!kxRadio.set_volume (delta))
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to set volume");
     }
 
