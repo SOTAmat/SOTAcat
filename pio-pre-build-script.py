@@ -7,6 +7,7 @@ import sys
 
 Import("env")
 from merge_binaries import merge_binaries
+from SCons.Script import COMMAND_LINE_TARGETS, GetOption
 
 # During IDE integration scans, register custom targets so they appear in
 # PlatformIO task lists, but skip all heavy pre-build work.
@@ -27,6 +28,64 @@ if env.IsIntegrationDump():
         _noop_action,
         title="SOTACAT: build, test, and publish webtools binaries",
         description="Build current env, run tests, and publish only if tests pass",
+    )
+    Return()
+
+
+def _is_compile_invocation():
+    # SCons clean mode (e.g., `pio run -t clean`) should never mutate build metadata.
+    if GetOption("clean"):
+        return False
+
+    targets = {str(t).strip() for t in COMMAND_LINE_TARGETS if str(t).strip()}
+
+    # `pio run` without explicit targets builds firmware for the selected env.
+    if not targets:
+        return True
+
+    non_compile_targets = {
+        "clean",
+        "idedata",
+        "compiledb",
+        "envdump",
+        "menuconfig",
+        "erase",
+        "buildfs",
+        "uploadfs",
+        "uploadfsota",
+    }
+    compile_targets = {
+        "buildprog",
+        "program",
+        "app",
+        "upload",
+        "size",
+        "package_webtools",
+        "verify_and_publish_webtools",
+    }
+
+    # Internal PlatformIO upload aliases for application images.
+    if any(t.startswith("__upload") for t in targets):
+        return True
+
+    # Some PlatformIO/SCons flows expose clean as an internal target name.
+    if any(t == "clean" or t.endswith("clean") for t in targets):
+        return False
+
+    if targets.issubset(non_compile_targets):
+        return False
+
+    if targets & compile_targets:
+        return True
+
+    # Keep historical behavior for unknown targets.
+    return True
+
+
+if not _is_compile_invocation():
+    print(
+        "SOTACAT Pre-build step: Skipping pre-build mutations for non-compile target(s)",
+        flush=True,
     )
     Return()
 
