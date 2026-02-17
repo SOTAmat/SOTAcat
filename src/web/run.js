@@ -1149,6 +1149,14 @@ async function onSpotAppearing() {
     Log.info("Spot")("tab appearing");
     loadCollapsibleStates();
 
+    // Ensure callsign, location, and macros are loaded before rendering buttons.
+    // Without these awaits, {MYCALL} and {MYREF} resolve to "" on first visit,
+    // and macro buttons may show defaults with wrong index-to-template mappings
+    // when AppState.cwMacros loads asynchronously after buttons are already rendered.
+    await ensureCallSignLoaded();
+    await getLocation();
+    await loadCwMacrosAsync();
+
     // Render CW macro buttons from AppState (or defaults)
     renderCwMacroButtons();
 
@@ -1157,10 +1165,6 @@ async function onSpotAppearing() {
 
     // Sync xmit button state with global state
     syncXmitButtonState();
-
-    // Ensure location is loaded before checking reference (getLocationBasedReference needs AppState.gpsOverride)
-    // Without this, SOTAmāt button stays disabled when opening RUN directly without visiting QRX first
-    await getLocation();
 
     // Update spot action buttons based on reference validity
     updateSpotButtonStates();

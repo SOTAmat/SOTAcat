@@ -436,6 +436,21 @@ describe('expandCwMacroTemplate', () => {
     it('returns empty string for empty template', () => {
         assertEqual(expandCwMacroTemplate(""), "", "empty template");
     });
+
+    it('produces degraded output when callSign not loaded (empty)', () => {
+        // Before fix: if user navigated directly to RUN without visiting Settings,
+        // AppState.callSign was never fetched, so {MYCALL} resolved to "".
+        // A macro like "CQ SOTA DE {MYCALL} {MYCALL} K" would become "CQ SOTA DE K"
+        // instead of "CQ SOTA DE AB6D AB6D K".
+        AppState.callSign = "";
+        const result = expandCwMacroTemplate("CQ SOTA DE {MYCALL} {MYCALL} K");
+        assertEqual(result, "CQ SOTA DE K", "MYCALL empty produces degraded message");
+
+        // With callSign loaded, the full message is produced
+        AppState.callSign = "AB6D";
+        const result2 = expandCwMacroTemplate("CQ SOTA DE {MYCALL} {MYCALL} K");
+        assertEqual(result2, "CQ SOTA DE AB6D AB6D K", "MYCALL loaded produces full message");
+    });
 });
 
 // ============================================================================
