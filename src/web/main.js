@@ -660,6 +660,9 @@ function buildPoloDeepLink(params) {
     if (params.mode) queryParts.push(`mode=${encodeURIComponent(params.mode)}`);
     if (params.time) queryParts.push(`startAtMillis=${encodeURIComponent(params.time)}`);
 
+    // Add returnpath so PoLo can send CAT commands back
+    queryParts.push(`returnpath=${encodeURIComponent(window.location.origin)}`);
+
     if (queryParts.length === 0) return null;
     return `${baseUrl}?${queryParts.join("&")}`;
 }
