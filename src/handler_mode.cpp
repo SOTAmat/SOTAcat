@@ -4,7 +4,6 @@
 #include "webserver.h"
 
 #include <cctype>
-#include <string>
 
 #include <esp_timer.h>
 
@@ -130,35 +129,30 @@ esp_err_t handler_mode_get (httpd_req_t * req) {
 }
 
 /**
- * Handles an HTTP PUT request to set the receiver bandwidth, which indirectly sets the radio mode.
- * Parses the 'bw' parameter from the HTTP request and adjusts the radio mode accordingly.
+ * Handles an HTTP PUT request to set the radio operating mode.
+ * Parses the 'mode' parameter from the HTTP request and adjusts the radio mode accordingly.
  * @param req Pointer to the HTTP request structure.
- * @return ESP_OK if the bandwidth mode is successfully set; otherwise, an error code.
+ * @return ESP_OK if the mode is successfully set; otherwise, an error code.
  */
 esp_err_t handler_mode_put (httpd_req_t * req) {
     showActivity();
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    STANDARD_DECODE_SOLE_PARAMETER (req, "bw", bw);
+    STANDARD_DECODE_SOLE_PARAMETER (req, "mode", mode_param);
 
-    /*
-     * Normalize the incoming "bw" text so matching is consistent:
-     * 1) Copy the raw parameter.
-     * 2) Convert to uppercase for case-insensitive comparisons.
-     */
-    std::string bw_normalized = bw;
-    for (char & ch : bw_normalized)
-        ch = static_cast<char> (std::toupper (static_cast<unsigned char> (ch)));
+    // Normalize to uppercase in-place for case-insensitive matching
+    for (char * p = mode_param; *p; ++p)
+        *p = static_cast<char> (std::toupper (static_cast<unsigned char> (*p)));
 
-    ESP_LOGI (TAG8, "requesting bw = '%s' normalized='%s'", bw, bw_normalized.c_str());
+    ESP_LOGI (TAG8, "requesting mode = '%s'", mode_param);
 
     radio_mode_t mode = MODE_UNKNOWN;
 
     // Tier 2: Moderate timeout for SET operations
     TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "mode SET")) {
-        // Determine the radio mode based on the "bw" parameter
-        if (!strcmp (bw_normalized.c_str(), "SSB")) {
+        // Determine the radio mode based on the "mode" parameter
+        if (!strcmp (mode_param, "SSB")) {
             // Get the current frequency and set the mode to LSB or USB based on the frequency
             long frequency = 0;
             if (!kxRadio.get_frequency (frequency))
@@ -172,14 +166,14 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
             for (radio_mode_map_t const * mode_kv = &radio_mode_map[COUNTOF (radio_mode_map) - 1];
                  mode_kv >= &radio_mode_map[0];
                  --mode_kv)
-                if (!strcmp (bw_normalized.c_str(), mode_kv->name)) {
+                if (!strcmp (mode_param, mode_kv->name)) {
                     mode = mode_kv->mode;
                     break;
                 }
 
         // Respond with an error if the mode is not recognized
         if (mode == MODE_UNKNOWN)
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid bw");
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode");
 
         // Set the radio mode
         ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);

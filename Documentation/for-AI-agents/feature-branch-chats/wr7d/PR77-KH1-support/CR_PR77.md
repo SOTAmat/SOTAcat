@@ -75,7 +75,7 @@ Given FT8's strict 160 ms symbol timing, repeated VFO adjustments at 10 Hz incre
 - `src/handler_ft8.cpp`
 - `src/kx_radio.cpp`
 - `src/handler_time.cpp`
-- `src/handler_mode_bandwidth.cpp`
+- `src/handler_mode.cpp`
 - `src/handler_status.cpp`
 
 ---

@@ -136,7 +136,7 @@ class MockSOTAcatServer:
 
         @self.app.route("/api/v1/mode", methods=["PUT"])
         def set_mode():
-            mode = request.args.get("bw")
+            mode = request.args.get("mode")
             if mode:
                 self.state["mode"] = mode
                 print(f"[MOCK] Mode set to {self.state['mode']}")

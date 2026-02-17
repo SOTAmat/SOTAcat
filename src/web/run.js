@@ -463,7 +463,7 @@ async function setMode(mode) {
         actualMode = (AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ) < LSB_USB_BOUNDARY_HZ ? "LSB" : "USB";
     }
 
-    const url = `/api/v1/mode?bw=${actualMode}`;
+    const url = `/api/v1/mode?mode=${actualMode}`;
 
     try {
         const response = await fetch(url, { method: "PUT" });

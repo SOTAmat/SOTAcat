@@ -385,7 +385,7 @@ async function tuneRadioHz(frequency, mode) {
 
         Log.debug("Chase")("Frequency updated:", frequency);
 
-        const modeResponse = await fetch(`/api/v1/mode?bw=${useMode}`, { method: "PUT" });
+        const modeResponse = await fetch(`/api/v1/mode?mode=${useMode}`, { method: "PUT" });
 
         if (!modeResponse.ok) {
             Log.error("Chase")("Mode update failed");

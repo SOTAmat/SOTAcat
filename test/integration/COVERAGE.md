@@ -53,7 +53,6 @@ These endpoints are tested under concurrent load to validate the 3-tier timeout 
 ### Not Tested (Require Radio + Special Conditions)
 The following endpoints require specific radio states or have side effects that make automated testing difficult:
 
-- `/api/v1/rxBandwidth` (GET/PUT) - Radio setting
 - `/api/v1/keyer` (PUT) - Morse keyer operation
 - `/api/v1/msg` (PUT) - Message transmission
 - `/api/v1/time` (PUT) - Radio clock sync
