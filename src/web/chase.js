@@ -14,6 +14,9 @@ const REFRESH_TIMER_UPDATE_INTERVAL_MS = 1000; // Update refresh timer every sec
 const AUTO_SUGGESTION_REVERT_TIMEOUT_MS = 5000; // Auto-suggestion revert delay
 const VFO_FREQUENCY_TOLERANCE_HZ = 100; // +/- 100 Hz for matching radio to spots
 
+// Track which row the user explicitly clicked (for smart PoLo row selection)
+let clickedTunedRow = null;
+
 // Chase page state encapsulated in a single object
 const ChaseState = {
     // Filter state
@@ -459,6 +462,11 @@ function updateTunedRowHighlight() {
         }
     });
 
+    // Clear clicked row if it no longer has the tuned-row class
+    if (clickedTunedRow && !clickedTunedRow.classList.contains("tuned-row")) {
+        clickedTunedRow = null;
+    }
+
     // Update Polo button state based on whether a spot is tuned
     updatePoloButtonState();
 }
@@ -603,8 +611,11 @@ function isValidPoloSig(sig) {
 }
 
 // Get data from the currently tuned row (if any)
+// Prefers the user-clicked row if still highlighted, otherwise falls back to first tuned row.
 function getTunedSpotData() {
-    const tunedRow = document.querySelector("#chase-table tbody tr.tuned-row");
+    const tunedRow = (clickedTunedRow && clickedTunedRow.classList.contains("tuned-row"))
+        ? clickedTunedRow
+        : document.querySelector("#chase-table tbody tr.tuned-row");
     if (!tunedRow) {
         Log.debug("Chase")("No tuned row found");
         return null;
@@ -650,8 +661,19 @@ function buildPoloChaseLink() {
         return null;
     }
 
-    // Their data from the tuned spot
-    const theirCall = tunedSpot.activatorCallsign;
+    // Collect all callsigns from tuned rows with the same reference as the primary row
+    const primaryCall = tunedSpot.activatorCallsign;
+    const primaryRef = tunedSpot.locationId;
+    const callsigns = [primaryCall];
+    if (primaryRef && primaryRef !== "-") {
+        document.querySelectorAll("#chase-table tbody tr.tuned-row").forEach((row) => {
+            const rowCall = row.dataset.activatorCallsign;
+            if (rowCall && row.dataset.locationId === primaryRef && !callsigns.includes(rowCall)) {
+                callsigns.push(rowCall);
+            }
+        });
+    }
+    const theirCall = callsigns.join(",");
     const freq = tunedSpot.hertz;
     const mode = mapModeForPolo(tunedSpot.modeType);
 
@@ -792,6 +814,7 @@ function buildChaseRow(spot, isMySpot) {
         }
         if (spot.hertz && spot.hertz > 0) {
             tuneRadioHz(spot.hertz, spot.modeType);
+            clickedTunedRow = row;
         }
     };
 
