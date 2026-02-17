@@ -703,6 +703,17 @@ function syncXmitButtonState() {
     }
 }
 
+// Send CW message to radio keyer (message: string, up to ~128 characters)
+// Backend handles splitting into <=24-char KYW commands at whitespace boundaries.
+function sendKeys(message) {
+    if (!message || message.length < 1) {
+        return;
+    }
+
+    const url = `/api/v1/keyer?message=${encodeURIComponent(message)}`;
+    fetchQuiet(url, { method: "PUT" }, "Spot");
+}
+
 // ============================================================================
 // VFO State Management Functions
 // ============================================================================

@@ -399,6 +399,7 @@ async function tuneRadioHz(frequency, mode) {
         AppState.vfoMode = useMode;
         AppState.vfoLastUpdated = Date.now();
         updateTunedRowHighlight();
+        updateMyCallButton();
     } catch (error) {
         Log.error("Chase")("Tune radio error:", error);
     }
@@ -460,6 +461,116 @@ function updateTunedRowHighlight() {
 
     // Update Polo button state based on whether a spot is tuned
     updatePoloButtonState();
+}
+
+// ============================================================================
+// MyCall Button Functions
+// ============================================================================
+
+function updateMyCallButton() {
+    const btn = document.getElementById("mycall-button");
+    if (!btn) return;
+
+    const callSign = AppState.callSign;
+    const vfoMode = AppState.vfoMode;
+    const vfoFreq = AppState.vfoFrequencyHz;
+    const modeCategory = vfoMode ? getModeCategory(vfoMode) : null;
+
+    // Button label: "Toggle TX" in phone mode, "MyCall" otherwise
+    if (modeCategory === "PHONE") {
+        btn.textContent = "Toggle TX";
+    } else {
+        btn.textContent = "MyCall";
+    }
+
+    // Mode-based coloring (same classes as Run page Msg buttons)
+    const modeClasses = ["msg-mode-cw", "msg-mode-voice", "msg-mode-data"];
+    modeClasses.forEach((cls) => btn.classList.remove(cls));
+    if (modeCategory === "CW") {
+        btn.classList.add("msg-mode-cw");
+    } else if (modeCategory === "DATA") {
+        btn.classList.add("msg-mode-data");
+    } else {
+        btn.classList.add("msg-mode-voice");
+    }
+
+    // Remove any leftover xmit active state
+    btn.classList.remove("active");
+
+    // Determine disabled state
+    let shouldDisable = false;
+    let title = "";
+
+    if (modeCategory === "PHONE") {
+        // Phone mode: acts as Toggle TX — only disable if privileges don't allow
+        if (vfoFreq) {
+            const userLicense = getUserLicenseClass();
+            const status = checkPrivileges(vfoFreq, vfoMode, userLicense);
+            if (!status.inBand) {
+                shouldDisable = true;
+                title = "Out of band";
+            } else if (!status.modeAllowed) {
+                shouldDisable = true;
+                title = "Mode not allowed here";
+            } else if (userLicense && !status.userCanTransmit) {
+                shouldDisable = true;
+                title = "Outside your privileges";
+            }
+        }
+        // If Phone and enabled, show xmit active state if applicable
+        if (!shouldDisable && AppState.isXmitActive) {
+            btn.classList.add("active");
+        }
+    } else if (modeCategory === "DATA") {
+        // DATA mode: no keyer action available
+        shouldDisable = true;
+        title = "Not available in DATA mode";
+    } else {
+        // CW mode: sends callsign — disable only if no privilege
+        if (vfoFreq) {
+            const userLicense = getUserLicenseClass();
+            const status = checkPrivileges(vfoFreq, vfoMode, userLicense);
+            if (!status.inBand) {
+                shouldDisable = true;
+                title = "Out of band";
+            } else if (!status.modeAllowed) {
+                shouldDisable = true;
+                title = "Mode not allowed here";
+            } else if (userLicense && !status.userCanTransmit) {
+                shouldDisable = true;
+                title = "Outside your privileges";
+            }
+        }
+    }
+
+    btn.disabled = shouldDisable;
+    btn.title = title;
+}
+
+function onMyCallClick() {
+    const callSign = AppState.callSign;
+
+    // No callsign set: alert and navigate to Settings
+    if (!callSign) {
+        alert("Set callsign in Settings");
+        openTab("Settings").then(() => {
+            const input = document.getElementById("callsign");
+            if (input) input.focus();
+        });
+        return;
+    }
+
+    const modeCategory = getModeCategory(AppState.vfoMode);
+
+    if (modeCategory === "PHONE") {
+        // Phone mode: toggle TX (same as old behavior)
+        toggleXmit();
+        updateMyCallButton();
+        return;
+    }
+
+    // Non-phone: send callsign via keyer
+    sendKeys(callSign);
 }
 
 // ============================================================================
@@ -1014,10 +1125,10 @@ function attachChaseEventListeners() {
     // Update button label to reflect current state
     updateRefreshButtonLabel();
 
-    // Transmit toggle button
-    const xmitBtn = document.getElementById("xmit-button");
-    if (xmitBtn) {
-        xmitBtn.addEventListener("click", toggleXmit);
+    // MyCall button (replaces Toggle TX)
+    const myCallBtn = document.getElementById("mycall-button");
+    if (myCallBtn) {
+        myCallBtn.addEventListener("click", onMyCallClick);
     }
 
     // Polo chase button
@@ -1088,15 +1199,17 @@ function attachChaseEventListeners() {
 async function onChaseAppearing() {
     Log.info("Chase")("tab appearing");
 
-    // Load callsign for spot pinning (non-blocking)
-    ensureCallSignLoaded();
+    // Load callsign for spot pinning and MyCall button (non-blocking)
+    ensureCallSignLoaded().then(() => updateMyCallButton());
 
     // Load radio type and filter settings for band filtering
     await loadRadioType();
     loadFilterBandsSetting();
+    ensureLicenseClassLoaded();
 
     // Subscribe to VFO changes and start polling for row highlighting
     subscribeToVfo(updateTunedRowHighlight);
+    subscribeToVfo(updateMyCallButton);
     startGlobalVfoPolling();
 
     // Start the refresh timer
@@ -1108,8 +1221,8 @@ async function onChaseAppearing() {
     // Attach event listeners for all controls
     attachChaseEventListeners();
 
-    // Sync xmit button state with global state
-    syncXmitButtonState();
+    // Update MyCall button state
+    updateMyCallButton();
 
     // Set filter dropdown values (do this every time for state consistency)
     const modeSelector = document.getElementById("mode-filter");
@@ -1148,6 +1261,7 @@ function onChaseLeaving() {
 
     // Unsubscribe from VFO changes (this also stops polling if no other subscribers)
     unsubscribeFromVfo(updateTunedRowHighlight);
+    unsubscribeFromVfo(updateMyCallButton);
 
     // Stop the refresh timer display
     stopRefreshTimer();

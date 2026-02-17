@@ -649,12 +649,6 @@ input.frequency-display {
     padding: 0;
 }
 
-/* TX Toggle button in Chase page controls - match btn-refresh sizing */
-.controls-grid .btn-xmit {
-    min-height: var(--touch-target-sm);
-    font-size: var(--text-sm);
-    padding: 0 var(--space-md);
-}
 .btn-xmit.active {
     background: var(--danger);
     animation: pulse 1.5s infinite;
@@ -668,6 +662,49 @@ input.frequency-display {
     50% {
         opacity: 0.7;
     }
+}
+
+/* MyCall button: colored by mode like Msg buttons */
+.btn-mycall {
+    background: var(--gray-7);
+    color: var(--white);
+    padding: 0;
+}
+.btn-mycall.msg-mode-cw {
+    background: var(--primary);
+    color: var(--white);
+}
+.btn-mycall.msg-mode-cw:active:not(:disabled) {
+    background: var(--primary-dark);
+}
+.btn-mycall.msg-mode-voice {
+    background: var(--success);
+    color: var(--white);
+}
+.btn-mycall.msg-mode-voice:active:not(:disabled) {
+    background: var(--success-dark);
+}
+.btn-mycall.msg-mode-data {
+    background: var(--warning);
+    color: var(--gray-9);
+}
+.btn-mycall.msg-mode-data:active:not(:disabled) {
+    background: var(--warning-dark);
+}
+.btn-mycall:disabled {
+    background: var(--gray-3);
+    color: var(--gray-5);
+    cursor: not-allowed;
+}
+.btn-mycall.active {
+    background: var(--danger);
+    animation: pulse 1.5s infinite;
+}
+/* Match sizing of other Chase control buttons */
+.controls-grid .btn-mycall {
+    min-height: var(--touch-target-sm);
+    font-size: var(--text-sm);
+    padding: 0 var(--space-md);
 }
 
 .btn-send {
