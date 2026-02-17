@@ -482,7 +482,8 @@ function getChaseUserSigFromReference(ref) {
 }
 
 // Valid Polo sig types (lowercase)
-const VALID_POLO_SIGS = ["sota", "pota", "wwff", "gma", "wca", "zlota", "iota"];
+// Note: PoLo does not yet support "iota" as a recognized activity type
+const VALID_POLO_SIGS = ["sota", "pota", "wwff", "gma", "wca", "zlota"];
 
 // Check if a sig type is valid for Polo
 function isValidPoloSig(sig) {

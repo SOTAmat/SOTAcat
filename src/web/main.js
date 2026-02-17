@@ -637,28 +637,28 @@ function mapModeForPolo(mode) {
 
 // Build Ham2K Polo deep link URL from parameters
 // All parameters are optional - only non-null/non-empty values are included
-// Parameters: myRef, mySig, myCall, theirRef, theirSig, theirCall, freq, mode, time
+// Internal params → Polo URL params:
+//   mySig+myRef → our.refs=sig:ref, theirSig+theirRef → their.refs=sig:ref,
+//   myCall → our.call, theirCall → their.call, freq → frequency,
+//   mode → mode, time → startAtMillis
 function buildPoloDeepLink(params) {
     const baseUrl = "com.ham2k.polo://qso";
-    const validParams = [
-        "myRef",
-        "mySig",
-        "myCall",
-        "theirRef",
-        "theirSig",
-        "theirCall",
-        "freq",
-        "mode",
-        "time",
-    ];
-
     const queryParts = [];
-    for (const key of validParams) {
-        const value = params[key];
-        if (value !== null && value !== undefined && value !== "") {
-            queryParts.push(`${key}=${encodeURIComponent(value)}`);
-        }
+
+    // our.refs — merge mySig:myRef
+    if (params.mySig && params.myRef) {
+        queryParts.push(`our.refs=${encodeURIComponent(params.mySig.toLowerCase() + ":" + params.myRef)}`);
     }
+    // their.refs — merge theirSig:theirRef
+    if (params.theirSig && params.theirRef) {
+        queryParts.push(`their.refs=${encodeURIComponent(params.theirSig.toLowerCase() + ":" + params.theirRef)}`);
+    }
+    // Simple renames
+    if (params.myCall) queryParts.push(`our.call=${encodeURIComponent(params.myCall)}`);
+    if (params.theirCall) queryParts.push(`their.call=${encodeURIComponent(params.theirCall)}`);
+    if (params.freq) queryParts.push(`frequency=${encodeURIComponent(params.freq)}`);
+    if (params.mode) queryParts.push(`mode=${encodeURIComponent(params.mode)}`);
+    if (params.time) queryParts.push(`startAtMillis=${encodeURIComponent(params.time)}`);
 
     if (queryParts.length === 0) return null;
     return `${baseUrl}?${queryParts.join("&")}`;
