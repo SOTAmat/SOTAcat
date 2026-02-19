@@ -8,6 +8,7 @@
 #include "settings.h"
 #include "setup_adc.h"
 #include "timed_lock.h"
+#include "rigctld_server.h"
 #include "webserver.h"
 #include "wifi.h"
 
@@ -143,6 +144,10 @@ void setup () {
     // Start the web server
     start_webserver();
     ESP_LOGI (TAG8, "webserver initialized.");
+
+    // Start the rigctld TCP server (Hamlib network protocol on port 4532)
+    start_rigctld_server();
+    ESP_LOGI (TAG8, "rigctld server initialized.");
 
     // Flash the LED to indicate we are done with Wifi
     for (int i = 0; i < 3; i++) {
