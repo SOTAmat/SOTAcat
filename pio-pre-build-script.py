@@ -282,6 +282,13 @@ def _ensure_x509_crt_bundle():
 
     # mbedtls generates x509_crt_bundle in CMAKE_CURRENT_BINARY_DIR = build_dir/esp-idf/mbedtls
     out_dir = os.path.join(build_dir, "esp-idf", "mbedtls")
+
+    # Skip regeneration if the bundle already exists (it doesn't change between builds)
+    bundle_path = os.path.join(out_dir, "x509_crt_bundle")
+    if os.path.isfile(bundle_path):
+        log_message("x509_crt_bundle already exists, skipping regeneration")
+        return
+
     try:
         os.makedirs(out_dir, exist_ok=True)
     except OSError:
@@ -375,25 +382,44 @@ def _write_manifest_file():
     log_message(f"Wrote webtools manifest: {manifest_abs}")
 
 
-# Pre-compress web assets with gzip
-log_message("Compressing web assets...")
-try:
-    result = subprocess.run(
-        [sys.executable, "scripts/compress_web_assets.py"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    # Print the output from the compression script
-    for line in result.stdout.splitlines():
-        log_message(f"  {line}")
-except subprocess.CalledProcessError as e:
-    log_message(f"ERROR: Failed to compress web assets: {e}")
-    log_message(f"  {e.stderr}")
-    sys.exit(1)
-except FileNotFoundError as e:
-    log_message(f"ERROR: Compression script not found - cannot continue: {e}")
-    sys.exit(1)
+# Conditionally compress web assets: only regenerate .htmlgz/.jsgz/.cssgz files
+# when their source is newer, avoiding unnecessary recompilation of embedded .S files.
+def _compress_web_assets():
+    import gzip as _gzip
+
+    web_dir = os.path.join(env.subst("$PROJECT_DIR"), "src", "web")
+    extensions = (".html", ".js", ".css")
+    compressed_count = 0
+    skipped_count = 0
+
+    for ext in extensions:
+        for src_path in glob.glob(os.path.join(web_dir, f"*{ext}")):
+            # Derive output: index.html → index.htmlgz
+            base = os.path.basename(src_path)
+            gz_name = base + "gz"  # .html → .htmlgz, .js → .jsgz, .css → .cssgz
+            gz_path = os.path.join(web_dir, gz_name)
+
+            # Skip if compressed file exists and is newer than source
+            if os.path.isfile(gz_path) and os.path.getmtime(gz_path) >= os.path.getmtime(
+                src_path
+            ):
+                skipped_count += 1
+                continue
+
+            with open(src_path, "rb") as f_in:
+                data = _gzip.compress(f_in.read(), 9)
+            with open(gz_path, "wb") as f_out:
+                f_out.write(data)
+            compressed_count += 1
+            log_message(f"  Compressed {base} -> {gz_name}")
+
+    if compressed_count:
+        log_message(f"Compressed {compressed_count} web asset(s), {skipped_count} unchanged")
+    else:
+        log_message(f"Web assets up to date ({skipped_count} file(s) unchanged)")
+
+
+_compress_web_assets()
 
 # Update version strings (script only runs during actual builds, not IDE scans)
 build_type = access_build_flags()
@@ -403,13 +429,14 @@ long_build_datetime_str = (
     datetime.datetime.now().strftime("%Y-%m-%d_%H:%M-") + build_type
 )
 
-# Remove previous webtools outputs for this build so only explicitly published
-# artifacts remain.
-_clear_webtools_outputs()
+# _clear_webtools_outputs() is called inside the webtools action callbacks
+# (package/verify_and_publish) so it only runs when those targets are invoked,
+# not on every build.
 
 
 def _package_webtools_action(source, target, env):
     log_message("Running build-and-publish webtools step...")
+    _clear_webtools_outputs()
     merge_binaries(source, target, env)
     _write_manifest_file()
 
@@ -475,7 +502,59 @@ env.AddCustomTarget(
     description="Build current env, run tests, and publish only if tests pass",
 )
 
-# Update build_info.h
-with open(header_path, "w") as f:
-    f.write('#define BUILD_DATE_TIME "{}"\n'.format(short_build_datetime_str))
-log_message(f"Updated {header_path} with build date/time {short_build_datetime_str}")
+# Conditionally update build_info.h: only rewrite when source files have changed
+# since it was last written, to avoid unnecessary recompilation.
+def _should_update_build_info():
+    """Check if any source file is newer than build_info.h."""
+    if not os.path.isfile(header_path):
+        return True
+
+    header_mtime = os.path.getmtime(header_path)
+    project_dir = env.subst("$PROJECT_DIR")
+
+    # Source patterns to check (relative to project dir)
+    source_patterns = [
+        ("src", "**/*.cpp"),
+        ("include", "**/*.h"),
+        ("src/web", "*.html"),
+        ("src/web", "*.js"),
+        ("src/web", "*.css"),
+        ("lib", "**/*.cpp"),
+        ("lib", "**/*.h"),
+    ]
+    # Individual config files to check
+    config_files = [
+        "platformio.ini",
+        "CMakeLists.txt",
+        "src/CMakeLists.txt",
+    ]
+
+    for base_dir, pattern in source_patterns:
+        search_dir = os.path.join(project_dir, base_dir)
+        if not os.path.isdir(search_dir):
+            continue
+        for filepath in glob.glob(os.path.join(search_dir, pattern), recursive=True):
+            # Skip build_info.h itself
+            if os.path.abspath(filepath) == os.path.abspath(
+                os.path.join(project_dir, header_path)
+            ):
+                continue
+            if os.path.getmtime(filepath) > header_mtime:
+                return True
+
+    for cfg in config_files:
+        cfg_path = os.path.join(project_dir, cfg)
+        if os.path.isfile(cfg_path) and os.path.getmtime(cfg_path) > header_mtime:
+            return True
+
+    return False
+
+
+if _should_update_build_info():
+    with open(header_path, "w") as f:
+        f.write('#define BUILD_DATE_TIME "{}"\n'.format(short_build_datetime_str))
+    log_message(
+        f"Updated {header_path} with build date/time {short_build_datetime_str}"
+    )
+else:
+    log_message(f"Skipped {header_path} update (no source changes detected)")
