@@ -1,21 +1,16 @@
 #include "wifi.h"
 #include "build_info.h"
-#include "esp_err.h"
-#include "esp_log.h"
-#include "esp_netif.h"
-#include "esp_netif_types.h"
-#include "esp_task_wdt.h"
 #include "globals.h"
 #include "hardware_specific.h"
-#include "lwip/sockets.h"
 #include "settings.h"
-#include <atomic>
+
 #include <cstring>
 #include <esp_mac.h>
+#include <esp_netif.h>
+#include <esp_task_wdt.h>
 #include <esp_wifi.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 #include <lwip/ip4_addr.h>
+#include <lwip/sockets.h>
 #include <mdns.h>
 
 #include <esp_log.h>
