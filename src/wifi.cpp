@@ -1,5 +1,4 @@
 #include "wifi.h"
-#include "build_info.h"
 #include "globals.h"
 #include "hardware_specific.h"
 #include "settings.h"
@@ -524,14 +523,10 @@ bool start_mdns_service () {
     }
 
     // Add device-info service with proper properties
-    const size_t MAX_VS_LEN = sizeof (BUILD_DATE_TIME) + sizeof ('-') + sizeof (SC_BUILD_TYPE) + 1;
-    char         versionString[MAX_VS_LEN];
-    snprintf (versionString, MAX_VS_LEN, "%s-%s", BUILD_DATE_TIME, SC_BUILD_TYPE);
-
     mdns_txt_item_t device_txt[] = {
-        {"model",        "SOTAcat"    },
-        {"version",      versionString},
-        {"manufacturer", HW_TYPE_STR  }
+        {"model",        "SOTAcat"                        },
+        {"version",      get_version_string()},
+        {"manufacturer", HW_TYPE_STR                      }
     };
     err = mdns_service_add (NULL, "_device-info", "_tcp", 9090, device_txt, sizeof (device_txt) / sizeof (device_txt[0]));
     if (err != ESP_OK) {

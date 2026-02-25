@@ -1,4 +1,7 @@
 #include "hardware_specific.h"
+#include "build_info.h"
+
+#include <cstdio>
 #include <driver/gpio.h>
 #include <driver/uart.h>
 
@@ -54,6 +57,13 @@ static SOTAcat_HW_Type detect_hardware_type (void) {
         ESP_LOGI (TAG8, "AB6D_1 hardware detected");
         return SOTAcat_HW_Type::AB6D_1;  // GPIO6 is low, AB6D_1 detected
     }
+}
+
+const char * get_version_string (void) {
+    static char version[64];
+    if (version[0] == '\0')
+        snprintf (version, sizeof (version), "%s:%s-%s", HW_TYPE_STR, BUILD_DATE_TIME, SC_BUILD_TYPE);
+    return version;
 }
 
 void set_hardware_specific (void) {
