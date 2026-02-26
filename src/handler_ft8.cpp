@@ -10,6 +10,7 @@
 
 #include <cmath>
 #include <atomic>
+#include <cstdlib>
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_task_wdt.h>
@@ -17,6 +18,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
+#include <cstdint>
+#include <cstring>
 #include <sys/time.h>
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
@@ -75,16 +78,23 @@ static inline bool ft8_try_claim_task_in_progress () {
     return ft8TaskInProgress.compare_exchange_strong (expected, true, std::memory_order_acq_rel, std::memory_order_acquire);
 }
 
+constexpr size_t FT8_REQUEST_TOKEN_MAX = 64;
+
 /**
  * A pointer to an `ft8_task_pack_t` structure containing configuration information needed for the FT8 transmission.
- * This includes base frequency, the encoded tones to transmit, and any state information necessary for managing the
- * radio device.
+ * This includes:
+ * - `baseFreq`: the current transmit base frequency used by the tone scheduler.
+ * - `rfFreq`/`audioFreq`/`messageText`: the original prepare request payload used to detect identical prepare calls.
+ * - `tones` and `kx_state`: resources that are released by cleanup_ft8_task().
  * This pointer is initially set to NULL and is allocated when preparing for an FT8 transmission.
  * It must be properly managed to avoid memory leaks and is cleaned up after the transmission completes or is cancelled.
  */
 typedef struct
 {
     long         baseFreq;
+    long         rfFreq;
+    int          audioFreq;
+    char         messageText[14];
     uint8_t *    tones;
     kx_state_t * kx_state;
 } ft8_task_pack_t;
@@ -100,7 +110,46 @@ static inline void ft8_set_config_info (ft8_task_pack_t * config) {
     ft8ConfigInfo.store (config, std::memory_order_release);
 }
 
+static std::atomic<long>     ft8PreparedRfFreq {0};
+static std::atomic<int>      ft8PreparedAudioFreq {0};
+static std::atomic<uint32_t> ft8PreparedMessageHash {0};
+static std::atomic<uint32_t> ft8PreparedRequestTokenHash {0};
+static std::atomic<uint32_t> ft8LastAcceptedSequence {0};
+
+static inline uint32_t ft8_get_last_accepted_sequence () {
+    return ft8LastAcceptedSequence.load (std::memory_order_acquire);
+}
+
+static inline void ft8_set_last_accepted_sequence (uint32_t sequence_number) {
+    ft8LastAcceptedSequence.store (sequence_number, std::memory_order_release);
+}
+
+static uint32_t ft8_hash_string (const char * text) {
+    // FNV-1a hash; stable and fast for request identity checks.
+    uint32_t hash = 2166136261u;
+    if (!text) {
+        return 0;
+    }
+
+    while (*text) {
+        hash ^= static_cast<uint8_t> (*text++);
+        hash *= 16777619u;
+    }
+
+    return hash;
+}
+
+static uint32_t ft8_hash_optional_string (const char * text) {
+    if (!text || text[0] == '\0') {
+        return 0;
+    }
+    return ft8_hash_string (text);
+}
+
+static void ft8_clear_prepare_identity ();
+
 constexpr size_t         FT8_QUEUE_MAX = 4;
+constexpr int64_t        FT8_QUEUE_WAIT_TIMEOUT_US = 2000LL * 1000LL;
 static long              ft8_queue[FT8_QUEUE_MAX];
 static size_t            ft8_queue_head  = 0;
 static size_t            ft8_queue_tail  = 0;
@@ -471,7 +520,9 @@ static void cleanup_ft8_task (void * pvParameter) {
     // Register with watchdog timer
     ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
 
-    while (esp_timer_get_time() < ft8_get_cancel_deadline_us() || ft8_is_task_in_progress()) {
+    while (esp_timer_get_time() < ft8_get_cancel_deadline_us() ||
+           ft8_is_task_in_progress() ||
+           CommandInProgress.load (std::memory_order_acquire)) {
         ESP_ERROR_CHECK (esp_task_wdt_reset());  // Reset watchdog during wait
         vTaskDelay (pdMS_TO_TICKS (250));
     }
@@ -482,7 +533,7 @@ static void cleanup_ft8_task (void * pvParameter) {
     if (configInfo == NULL) {
         // This should never happen, but just in case...
         ESP_LOGE (TAG8, "cleanup_ft8_task called with ft8ConfigInfo == NULL");
-        CommandInProgress.store (false, std::memory_order_release);
+        ft8_clear_prepare_identity();
         Ft8RadioExclusive = false;
         esp_task_wdt_delete (NULL);  // Unregister before deletion
         vTaskDelete (NULL);
@@ -513,15 +564,249 @@ static void cleanup_ft8_task (void * pvParameter) {
     // Release ft8ConfigInfo
     // Safe to free here: cleanup waits for ft8TaskInProgress to clear, so xmit no longer uses ft8ConfigInfo.
     ft8_set_config_info (NULL);
+    ft8_clear_prepare_identity();
     delete configInfo->kx_state;
     delete[] configInfo->tones;
     delete configInfo;
 
-    CommandInProgress.store (false, std::memory_order_release);
     Ft8RadioExclusive = false;
     ESP_LOGI (TAG8, "cleanup_ft8_task() completed.");
     esp_task_wdt_delete (NULL);  // Unregister before deletion
     vTaskDelete (NULL);
+}
+
+/**
+ * Normalized /prepareft8 request fields shared between explicit /prepareft8 and
+ * the internal auto-prepare path in /ft8.
+ */
+typedef struct
+{
+    char    messageText[64];
+    char    requestToken[FT8_REQUEST_TOKEN_MAX];
+    int64_t nowTimeUTCms;
+    long    rfFreq;
+    int     audioFreq;
+} ft8_prepare_request_t;
+
+static void ft8_clear_prepare_identity () {
+    ft8PreparedRfFreq.store (0, std::memory_order_release);
+    ft8PreparedAudioFreq.store (0, std::memory_order_release);
+    ft8PreparedMessageHash.store (0, std::memory_order_release);
+    ft8PreparedRequestTokenHash.store (0, std::memory_order_release);
+    ft8_set_last_accepted_sequence (0);
+}
+
+static void ft8_record_prepare_identity (const ft8_prepare_request_t & request) {
+    ft8PreparedRfFreq.store (request.rfFreq, std::memory_order_release);
+    ft8PreparedAudioFreq.store (request.audioFreq, std::memory_order_release);
+    ft8PreparedMessageHash.store (ft8_hash_string (request.messageText), std::memory_order_release);
+    ft8PreparedRequestTokenHash.store (ft8_hash_optional_string (request.requestToken), std::memory_order_release);
+}
+
+static bool ft8_is_same_prepare_request (const ft8_prepare_request_t & request) {
+    if (ft8PreparedRfFreq.load (std::memory_order_acquire) != request.rfFreq) {
+        return false;
+    }
+    if (ft8PreparedAudioFreq.load (std::memory_order_acquire) != request.audioFreq) {
+        return false;
+    }
+    if (ft8PreparedMessageHash.load (std::memory_order_acquire) != ft8_hash_string (request.messageText)) {
+        return false;
+    }
+
+    uint32_t prepared_token_hash = ft8PreparedRequestTokenHash.load (std::memory_order_acquire);
+    uint32_t request_token_hash  = ft8_hash_optional_string (request.requestToken);
+    if (prepared_token_hash != 0 || request_token_hash != 0) {
+        return prepared_token_hash == request_token_hash;
+    }
+
+    return true;
+}
+
+static uint32_t ft8_parse_request_token_hash_from_query (const char * unsafe_buf) {
+    char request_token[FT8_REQUEST_TOKEN_MAX];
+    request_token[0] = '\0';
+
+    if (httpd_query_key_value (unsafe_buf, "requestToken", request_token, sizeof (request_token)) == ESP_OK) {
+        (void)url_decode_in_place (request_token);
+    }
+
+    return ft8_hash_optional_string (request_token);
+}
+
+static bool ft8_parse_sequence_number_from_query (const char * unsafe_buf, uint32_t & out_sequence_number) {
+    char sequence_number_str[16];
+    sequence_number_str[0] = '\0';
+
+    if (httpd_query_key_value (unsafe_buf, "sequenceNumber", sequence_number_str, sizeof (sequence_number_str)) != ESP_OK) {
+        return false;
+    }
+
+    char *        end_ptr = NULL;
+    unsigned long parsed  = strtoul (sequence_number_str, &end_ptr, 10);
+    if (parsed == 0 || end_ptr == sequence_number_str || *end_ptr != '\0' || parsed > UINT32_MAX) {
+        return false;
+    }
+
+    out_sequence_number = static_cast<uint32_t> (parsed);
+    return true;
+}
+
+enum class ft8_sequence_decision_t
+{
+    accept,
+    duplicate,
+    stale,
+    out_of_order
+};
+
+static ft8_sequence_decision_t ft8_classify_sequence_number (uint32_t requested_sequence_number) {
+    uint32_t last_sequence_number = ft8_get_last_accepted_sequence();
+    if (last_sequence_number == 0) {
+        return ft8_sequence_decision_t::accept;
+    }
+    if (requested_sequence_number == last_sequence_number) {
+        return ft8_sequence_decision_t::duplicate;
+    }
+    if (requested_sequence_number < last_sequence_number) {
+        return ft8_sequence_decision_t::stale;
+    }
+    if (last_sequence_number == UINT32_MAX) {
+        return ft8_sequence_decision_t::out_of_order;
+    }
+    if (requested_sequence_number == (last_sequence_number + 1)) {
+        return ft8_sequence_decision_t::accept;
+    }
+    return ft8_sequence_decision_t::out_of_order;
+}
+
+/**
+ * Parse and validate all query parameters required for FT8 preparation.
+ */
+static bool ft8_parse_prepare_request_from_query (const char * unsafe_buf, ft8_prepare_request_t & out) {
+    char   nowTimeUTCms_str[64];
+    char   rfFreq_str[32];
+    char   audioFreq_str[16];
+    char * timeStringEndChar = NULL;
+
+    out.nowTimeUTCms = 0;
+    out.rfFreq       = 0;
+    out.audioFreq    = 0;
+    out.messageText[0] = '\0';
+    out.requestToken[0] = '\0';
+
+    if (httpd_query_key_value (unsafe_buf, "requestToken", out.requestToken, sizeof (out.requestToken)) == ESP_OK) {
+        (void)url_decode_in_place (out.requestToken);
+    }
+    if (out.requestToken[0] == '\0') {
+        return false;
+    }
+
+    if (!(httpd_query_key_value (unsafe_buf, "messageText", out.messageText, sizeof (out.messageText)) == ESP_OK &&
+          url_decode_in_place (out.messageText) &&
+          strnlen (out.messageText, sizeof (out.messageText)) <= 13 &&
+          httpd_query_key_value (unsafe_buf, "timeNow", nowTimeUTCms_str, sizeof (nowTimeUTCms_str)) == ESP_OK &&
+          (out.nowTimeUTCms = strtoll (nowTimeUTCms_str, &timeStringEndChar, 10)) > 0 &&
+          httpd_query_key_value (unsafe_buf, "rfFrequency", rfFreq_str, sizeof (rfFreq_str)) == ESP_OK &&
+          (out.rfFreq = atol (rfFreq_str)) > 0 &&
+          httpd_query_key_value (unsafe_buf, "audioFrequency", audioFreq_str, sizeof (audioFreq_str)) == ESP_OK &&
+          (out.audioFreq = atoi (audioFreq_str)) > 0)) {
+        return false;
+    }
+
+    return true;
+}
+
+static void ft8_extend_prepare_deadline () {
+    // We have prepared the radio to send FT8, but we don't know if the user will
+    // cancel or send FT8. Ensure we keep the radio prepared long enough for the
+    // next transmit request, even if prepare happens close to a window boundary.
+    int64_t now_us              = esp_timer_get_time();
+    int64_t next_window_timeout = now_us + ((msUntilFT8Window() + 1000) * 1000LL);
+    int64_t min_prepare_timeout = now_us + (20LL * 1000LL * 1000LL);
+    ft8_set_cancel_deadline_us ((next_window_timeout > min_prepare_timeout) ? next_window_timeout : min_prepare_timeout);
+}
+
+static bool ft8_prepare_internal (const ft8_prepare_request_t & request, const char ** error_message) {
+    // Set the system clock based on the time received from the phone
+    struct timeval nowTimeUTC;
+    nowTimeUTC.tv_sec  = request.nowTimeUTCms / 1000;
+    nowTimeUTC.tv_usec = (request.nowTimeUTCms % 1000) * 1000;
+
+    // Resetting system time can make inactivity logic think we jumped forward, so
+    // refresh the activity timer immediately after applying the phone timestamp.
+    // Set the system's clock to the time received from the cell phone
+    settimeofday (&nowTimeUTC, NULL);
+
+    // Reset the activity timer to prevent idle watchdog from triggering
+    resetActivityTimer();
+
+    // First, pack the text data into an FT8 binary message
+    uint8_t packed[FTX_LDPC_K_BYTES];
+    int     rc = pack77 (request.messageText, packed);
+    if (rc < 0) {
+        *error_message = "can't parse FT8 message";
+        return false;
+    }
+
+    // Second, encode the binary message as a sequence of FSK tones
+    uint8_t * tones = new uint8_t[FT8_NN];  // Array of 79 tones (symbols)
+    if (tones == NULL) {
+        *error_message = "can't allocate memory for FT8 tones";
+        return false;
+    }
+
+    ft8_encode (packed, tones);
+
+    // this block encapsulates our exclusive access to the radio port
+    {
+        TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "FT8 setup");
+        if (!lock.acquired()) {
+            delete[] tones;
+            *error_message = "radio busy, please retry";
+            return false;
+        }
+
+        // First capture the current state of the radio before changing it:
+        kx_state_t * kx_state = new kx_state_t;
+        if (!kxRadio.get_radio_state (kx_state)) {
+            delete kx_state;
+            delete[] tones;
+            *error_message = "failed to read radio state";
+            return false;
+        }
+
+        // Prepare the radio to send the FT8 FSK tones using CW tone with proper power setting.
+        long baseFreq = request.rfFreq + request.audioFreq;
+
+        if (!kxRadio.ft8_prepare (baseFreq)) {
+            kxRadio.restore_radio_state (kx_state, 2);
+            delete kx_state;
+            delete[] tones;
+            Ft8RadioExclusive = false;
+            *error_message    = "failed to prepare radio for ft8";
+            return false;
+        }
+
+        // Offload playing the FT8 audio
+        ft8_task_pack_t * configInfo = new ft8_task_pack_t;
+        configInfo->baseFreq         = baseFreq;
+        configInfo->rfFreq           = request.rfFreq;
+        configInfo->audioFreq        = request.audioFreq;
+        strlcpy (configInfo->messageText, request.messageText, sizeof (configInfo->messageText));
+        configInfo->tones            = tones;
+        configInfo->kx_state         = kx_state;  // will be deleted later in cleanup
+        ft8_set_config_info (configInfo);
+        ft8_record_prepare_identity (request);
+        Ft8RadioExclusive = true;
+    }  // TimedLock auto-unlocks here
+
+    ft8_extend_prepare_deadline();
+
+    // Start the cleanup watchdog now. It owns teardown of ft8ConfigInfo and radio
+    // state restoration after cancel deadline expiry and/or task completion.
+    xTaskCreate (&cleanup_ft8_task, "cleanup_ft8_task", 5120, NULL, SC_TASK_PRIORITY_NORMAL, NULL);
+    return true;
 }
 
 /**
@@ -537,6 +822,8 @@ static void cleanup_ft8_task (void * pvParameter) {
  *              frequency is used to calculate the actual transmission frequency by adding the audio frequency.
  *            - 'audioFrequency': The frequency offset (in Hz) added to the 'rfFrequency' to derive the actual
  *              transmission frequency. This offset represents the audio tone frequency in the FT8 signal.
+ *            - 'requestToken': A workflow token generated by the client to correlate retries and
+ *              reject stale requests from previous sessions.
  *
  * @return ESP_OK on success or ESP_FAIL on failure.
  */
@@ -566,117 +853,45 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     // Keep CommandInProgress from getting stuck true on any early return from
     // this handler, including REPLY_WITH_FAILURE paths inside STANDARD_DECODE_QUERY.
 
-    if (ft8_get_config_info() != NULL) {
-        ft8_request_cancel();
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "prepare called while another command already in progress");
-    }
-
     STANDARD_DECODE_QUERY (req, unsafe_buf);
     gpio_set_level (LED_BLUE, LED_ON);  // LED on
 
-    char    ft8_msg[64];
-    char    nowTimeUTCms_str[64];
-    int64_t nowTimeUTCms = 0;
-    char    rfFreq_str[32];
-    long    rfFreq = 0;
-    char    audioFreq_str[16];
-    int     audioFreq         = 0;
-    char *  timeStringEndChar = NULL;
-
-    // Parse the 'messageText' parameter from the query
-    if (!(httpd_query_key_value (unsafe_buf, "messageText", ft8_msg, sizeof (ft8_msg)) == ESP_OK &&
-          url_decode_in_place (ft8_msg) &&
-          strnlen (ft8_msg, sizeof (ft8_msg)) <= 13 &&
-          httpd_query_key_value (unsafe_buf, "timeNow", nowTimeUTCms_str, sizeof (nowTimeUTCms_str)) == ESP_OK &&
-          (nowTimeUTCms = strtoll (nowTimeUTCms_str, &timeStringEndChar, 10)) > 0 &&
-          httpd_query_key_value (unsafe_buf, "rfFrequency", rfFreq_str, sizeof (rfFreq_str)) == ESP_OK &&
-          (rfFreq = atol (rfFreq_str)) > 0 &&
-          httpd_query_key_value (unsafe_buf, "audioFrequency", audioFreq_str, sizeof (audioFreq_str)) == ESP_OK &&
-          (audioFreq = atoi (audioFreq_str)) > 0)) {
+    ft8_prepare_request_t request;
+    if (!ft8_parse_prepare_request_from_query (unsafe_buf, request)) {
+        gpio_set_level (LED_BLUE, LED_OFF);
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
     }
 
-    // Set the system clock based on the time received from the phone
-    struct timeval nowTimeUTC;
-    nowTimeUTC.tv_sec  = nowTimeUTCms / 1000;
-    nowTimeUTC.tv_usec = (nowTimeUTCms % 1000) * 1000;
+    ft8_task_pack_t * existingConfig = ft8_get_config_info();
+    if (existingConfig != NULL) {
+        if (ft8_get_cancel_deadline_us() <= 0) {
+            gpio_set_level (LED_BLUE, LED_OFF);
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "ft8 cleanup in progress");
+        }
 
-    // Reseting the system clock to the time received from the phone can cause the
-    // inactivity idle watchdog to trigger (which would put the device to sleep),
-    // so we need to reset the activity timer after changing the system clock.
+        // Idempotent fast-path: if the caller repeats the same prepare payload while
+        // FT8 remains prepared, just extend the deadline instead of re-encoding tones
+        // and reconfiguring the radio.
+        if (ft8_is_same_prepare_request (request)) {
+            ft8_extend_prepare_deadline();
+            gpio_set_level (LED_BLUE, LED_OFF);
+            CommandInProgress.store (false, std::memory_order_release);
+            commandGuard.dismiss();
+            REPLY_WITH_SUCCESS();
+        }
 
-    // Set the system's clock to the time received from the cell phone
-    settimeofday (&nowTimeUTC, NULL);
-
-    // Reset the activity timer to prevent idle watchdog from triggering
-    resetActivityTimer();
-
-    // First, pack the text data into an FT8 binary message
-    uint8_t packed[FTX_LDPC_K_BYTES];
-    int     rc = pack77 (ft8_msg, packed);
-    if (rc < 0) {
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "can't parse FT8 message");
+        gpio_set_level (LED_BLUE, LED_OFF);
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "ft8 already prepared with different parameters");
     }
 
-    // Second, encode the binary message as a sequence of FSK tones
-    uint8_t * tones = new uint8_t[FT8_NN];  // Array of 79 tones (symbols)
-    if (tones == NULL) {
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "can't allocate memory for FT8 tones");
+    const char * prepare_error = NULL;
+    if (!ft8_prepare_internal (request, &prepare_error)) {
+        gpio_set_level (LED_BLUE, LED_OFF);
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, prepare_error ? prepare_error : "failed to prepare radio for ft8");
     }
-
-    ft8_encode (packed, tones);
-
-    // this block encapsulates our exclusive access to the radio port
-    {
-        TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "FT8 setup");
-        if (!lock.acquired()) {
-            gpio_set_level (LED_BLUE, LED_OFF);
-            delete[] tones;
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy, please retry");
-        }
-
-        // First capture the current state of the radio before changing it:
-        kx_state_t * kx_state = new kx_state_t;
-        if (!kxRadio.get_radio_state (kx_state)) {
-            delete kx_state;
-            delete[] tones;
-            gpio_set_level (LED_BLUE, LED_OFF);
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to read radio state");
-        }
-
-        // Prepare the radio to send the FT8 FSK tones using CW tone with proper power setting.
-        long baseFreq = rfFreq + audioFreq;
-
-        if (!kxRadio.ft8_prepare (baseFreq)) {
-            kxRadio.restore_radio_state (kx_state, 2);
-            delete kx_state;
-            delete[] tones;
-            gpio_set_level (LED_BLUE, LED_OFF);
-            Ft8RadioExclusive = false;
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to prepare radio for ft8");
-        }
-        // Offload playing the FT8 audio
-        ft8_task_pack_t * configInfo = new ft8_task_pack_t;
-        configInfo->baseFreq         = baseFreq;
-        configInfo->tones            = tones;
-        configInfo->kx_state         = kx_state;  // will be deleted later in cleanup
-        ft8_set_config_info (configInfo);
-        Ft8RadioExclusive = true;
-    }  // TimedLock auto-unlocks here
-
-    // We have prepared the radio to send FT8, but we don't know if the user will
-    // cancel or send FT8. Ensure we keep the radio prepared long enough for the
-    // next transmit request, even if prepare happens close to a window boundary.
-    int64_t now_us              = esp_timer_get_time();
-    int64_t next_window_timeout = now_us + ((msUntilFT8Window() + 1000) * 1000LL);
-    int64_t min_prepare_timeout = now_us + (20LL * 1000LL * 1000LL);
-    ft8_set_cancel_deadline_us ((next_window_timeout > min_prepare_timeout) ? next_window_timeout : min_prepare_timeout);
-
-    // Start the watchdog timer to cleanup whenever we are done with ft8.
-    // This will set CommandInProgress=false; and restore the radio to its prior state.
-    xTaskCreate (&cleanup_ft8_task, "cleanup_ft8_task", 5120, NULL, SC_TASK_PRIORITY_NORMAL, NULL);
 
     // Send a response back
+    gpio_set_level (LED_BLUE, LED_OFF);
     CommandInProgress.store (false, std::memory_order_release);
     commandGuard.dismiss();
     REPLY_WITH_SUCCESS();
@@ -688,6 +903,9 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
  * @param req A pointer to the HTTP request structure. Query parameters
  *            'rfFrequency' and 'audioFrequency' are used to compute the base
  *            transmission frequency and proper encoding of the FT8 signal.
+ *            'sequenceNumber' identifies the repeat within a workflow so retries
+ *            can be handled idempotently.
+ *            'requestToken' binds the request to a specific workflow session.
  * @return ESP_OK on success or ESP_FAIL on failure.
  */
 esp_err_t handler_ft8_post (httpd_req_t * req) {
@@ -696,26 +914,6 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     STANDARD_DECODE_QUERY (req, unsafe_buf);
-
-    if (!ft8_is_task_in_progress() && ft8_get_cancel_deadline_us() <= 0 && ft8_get_config_info() == NULL) {
-        // Nobody has called the 'handler_prepareft8_post' command yet, so we need to compute the FT8 tones
-        // and prepare the radio, by calling the 'handler_prepareft8_post' command.
-        if (CommandInProgress.load (std::memory_order_acquire)) {
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "prepare in progress");
-        }
-        esp_err_t rslt    = handler_prepareft8_post (req);
-        if (rslt != ESP_OK) {
-            return rslt;
-        }
-    }
-
-    CommandInProgress.store (true, std::memory_order_release);
-
-    // If cleanup is in progress, do not try to transmit with stale state.
-    if (ft8_get_cancel_deadline_us() <= 0 && ft8_get_config_info() != NULL) {
-        CommandInProgress.store (false, std::memory_order_release);
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "ft8 cleanup in progress");
-    }
 
     char rfFreq_str[32];
     long rfFreq = 0;
@@ -732,6 +930,84 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
     }
 
     long baseFreq = rfFreq + audioFreq;
+    uint32_t request_token_hash = ft8_parse_request_token_hash_from_query (unsafe_buf);
+    if (request_token_hash == 0) {
+        CommandInProgress.store (false, std::memory_order_release);
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "missing or invalid requestToken");
+    }
+    uint32_t sequence_number    = 0;
+    if (!ft8_parse_sequence_number_from_query (unsafe_buf, sequence_number)) {
+        CommandInProgress.store (false, std::memory_order_release);
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "missing or invalid sequenceNumber");
+    }
+
+    if (!ft8_is_task_in_progress() && ft8_get_cancel_deadline_us() <= 0 && ft8_get_config_info() == NULL) {
+        // Nobody has called /prepareft8 yet; prepare internally without sending a nested HTTP response.
+        bool expected_command = false;
+        if (!CommandInProgress.compare_exchange_strong (expected_command, true, std::memory_order_acq_rel, std::memory_order_acquire)) {
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "prepare in progress");
+        }
+
+        struct CommandInProgressResetGuard {
+            explicit CommandInProgressResetGuard (std::atomic<bool> * flag) : flag_ (flag) {}
+            ~CommandInProgressResetGuard () {
+                if (flag_) {
+                    flag_->store (false, std::memory_order_release);
+                }
+            }
+            void dismiss () { flag_ = nullptr; }
+
+          private:
+            std::atomic<bool> * flag_;
+        } commandGuard (&CommandInProgress);
+
+        ft8_prepare_request_t request;
+        if (!ft8_parse_prepare_request_from_query (unsafe_buf, request)) {
+            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
+        }
+
+        // Share the same prepare workflow used by /prepareft8, but avoid nested
+        // HTTP response handling by staying in-process.
+        const char * prepare_error = NULL;
+        if (!ft8_prepare_internal (request, &prepare_error)) {
+            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, prepare_error ? prepare_error : "failed to prepare radio for ft8");
+        }
+
+        CommandInProgress.store (false, std::memory_order_release);
+        commandGuard.dismiss();
+    }
+
+    CommandInProgress.store (true, std::memory_order_release);
+
+    // If the radio was prepared with a client token, only allow /ft8 requests from
+    // that same workflow to guard against stale delayed packets.
+    uint32_t prepared_token_hash = ft8PreparedRequestTokenHash.load (std::memory_order_acquire);
+    if (prepared_token_hash != 0 && request_token_hash != prepared_token_hash) {
+        CommandInProgress.store (false, std::memory_order_release);
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "ft8 request token mismatch");
+    }
+
+    ft8_sequence_decision_t sequence_decision = ft8_classify_sequence_number (sequence_number);
+    if (sequence_decision == ft8_sequence_decision_t::duplicate) {
+        // Duplicate retry of the most-recent accepted repeat: return success
+        // without enqueueing another transmit.
+        CommandInProgress.store (false, std::memory_order_release);
+        REPLY_WITH_SUCCESS();
+    }
+    if (sequence_decision == ft8_sequence_decision_t::stale) {
+        CommandInProgress.store (false, std::memory_order_release);
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "stale ft8 sequenceNumber");
+    }
+    if (sequence_decision == ft8_sequence_decision_t::out_of_order) {
+        CommandInProgress.store (false, std::memory_order_release);
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "out-of-order ft8 sequenceNumber");
+    }
+
+    // If cleanup is in progress, do not try to transmit with stale state.
+    if (ft8_get_cancel_deadline_us() <= 0 && ft8_get_config_info() != NULL) {
+        CommandInProgress.store (false, std::memory_order_release);
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "ft8 cleanup in progress");
+    }
 
     if (ft8_get_config_info() == NULL) {
         ft8_queue_clear();
@@ -741,11 +1017,12 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
     }
 
     if (ft8_is_task_in_progress()) {
-        int64_t wait_deadline = esp_timer_get_time() + (20LL * 1000LL * 1000LL);
+        int64_t wait_deadline = esp_timer_get_time() + FT8_QUEUE_WAIT_TIMEOUT_US;
         if (!ft8_queue_push_with_timeout (baseFreq, wait_deadline)) {
             CommandInProgress.store (false, std::memory_order_release);
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "FT8 queue full");
         }
+        ft8_set_last_accepted_sequence (sequence_number);
         CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_SUCCESS();
     }
@@ -759,17 +1036,18 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
     if (!started_transmit_task) {
         // Another request already has an FT8 task running, so queue this request for
         // the next transmit slot instead of starting a second task.
-        int64_t wait_deadline = esp_timer_get_time() + (20LL * 1000LL * 1000LL);
+        int64_t wait_deadline = esp_timer_get_time() + FT8_QUEUE_WAIT_TIMEOUT_US;
         if (!ft8_queue_push_with_timeout (baseFreq, wait_deadline)) {
             CommandInProgress.store (false, std::memory_order_release);
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "FT8 queue full");
         }
+        ft8_set_last_accepted_sequence (sequence_number);
         CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_SUCCESS();
     }
 
     if (has_orphan_work) {
-        int64_t wait_deadline = esp_timer_get_time() + (20LL * 1000LL * 1000LL);
+        int64_t wait_deadline = esp_timer_get_time() + FT8_QUEUE_WAIT_TIMEOUT_US;
         long    queued_base   = 0;
         if (!ft8_queue_pop_with_timeout (queued_base, wait_deadline)) {
             ft8_set_task_in_progress (false);
@@ -806,6 +1084,11 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to start FT8 transmission task");
     }
 
+    // This HTTP command is complete once the transmit task is launched. Keep
+    // CommandInProgress scoped to request handling so cleanup watchdog timing
+    // depends on FT8 activity/deadlines, not a sticky command flag.
+    ft8_set_last_accepted_sequence (sequence_number);
+    CommandInProgress.store (false, std::memory_order_release);
     REPLY_WITH_SUCCESS();
 }
 
