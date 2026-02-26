@@ -25,7 +25,7 @@ FIRMWARE_DIR := firmware/webtools
 OTA_BIN := $(FIRMWARE_DIR)/SOTACAT-ESP32C3-OTA.bin
 MERGED_BIN := $(FIRMWARE_DIR)/esp32c3.bin
 
-.PHONY: help build upload clean ota ota-upload monitor test test-setup
+.PHONY: help build upload clean ota ota-upload monitor test test-setup github-release
 
 help:
 	@echo "SOTAcat Firmware Build Targets"
@@ -42,6 +42,9 @@ help:
 	@echo "Test Targets:"
 	@echo "  test-setup    - Setup test environment (venv + dependencies)"
 	@echo "  test          - Run integration test suite"
+	@echo ""
+	@echo "Release Targets:"
+	@echo "  github-release - Build firmware and create a GitHub release"
 	@echo ""
 	@echo "Utility Targets:"
 	@echo "  clean         - Clean build artifacts"
@@ -117,6 +120,18 @@ test-setup:
 test:
 	@echo "Running integration test suite..."
 	@cd test/integration && make test HOST=$(HOST)
+
+github-release:
+	@echo "Building release firmware and webtools assets..."
+	pio run -e seeed_xiao_esp32c3_release -t package_webtools
+	@TAG=$$(sed -n 's/.*BUILD_DATE_TIME "\([0-9]*\):\([0-9]*\)".*/v\1.\2/p' include/build_info.h); \
+	echo "Creating GitHub release $$TAG..."; \
+	gh release create "$$TAG" \
+		$(FIRMWARE_DIR)/SOTACAT-ESP32C3-OTA.bin \
+		$(FIRMWARE_DIR)/esp32c3.bin \
+		$(FIRMWARE_DIR)/manifest.json \
+		--generate-notes \
+		--title "$$TAG"
 
 # Convenience aliases
 .PHONY: flash debug release

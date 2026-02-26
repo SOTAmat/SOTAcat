@@ -51,6 +51,12 @@ pio run --target upload
 | `make test` | Run integration tests |
 | `make test HOST=192.168.1.100` | Test specific device |
 
+### Release
+
+| Target | Description |
+|--------|-------------|
+| `make github-release` | Build firmware and create a GitHub release |
+
 ### Utility
 
 | Target | Description |
@@ -109,6 +115,29 @@ git submodule update --init --recursive
 sudo usermod -aG dialout $USER
 # Then log out and back in
 ```
+
+## Creating a Release
+
+Releases are published to [GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases) and are used by the firmware's automatic version-check feature.
+
+```bash
+make github-release
+```
+
+This single command:
+1. Builds release firmware and runs the `package_webtools` PlatformIO target
+2. Extracts the version tag from `include/build_info.h` (e.g., `BUILD_DATE_TIME "260225:1828"` becomes tag `v260225.1828`)
+3. Creates a GitHub release with auto-generated notes and attaches three assets:
+
+| Asset | Purpose |
+|-------|---------|
+| `SOTACAT-ESP32C3-OTA.bin` | OTA update binary |
+| `esp32c3.bin` | Full merged flash image (for ESP Web Tools) |
+| `manifest.json` | ESP Web Tools install manifest |
+
+**Prerequisites:** The [GitHub CLI](https://cli.github.com/) (`gh`) must be installed and authenticated.
+
+**Editing release notes:** The release is created with auto-generated notes from commits since the last release. You can edit the notes afterward on the GitHub Releases page.
 
 ## End Users
 
