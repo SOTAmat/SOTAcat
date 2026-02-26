@@ -821,7 +821,16 @@ function buildChaseRow(spot, isMySpot) {
     // 1. UTC time (ensure Date object — cache round-trip deserializes as string)
     const ts = spot.timestamp instanceof Date ? spot.timestamp : new Date(spot.timestamp);
     const formattedTime = `${ts.getUTCHours().toString().padStart(2, "0")}:${ts.getUTCMinutes().toString().padStart(2, "0")}`;
-    row.insertCell().textContent = formattedTime;
+    const utcCell = row.insertCell();
+    utcCell.textContent = formattedTime;
+
+    // Age-based coloring: fresh spots are neutral, older spots turn warm/red
+    const ageMinutes = (Date.now() - ts.getTime()) / 60000;
+    if (ageMinutes > 5) {
+        const t = Math.min((ageMinutes - 5) / 55, 1); // 0..1 over 5–60 min range
+        const lightness = 97 - t * 22; // 97% → 75%
+        utcCell.style.backgroundColor = `hsl(0, 80%, ${lightness}%)`;
+    }
 
     // 2. Callsign
     const callsignCell = row.insertCell();
