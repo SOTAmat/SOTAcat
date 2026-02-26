@@ -364,13 +364,14 @@ def _write_manifest_file():
     manifest_data["name"] = manifest_data.get(
         "name", "SOTACAT for Elecraft KX2, KX3, and KH1"
     )
-    manifest_data["version"] = long_build_datetime_str
+    tag = "v" + short_build_datetime_str.replace(":", ".")
+    manifest_data["version"] = tag
     manifest_data["builds"] = [
         {
             "chipFamily": "ESP32-C3",
             "parts": [
                 {
-                    "path": "https://sotamat.com/wp-content/uploads/esp32c3.bin",
+                    "path": f"https://github.com/SOTAmat/SOTAcat/releases/download/{tag}/esp32c3.bin",
                     "offset": 0,
                 }
             ],

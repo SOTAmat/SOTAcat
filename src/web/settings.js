@@ -1265,7 +1265,9 @@ function attachSettingsEventListeners() {
     const downloadFirmwareBtn = document.getElementById("download-firmware-button");
     if (downloadFirmwareBtn) {
         downloadFirmwareBtn.addEventListener("click", () => {
-            window.location.href = "https://sotamat.com/wp-content/uploads/SOTACAT-ESP32C3-OTA.bin";
+            const url = getLatestFirmwareUrl()
+                || "https://github.com/SOTAmat/SOTAcat/releases/latest/download/SOTACAT-ESP32C3-OTA.bin";
+            window.location.href = url;
         });
     }
 

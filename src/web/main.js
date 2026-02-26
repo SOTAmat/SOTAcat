@@ -1467,10 +1467,10 @@ function clearDistanceCache() {
 // ============================================================================
 
 // Version check configuration constants
+const GITHUB_RELEASES_API = "https://api.github.com/repos/SOTAmat/SOTAcat/releases/latest";
 const VERSION_CHECK_INTERVAL_DAYS = 1.0;
 const VERSION_CHECK_STORAGE_KEY = "sotacatVersionCheck";
 const VERSION_CHECK_SUCCESS_KEY = "sotacatVersionCheckSuccess";
-const MANIFEST_URL = "https://sotamat.com/wp-content/uploads/manifest.json";
 const VERSION_CHECK_TIMEOUT_MS = 5000;
 const VERSION_CHECK_RETRY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -1510,12 +1510,12 @@ function normalizeVersion(versionString) {
 
     // Extract date and time components from version string
     let match;
-    if (versionString.includes("-Release")) {
-        // Handle manifest format (e.g., "2024-11-29_11:37-Release")
-        match = versionString.match(/(\d{4})-(\d{2})-(\d{2})_(\d{2}):(\d{2})/);
-        Log.debug("Version")("Manifest format detected, match:", match);
+    if (/^v\d{6}\.\d{4}$/.test(versionString)) {
+        // GitHub tag format (e.g., "v260201.2327")
+        match = versionString.match(/^v(\d{2})(\d{2})(\d{2})\.(\d{2})(\d{2})$/);
+        Log.debug("Version")("GitHub tag format detected, match:", match);
     } else if (versionString.includes(":")) {
-        // Handle device format (e.g., "AB6D_1:241129:2346-R")
+        // Device format (e.g., "AB6D_1:241129:2346-R")
         const parts = versionString.split(":");
         match = parts[1].match(/(\d{2})(\d{2})(\d{2})/);
         if (match && parts[2]) {
@@ -1532,37 +1532,23 @@ function normalizeVersion(versionString) {
         return null;
     }
 
-    let year, month, day, hour, minute;
-
-    if (versionString.includes("-Release")) {
-        // Manifest format parsing
-        year = parseInt(match[1], 10);
-        month = parseInt(match[2], 10);
-        day = parseInt(match[3], 10);
-        hour = parseInt(match[4], 10);
-        minute = parseInt(match[5], 10);
-    } else {
-        // Device format parsing
-        year = 2000 + parseInt(match[1], 10);
-        month = parseInt(match[2], 10);
-        day = parseInt(match[3], 10);
-        hour = parseInt(match[4] || "0", 10);
-        minute = parseInt(match[5] || "0", 10);
-    }
-
-    // Adjust month after parsing (JS months are 0-based)
-    const originalMonth = month; // Save for logging
-    month = month - 1;
+    // Both formats use 2-digit year
+    const year = 2000 + parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const day = parseInt(match[3], 10);
+    const hour = parseInt(match[4] || "0", 10);
+    const minute = parseInt(match[5] || "0", 10);
 
     Log.debug("Version")("Parsed components:", {
         year,
-        originalMonth,
+        month,
         day,
         hour,
         minute,
     });
 
-    const date = new Date(Date.UTC(year, month, day, hour, minute));
+    // JS months are 0-based
+    const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
     const timestamp = date.getTime() / 1000;
 
     Log.debug("Version")("Resulting timestamp:", timestamp, "Date:", date.toISOString());
@@ -1627,21 +1613,18 @@ async function checkFirmwareVersion(manualCheck = false) {
             return;
         }
 
-        // Fetch manifest (CORS required to read response body)
-        // Add timestamp to URL to bypass cache
-        const cacheBustUrl = `${MANIFEST_URL}?t=${Date.now()}`;
-        Log.debug("Version")("Fetching manifest from:", cacheBustUrl);
-        let manifestResponse;
+        // Fetch latest release info from GitHub
+        Log.debug("Version")("Fetching latest release from:", GITHUB_RELEASES_API);
+        let releaseResponse;
         try {
-            manifestResponse = await fetch(cacheBustUrl, {
+            releaseResponse = await fetch(GITHUB_RELEASES_API, {
                 signal: controller.signal,
-                mode: "cors",
                 headers: {
-                    Accept: "application/json",
+                    Accept: "application/vnd.github.v3+json",
                 },
             });
         } catch (fetchError) {
-            const error = `Failed to fetch manifest from server: ${fetchError.message}`;
+            const error = `Failed to fetch release info from GitHub: ${fetchError.message}`;
             Log.warn("Version")(error);
             if (manualCheck) {
                 throw new Error(error);
@@ -1649,8 +1632,8 @@ async function checkFirmwareVersion(manualCheck = false) {
             return;
         }
 
-        if (!manifestResponse.ok) {
-            const error = `Failed to fetch manifest from server (HTTP ${manifestResponse.status})`;
+        if (!releaseResponse.ok) {
+            const error = `Failed to fetch release info from GitHub (HTTP ${releaseResponse.status})`;
             Log.warn("Version")(error);
             if (manualCheck) {
                 throw new Error(error);
@@ -1658,11 +1641,11 @@ async function checkFirmwareVersion(manualCheck = false) {
             return;
         }
 
-        let manifest;
+        let releaseData;
         try {
-            manifest = await manifestResponse.json();
+            releaseData = await releaseResponse.json();
         } catch (e) {
-            const error = `Invalid JSON in manifest: ${e.message}`;
+            const error = `Invalid JSON in GitHub release response: ${e.message}`;
             Log.warn("Version")(error);
             if (manualCheck) {
                 throw new Error(error);
@@ -1673,9 +1656,17 @@ async function checkFirmwareVersion(manualCheck = false) {
         // Clear the timeout since we got our response
         clearTimeout(timeoutId);
 
-        const latestVersion = normalizeVersion(manifest.version);
+        // Extract OTA binary URL from release assets
+        const otaAsset = releaseData.assets &&
+            releaseData.assets.find(a => a.name === "SOTACAT-ESP32C3-OTA.bin");
+        if (otaAsset) {
+            AppState.latestFirmwareUrl = otaAsset.browser_download_url;
+            Log.debug("Version")("OTA asset URL:", AppState.latestFirmwareUrl);
+        }
+
+        const latestVersion = normalizeVersion(releaseData.tag_name);
         if (!latestVersion) {
-            const error = `Invalid version format in manifest: ${manifest.version}`;
+            const error = `Invalid version format in release tag: ${releaseData.tag_name}`;
             Log.warn("Version")(error);
             if (manualCheck) {
                 throw new Error(error);
@@ -1748,4 +1739,9 @@ async function checkFirmwareVersion(manualCheck = false) {
 
         throw error; // Re-throw to be caught by the caller
     }
+}
+
+// Return the OTA binary URL discovered by the last successful version check
+function getLatestFirmwareUrl() {
+    return AppState.latestFirmwareUrl || null;
 }
