@@ -2,6 +2,7 @@ import datetime
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -364,7 +365,13 @@ def _write_manifest_file():
     manifest_data["name"] = manifest_data.get(
         "name", "SOTACAT for Elecraft KX2, KX3, and KH1"
     )
-    tag = "v" + short_build_datetime_str.replace(":", ".")
+    # Read timestamp from build_info.h (single source of truth for the release tag)
+    with open(header_path, "r") as f:
+        header_content = f.read()
+    m = re.search(r'BUILD_DATE_TIME\s+"([^"]+)"', header_content)
+    if not m:
+        raise RuntimeError(f"Could not parse BUILD_DATE_TIME from {header_path}")
+    tag = "v" + m.group(1).replace(":", ".")
     manifest_data["version"] = tag
     manifest_data["builds"] = [
         {
