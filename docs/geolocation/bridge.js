@@ -9,27 +9,32 @@
     const params = new URLSearchParams(window.location.search);
     const returnPath = params.get("returnpath");
 
-    // Validate returnpath is a safe destination (sotacat.local or private IP)
-    function isValidReturnPath(path) {
-        if (!path) return false;
+    // Validate returnpath is a safe destination (sotacat.local or private IP).
+    // Returns a sanitized URL string if valid, or null if invalid.
+    function validateReturnPath(path) {
+        if (!path) return null;
         try {
             const url = new URL(path);
+
+            // Only allow http/https protocols
+            if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+
             const hostname = url.hostname.toLowerCase();
 
             // Allow sotacat.local (mDNS)
-            if (hostname === "sotacat.local") return true;
+            if (hostname === "sotacat.local") return url.href;
 
             // Allow private IP ranges: 192.168.x.x, 10.x.x.x, 172.16-31.x.x
             const privateIPPattern =
                 /^(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})$/;
-            if (privateIPPattern.test(hostname)) return true;
+            if (privateIPPattern.test(hostname)) return url.href;
 
             // Allow localhost for testing
-            if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+            if (hostname === "localhost" || hostname === "127.0.0.1") return url.href;
 
-            return false;
+            return null;
         } catch (e) {
-            return false;
+            return null;
         }
     }
 
@@ -50,21 +55,25 @@
         document.getElementById("actions").classList.remove("visible");
     }
 
-    // Build redirect URL with coordinates
-    function buildRedirectUrl(lat, lon, accuracy) {
-        const separator = returnPath.includes("?") ? "&" : "?";
-        return `${returnPath}${separator}geo_lat=${lat}&geo_lon=${lon}&geo_accuracy=${accuracy}`;
+    // Build redirect URL with coordinates using a validated base URL
+    function buildRedirectUrl(validatedBase, lat, lon, accuracy) {
+        const url = new URL(validatedBase);
+        url.searchParams.set("geo_lat", lat);
+        url.searchParams.set("geo_lon", lon);
+        url.searchParams.set("geo_accuracy", accuracy);
+        return url.href;
     }
 
-    // Build redirect URL with error
-    function buildErrorRedirectUrl(code, message) {
-        const separator = returnPath.includes("?") ? "&" : "?";
-        return `${returnPath}${separator}geo_error=${code}&geo_message=${encodeURIComponent(message)}`;
+    // Build redirect URL with error using a validated base URL
+    function buildErrorRedirectUrl(validatedBase, code, message) {
+        const separator = validatedBase.includes("?") ? "&" : "?";
+        return validatedBase + separator + "geo_error=" + code + "&geo_message=" + encodeURIComponent(message);
     }
 
     // Redirect with location data
     function redirectWithLocation(lat, lon, accuracy) {
-        if (!isValidReturnPath(returnPath)) {
+        const validatedBase = validateReturnPath(returnPath);
+        if (!validatedBase) {
             updateStatus("<p>Invalid return path. Cannot redirect.</p>", "error");
             return;
         }
@@ -82,20 +91,22 @@
         );
 
         // Brief delay to show success, then redirect
+        const redirectUrl = buildRedirectUrl(validatedBase, latStr, lonStr, accStr);
         setTimeout(function () {
-            window.location.href = buildRedirectUrl(latStr, lonStr, accStr);
+            window.location.href = redirectUrl;
         }, 800);
     }
 
     // Redirect with error info
     function redirectWithError(code, message) {
-        if (!isValidReturnPath(returnPath)) {
-            updateStatus(`<p>${message}</p>`, "error");
+        const validatedBase = validateReturnPath(returnPath);
+        if (!validatedBase) {
+            updateStatus("<p>" + message + "</p>", "error");
             showActions();
             return;
         }
 
-        window.location.href = buildErrorRedirectUrl(code, message);
+        window.location.href = buildErrorRedirectUrl(validatedBase, code, message);
     }
 
     // Request geolocation
@@ -112,7 +123,7 @@
             return;
         }
 
-        if (!isValidReturnPath(returnPath)) {
+        if (!validateReturnPath(returnPath)) {
             updateStatus(
                 "<p>Invalid return path.</p>" +
                     "<p style='font-size: 13px; color: #666;'>Return path must be sotacat.local or a private IP address.</p>",
