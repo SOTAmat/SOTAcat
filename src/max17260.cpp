@@ -60,7 +60,7 @@ const uint8_t  FSTAT_DNR_RETRIES         = 10;
 // https://www.analog.com/media/en/technical-documentation/user-guides/max1726x-modelgauge-m5-ez-user-guide.pdf
 // and the software implementation guide
 // https://www.analog.com/media/en/technical-documentation/user-guides/modelgauge-m5-host-side-software-implementation-guide.pdf
-const float rSense_ohms        = 10.0e-3;  // SotaCat Hardware; really should be initialized with the class
+const float rSense_ohms        = 10.0e-3;  // Must match the PCB current-sense resistor (R_SENSE on the schematic)
 const float mAh_per_bit        = 0.5;      // datasheet page 16 (uVh/mOhms ?)
 const float uV_per_bit         = 78.125;
 const float uA_per_bit         = 1.5625 / rSense_ohms;  // (1.5625uV/ohm)*10mOhms = 156.25uA per bit
@@ -76,6 +76,8 @@ const float vrecover_v_per_bit = 0.040;  // default 3.88 -- voltage at which to 
 // Registers like capacity are odd and can cause problems if the units are incorrect
 // Divide by units_per_bit to set a register, multiply when reading for display
 
+// Configure the MAX17260 fuel-gauge model for the installed battery.
+// To support a different battery, change design_cap to match its rated capacity in mAh
 void Max17620::default_setup (max17620_setup_t * setup) {
     setup->design_cap = (500.0);           // Battery cell design capacity, mAh
     setup->i_chg_term = (0.13 * 370.370);  // mA per XC6802MR datasheet and XIAO charge current TODO
