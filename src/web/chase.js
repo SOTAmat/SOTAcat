@@ -43,6 +43,11 @@ const ChaseState = {
     // UI state
     chaseEventListenersAttached: false,
 
+    // Scan state
+    scanActive: false,
+    scanTimeoutId: null,
+    scanCurrentIndex: -1,
+    scanKeyboardListenerAdded: false,
 };
 
 // ============================================================================
@@ -438,6 +443,137 @@ function updateTunedRowHighlight() {
 }
 
 // ============================================================================
+// Scan Functions
+// ============================================================================
+
+// Get visible (non-filtered) rows from the chase table
+function getVisibleRows() {
+    const tbody = document.querySelector("#chase-table tbody");
+    if (!tbody) return [];
+    return Array.from(tbody.querySelectorAll("tr:not(.hidden)"));
+}
+
+// Start scanning through visible spots
+function startScan() {
+    const visibleRows = getVisibleRows();
+    if (visibleRows.length === 0) return;
+
+    ChaseState.scanActive = true;
+    ChaseState.scanCurrentIndex = -1;
+    updateScanButtonLabel();
+    advanceScan();
+}
+
+// Stop scanning
+function stopScan() {
+    if (!ChaseState.scanActive && !ChaseState.scanTimeoutId) return;
+    ChaseState.scanActive = false;
+    if (ChaseState.scanTimeoutId) {
+        clearTimeout(ChaseState.scanTimeoutId);
+        ChaseState.scanTimeoutId = null;
+    }
+    ChaseState.scanCurrentIndex = -1;
+    updateScanButtonLabel();
+}
+
+// Toggle scanning on/off
+function toggleScan() {
+    if (ChaseState.scanActive) {
+        stopScan();
+    } else {
+        startScan();
+    }
+}
+
+// Advance to the next spot in the scan
+function advanceScan() {
+    if (!ChaseState.scanActive) return;
+
+    const visibleRows = getVisibleRows();
+    if (visibleRows.length === 0) {
+        stopScan();
+        return;
+    }
+
+    ChaseState.scanCurrentIndex = (ChaseState.scanCurrentIndex + 1) % visibleRows.length;
+    const row = visibleRows[ChaseState.scanCurrentIndex];
+
+    const hertz = parseInt(row.dataset.hertz, 10);
+    const modeType = row.dataset.modeType;
+    if (hertz && hertz > 0 && modeType) {
+        tuneRadioHz(hertz, modeType);
+        clickedTunedRow = row;
+    }
+
+    row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    ChaseState.scanTimeoutId = setTimeout(advanceScan, AppState.scanDwellTimeMs);
+}
+
+// Update scan button text and visual state
+function updateScanButtonLabel() {
+    const btn = document.getElementById("scan-button");
+    if (!btn) return;
+    if (ChaseState.scanActive) {
+        btn.textContent = "Stop";
+        btn.classList.add("active");
+    } else {
+        btn.textContent = "Scan";
+        btn.classList.remove("active");
+    }
+}
+
+// Navigate to an adjacent visible row by offset (-1 = up, +1 = down)
+function navigateRow(offset) {
+    stopScan();
+
+    const visibleRows = getVisibleRows();
+    if (visibleRows.length === 0) return;
+
+    // Find current position from clickedTunedRow or first tuned-row
+    let currentIndex = -1;
+    if (clickedTunedRow) {
+        currentIndex = visibleRows.indexOf(clickedTunedRow);
+    }
+    if (currentIndex === -1) {
+        const tunedRow = visibleRows.find(r => r.classList.contains("tuned-row"));
+        if (tunedRow) currentIndex = visibleRows.indexOf(tunedRow);
+    }
+
+    // Compute target: if no current row, up goes to last, down goes to first
+    let targetIndex;
+    if (currentIndex === -1) {
+        targetIndex = offset > 0 ? 0 : visibleRows.length - 1;
+    } else {
+        targetIndex = (currentIndex + offset + visibleRows.length) % visibleRows.length;
+    }
+
+    const row = visibleRows[targetIndex];
+    const hertz = parseInt(row.dataset.hertz, 10);
+    const modeType = row.dataset.modeType;
+    if (hertz && hertz > 0 && modeType) {
+        tuneRadioHz(hertz, modeType);
+        clickedTunedRow = row;
+    }
+
+    row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// Keyboard handler for spacebar scan toggle and arrow navigation
+function onChaseKeydown(event) {
+    if (["INPUT", "SELECT", "TEXTAREA"].includes(event.target.tagName)) return;
+
+    if (event.code === "Space") {
+        event.preventDefault();
+        toggleScan();
+    } else if (event.key === "k") {
+        navigateRow(-1);
+    } else if (event.key === "j") {
+        navigateRow(1);
+    }
+}
+
+// ============================================================================
 // MyCall Button Functions
 // ============================================================================
 
@@ -522,6 +658,7 @@ function updateMyCallButton() {
 }
 
 function onMyCallClick() {
+    stopScan();
     const callSign = AppState.callSign;
 
     // No callsign set: alert and navigate to Settings
@@ -671,6 +808,7 @@ function buildPoloChaseLink() {
 
 // Launch Ham2K Polo app for logging chase QSO
 function launchPoloChase() {
+    stopScan();
     const url = buildPoloChaseLink();
     if (url) {
         Log.info("Chase")("Launching Polo for chase:", url);
@@ -778,6 +916,7 @@ function buildChaseRow(spot, isMySpot) {
         if (event.target.tagName === "A" || event.target.closest("a")) {
             return; // Let the link handle it
         }
+        stopScan();
         if (spot.hertz && spot.hertz > 0) {
             tuneRadioHz(spot.hertz, spot.modeType);
             clickedTunedRow = row;
@@ -1109,6 +1248,7 @@ function attachChaseEventListeners() {
     const refreshButton = document.getElementById("refresh-button");
     if (refreshButton) {
         refreshButton.addEventListener("click", () => {
+            stopScan();
             if (ChaseState.autoRefreshEnabled) {
                 // Currently in auto-refresh mode - turn it off
                 stopAutoRefresh();
@@ -1137,6 +1277,18 @@ function attachChaseEventListeners() {
         poloChaseBtn.addEventListener("click", launchPoloChase);
     }
 
+    // Scan button
+    const scanBtn = document.getElementById("scan-button");
+    if (scanBtn) {
+        scanBtn.addEventListener("click", toggleScan);
+    }
+
+    // Spacebar to toggle scan (on document, guarded by flag to prevent duplicates)
+    if (!ChaseState.scanKeyboardListenerAdded) {
+        document.addEventListener("keydown", onChaseKeydown);
+        ChaseState.scanKeyboardListenerAdded = true;
+    }
+
     // Load all saved settings
     loadSortState();
 
@@ -1147,6 +1299,7 @@ function attachChaseEventListeners() {
     const modeSelector = document.getElementById("mode-filter");
     if (modeSelector) {
         modeSelector.onchange = function () {
+            stopScan();
             onModeFilterChange(this.value);
         };
     }
@@ -1154,6 +1307,7 @@ function attachChaseEventListeners() {
     const typeSelector = document.getElementById("type-filter");
     if (typeSelector) {
         typeSelector.onchange = function () {
+            stopScan();
             onTypeFilterChange(this.value);
         };
     }
@@ -1171,6 +1325,7 @@ function attachChaseEventListeners() {
                 .closest("th");
 
             newHeader.addEventListener("click", function () {
+                stopScan();
                 const clickedSortField = sortSpan.getAttribute("data-sort-field");
                 if (clickedSortField === ChaseState.lastSortField) {
                     ChaseState.descending = !ChaseState.descending;
@@ -1205,6 +1360,7 @@ async function onChaseAppearing() {
     // Load radio type and filter settings for band filtering
     await loadRadioType();
     loadFilterBandsSetting();
+    loadScanDwellTime();
     ensureLicenseClassLoaded();
 
     // Subscribe to VFO changes and start polling for row highlighting
@@ -1279,6 +1435,13 @@ function onChaseLeaving() {
     if (ChaseState.suggestionRevertTimeoutId) {
         clearTimeout(ChaseState.suggestionRevertTimeoutId);
         ChaseState.suggestionRevertTimeoutId = null;
+    }
+
+    // Stop scanning
+    stopScan();
+    if (ChaseState.scanKeyboardListenerAdded) {
+        document.removeEventListener("keydown", onChaseKeydown);
+        ChaseState.scanKeyboardListenerAdded = false;
     }
 
     // Save all settings

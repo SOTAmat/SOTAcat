@@ -102,6 +102,7 @@ const AppState = {
 
     // UI density
     uiCompactMode: false,      // Compact mode for denser table display
+    scanDwellTimeMs: 7000,     // Scan dwell time per spot in milliseconds (default 7s)
 
     // Version checking
     versionCheckRetryTimer: null,
@@ -466,6 +467,18 @@ function applyUiCompactMode() {
     } else {
         document.body.classList.remove("ui-compact");
     }
+}
+
+// Load scan dwell time setting from localStorage
+function loadScanDwellTime() {
+    const saved = localStorage.getItem("sotacat_scan_dwell");
+    if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 1000 && parsed <= 30000) {
+            AppState.scanDwellTimeMs = parsed;
+        }
+    }
+    return AppState.scanDwellTimeMs;
 }
 
 // Determine which amateur band a frequency falls into (returns '40m', '20m', etc., or null)

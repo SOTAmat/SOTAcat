@@ -772,6 +772,31 @@ function onUiCompactModeChange() {
 }
 
 // ============================================================================
+// Scan Dwell Time Functions
+// ============================================================================
+
+// Load scan dwell time setting into UI input
+function loadScanDwellTimeSettingUI() {
+    loadScanDwellTime();
+    const input = document.getElementById("scan-dwell-time");
+    if (input) {
+        input.value = Math.round(AppState.scanDwellTimeMs / 1000);
+    }
+}
+
+// Save scan dwell time setting when input changes
+function onScanDwellTimeChange() {
+    const input = document.getElementById("scan-dwell-time");
+    if (!input) return;
+    const seconds = parseInt(input.value, 10);
+    if (isNaN(seconds) || seconds < 1 || seconds > 30) return;
+    const ms = seconds * 1000;
+    localStorage.setItem("sotacat_scan_dwell", ms.toString());
+    AppState.scanDwellTimeMs = ms;
+    Log.info("Settings")("Scan dwell time: " + seconds + "s");
+}
+
+// ============================================================================
 // Tune Targets Help Popup Functions
 // ============================================================================
 
@@ -1360,6 +1385,12 @@ function attachSettingsEventListeners() {
     if (compactModeCheckbox) {
         compactModeCheckbox.addEventListener("change", onUiCompactModeChange);
     }
+
+    // Display settings - scan dwell time input
+    const scanDwellInput = document.getElementById("scan-dwell-time");
+    if (scanDwellInput) {
+        scanDwellInput.addEventListener("change", onScanDwellTimeChange);
+    }
 }
 
 // ============================================================================
@@ -1375,6 +1406,7 @@ function onSettingsAppearing() {
     loadCwMacros();
     loadFilterBandsSettingUI();
     loadUiCompactModeSettingUI();
+    loadScanDwellTimeSettingUI();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }
 

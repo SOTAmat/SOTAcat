@@ -707,6 +707,22 @@ input.frequency-display {
     padding: 0 var(--space-md);
 }
 
+/* Scan button: blue default, red pulsing when active (scanning) */
+.btn-scan {
+    background: var(--primary);
+    color: var(--white);
+    min-height: var(--touch-target-sm);
+    font-size: var(--text-sm);
+    padding: 0 var(--space-md);
+}
+.btn-scan:active:not(:disabled) {
+    background: var(--primary-dark);
+}
+.btn-scan.active {
+    background: var(--danger);
+    animation: pulse 1.5s infinite;
+}
+
 .btn-send {
     min-width: 80px;
     background: var(--primary);
@@ -911,6 +927,18 @@ input.frequency-display {
     display: flex;
     flex-direction: column;
     gap: var(--space-md);
+}
+
+.input-group-horizontal {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-sm);
+}
+
+.text-input-narrow {
+    width: 4em;
+    text-align: center;
 }
 
 /* =========================== Tables */
