@@ -949,6 +949,7 @@ input.frequency-display {
     margin: var(--space-md);
     box-shadow: var(--shadow-sm);
     max-height: calc(100vh - 220px); /* Leave room for header, controls, and tab bar */
+    scroll-padding-top: var(--table-header-height);
 }
 
 .data-table,

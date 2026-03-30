@@ -505,7 +505,7 @@ function advanceScan() {
         clickedTunedRow = row;
     }
 
-    row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
 
     ChaseState.scanTimeoutId = setTimeout(advanceScan, AppState.scanDwellTimeMs);
 }
@@ -556,7 +556,7 @@ function navigateRow(offset) {
         clickedTunedRow = row;
     }
 
-    row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 // Keyboard handler for spacebar scan toggle and arrow navigation
