@@ -6,7 +6,7 @@ WiFi CAT control for Elecraft KX2/KX3/KH1. Your phone becomes your radio console
 
 ### Chase contacts with click-to-pounce
 
-Tap a spot, radio tunes. SOTA, POTA, WWFF—all in one list.
+Tap a spot, radio tunes. Scan to cycle through spots hands-free. SOTA, POTA, WWFF—all in one list.
 
 ![CHASE page with spots and tap-to-tune](Documentation/images/chase-spots.png)
 
@@ -34,7 +34,7 @@ Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
 
 ### With Cell Service
 
-- **CHASE** live spots with tap-to-tune
+- **CHASE** live spots with tap-to-tune and auto-scan
 - SMS Spot / SMS QRT buttons
 - Full click-to-pounce workflow
 

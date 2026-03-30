@@ -33,6 +33,14 @@ Hunt activators from the spot list.
 
 ![CHASE page with spots](../images/chase-spots.png)
 
+**Scan** — Press the Scan button to automatically cycle through visible spots. The radio tunes to each spot in turn and the row scrolls into view. The button changes to "Stop" while scanning. Any other interaction (refresh, filter change, column sort, row click, MyCall, or Log in PoLo) stops the scan.
+
+**Keyboard shortcuts (desktop):**
+- **Space** — start/stop scan
+- **j** / **k** — move down/up through spots (stops any active scan)
+
+Scan dwell time is configurable in Settings → Display (default 7 seconds).
+
 > **Note:** CHASE requires internet. When offline, this page will be empty.
 
 ## RUN — Operate
@@ -78,7 +86,7 @@ One-time setup and preferences.
 ![Tune targets settings](../images/settings-tune-targets.png)
 
 - CW macros (configurable keyer buttons with placeholders)
-- Display settings (compact mode)
+- Display settings (compact mode, scan dwell time)
 
 ![Display and chase filter settings](../images/settings-display-and-chase-filters.png)
 
