@@ -98,10 +98,10 @@ const AppState = {
 
     // Radio info
     radioType: null,           // "KX2", "KX3", or "Unknown"
-    filterBandsEnabled: false, // Filter chase spots to radio-supported bands
+    filterBandsEnabled: true,  // Filter chase spots to radio-supported bands
 
     // UI density
-    uiCompactMode: false,      // Compact mode for denser table display
+    uiCompactMode: true,       // Compact mode for denser table display
     scanDwellTimeMs: 7000,     // Scan dwell time per spot in milliseconds (default 7s)
 
     // Version checking
@@ -449,14 +449,14 @@ async function loadRadioType() {
 // Load filter bands setting from localStorage
 function loadFilterBandsSetting() {
     const saved = localStorage.getItem("sotacat_filter_bands");
-    AppState.filterBandsEnabled = saved === "true";
+    AppState.filterBandsEnabled = saved !== null ? saved === "true" : AppState.filterBandsEnabled;
     return AppState.filterBandsEnabled;
 }
 
 // Load UI compact mode setting from localStorage
 function loadUiCompactMode() {
     const saved = localStorage.getItem("sotacat_ui_compact");
-    AppState.uiCompactMode = saved === "true";
+    AppState.uiCompactMode = saved !== null ? saved === "true" : AppState.uiCompactMode;
     return AppState.uiCompactMode;
 }
 

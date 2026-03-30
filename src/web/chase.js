@@ -139,7 +139,7 @@ function onTypeFilterChange(type) {
 // Load saved mode filter from localStorage (returns 'All', 'CW', 'SSB', 'DATA', etc.)
 function loadGlobalModeFilter() {
     const savedMode = localStorage.getItem("chaseModeFilter");
-    ChaseState.modeFilter = savedMode !== null ? savedMode : "All";
+    ChaseState.modeFilter = savedMode !== null ? savedMode : "SSB+CW";
     return ChaseState.modeFilter;
 }
 
