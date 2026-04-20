@@ -118,7 +118,7 @@ sudo usermod -aG dialout $USER
 
 ## Creating a Release
 
-Releases are published to [GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases) and are used by the firmware's automatic version-check feature.
+**GitHub Releases is the sole source of truth for SOTACAT firmware.** Both the firmware's automatic version-check (which queries the GitHub Releases API) and the ESP Web Tools flasher read exclusively from [GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases). `make github-release` is the only sanctioned publish path.
 
 ```bash
 make github-release
@@ -139,9 +139,13 @@ This single command:
 
 **Editing release notes:** The release is created with auto-generated notes from commits since the last release. You can edit the notes afterward on the GitHub Releases page.
 
+### Mirroring a release to sotamat.com (optional, not recommended)
+
+Hosting a copy of the firmware on sotamat.com is **optional and not recommended**. If a mirror is published, it must be a byte-identical copy of the `SOTACAT-ESP32C3-OTA.bin` asset from an already-published GitHub Release — never a fresh local rebuild. Each build re-stamps `BUILD_DATE_TIME` in `include/build_info.h` (see `pio-pre-build-script.py`), so a rebuild produces a phantom version that no update check can ever see: devices flashed with it will report "up to date" against an older GitHub tag. See issue [#100](https://github.com/SOTAmat/SOTAcat/issues/100) for the incident that motivated this rule.
+
 ## End Users
 
-For pre-built firmware with one-button install, see [sotamat.com/sotacat](https://sotamat.com/sotacat#InstallingFirmware)
+For pre-built firmware with one-button install, see [sotamat.com/sotacat](https://sotamat.com/sotacat#InstallingFirmware). When present, the firmware hosted there mirrors the latest GitHub Release; the authoritative download is always [GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases).
 
 ---
 
