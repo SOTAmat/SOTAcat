@@ -25,7 +25,7 @@ FIRMWARE_DIR := firmware/webtools
 OTA_BIN := $(FIRMWARE_DIR)/SOTACAT-ESP32C3-OTA.bin
 MERGED_BIN := $(FIRMWARE_DIR)/esp32c3.bin
 
-.PHONY: help build upload clean ota ota-upload monitor test test-setup github-release
+.PHONY: help build upload clean ota ota-upload monitor test test-setup test-unit github-release
 
 help:
 	@echo "SOTAcat Firmware Build Targets"
@@ -41,6 +41,7 @@ help:
 	@echo ""
 	@echo "Test Targets:"
 	@echo "  test-setup    - Setup test environment (venv + dependencies)"
+	@echo "  test-unit     - Run JS unit tests (no device required)"
 	@echo "  test          - Run integration test suite"
 	@echo ""
 	@echo "Release Targets:"
@@ -116,6 +117,13 @@ clean:
 test-setup:
 	@echo "Setting up test environment..."
 	@cd test/integration && make setup
+
+test-unit:
+	@echo "Running JS unit tests..."
+	@set -e; for f in test/unit/test_*.js; do \
+		echo "--- $$f"; \
+		node "$$f"; \
+	done
 
 test:
 	@echo "Running integration test suite..."
