@@ -24,13 +24,16 @@ const MODE_BANDWIDTH_HZ = {
 };
 
 // ============================================================================
-// FCC HF Band Privilege Table
+// FCC Band Privilege Table
 // ============================================================================
 // Each segment defines: frequency range (Hz), allowed modes, license classes
 // Mode categories: CW, DATA, PHONE
 // License classes: N (Novice), T (Technician), G (General), A (Advanced), E (Extra)
+// Covers HF (160m-10m) and VHF/UHF amateur allocations where SOTAcat may
+// operate (natively or via transverter). Voluntary band-plan sub-allocations
+// (e.g. FM repeater sub-bands) are intentionally not encoded — only FCC rules.
 
-const FCC_HF_PRIVILEGES = {
+const FCC_AMATEUR_PRIVILEGES = {
     "160m": [
         { min: 1800000, max: 2000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
     ],
@@ -87,6 +90,28 @@ const FCC_HF_PRIVILEGES = {
         { min: 28000000, max: 28300000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T", "N"] },
         { min: 28300000, max: 28500000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T", "N"] },
         { min: 28500000, max: 29700000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+    ],
+    "6m": [
+        // 50.0-50.1 MHz is CW-only per FCC 97.305(c)
+        { min: 50000000, max: 50100000, modes: ["CW"], classes: ["E", "A", "G", "T"] },
+        { min: 50100000, max: 54000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+    ],
+    "2m": [
+        // 144.0-144.1 MHz is CW-only per FCC 97.305(c)
+        { min: 144000000, max: 144100000, modes: ["CW"], classes: ["E", "A", "G", "T"] },
+        { min: 144100000, max: 148000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+    ],
+    "1p25m": [
+        // Novice privileges apply only in the 222.1-223.91 MHz sub-segment
+        { min: 222000000, max: 222100000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+        { min: 222100000, max: 223910000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T", "N"] },
+        { min: 223910000, max: 225000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+    ],
+    "70cm": [
+        { min: 420000000, max: 450000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+    ],
+    "23cm": [
+        { min: 1240000000, max: 1300000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
     ],
 };
 
@@ -248,7 +273,7 @@ function checkPrivileges(frequencyHz, radioMode, userLicenseClass) {
         return result;
     }
 
-    const bandPrivileges = FCC_HF_PRIVILEGES[band];
+    const bandPrivileges = FCC_AMATEUR_PRIVILEGES[band];
     if (!bandPrivileges) {
         // Band exists in BAND_PLAN but no FCC privileges defined (e.g., 11m CB)
         result.warning = "No amateur privileges";

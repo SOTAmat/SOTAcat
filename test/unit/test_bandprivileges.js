@@ -481,6 +481,118 @@ describe('10m Band Privileges', () => {
     });
 });
 
+describe('6m Band Privileges', () => {
+    describe('50.100-54.000 MHz (CW/DATA/PHONE, E/A/G/T)', () => {
+        it('Technician can TX Phone at 50.125 (SSB calling)', () => {
+            const result = checkPrivileges(50125000, 'USB', 'T');
+            assertTrue(result.userCanTransmit, 'Tech should TX USB at 50.125');
+            assertNull(result.warning, 'Should have no warning');
+        });
+
+        it('Technician can TX CW at 50.200', () => {
+            const result = checkPrivileges(50200000, 'CW', 'T');
+            assertTrue(result.userCanTransmit, 'Tech should TX CW at 50.200');
+        });
+
+        it('Novice cannot TX on 6m', () => {
+            const result = checkPrivileges(50125000, 'USB', 'N');
+            assertFalse(result.userCanTransmit, 'Novice should not TX on 6m');
+        });
+    });
+
+    describe('50.000-50.100 MHz (CW only)', () => {
+        it('Tech can TX CW at 50.050', () => {
+            const result = checkPrivileges(50050000, 'CW', 'T');
+            assertTrue(result.userCanTransmit, 'Tech should TX CW at 50.050');
+        });
+
+        it('Phone not allowed at 50.050', () => {
+            const result = checkPrivileges(50050000, 'USB', 'T');
+            assertFalse(result.modeAllowed, 'Phone should not be allowed at 50.050');
+            assertEqual(result.warning, 'Phone not allowed here');
+        });
+    });
+});
+
+describe('2m Band Privileges', () => {
+    describe('144.100-148.000 MHz (CW/DATA/PHONE, E/A/G/T)', () => {
+        it('Technician can TX FM at 146.520 (FM simplex calling) - regression for issue #99', () => {
+            const result = checkPrivileges(146520000, 'FM', 'T');
+            assertTrue(result.inBand, 'Should be in band');
+            assertTrue(result.userCanTransmit, 'Tech should TX FM at 146.520');
+            assertNull(result.warning, 'Should NOT show "No amateur privileges" warning');
+        });
+
+        it('Technician can TX USB at 144.200 (SSB calling)', () => {
+            const result = checkPrivileges(144200000, 'USB', 'T');
+            assertTrue(result.userCanTransmit, 'Tech should TX USB at 144.200');
+        });
+
+        it('General can TX FM at 146.520', () => {
+            const result = checkPrivileges(146520000, 'FM', 'G');
+            assertTrue(result.userCanTransmit, 'General should TX FM at 146.520');
+        });
+
+        it('Novice cannot TX on 2m', () => {
+            const result = checkPrivileges(146520000, 'FM', 'N');
+            assertFalse(result.userCanTransmit, 'Novice should not TX on 2m');
+        });
+    });
+
+    describe('144.000-144.100 MHz (CW only)', () => {
+        it('Tech can TX CW at 144.050', () => {
+            const result = checkPrivileges(144050000, 'CW', 'T');
+            assertTrue(result.userCanTransmit, 'Tech should TX CW at 144.050');
+        });
+
+        it('USB not allowed at 144.050 (CW-only segment)', () => {
+            const result = checkPrivileges(144050000, 'USB', 'T');
+            assertFalse(result.modeAllowed, 'USB should not be allowed at 144.050');
+            assertEqual(result.warning, 'Phone not allowed here');
+        });
+
+        it('FM not allowed at 144.050 (CW-only segment)', () => {
+            const result = checkPrivileges(144050000, 'FM', 'T');
+            assertFalse(result.modeAllowed, 'FM should not be allowed at 144.050');
+        });
+    });
+});
+
+describe('1.25m Band Privileges', () => {
+    it('Novice can TX FM at 223.500 (inside Novice sub-segment)', () => {
+        const result = checkPrivileges(223500000, 'FM', 'N');
+        assertTrue(result.userCanTransmit, 'Novice should TX FM at 223.500');
+    });
+
+    it('Novice cannot TX at 222.050 (below Novice sub-segment)', () => {
+        const result = checkPrivileges(222050000, 'FM', 'N');
+        assertFalse(result.userCanTransmit, 'Novice should not TX at 222.050');
+    });
+
+    it('Technician can TX at 222.050', () => {
+        const result = checkPrivileges(222050000, 'FM', 'T');
+        assertTrue(result.userCanTransmit, 'Tech should TX at 222.050');
+    });
+});
+
+describe('70cm Band Privileges', () => {
+    it('Technician can TX USB at 432.100 (weak-signal calling)', () => {
+        const result = checkPrivileges(432100000, 'USB', 'T');
+        assertTrue(result.userCanTransmit, 'Tech should TX USB at 432.100');
+        assertNull(result.warning, 'Should have no warning');
+    });
+
+    it('Technician can TX FM at 446.000', () => {
+        const result = checkPrivileges(446000000, 'FM', 'T');
+        assertTrue(result.userCanTransmit, 'Tech should TX FM at 446.000');
+    });
+
+    it('Novice cannot TX on 70cm', () => {
+        const result = checkPrivileges(446000000, 'FM', 'N');
+        assertFalse(result.userCanTransmit, 'Novice should not TX on 70cm');
+    });
+});
+
 describe('30m WARC Band (CW/DATA only)', () => {
     const freq = 10125000;
 
