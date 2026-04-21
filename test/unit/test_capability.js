@@ -68,8 +68,8 @@ function extract(re, label) {
 
 const bandPlanSrc     = extract(/const BAND_PLAN = \{[\s\S]*?\n\};/, 'BAND_PLAN');
 const getBandFnSrc    = extract(/function getBandFromFrequency\(frequencyHz\) \{[\s\S]*?\n\}/, 'getBandFromFrequency');
-const nativeBandsSrc  = extract(/const RADIO_NATIVE_BANDS = \{[\s\S]*?\n\};/, 'RADIO_NATIVE_BANDS');
-const capabilitySrc   = extract(/const CapabilityState = \{[\s\S]*?^\};/m, 'CapabilityState');
+const nativeBandsSrc  = extract(/var RADIO_NATIVE_BANDS = \{[\s\S]*?\n\};/, 'RADIO_NATIVE_BANDS');
+const capabilitySrc   = extract(/var CapabilityState = \{[\s\S]*?^\};/m, 'CapabilityState');
 
 function freshSandbox() {
     const AppState = { radioType: null };

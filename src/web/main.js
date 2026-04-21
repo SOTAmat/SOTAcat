@@ -403,13 +403,13 @@ const BAND_PLAN = {
     "11m": { min: 26965000, max: 27405000 },
     "10m": { min: 28000000, max: 29700000, initial: 28300000 },
     "8m": { min: 40660000, max: 40700000 },
-    "6m": { min: 50000000, max: 54000000 },
+    "6m": { min: 50000000, max: 54000000, initial: 50125000 },
     "5m": { min: 54000000, max: 69900000 },
     "4m": { min: 70000000, max: 70500000 },
-    "2m": { min: 144000000, max: 148000000 },
-    "1p25m": { min: 222000000, max: 225000000 },
-    "70cm": { min: 420000000, max: 450000000 },
-    "23cm": { min: 1240000000, max: 1300000000 },
+    "2m": { min: 144000000, max: 148000000, initial: 146580000 },
+    "1p25m": { min: 222000000, max: 225000000, initial: 223500000 },
+    "70cm": { min: 420000000, max: 450000000, initial: 446580000 },
+    "23cm": { min: 1240000000, max: 1300000000, initial: 1294500000 },
     "2p4GHz": { min: 2400000000, max: 2450000000 },
     "5p8GHz": { min: 5650000000, max: 5925000000 },
     "10GHz": { min: 10000000000, max: 10500000000 },
@@ -418,18 +418,137 @@ const BAND_PLAN = {
     "76GHz": { min: 76000000000, max: 77500000000 },
 };
 
-// Radio band capabilities for filtering chase spots
-// KX2/KX3 both cover the same HF bands plus 6m
-// null = show all bands (no filtering)
-const RADIO_BAND_CAPABILITIES = {
-    "KX2": ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"],
+// ============================================================================
+// Per-radio native band tables
+// ============================================================================
+// Bands the radio can reach *without* a transverter. Auto-learned bands
+// (from observed FA polls) are merged in at runtime by CapabilityState.
+// null = unknown radio → show all bands (no filtering).
+var RADIO_NATIVE_BANDS = {
+    "KX2": ["80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m"],
     "KX3": ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"],
-    "Unknown": null  // null = show all bands (no filtering)
+    "KH1": ["40m", "20m", "17m", "15m", "10m"],
+    "Unknown": null,
 };
 
-// Get list of bands a radio can access (returns array or null for all bands)
+// Plausible transverter bands shown in chase filter for IF-capable radios
+// (KX2/KX3) even before any auto-learn has happened. KH1 gets native only.
+var PLAUSIBLE_TRANSVERTER_BANDS = ["2m", "70cm", "23cm"];
+
+// ============================================================================
+// CapabilityState — per-radio native + learned bands (localStorage-backed)
+// ============================================================================
+// Shape stored per radio at key `sotacat_learned_bands_{radioType}`:
+//   { learned: ["2m", "70cm"], lastFreqHz: { "2m": 146580000, "20m": 14225000 } }
+// lastFreqHz tracks the most recently observed FA for *every* band (native
+// and learned), used as the click target for band buttons on the CAT page.
+//
+// Dispatches a `capabilitychange` event on `document` whenever learned/
+// lastFreqHz change, so the UI can re-render.
+var CapabilityState = {
+    _learned: [],
+    _lastFreqHz: {},
+
+    _storageKey() {
+        const rt = AppState.radioType || "Unknown";
+        return `sotacat_learned_bands_${rt}`;
+    },
+
+    // Called after AppState.radioType is known (page load, reconnect)
+    load() {
+        this._learned = [];
+        this._lastFreqHz = {};
+        try {
+            const raw = localStorage.getItem(this._storageKey());
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed.learned)) this._learned = parsed.learned.slice();
+                if (parsed.lastFreqHz && typeof parsed.lastFreqHz === "object") {
+                    this._lastFreqHz = { ...parsed.lastFreqHz };
+                }
+            }
+        } catch (e) {
+            Log.warn("Capability")("Failed to parse learned bands:", e.message);
+        }
+        this._emit();
+    },
+
+    _save() {
+        try {
+            localStorage.setItem(this._storageKey(),
+                JSON.stringify({ learned: this._learned, lastFreqHz: this._lastFreqHz }));
+        } catch (e) {
+            Log.warn("Capability")("Failed to save learned bands:", e.message);
+        }
+    },
+
+    _emit() {
+        if (typeof document !== "undefined" && document.dispatchEvent) {
+            document.dispatchEvent(new CustomEvent("capabilitychange"));
+        }
+    },
+
+    // Returns native ∪ learned (ordered: native-in-frequency-order, then learned
+    // in learn order). Returns null for "Unknown" (no filtering).
+    getBands() {
+        const native = RADIO_NATIVE_BANDS[AppState.radioType];
+        if (native === null || native === undefined) return null;
+        // De-dup: learned should never overlap native, but be defensive.
+        const out = native.slice();
+        for (const b of this._learned) if (!out.includes(b)) out.push(b);
+        return out;
+    },
+
+    getLearnedBands() {
+        return this._learned.slice();
+    },
+
+    getLastFreqHz(band) {
+        const v = this._lastFreqHz[band];
+        return typeof v === "number" ? v : null;
+    },
+
+    // Called from the VFO poll loop after a successful FA read.
+    // Returns true iff a NEW band was appended to learned.
+    // Caller should NOT call this from PUT-request paths (selectBand, spot click).
+    observe(frequencyHz) {
+        if (typeof frequencyHz !== "number" || !isFinite(frequencyHz)) return false;
+        const band = getBandFromFrequency(frequencyHz);
+        if (!band) return false;
+        const prevLast = this._lastFreqHz[band];
+        this._lastFreqHz[band] = frequencyHz;
+        const native = RADIO_NATIVE_BANDS[AppState.radioType];
+        if (native === null || native === undefined) {
+            // Unknown radio: track lastFreqHz but never learn.
+            if (prevLast !== frequencyHz) this._save();
+            return false;
+        }
+        const known = native.includes(band) || this._learned.includes(band);
+        if (!known) {
+            this._learned.push(band);
+            this._save();
+            this._emit();
+            return true;
+        }
+        if (prevLast !== frequencyHz) this._save();
+        return false;
+    },
+
+    // Remove a learned band + its lastFreqHz. No-op if not learned.
+    forget(band) {
+        const idx = this._learned.indexOf(band);
+        if (idx === -1) return;
+        this._learned.splice(idx, 1);
+        delete this._lastFreqHz[band];
+        this._save();
+        this._emit();
+    },
+};
+
+// Get the full list of bands a radio can access (native ∪ learned), or null
+// for "show all". Used by chase filtering and band-button rendering.
 function getRadioBandCapabilities(radioType) {
-    return RADIO_BAND_CAPABILITIES[radioType] || null;
+    return CapabilityState.getBands();
 }
 
 // Load radio type from device into AppState
