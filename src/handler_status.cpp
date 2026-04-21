@@ -26,6 +26,11 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
     else if (Ft8RadioExclusive) {
         symbol = "⚪";
     }
+    else if (kxRadio.is_keyer_active()) {
+        // CW keyer holds the radio mutex for the full transmit duration; report
+        // transmitting directly instead of timing out trying to take the lock.
+        symbol = "🔴";
+    }
     else {
         long transmitting = -1;
 

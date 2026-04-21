@@ -3,6 +3,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 
@@ -67,6 +68,7 @@ class KXRadio {
     bool              m_is_connected;
     RadioType         m_radio_type;
     IRadioDriver *    m_driver;
+    std::atomic<bool> m_keyer_active { false };
     KXRadio();
     void detect_radio_type ();
     void select_driver ();
@@ -111,6 +113,25 @@ class KXRadio {
     bool supports_keyer () const;
     bool supports_volume () const;
     bool send_keyer_message (const char * message);
+
+    // True while an HTTP-accepted CW keyer request is outstanding (between
+    // try_begin_keyer_operation() and end_keyer_operation()). Used by the
+    // connection-status handler to report "transmitting" without waiting on
+    // the radio mutex.
+    bool is_keyer_active () const { return m_keyer_active.load (std::memory_order_acquire); }
+
+    // Atomically claim the keyer. Returns true if the caller now owns the
+    // operation and must pair with end_keyer_operation(); false if one is
+    // already in progress and the caller should reject its request.
+    bool try_begin_keyer_operation () {
+        bool expected = false;
+        return m_keyer_active.compare_exchange_strong (
+            expected, true,
+            std::memory_order_acq_rel, std::memory_order_acquire);
+    }
+
+    // Release the claim taken by try_begin_keyer_operation().
+    void end_keyer_operation () { m_keyer_active.store (false, std::memory_order_release); }
     bool sync_time (const RadioTimeHms & client_time);
     bool get_radio_state (kx_state_t * in_state);
     bool restore_radio_state (const kx_state_t * in_state, int tries);
