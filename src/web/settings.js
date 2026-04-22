@@ -1403,7 +1403,7 @@ function renderRadioTransverterPanel() {
     const typeEl = document.getElementById("settings-radio-type");
     const listEl = document.getElementById("settings-learned-bands");
     if (!typeEl || !listEl) return;
-    typeEl.textContent = AppState.radioType || "Detecting\u2026";
+    typeEl.textContent = AppState.radioType || "Detecting…";
     listEl.innerHTML = "";
     const learned = CapabilityState.getLearnedBands();
     if (learned.length === 0) {
@@ -1417,8 +1417,8 @@ function renderRadioTransverterPanel() {
         const li = document.createElement("li");
         const label = document.createElement("span");
         const hz = CapabilityState.getLastFreqHz(band);
-        const mhz = hz ? (hz / 1e6).toFixed(3) + " MHz" : "\u2014";
-        label.textContent = `${bandLabel(band)} \u2014 last seen ${mhz}`;
+        const mhz = hz ? (hz / 1e6).toFixed(3) + " MHz" : "—";
+        label.textContent = `${bandLabel(band)} — last seen ${mhz}`;
         const btn = document.createElement("button");
         btn.className = "btn btn-secondary btn-forget";
         btn.textContent = "Forget";
