@@ -623,6 +623,7 @@ async function getCurrentVfoState() {
                 RunState.lastFrequencyChange = Date.now(); // Track that frequency changed
                 updateFrequencyDisplay();
                 updateBandDisplay(); // Update band button active state
+                CapabilityState.observe(newFreq); // auto-learn from radio-confirmed FA
                 Log.debug("Spot")("Frequency updated from radio:", AppState.vfoFrequencyHz);
                 changed = true;
             }
@@ -680,6 +681,7 @@ async function startVfoUpdates() {
             AppState.vfoFrequencyHz = parseInt(frequency, 10);
             updateFrequencyDisplay();
             updateBandDisplay();
+            CapabilityState.observe(AppState.vfoFrequencyHz);
             Log.debug("Spot")("Initial frequency loaded:", AppState.vfoFrequencyHz);
         }
         if (mode) {
