@@ -1354,6 +1354,14 @@ document.addEventListener("DOMContentLoaded", function () {
     // Initialize or open any tab in the UI
     openTab(activeTab);
 
+    // Load radio type at boot so Settings-first visit can render the
+    // Radio & Transverters panel without needing Chase to run first.
+    // CapabilityState.load() must follow loadRadioType() so it keys on
+    // the correct radio rather than "Unknown".
+    loadRadioType().then(() => {
+        CapabilityState.load();
+    });
+
     // Schedule version check after page loads
     setTimeout(() => {
         Log.debug("Version")("Executing initial check");
