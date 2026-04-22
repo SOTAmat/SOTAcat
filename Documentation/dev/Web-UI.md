@@ -30,6 +30,17 @@ src/web/
 └── bandprivileges.js  # FCC band data
 ```
 
+### Radio capability model
+
+`main.js` owns `RADIO_NATIVE_BANDS` (per-radio hardcoded native bands) and
+`CapabilityState` (native ∪ learned, with per-band last-observed frequency).
+Auto-learn fires only from radio-confirmed `FA` polls, never from PUT paths.
+Learned state persists in localStorage keyed by radio type
+(`sotacat_learned_bands_KX2`, etc.), so multiple radios sharing one SOTAcat
+keep independent learned sets. See
+`Documentation/for-AI-agents/specs/2026-04-21-transverter-awareness-design.md`
+for the full design rationale.
+
 ## UI → API Mapping
 
 | User Action | API Call |

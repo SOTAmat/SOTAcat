@@ -49,7 +49,7 @@ Control your radio during activation.
 
 **Tune section:**
 - VFO display with frequency/mode
-- Band buttons (40m, 20m, 17m, 15m, 12m, 10m)
+- Band buttons (populated from the detected radio — HF bands on KX2, HF + 6m on KX3, KH1's subset, plus any transverter bands SOTAcat has learned)
 - Mode buttons (CW, SSB, DATA, AM, FM)
 - Power and ATU controls
 
@@ -86,6 +86,7 @@ One-time setup and preferences.
 ![Tune targets settings](../images/settings-tune-targets.png)
 
 - CW macros (configurable keyer buttons with placeholders)
+- Radio & Transverters panel (shows the detected radio and any auto-learned transverter bands; each learned band has a Forget button)
 - Display settings (compact mode, scan dwell time)
 
 ![Display and chase filter settings](../images/settings-display-and-chase-filters.png)
