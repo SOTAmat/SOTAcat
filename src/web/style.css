@@ -2262,3 +2262,23 @@ button.password-visibility-toggle svg {
 .text-muted {
     color: var(--text-secondary);
 }
+
+.learned-band-list {
+    list-style: none;
+    padding-left: 0;
+    margin-top: var(--space-xs);
+}
+.learned-band-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-xs) 0;
+}
+.learned-band-list .btn-forget {
+    padding: 2px var(--space-sm);
+    font-size: 0.85em;
+}
+.learned-band-none {
+    color: var(--text-muted, #888);
+    font-style: italic;
+}

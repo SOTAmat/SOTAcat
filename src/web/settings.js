@@ -1394,6 +1394,50 @@ function attachSettingsEventListeners() {
 }
 
 // ============================================================================
+// Radio & Transverters Panel
+// ============================================================================
+
+function bandLabel(band) { return band === "1p25m" ? "1.25m" : band; }
+
+function renderRadioTransverterPanel() {
+    const typeEl = document.getElementById("settings-radio-type");
+    const listEl = document.getElementById("settings-learned-bands");
+    if (!typeEl || !listEl) return;
+    typeEl.textContent = AppState.radioType || "Detecting\u2026";
+    listEl.innerHTML = "";
+    const learned = CapabilityState.getLearnedBands();
+    if (learned.length === 0) {
+        const li = document.createElement("li");
+        li.className = "learned-band-none";
+        li.textContent = "(none)";
+        listEl.appendChild(li);
+        return;
+    }
+    for (const band of learned) {
+        const li = document.createElement("li");
+        const label = document.createElement("span");
+        const hz = CapabilityState.getLastFreqHz(band);
+        const mhz = hz ? (hz / 1e6).toFixed(3) + " MHz" : "\u2014";
+        label.textContent = `${bandLabel(band)} \u2014 last seen ${mhz}`;
+        const btn = document.createElement("button");
+        btn.className = "btn btn-secondary btn-forget";
+        btn.textContent = "Forget";
+        btn.addEventListener("click", () => {
+            CapabilityState.forget(band); // will emit capabilitychange -> re-render
+        });
+        li.appendChild(label);
+        li.appendChild(btn);
+        listEl.appendChild(li);
+    }
+}
+
+// Register at module scope so it attaches exactly once per page load
+// (settings.js is lazy-loaded but then stays resident; module-scope code
+// runs exactly once). Do NOT move this into onSettingsAppearing() — that
+// function runs on every tab re-entry and would stack duplicate listeners.
+document.addEventListener("capabilitychange", renderRadioTransverterPanel);
+
+// ============================================================================
 // Page Lifecycle
 // ============================================================================
 
@@ -1407,6 +1451,7 @@ function onSettingsAppearing() {
     loadFilterBandsSettingUI();
     loadUiCompactModeSettingUI();
     loadScanDwellTimeSettingUI();
+    renderRadioTransverterPanel();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }
 
