@@ -1119,6 +1119,15 @@ function applyTableFilters() {
     Log.debug("Chase")(`Filter applied: ${visibleRows} visible, ${hiddenRows} hidden`);
 }
 
+// Re-run chase-table filtering whenever the capability set changes (learned
+// bands, radio-type change, etc.). Registered once at module load — NOT inside
+// attachChaseEventListeners() or onChaseAppearing(), which run on every Chase-tab
+// re-entry and would otherwise stack one listener per entry on the persistent
+// `document` node.
+if (typeof document !== "undefined" && document.addEventListener) {
+    document.addEventListener("capabilitychange", () => applyTableFilters());
+}
+
 // ============================================================================
 // Sorting
 // ============================================================================
@@ -1359,6 +1368,9 @@ async function onChaseAppearing() {
 
     // Load radio type and filter settings for band filtering
     await loadRadioType();
+    // Load per-radio learned-band state now that AppState.radioType is set,
+    // so CapabilityState keys on the correct radio (not "Unknown").
+    CapabilityState.load();
     loadFilterBandsSetting();
     loadScanDwellTime();
     ensureLicenseClassLoaded();
