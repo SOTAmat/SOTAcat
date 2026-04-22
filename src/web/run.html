@@ -41,15 +41,8 @@
                 <button class="btn btn-freq down" data-freq-delta="-1000">−1k</button>
             </div>
 
-            <!-- Band Selection -->
-            <div class="band-grid">
-                <button class="btn btn-band" id="btn-40m" data-band="40m">40m</button>
-                <button class="btn btn-band" id="btn-20m" data-band="20m">20m</button>
-                <button class="btn btn-band" id="btn-17m" data-band="17m">17m</button>
-                <button class="btn btn-band" id="btn-15m" data-band="15m">15m</button>
-                <button class="btn btn-band" id="btn-12m" data-band="12m">12m</button>
-                <button class="btn btn-band" id="btn-10m" data-band="10m">10m</button>
-            </div>
+            <!-- Band Selection (populated at runtime by renderBandButtons) -->
+            <div class="band-grid" id="band-grid"></div>
 
             <!-- Mode Selection -->
             <div class="mode-grid">

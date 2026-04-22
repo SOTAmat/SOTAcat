@@ -157,6 +157,33 @@ function bestColumnCount(n) {
     return 3;
 }
 
+// Human-friendly band labels for buttons (e.g. "1p25m" → "1.25m")
+function bandLabel(band) {
+    if (band === "1p25m") return "1.25m";
+    return band;
+}
+
+// Render the CAT-page band-button grid from the current capability set.
+// Idempotent — safe to call repeatedly (e.g. on every capabilitychange).
+function renderBandButtons() {
+    const grid = document.getElementById("band-grid");
+    if (!grid) return;
+    const bands = CapabilityState.getBands();
+    // Unknown radio (null) → show HF defaults as a graceful fallback
+    const list = bands || ["40m","20m","17m","15m","12m","10m"];
+    grid.innerHTML = "";
+    for (const band of list) {
+        const btn = document.createElement("button");
+        btn.className = "btn btn-band";
+        btn.id = `btn-${band}`;
+        btn.setAttribute("data-band", band);
+        btn.textContent = bandLabel(band);
+        grid.appendChild(btn);
+    }
+    grid.style.gridTemplateColumns = `repeat(${bestColumnCount(list.length)}, 1fr)`;
+    updateBandDisplay(); // re-apply active-state highlight for current VFO
+}
+
 // Update band button highlighting based on current frequency
 function updateBandDisplay() {
     // Clear all active states first
@@ -496,8 +523,13 @@ function selectBand(band) {
     if (BAND_PLAN[band]) {
         RunState.lastUserAction = Date.now(); // Mark user action to prevent polling conflicts
 
-        // Set frequency first
-        setFrequency(BAND_PLAN[band].initial);
+        // Set frequency first — prefer last observed freq on this band, fall back to BAND_PLAN default
+        const target = CapabilityState.getLastFreqHz(band) ?? BAND_PLAN[band].initial;
+        if (target == null) {
+            Log.warn("Spot")(`No target freq for band ${band}; ignoring click`);
+            return;
+        }
+        setFrequency(target);
 
         // Check current mode from radio after frequency change and only set sideband if in SSB mode
         // Wait for debounced frequency update to complete before checking mode
@@ -1037,13 +1069,19 @@ function attachSpotEventListeners() {
         });
     });
 
-    // Band selection buttons
-    document.querySelectorAll(".btn-band[data-band]").forEach((button) => {
-        button.addEventListener("click", () => {
-            const band = button.getAttribute("data-band");
-            selectBand(band);
+    // Band selection buttons (delegated — buttons are rendered dynamically by renderBandButtons)
+    const bandGrid = document.getElementById("band-grid");
+    if (bandGrid) {
+        bandGrid.addEventListener("click", (evt) => {
+            const btn = evt.target.closest(".btn-band[data-band]");
+            if (!btn) return;
+            selectBand(btn.getAttribute("data-band"));
         });
-    });
+    }
+
+    // Initial render + react to learned-band changes
+    renderBandButtons();
+    document.addEventListener("capabilitychange", () => renderBandButtons());
 
     // Mode selection buttons
     document.querySelectorAll(".btn-mode[data-mode]").forEach((button) => {

@@ -483,6 +483,7 @@ input.frequency-display {
 }
 
 .band-grid {
+    /* grid-template-columns set inline after renderBandButtons() to avoid danglers */
     grid-template-columns: repeat(3, 1fr);
 }
 
