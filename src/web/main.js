@@ -545,6 +545,25 @@ var CapabilityState = {
     },
 };
 
+// Compute the allowed-bands list for chase-filter purposes.
+// null = no filtering (Unknown radio or filter disabled upstream).
+function chaseAllowedBands() {
+    const radioType = AppState.radioType;
+    const native = RADIO_NATIVE_BANDS[radioType];
+    if (native === null || native === undefined) return null;
+    const out = native.slice();
+    for (const b of CapabilityState.getLearnedBands()) {
+        if (!out.includes(b)) out.push(b);
+    }
+    // KH1 has no IF-transverter architecture — no plausible tier.
+    if (radioType === "KX2" || radioType === "KX3") {
+        for (const b of PLAUSIBLE_TRANSVERTER_BANDS) {
+            if (!out.includes(b)) out.push(b);
+        }
+    }
+    return out;
+}
+
 // Get the full list of bands a radio can access (native ∪ learned), or null
 // for "show all". Used by chase filtering and band-button rendering.
 function getRadioBandCapabilities(radioType) {

@@ -70,6 +70,8 @@ const bandPlanSrc     = extract(/const BAND_PLAN = \{[\s\S]*?\n\};/, 'BAND_PLAN'
 const getBandFnSrc    = extract(/function getBandFromFrequency\(frequencyHz\) \{[\s\S]*?\n\}/, 'getBandFromFrequency');
 const nativeBandsSrc  = extract(/var RADIO_NATIVE_BANDS = \{[\s\S]*?\n\};/, 'RADIO_NATIVE_BANDS');
 const capabilitySrc   = extract(/var CapabilityState = \{[\s\S]*?^\};/m, 'CapabilityState');
+const plausibleSrc    = extract(/var PLAUSIBLE_TRANSVERTER_BANDS = \[[\s\S]*?\];/, 'PLAUSIBLE_TRANSVERTER_BANDS');
+const chaseAllowedSrc = extract(/function chaseAllowedBands\(\) \{[\s\S]*?\n\}/, 'chaseAllowedBands');
 
 function freshSandbox() {
     const AppState = { radioType: null };
@@ -90,6 +92,8 @@ function freshSandbox() {
     vm.runInContext(getBandFnSrc, sandbox);
     vm.runInContext(nativeBandsSrc, sandbox);
     vm.runInContext(capabilitySrc, sandbox);
+    vm.runInContext(plausibleSrc, sandbox);
+    vm.runInContext(chaseAllowedSrc, sandbox);
     return sandbox;
 }
 
@@ -255,6 +259,45 @@ describe('bestColumnCount — dangler avoidance', () => {
             if (n === 13) assertEqual(cols, 5);
             else assertTrue(cols === 3 || cols === 4, `n=${n} got ${cols}`);
         }
+    });
+});
+
+describe('Chase filter allowed-bands computation', () => {
+    it('KH1: native only, no 2m/70cm/23cm', () => {
+        const s = freshSandbox();
+        s.AppState.radioType = 'KH1';
+        s.CapabilityState.load();
+        const allowed = s.chaseAllowedBands();
+        assertIncludes(allowed, '20m');
+        assertExcludes(allowed, '2m');
+        assertExcludes(allowed, '70cm');
+        assertExcludes(allowed, '23cm');
+    });
+    it('KX2 with no learned: native + plausible transverter bands', () => {
+        const s = freshSandbox();
+        s.AppState.radioType = 'KX2';
+        s.CapabilityState.load();
+        const allowed = s.chaseAllowedBands();
+        assertIncludes(allowed, '20m');
+        assertIncludes(allowed, '2m');
+        assertIncludes(allowed, '70cm');
+        assertIncludes(allowed, '23cm');
+        assertExcludes(allowed, '160m');
+    });
+    it('KX3: native includes 6m + plausible transverter bands', () => {
+        const s = freshSandbox();
+        s.AppState.radioType = 'KX3';
+        s.CapabilityState.load();
+        const allowed = s.chaseAllowedBands();
+        assertIncludes(allowed, '6m');
+        assertIncludes(allowed, '160m');
+        assertIncludes(allowed, '2m');
+    });
+    it('Unknown: null (show all)', () => {
+        const s = freshSandbox();
+        s.AppState.radioType = 'Unknown';
+        s.CapabilityState.load();
+        assertEqual(s.chaseAllowedBands(), null);
     });
 });
 
