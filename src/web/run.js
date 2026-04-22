@@ -184,6 +184,14 @@ function renderBandButtons() {
     updateBandDisplay(); // re-apply active-state highlight for current VFO
 }
 
+// Re-render the band grid whenever the capability set changes (learned bands,
+// radio-type change, etc.). Registered once at module load — NOT inside
+// attachSpotEventListeners(), which runs on every Run-tab re-entry and would
+// otherwise stack one listener per entry on the persistent `document` node.
+if (typeof document !== "undefined" && document.addEventListener) {
+    document.addEventListener("capabilitychange", renderBandButtons);
+}
+
 // Update band button highlighting based on current frequency
 function updateBandDisplay() {
     // Clear all active states first
@@ -1079,9 +1087,10 @@ function attachSpotEventListeners() {
         });
     }
 
-    // Initial render + react to learned-band changes
+    // Initial render of band buttons into the freshly-recreated DOM.
+    // (The `capabilitychange` listener that keeps them in sync is registered
+    // once at module scope — see the block just after renderBandButtons().)
     renderBandButtons();
-    document.addEventListener("capabilitychange", () => renderBandButtons());
 
     // Mode selection buttons
     document.querySelectorAll(".btn-mode[data-mode]").forEach((button) => {
