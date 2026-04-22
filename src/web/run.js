@@ -146,6 +146,17 @@ function updateModeDisplay() {
     });
 }
 
+// Pick a grid column count that avoids a "dangler" — a single button alone
+// on the last row. Tries 3, 4, then 5 columns; returns the first count whose
+// last row has 0 or ≥2 buttons. For n ≤ 3, returns n itself.
+function bestColumnCount(n) {
+    if (n <= 3) return Math.max(n, 1);
+    for (const cols of [3, 4, 5]) {
+        if (n % cols !== 1) return cols;
+    }
+    return 3;
+}
+
 // Update band button highlighting based on current frequency
 function updateBandDisplay() {
     // Clear all active states first

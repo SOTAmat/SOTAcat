@@ -226,6 +226,38 @@ describe('Persistence round-trip', () => {
     });
 });
 
+describe('bestColumnCount — dangler avoidance', () => {
+    // Extract the helper from run.js the same way we extract from main.js
+    const runJsPath = path.join(__dirname, '../../src/web/run.js');
+    const runJsCode = fs.readFileSync(runJsPath, 'utf8');
+    const bestColMatch = runJsCode.match(/function bestColumnCount\(n\) \{[\s\S]*?\n\}/);
+    if (!bestColMatch) { throw new Error('bestColumnCount not found in run.js'); }
+    const ctx = {}; vm.createContext(ctx);
+    vm.runInContext(bestColMatch[0], ctx);
+    const { bestColumnCount } = ctx;
+
+    it('returns n for n = 1, 2, 3', () => {
+        assertEqual(bestColumnCount(1), 1);
+        assertEqual(bestColumnCount(2), 2);
+        assertEqual(bestColumnCount(3), 3);
+    });
+    it('never leaves a dangler for n in 4..20', () => {
+        for (let n = 4; n <= 20; n++) {
+            const cols = bestColumnCount(n);
+            const lastRow = n % cols;
+            assertTrue(lastRow === 0 || lastRow >= 2,
+                `n=${n} cols=${cols} lastRow=${lastRow}`);
+        }
+    });
+    it('prefers 3 or 4 cols when possible (only 5 for n=13)', () => {
+        for (let n = 4; n <= 20; n++) {
+            const cols = bestColumnCount(n);
+            if (n === 13) assertEqual(cols, 5);
+            else assertTrue(cols === 3 || cols === 4, `n=${n} got ${cols}`);
+        }
+    });
+});
+
 // ============================================================================
 // Results
 // ============================================================================
