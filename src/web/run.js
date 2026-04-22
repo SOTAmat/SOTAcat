@@ -157,12 +157,6 @@ function bestColumnCount(n) {
     return 3;
 }
 
-// Human-friendly band labels for buttons (e.g. "1p25m" → "1.25m")
-function bandLabel(band) {
-    if (band === "1p25m") return "1.25m";
-    return band;
-}
-
 // Render the CAT-page band-button grid from the current capability set.
 // Idempotent — safe to call repeatedly (e.g. on every capabilitychange).
 function renderBandButtons() {

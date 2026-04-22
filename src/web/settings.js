@@ -1397,8 +1397,6 @@ function attachSettingsEventListeners() {
 // Radio & Transverters Panel
 // ============================================================================
 
-function bandLabel(band) { return band === "1p25m" ? "1.25m" : band; }
-
 function renderRadioTransverterPanel() {
     const typeEl = document.getElementById("settings-radio-type");
     const listEl = document.getElementById("settings-learned-bands");

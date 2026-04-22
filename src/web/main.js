@@ -564,6 +564,9 @@ function chaseAllowedBands() {
     return out;
 }
 
+// Human-friendly band labels for buttons (e.g. "1p25m" → "1.25m")
+function bandLabel(band) { return band === "1p25m" ? "1.25m" : band; }
+
 // Get the full list of bands a radio can access (native ∪ learned), or null
 // for "show all". Used by chase filtering and band-button rendering.
 function getRadioBandCapabilities(radioType) {
