@@ -169,12 +169,68 @@ bool KXRadioDriver::tune_atu (KXRadio & radio) {
     return radio.put_to_kx_command_string (command, 1);
 }
 
+// KY text limit per the Elecraft Programmer's Reference (KY command, p.15).
+static constexpr size_t KY_MAX = 24;
+
+// Pick the next ≤ KY_MAX byte chunk from [pos, end), splitting at the last
+// space within the window when the remaining text exceeds the cap. Advances
+// *pos past leading spaces so isolated runs of spaces don't produce empty
+// chunks. Returns the chunk length (0 when only whitespace remains).
+static size_t next_ky_chunk_len (const char *& pos, const char * end) {
+    while (pos < end && *pos == ' ')
+        ++pos;
+    if (pos >= end)
+        return 0;
+
+    const size_t remaining = static_cast<size_t> (end - pos);
+    if (remaining <= KY_MAX)
+        return remaining;
+
+    const char * space = nullptr;
+    for (size_t i = 0; i < KY_MAX && (pos + i) < end; ++i) {
+        if (pos[i] == ' ')
+            space = pos + i;
+    }
+    if (space && space > pos)
+        return static_cast<size_t> (space - pos);
+    return KY_MAX;  // hard split: no whitespace in window
+}
+
+// True if the radio is in a mode where KY/KYW text should be sent without
+// forcing MODE_CW.  Per the Programmer's Reference (TT note, p.27):
+// "KY <text>; ... for sending ASCII data as CW, RTTY, or PSK31."
+// CW/CW_R cover CW; DATA/DATA_R cover FSK-D (RTTY) and PSK-D (PSK31).
+static bool is_keyer_native_mode (radio_mode_t mode) {
+    return mode == MODE_CW || mode == MODE_CW_R || mode == MODE_DATA || mode == MODE_DATA_R;
+}
+
+// True for DATA/DATA_R only — i.e., RTTY (FSK-D) or PSK31 (PSK-D) when the
+// operator has set the corresponding DT sub-mode.  These are the modes for
+// which ^D (EOT, 0x04) is meaningful per the KY command description (p.15).
+static bool is_data_keyer_mode (radio_mode_t mode) {
+    return mode == MODE_DATA || mode == MODE_DATA_R;
+}
+
+// Poll TQ; until the radio reports TQ0 (back in RX) or timeout_ms elapses.
+static bool wait_for_tx_end (KXRadio & radio, TickType_t timeout_ms) {
+    constexpr TickType_t POLL_INTERVAL_MS = 100;
+    const TickType_t     deadline_ticks   = xTaskGetTickCount() + pdMS_TO_TICKS (timeout_ms);
+
+    while (true) {
+        long tq = radio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
+        if (tq == 0)
+            return true;
+        if (xTaskGetTickCount() >= deadline_ticks)
+            return false;
+        vTaskDelay (pdMS_TO_TICKS (POLL_INTERVAL_MS));
+    }
+}
+
 bool KXRadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
     if (!message)
         return false;
 
-    // Strip < and > characters (prosign markers not supported by radio keyer)
-    // and work with a mutable copy
+    // Strip < and > characters (prosign markers not supported by radio keyer).
     size_t msg_len = std::strlen (message);
     auto   cleaned = std::make_unique<char[]> (msg_len + 1);
     char * dst     = cleaned.get();
@@ -188,57 +244,45 @@ bool KXRadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
     if (msg_len == 0)
         return false;
 
-    radio_mode_t mode      = static_cast<radio_mode_t> (radio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1));
-    long         speed_wpm = radio.get_from_kx ("KS", SC_KX_COMMUNICATION_RETRIES, 3);
+    radio_mode_t mode = static_cast<radio_mode_t> (radio.get_from_kx ("MD", SC_KX_COMMUNICATION_RETRIES, 1));
 
-    if (mode != MODE_CW)
+    const bool switch_mode = !is_keyer_native_mode (mode);
+    if (switch_mode)
         radio.put_to_kx ("MD", 1, MODE_CW, SC_KX_COMMUNICATION_RETRIES);
 
-    // KYW command limit is 24 characters. Split longer messages at whitespace boundaries.
-    constexpr size_t KYW_MAX = 24;
-    const char *     pos     = cleaned.get();
-    const char *     end     = cleaned.get() + msg_len;
+    const bool   data_mode = is_data_keyer_mode (mode);
+    const char * pos       = cleaned.get();
+    const char * end       = cleaned.get() + msg_len;
 
+    // Fire all chunks back-to-back as plain `KY <text>;` (no W flag).  The
+    // radio stitches consecutive KY commands into continuous transmission
+    // (empirically verified on KX2/KX3 — no unkey between chunks).  Using
+    // the W flag here would defer processing of all subsequent host commands
+    // including our TQ; poll below, and also produce inter-chunk gaps.
     while (pos < end) {
-        // Skip leading whitespace between chunks
-        while (pos < end && *pos == ' ')
-            ++pos;
-        if (pos >= end)
+        size_t chunk_len = next_ky_chunk_len (pos, end);
+        if (chunk_len == 0)
             break;
 
-        size_t remaining = end - pos;
-        size_t chunk_len;
-
-        if (remaining <= KYW_MAX) {
-            chunk_len = remaining;
-        }
-        else {
-            // Find last space within the KYW_MAX window
-            chunk_len          = KYW_MAX;
-            const char * space = nullptr;
-            for (size_t i = 0; i < KYW_MAX && (pos + i) < end; ++i) {
-                if (pos[i] == ' ')
-                    space = pos + i;
-            }
-            if (space && space > pos)
-                chunk_len = space - pos;
-            // else hard-split at KYW_MAX (no whitespace found)
-        }
-
-        char command[32];  // "KYW" + 24 chars + ";" + null = 29 max
-        snprintf (command, sizeof (command), "KYW%.*s;", (int)chunk_len, pos);
+        char command[32];  // "KY " + 24 chars + ";" + null = 29 max
+        snprintf (command, sizeof (command), "KY %.*s;", (int)chunk_len, pos);
         radio.put_to_kx_command_string (command, 1);
-
-        long duration_ms = 60 * 1000 * static_cast<long> (chunk_len) / (speed_wpm * 5);
-        vTaskDelay (pdMS_TO_TICKS (duration_ms));
-
         pos += chunk_len;
     }
 
-    // Tail delay for final character spacing
-    vTaskDelay (pdMS_TO_TICKS (600));
+    // DATA-mode flush: send ^D (EOT, 0x04) as a standalone single-char KY
+    // payload.  Cancels the radio's 4-second post-TX idle for RTTY/PSK
+    // (ref: KY command, p.15).  Kept as its own command rather than
+    // appended to the last chunk so the 24-char [text] limit stays intact.
+    if (data_mode)
+        radio.put_to_kx_command_string ("KY \x04;", 1);
 
-    if (mode != MODE_CW)
+    // Wait for TX to end.  60s cap covers full 128-char PSK31 (~40s) plus margin.
+    constexpr TickType_t TX_END_TIMEOUT_MS = 60000;
+    if (!wait_for_tx_end (radio, TX_END_TIMEOUT_MS))
+        ESP_LOGW (TAG8, "TX end wait timed out after %ums", (unsigned)TX_END_TIMEOUT_MS);
+
+    if (switch_mode)
         radio.put_to_kx ("MD", 1, mode, SC_KX_COMMUNICATION_RETRIES);
 
     return true;

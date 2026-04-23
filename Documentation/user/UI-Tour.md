@@ -65,6 +65,7 @@ Control your radio during activation.
 - TX toggle
 - Configurable CW macro buttons with placeholder support (`{MYCALL}`, `{MYREF}`, etc.)
 - Configure macros in Settings → CW Macros
+- Macros are keyed in the radio's current mode: CW in CW/CW-R, RTTY in DATA + FSK-D, PSK31 in DATA + PSK-D. In SSB/FM/AM the radio is switched to CW temporarily and restored when done.
 
 ![Transmit controls](../images/run-transmit.png)
 

@@ -144,6 +144,41 @@ function updateModeDisplay() {
         modeClasses.forEach((cls) => btn.classList.remove(cls));
         btn.classList.add(msgClass);
     });
+
+    applyKeyerFamilyHints();
+}
+
+// Returns "cw" | "data" | null — the family of signal that will actually be
+// transmitted when we key.  CW/CW_R stay in CW; DATA/DATA_R send as RTTY
+// (DT2) or PSK31 (DT3) depending on the DT sub-mode set on the radio;
+// everything else gets forced to CW by the backend (see the RTTY-keying plan,
+// Task 2).  null means "mode unknown yet" (e.g., pre-connect).
+function getKeyerFamily(mode) {
+    const m = (mode || "").toUpperCase();
+    if (!m || m === "UNKNOWN") return null;
+    if (m === "DATA" || m === "DATA_R") return "data";
+    return "cw"; // CW, CW_R, USB, LSB, AM, FM — all emit CW from the keyer
+}
+
+// Update the RUN-tab Transmit section to reflect what the keyer will emit:
+// • data-keyer-family="cw"   → CW macro and Key buttons tint muted blue
+// • data-keyer-family="data" → tint muted amber, Key button label → "Send"
+// • attribute absent         → default styling (mode unknown)
+// CSS rules live in style.css under the existing mode-color section.
+function applyKeyerFamilyHints() {
+    const family = getKeyerFamily(AppState.vfoMode);
+    const container = document.getElementById("transmit-section");
+    if (container) {
+        if (family === null) {
+            container.removeAttribute("data-keyer-family");
+        } else {
+            container.setAttribute("data-keyer-family", family);
+        }
+    }
+    const sendBtn = document.getElementById("cw-freeform-send");
+    if (sendBtn) {
+        sendBtn.textContent = (family === "data") ? "Send" : "Key";
+    }
 }
 
 // Update band button highlighting based on current frequency

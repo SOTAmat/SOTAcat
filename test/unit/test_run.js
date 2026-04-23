@@ -62,6 +62,13 @@ function mapModeForSotamat(mode) {
     return upper.toLowerCase();
 }
 
+function getKeyerFamily(mode) {
+    const m = (mode || "").toUpperCase();
+    if (!m || m === "UNKNOWN") return null;
+    if (m === "DATA" || m === "DATA_R") return "data";
+    return "cw"; // CW, CW_R, USB, LSB, AM, FM — all emit CW from the keyer
+}
+
 // ============================================================================
 // Minimal mocks for buildSpotSmsUri / buildQrtSmsUri
 // ============================================================================
@@ -450,6 +457,49 @@ describe('expandCwMacroTemplate', () => {
         AppState.callSign = "AB6D";
         const result2 = expandCwMacroTemplate("CQ SOTA DE {MYCALL} {MYCALL} K");
         assertEqual(result2, "CQ SOTA DE AB6D AB6D K", "MYCALL loaded produces full message");
+    });
+});
+
+describe('getKeyerFamily', () => {
+    it('returns "cw" for CW', () => {
+        assertEqual(getKeyerFamily("CW"), "cw", "CW");
+    });
+    it('returns "cw" for CW_R', () => {
+        assertEqual(getKeyerFamily("CW_R"), "cw", "CW_R");
+    });
+    it('returns "data" for DATA', () => {
+        assertEqual(getKeyerFamily("DATA"), "data", "DATA");
+    });
+    it('returns "data" for DATA_R', () => {
+        assertEqual(getKeyerFamily("DATA_R"), "data", "DATA_R");
+    });
+    it('returns "cw" for USB (forced-CW path)', () => {
+        assertEqual(getKeyerFamily("USB"), "cw", "USB");
+    });
+    it('returns "cw" for LSB (forced-CW path)', () => {
+        assertEqual(getKeyerFamily("LSB"), "cw", "LSB");
+    });
+    it('returns "cw" for AM (forced-CW path)', () => {
+        assertEqual(getKeyerFamily("AM"), "cw", "AM");
+    });
+    it('returns "cw" for FM (forced-CW path)', () => {
+        assertEqual(getKeyerFamily("FM"), "cw", "FM");
+    });
+    it('accepts lowercase input', () => {
+        assertEqual(getKeyerFamily("cw"), "cw", "lowercase cw");
+        assertEqual(getKeyerFamily("data"), "data", "lowercase data");
+    });
+    it('returns null for empty string', () => {
+        assertEqual(getKeyerFamily(""), null, "empty string");
+    });
+    it('returns null for null input', () => {
+        assertEqual(getKeyerFamily(null), null, "null");
+    });
+    it('returns null for undefined input', () => {
+        assertEqual(getKeyerFamily(undefined), null, "undefined");
+    });
+    it('returns null for "UNKNOWN"', () => {
+        assertEqual(getKeyerFamily("UNKNOWN"), null, "UNKNOWN");
     });
 });
 

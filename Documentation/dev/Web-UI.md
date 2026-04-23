@@ -37,7 +37,7 @@ src/web/
 | Tap spot in CHASE | `PUT /api/v1/frequency` + `PUT /api/v1/mode` |
 | Change band | `PUT /api/v1/frequency` |
 | Change mode | `PUT /api/v1/mode` |
-| Send CW macro | `PUT /api/v1/keyer?message=...` (expanded) |
+| Send CW/data macro | `PUT /api/v1/keyer?message=...` (expanded) — sent as CW in CW/CW-R, as RTTY in DATA + FSK-D, as PSK31 in DATA + PSK-D; forces CW otherwise |
 | Save CW macros | `POST /api/v1/cwMacros` |
 | Toggle TX | `PUT /api/v1/xmit` |
 | Sync clock | `PUT /api/v1/time` |

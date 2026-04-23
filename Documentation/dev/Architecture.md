@@ -28,7 +28,7 @@
 - `GET/PUT /api/v1/frequency` — VFO frequency
 - `GET/PUT /api/v1/mode` — Operating mode
 - `GET/PUT /api/v1/power` — TX power
-- `PUT /api/v1/keyer?message=<text>` — Send CW
+- `PUT /api/v1/keyer?message=<text>` — Send text as CW, or as RTTY/PSK31 when the radio is already in DATA mode with FSK-D or PSK-D sub-mode
 - `PUT /api/v1/xmit` — Toggle TX
 - See `src/` for full endpoint list
 

@@ -775,6 +775,18 @@ input.frequency-display {
     background: var(--primary-dark);
 }
 
+/* Mode-reactive tint for keyer-path buttons.  CW-family modes (CW/CW_R, and
+   SSB/LSB/AM/FM which the backend forces to CW) keep the default saturated
+   --primary blue.  DATA modes (DATA/DATA_R) — where the keyer will emit RTTY
+   or PSK31 depending on DT sub-mode — switch to saturated amber.  Dark text
+   required on amber for contrast.  :disabled/:active/hover rules defined
+   elsewhere take precedence in their respective states. */
+[data-keyer-family="data"] .btn-cw-macro,
+[data-keyer-family="data"] #cw-freeform-send {
+    background: var(--warning);
+    color: var(--gray-9);
+}
+
 /* Free-form CW Input Row */
 .cw-freeform-row {
     display: flex;
