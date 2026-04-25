@@ -648,36 +648,38 @@ function mapModeForPolo(mode) {
     return upperMode; // Default: pass through as-is
 }
 
-// Build Ham2K Polo deep link URL from parameters
-// All parameters are optional - only non-null/non-empty values are included
-// Internal params → Polo URL params:
+// Build xOTA-style deep link URL (Polo, SOTAmat) from parameters.
+// All caller params are optional — only non-empty values are emitted.
+// params.baseUrl defaults to Polo's "com.ham2k.polo://qso"; pass an alternate
+// scheme (e.g. "sotamat://api/v1?app=sotacat&appversion=2.2") to target other
+// apps. The separator before our query parts is auto-detected: "&" when the
+// baseUrl already contains "?", "?" otherwise.
+// Internal params → URL params:
 //   mySig+myRef → our.refs=sig:ref, theirSig+theirRef → their.refs=sig:ref,
 //   myCall → our.call, theirCall → their.call, freq → frequency,
 //   mode → mode, time → startAtMillis
-function buildPoloDeepLink(params) {
-    const baseUrl = "com.ham2k.polo://qso";
+// returnpath=window.location.origin is always appended.
+function buildXotaDeepLink(params) {
+    const baseUrl = params.baseUrl || "com.ham2k.polo://qso";
     const queryParts = [];
 
-    // our.refs — merge mySig:myRef
     if (params.mySig && params.myRef) {
         queryParts.push(`our.refs=${encodeURIComponent(params.mySig.toLowerCase() + ":" + params.myRef)}`);
     }
-    // their.refs — merge theirSig:theirRef
     if (params.theirSig && params.theirRef) {
         queryParts.push(`their.refs=${encodeURIComponent(params.theirSig.toLowerCase() + ":" + params.theirRef)}`);
     }
-    // Simple renames
     if (params.myCall) queryParts.push(`our.call=${encodeURIComponent(params.myCall)}`);
     if (params.theirCall) queryParts.push(`their.call=${encodeURIComponent(params.theirCall)}`);
     if (params.freq) queryParts.push(`frequency=${encodeURIComponent(params.freq)}`);
     if (params.mode) queryParts.push(`mode=${encodeURIComponent(params.mode)}`);
     if (params.time) queryParts.push(`startAtMillis=${encodeURIComponent(params.time)}`);
 
-    // Add returnpath so PoLo can send CAT commands back
     queryParts.push(`returnpath=${encodeURIComponent(window.location.origin)}`);
 
     if (queryParts.length === 0) return null;
-    return `${baseUrl}?${queryParts.join("&")}`;
+    const sep = baseUrl.includes("?") ? "&" : "?";
+    return `${baseUrl}${sep}${queryParts.join("&")}`;
 }
 
 // ============================================================================

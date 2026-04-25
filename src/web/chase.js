@@ -687,7 +687,7 @@ function onMyCallClick() {
 // ============================================================================
 // Ham2K Polo Deep Link Integration
 // ============================================================================
-// Note: buildPoloDeepLink() and mapModeForPolo() are defined in main.js
+// Note: buildXotaDeepLink() and mapModeForPolo() are defined in main.js
 
 // SOTA reference pattern for getSigFromReference
 const CHASE_SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;
@@ -803,7 +803,7 @@ function buildPoloChaseLink() {
     }
 
     Log.info("Chase")("Polo params:", JSON.stringify(params));
-    return buildPoloDeepLink(params);
+    return buildXotaDeepLink(params);
 }
 
 // Launch Ham2K Polo app for logging chase QSO
