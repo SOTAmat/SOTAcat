@@ -866,14 +866,27 @@ function loadCollapsibleStates() {
 // External Integration Functions
 // ============================================================================
 
-// Launch SOTAmat app with return path to this page
+// Launch SOTAmat app with current activation evidence (ref, callsign, freq, mode).
+// Uses the same xOTA encoder as the Polo deep link for vocabulary parity:
+//   our.refs=<sig>:<ref>, our.call, frequency (Hz), mode (uppercase),
+//   returnpath (bare origin).
+// Each field is omitted when its source is missing, so SOTAmat (>=2.2) can
+// pre-fill what we know and fall back to GPS/radio polling for the rest.
+// SOTAmat <=2.1 ignores the new params; returnpath is already path-stripped
+// on the SOTAmat side, so this is fully backwards-compatible.
 function launchSOTAmat() {
-    const sotamat_base_url = "sotamat://api/v1?app=sotacat&appversion=2.1";
-    const currentUrl = window.location.href;
-    const encodedReturnPath = encodeURIComponent(currentUrl);
-    const newHref = `${sotamat_base_url}&returnpath=${encodedReturnPath}`;
-
-    window.open(newHref, "_blank");
+    const myRef = getLocationBasedReference() || "";
+    const validRef = isValidSpotReference(myRef);
+    const url = buildXotaDeepLink({
+        baseUrl: "sotamat://api/v1?app=sotacat&appversion=2.2",
+        myRef:  validRef ? myRef : null,
+        mySig:  validRef ? getSigFromReference(myRef) : null,
+        myCall: AppState.callSign || null,
+        freq:   AppState.vfoFrequencyHz || null,
+        mode:   mapModeForPolo(AppState.vfoMode),
+    });
+    Log.info("Spot")("Launching SOTAmat:", url);
+    window.location.href = url;
 }
 
 // SOTAmat SMS spotting number
@@ -970,7 +983,7 @@ function sendQrtSms() {
 // ============================================================================
 // Ham2K Polo Deep Link Integration
 // ============================================================================
-// Note: buildPoloDeepLink() and mapModeForPolo() are defined in main.js
+// Note: buildXotaDeepLink() and mapModeForPolo() are defined in main.js
 
 // Derive sig (activation type) from reference format
 // Returns lowercase sig for Polo: 'sota', 'pota', 'wwff', etc.
@@ -996,7 +1009,7 @@ function buildPoloSpotLink() {
     const freq = AppState.vfoFrequencyHz || null;
     const mode = mapModeForPolo(AppState.vfoMode);
 
-    return buildPoloDeepLink({
+    return buildXotaDeepLink({
         myRef: myRef,
         mySig: mySig,
         freq: freq,
