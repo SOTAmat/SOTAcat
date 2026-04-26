@@ -453,13 +453,26 @@ function getVisibleRows() {
     return Array.from(tbody.querySelectorAll("tr:not(.hidden)"));
 }
 
-// Start scanning through visible spots
+// Start scanning through visible spots.
+// Resume order (mirrors navigateRow's convention): clickedTunedRow first, then
+// the first .tuned-row in the visible list. advanceScan increments before
+// tuning, so we land on the row AFTER the cursor.
 function startScan() {
     const visibleRows = getVisibleRows();
     if (visibleRows.length === 0) return;
 
+    let startIndex = -1;
+    if (clickedTunedRow) {
+        const idx = visibleRows.indexOf(clickedTunedRow);
+        if (idx !== -1) startIndex = idx;
+    }
+    if (startIndex === -1) {
+        const tunedRow = visibleRows.find(r => r.classList.contains("tuned-row"));
+        if (tunedRow) startIndex = visibleRows.indexOf(tunedRow);
+    }
+
     ChaseState.scanActive = true;
-    ChaseState.scanCurrentIndex = -1;
+    ChaseState.scanCurrentIndex = startIndex;
     updateScanButtonLabel();
     advanceScan();
 }

@@ -35,6 +35,8 @@ Hunt activators from the spot list.
 
 **Scan** — Press the Scan button to automatically cycle through visible spots. The radio tunes to each spot in turn and the row scrolls into view. The button changes to "Stop" while scanning. Any other interaction (refresh, filter change, column sort, row click, MyCall, or Log in PoLo) stops the scan.
 
+Scan resumes from where you left off: if you've stopped a scan, clicked a row, used arrow keys, or the radio is already tuned to a spot in the list, pressing Scan continues from the row *after* that one. If nothing is selected or tuned, scan begins at the top.
+
 **Keyboard shortcuts (desktop):**
 - **Space** — start/stop scan
 - **j** / **k** — move down/up through spots (stops any active scan)
