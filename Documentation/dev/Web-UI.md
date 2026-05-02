@@ -35,6 +35,32 @@ Both `run.js` (badges, warning states, button enablement, and the VFO
 band-range bar) and `chase.js` (per-row privilege flagging) read from
 `FCC_AMATEUR_PRIVILEGES` and use the bandwidth/edge helpers.
 
+### Radio Capabilities
+
+`main.js` declares `RADIO_CAPABILITIES`, a per-radio record describing the
+native bands and modes each supported transceiver can use *without* a
+transverter. Each band/mode value is `"TXRX"` (transmit + receive) or
+`"RX"` (receive-only). Absent entries mean the radio cannot tune there at
+all. `Unknown` maps to `null`, which downstream code treats as
+permissive (no filtering, no gating).
+
+Accessors:
+
+- `getRadioBands(radioType, requireTx)` / `getRadioModes(radioType, requireTx)`
+  — list bands or modes; pass `requireTx=true` to filter to TX-capable.
+- `radioCanTransmit(radioType, band, mode)` — boolean.
+- `getRadioBandCapabilities(radioType)` — back-compat wrapper used by
+  `chase.js` for opt-out band filtering of spots; returns the full
+  RX-or-TX band list so receive-only allocations (e.g. KX2 on 160 m)
+  still appear when the user has the filter on.
+
+Real users operate radios beyond their native list via external
+transverters (e.g. KX2 + 2 m transverter). UI gating that strictly
+disables controls based on this table would lock those users out, so the
+chase-page filter is opt-in via a setting and the run-page band/mode
+buttons are *not* gated on radio capability today. Add escape hatches
+(or wait for a transverter-aware capability layer) before changing that.
+
 ## UI → API Mapping
 
 | User Action | API Call |

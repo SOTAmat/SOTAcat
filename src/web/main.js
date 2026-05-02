@@ -418,18 +418,77 @@ const BAND_PLAN = {
     "76GHz": { min: 76000000000, max: 77500000000 },
 };
 
-// Radio band capabilities for filtering chase spots
-// KX2/KX3 both cover the same HF bands plus 6m
-// null = show all bands (no filtering)
-const RADIO_BAND_CAPABILITIES = {
-    "KX2": ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"],
-    "KX3": ["160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m"],
-    "Unknown": null  // null = show all bands (no filtering)
+// Radio capabilities — native (without transverter) per-band and per-mode.
+// Values are "TXRX" (full duplex), "RX" (receive-only), or absent (unsupported).
+// Unknown radio = null = treat as permissive (no filtering, no gating).
+//
+// Note: users may operate beyond this list via external transverters
+// (e.g. KX2 + 2 m transverter). UI gating that disables controls strictly
+// from this table would lock those users out — see chase.js for the
+// opt-out (filterBandsEnabled) pattern.
+const RADIO_CAPABILITIES = {
+    "KX2": {
+        bands: {
+            "160m": "RX",      // KX2 is RX-only on 160 m
+            "80m":  "TXRX", "60m":  "TXRX", "40m":  "TXRX", "30m":  "TXRX",
+            "20m":  "TXRX", "17m":  "TXRX", "15m":  "TXRX", "12m":  "TXRX",
+            "10m":  "TXRX",
+        },
+        modes: { "CW": "TXRX", "USB": "TXRX", "LSB": "TXRX", "DATA": "TXRX" },
+    },
+    "KX3": {
+        bands: {
+            "160m": "TXRX", "80m": "TXRX", "60m": "TXRX", "40m": "TXRX",
+            "30m":  "TXRX", "20m": "TXRX", "17m": "TXRX", "15m": "TXRX",
+            "12m":  "TXRX", "10m": "TXRX", "6m":  "TXRX",
+        },
+        modes: {
+            "CW": "TXRX", "USB": "TXRX", "LSB": "TXRX", "DATA": "TXRX",
+            "AM": "TXRX", "FM":  "TXRX",
+        },
+    },
+    "KH1": {
+        bands: {
+            "40m": "TXRX", "30m": "TXRX", "20m": "TXRX",
+            "17m": "TXRX", "15m": "TXRX",
+        },
+        // SSB on KH1 is selectable for FT8 receive but the radio cannot
+        // transmit SSB — flagged here as RX so future TX-aware UI can warn.
+        modes: { "CW": "TXRX", "USB": "RX", "LSB": "RX" },
+    },
+    "Unknown": null,
 };
 
-// Get list of bands a radio can access (returns array or null for all bands)
+// List a radio's bands. requireTx=true filters to TX-capable bands.
+// Returns null for unknown radios (caller treats null as "no filtering").
+function getRadioBands(radioType, requireTx = false) {
+    const cap = RADIO_CAPABILITIES[radioType];
+    if (!cap) return null;
+    return Object.entries(cap.bands)
+        .filter(([, v]) => requireTx ? v === "TXRX" : true)
+        .map(([k]) => k);
+}
+
+// List a radio's modes. requireTx=true filters to TX-capable modes.
+function getRadioModes(radioType, requireTx = false) {
+    const cap = RADIO_CAPABILITIES[radioType];
+    if (!cap) return null;
+    return Object.entries(cap.modes)
+        .filter(([, v]) => requireTx ? v === "TXRX" : true)
+        .map(([k]) => k);
+}
+
+// True iff the radio can transmit on (band, mode). Unknown radios are
+// treated as permissive (returns true) to avoid surprising restrictions.
+function radioCanTransmit(radioType, band, mode) {
+    const cap = RADIO_CAPABILITIES[radioType];
+    if (!cap) return true;
+    return cap.bands?.[band] === "TXRX" && cap.modes?.[mode] === "TXRX";
+}
+
+// Back-compat wrapper for chase.js; preserves prior behavior (RX or TX bands).
 function getRadioBandCapabilities(radioType) {
-    return RADIO_BAND_CAPABILITIES[radioType] || null;
+    return getRadioBands(radioType, /*requireTx*/ false);
 }
 
 // Load radio type from device into AppState
