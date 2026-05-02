@@ -1051,6 +1051,27 @@ class SOTAcatUITests:
         warning = self.page.locator('#vfo-warning')
         assert warning.count() > 0, "VFO warning element should exist"
 
+    def test_vfo_band_range_exists(self):
+        """VFO band-range stack exists on RUN page and renders per-class rows"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.click('[data-tab="run"]')
+        time.sleep(0.5)
+        container = self.page.locator('#vfo-band-range')
+        stack = self.page.locator('#vfo-band-range-stack')
+        assert container.count() > 0, "Band-range container should exist"
+        assert stack.count() > 0, "Band-range stack should exist"
+        # The stack should populate with one row per visible license class
+        # (T/G/E by default — three rows) once the mock server reports VFO state.
+        rows = self.page.locator('#vfo-band-range-stack .vfo-band-range-row')
+        assert rows.count() >= 3, \
+            f"Band-range stack should render at least 3 class rows, got {rows.count()}"
+        # Each row should contain at least one mode-colored stripe somewhere on
+        # the band — Extra always has access on every band that has privileges.
+        stripes = self.page.locator('#vfo-band-range-stack .vfo-band-range-mode-stripe')
+        assert stripes.count() > 0, \
+            "Band-range rows should contain mode stripes after VFO load"
+
     def test_license_class_dropdown_exists(self):
         """License class dropdown exists in Settings"""
         self.page.goto(self.url('/'))
@@ -1186,6 +1207,7 @@ class SOTAcatUITests:
             print("\nLicense Privilege Tests:")
             self.run_test("License badges exist", self.test_license_badges_exist)
             self.run_test("VFO warning element exists", self.test_vfo_warning_element_exists)
+            self.run_test("VFO band-range graph exists", self.test_vfo_band_range_exists)
             self.run_test("License class dropdown exists", self.test_license_class_dropdown_exists)
             self.run_test("License class options", self.test_license_class_options)
 

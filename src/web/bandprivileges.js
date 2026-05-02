@@ -3,6 +3,9 @@
 // ============================================================================
 // Data source: FCC Part 97 as of January 2025
 //              https://www.arrl.org/frequency-allocations
+// Cross-checked against the community ARRL band-plan spreadsheet:
+//              https://docs.google.com/spreadsheets/d/1UQ5oviKxkzqGiyVpVwo63rLDbm8jIOSF3LtgDE9QNWg
+//              (posted at https://www.reddit.com/r/amateurradio/comments/1d3qtho/usa_arrl_band_plan_table_format/)
 // Structured for mode-aware and bandwidth-aware privilege checking
 // Extensible design for future regional support
 
@@ -40,9 +43,9 @@ const FCC_AMATEUR_PRIVILEGES = {
     "80m": [
         { min: 3500000, max: 3525000, modes: ["CW", "DATA"], classes: ["E", "A", "G"] },
         { min: 3525000, max: 3600000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "N"] },
-        { min: 3600000, max: 3700000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },
-        { min: 3700000, max: 3800000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A"] },
-        { min: 3800000, max: 4000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
+        { min: 3600000, max: 3700000, modes: ["CW", "PHONE"], classes: ["E"] },
+        { min: 3700000, max: 3800000, modes: ["CW", "PHONE"], classes: ["E", "A"] },
+        { min: 3800000, max: 4000000, modes: ["CW", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "60m": [
         // Channelized band - simplified with narrow segments around each channel
@@ -55,41 +58,41 @@ const FCC_AMATEUR_PRIVILEGES = {
     "40m": [
         { min: 7000000, max: 7025000, modes: ["CW"], classes: ["E"] },
         { min: 7025000, max: 7125000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T", "N"] },
-        { min: 7125000, max: 7175000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
-        { min: 7175000, max: 7300000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+        { min: 7125000, max: 7175000, modes: ["CW", "PHONE"], classes: ["E", "A"] },
+        { min: 7175000, max: 7300000, modes: ["CW", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "30m": [
         // WARC band - CW/DATA only, no phone
-        { min: 10100000, max: 10150000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T"] },
+        { min: 10100000, max: 10150000, modes: ["CW", "DATA"], classes: ["E", "A", "G"] },
     ],
     "20m": [
         { min: 14000000, max: 14025000, modes: ["CW"], classes: ["E"] },
         { min: 14025000, max: 14150000, modes: ["CW", "DATA"], classes: ["E", "A", "G"] },
-        { min: 14150000, max: 14175000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },
-        { min: 14175000, max: 14225000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A"] },
-        { min: 14225000, max: 14350000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
+        { min: 14150000, max: 14175000, modes: ["CW", "PHONE"], classes: ["E"] },
+        { min: 14175000, max: 14225000, modes: ["CW", "PHONE"], classes: ["E", "A"] },
+        { min: 14225000, max: 14350000, modes: ["CW", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "17m": [
         // WARC band
-        { min: 18068000, max: 18110000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T"] },
-        { min: 18110000, max: 18168000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+        { min: 18068000, max: 18110000, modes: ["CW", "DATA"], classes: ["E", "A", "G"] },
+        { min: 18110000, max: 18168000, modes: ["CW", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "15m": [
         { min: 21000000, max: 21025000, modes: ["CW"], classes: ["E"] },
         { min: 21025000, max: 21200000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "N"] },
-        { min: 21200000, max: 21225000, modes: ["CW", "DATA", "PHONE"], classes: ["E"] },
-        { min: 21225000, max: 21275000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A"] },
-        { min: 21275000, max: 21450000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+        { min: 21200000, max: 21225000, modes: ["CW", "PHONE"], classes: ["E"] },
+        { min: 21225000, max: 21275000, modes: ["CW", "PHONE"], classes: ["E", "A"] },
+        { min: 21275000, max: 21450000, modes: ["CW", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "12m": [
         // WARC band
-        { min: 24890000, max: 24930000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T"] },
-        { min: 24930000, max: 24990000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+        { min: 24890000, max: 24930000, modes: ["CW", "DATA"], classes: ["E", "A", "G"] },
+        { min: 24930000, max: 24990000, modes: ["CW", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "10m": [
         { min: 28000000, max: 28300000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T", "N"] },
-        { min: 28300000, max: 28500000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T", "N"] },
-        { min: 28500000, max: 29700000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+        { min: 28300000, max: 28500000, modes: ["CW", "PHONE"], classes: ["E", "A", "G", "T", "N"] },
+        { min: 28500000, max: 29700000, modes: ["CW", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "6m": [
         // 50.0-50.1 MHz is CW-only per FCC 97.305(c)

@@ -266,6 +266,9 @@ function updatePrivilegeDisplay() {
     // Update button disabled states based on privilege
     updateButtonPrivileges();
 
+    // Update band-range graph (horizontal bar showing band privileges + tick)
+    updateBandRangeDisplay();
+
     // Update warning message
     if (warningEl) {
         if (!userLicense && status.inBand && status.modeAllowed) {
@@ -279,6 +282,164 @@ function updatePrivilegeDisplay() {
             warningEl.textContent = "";
         }
     }
+}
+
+// License classes ordered most-accessible → most-restricted
+const LICENSE_CLASS_RANK = ["N", "T", "G", "A", "E"];
+
+// Mode categories rendered as side-by-side stripes inside each segment.
+// Keep this order stable so the stripe layout stays consistent across rows.
+const MODE_CATEGORIES = ["CW", "DATA", "PHONE"];
+
+// Determine which license-class badges are currently rendered in the VFO
+// (matches the visibility logic in updatePrivilegeDisplay()).
+// Novice + Advanced badges are hidden unless the user actually holds one of
+// those classes — the legacy classes are otherwise just visual clutter.
+function getVisibleLicenseClasses() {
+    const showLegacy = AppState.licenseClass === "N" || AppState.licenseClass === "A";
+    return showLegacy ? ["N", "T", "G", "A", "E"] : ["T", "G", "E"];
+}
+
+// Render the band-range graph as a stack of thin rows — one row per
+// currently-visible license class, top = most-restrictive (E), bottom =
+// least (T or N). The chart is OPERATOR-CENTRIC: it visualizes the band
+// from the perspective of the user's currently-selected radio mode.
+//
+// Per segment within each row:
+//   • Class lacks privileges in this segment → render nothing.
+//   • Class has privileges AND current mode is permitted → solid stripe
+//     in the current mode's color (PHONE green / CW blue / DATA yellow).
+//     Other modes that may also be allowed in this segment are
+//     deliberately not depicted — the operator is in their chosen mode.
+//   • Class has privileges but current mode is forbidden → side-by-side
+//     stripes for the modes that ARE allowed (the user's current mode
+//     is excluded since it's not allowed here anyway). The visual
+//     "solid vs striped" distinction becomes the cue that "you'd need
+//     to switch mode to operate here".
+//
+// A single tick + bandwidth overlay sits above all rows. Tooltips spell
+// out the full FCC mode list per segment regardless of current mode, so
+// the underlying truth stays discoverable on hover.
+//
+// Stripe positions inside a segment do NOT correspond to frequency
+// sub-ranges — all listed modes are permitted across the segment's full
+// frequency range; the stripes are a "which modes are available here" key.
+function updateBandRangeDisplay() {
+    const container = document.getElementById("vfo-band-range");
+    const stack = document.getElementById("vfo-band-range-stack");
+    if (!container || !stack) return;
+
+    const frequencyHz = AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ;
+    const mode = AppState.vfoMode || "USB";
+    const band = getBandFromFrequency(frequencyHz);
+    const segments = band ? FCC_AMATEUR_PRIVILEGES[band] : null;
+
+    if (!segments || segments.length === 0) {
+        container.classList.add("hidden");
+        stack.replaceChildren();
+        return;
+    }
+
+    container.classList.remove("hidden");
+
+    const bandStart = segments[0].min;
+    const bandEnd = segments[segments.length - 1].max;
+    const bandSpan = bandEnd - bandStart;
+    if (bandSpan <= 0) {
+        container.classList.add("hidden");
+        return;
+    }
+
+    const userLicense = getUserLicenseClass();
+    const currentModeCategory = getModeCategory(mode);
+    const pct = (hz) => ((hz - bandStart) / bandSpan) * 100;
+    const fMHz = (hz) => (hz / 1e6).toFixed(3);
+
+    // Visible classes are returned in ascending privilege order
+    // (e.g. ["T","G","E"]). For top-to-bottom rendering with the most-
+    // restrictive class on top, reverse to ["E","G","T"].
+    const rowsTopToBottom = [...getVisibleLicenseClasses()].reverse();
+
+    const frag = document.createDocumentFragment();
+
+    for (const cls of rowsTopToBottom) {
+        const row = document.createElement("div");
+        row.className = "vfo-band-range-row";
+        row.dataset.license = cls;
+
+        const label = document.createElement("span");
+        label.className = "vfo-band-range-label";
+        label.textContent = cls;
+        if (cls === userLicense) label.classList.add("user-class");
+        row.appendChild(label);
+
+        const track = document.createElement("div");
+        track.className = "vfo-band-range-track";
+
+        for (const seg of segments) {
+            if (!seg.classes.includes(cls)) continue;
+
+            const segEl = document.createElement("div");
+            segEl.className = "vfo-band-range-segment";
+            const left = pct(seg.min);
+            const width = pct(seg.max) - left;
+            segEl.style.left = `${left}%`;
+            segEl.style.width = `${width}%`;
+
+            // Operator-centric coloring: solid current-mode color when
+            // permitted; otherwise side-by-side stripes of the alternative
+            // modes (excluding the current mode, which is forbidden here).
+            const currentModePermitted = seg.modes.includes(currentModeCategory);
+            const stripeModes = currentModePermitted
+                ? [currentModeCategory]
+                : MODE_CATEGORIES.filter((m) => seg.modes.includes(m));
+            for (const m of stripeModes) {
+                const stripe = document.createElement("div");
+                stripe.className = "vfo-band-range-mode-stripe";
+                stripe.style.setProperty("--stripe-color", `var(--mode-${m.toLowerCase()}-color)`);
+                segEl.appendChild(stripe);
+            }
+
+            segEl.title = `${cls} · ${fMHz(seg.min)}–${fMHz(seg.max)} MHz · ${seg.modes.join("/")}`;
+            track.appendChild(segEl);
+        }
+
+        row.appendChild(track);
+        frag.appendChild(row);
+    }
+
+    // Single tick + bandwidth overlay spanning all rows. Positioned via CSS
+    // to skip the label column, so its 0–100% maps onto the same frequency
+    // axis as each row's track.
+    const overlay = document.createElement("div");
+    overlay.className = "vfo-band-range-overlay";
+
+    const bw = getModeBandwidth(mode);
+    const lowerEdge = getSignalLowerEdge(frequencyHz, mode, bw);
+    const upperEdge = getSignalUpperEdge(frequencyHz, mode, bw);
+    if (upperEdge >= bandStart && lowerEdge <= bandEnd) {
+        const bwEl = document.createElement("div");
+        bwEl.className = "vfo-band-range-bandwidth";
+        const bwLeft = Math.max(0, pct(lowerEdge));
+        const bwRight = Math.min(100, pct(upperEdge));
+        bwEl.style.left = `${bwLeft}%`;
+        bwEl.style.width = `${Math.max(0, bwRight - bwLeft)}%`;
+        overlay.appendChild(bwEl);
+    }
+
+    if (frequencyHz >= bandStart && frequencyHz <= bandEnd) {
+        const tick = document.createElement("div");
+        tick.className = "vfo-band-range-tick";
+        tick.style.left = `${pct(frequencyHz)}%`;
+        const status = checkPrivileges(frequencyHz, mode, userLicense);
+        if ((userLicense && !status.userCanTransmit) || !status.modeAllowed) {
+            tick.classList.add("out-of-priv");
+        }
+        overlay.appendChild(tick);
+    }
+
+    frag.appendChild(overlay);
+    stack.replaceChildren(frag);
 }
 
 // Update mode and msg button disabled states based on band privileges

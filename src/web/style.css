@@ -399,6 +399,110 @@ a {
     opacity: 0.8;
 }
 
+/* Band-range graph: stacked thin rows above the VFO, one row per license
+   class (top = most-restrictive E, bottom = T or N). Each row's segments
+   show where that class has FCC privileges; segments are sub-divided into
+   side-by-side stripes colored by allowed mode (CW / DATA / PHONE). A
+   single tick + bandwidth overlay spans the full stack. */
+.vfo-band-range {
+    --mode-cw-color: #4dabf7;     /* CW    — blue   */
+    --mode-data-color: #ffd43b;   /* DATA  — yellow */
+    --mode-phone-color: #51cf66;  /* PHONE — green  */
+    --label-width: 14px;
+    --row-gap: 0;
+    --row-height: 5px;
+
+    width: 100%;
+    padding: 0 var(--space-xs);
+    margin-bottom: var(--space-xs);
+}
+
+.vfo-band-range-stack {
+    position: relative;  /* anchor for the tick/bandwidth overlay */
+    display: flex;
+    flex-direction: column;
+    gap: var(--row-gap);
+}
+
+.vfo-band-range-row {
+    display: flex;
+    align-items: stretch;
+    height: var(--row-height);
+    min-height: 3px;
+}
+
+.vfo-band-range-label {
+    width: var(--label-width);
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 7px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--gray-5);
+    text-align: center;
+    align-self: center;
+}
+
+.vfo-band-range-label.user-class {
+    color: var(--white);
+}
+
+.vfo-band-range-track {
+    position: relative;
+    flex: 1;
+    background: var(--gray-8);
+    border-radius: 1px;
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+}
+
+.vfo-band-range-segment {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+}
+
+.vfo-band-range-mode-stripe {
+    flex: 1;
+    background: var(--stripe-color, var(--gray-7));
+}
+
+/* Overlay: single tick + bandwidth window covering all rows. Positioned
+   over the track column only (skipping the label column on the left). */
+.vfo-band-range-overlay {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    left: var(--label-width);
+    right: 0;
+    pointer-events: none;
+}
+
+.vfo-band-range-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--white);
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.vfo-band-range-tick.out-of-priv {
+    background: var(--danger);
+    box-shadow: 0 0 6px var(--danger), 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.vfo-band-range-bandwidth {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    background: rgba(255, 255, 255, 0.18);
+    border-left: 1px solid rgba(255, 255, 255, 0.45);
+    border-right: 1px solid rgba(255, 255, 255, 0.45);
+}
+
 /* VFO warning states - prominent background + thick border */
 .vfo-display.warning-mode {
     background: var(--bg-warning-blend);

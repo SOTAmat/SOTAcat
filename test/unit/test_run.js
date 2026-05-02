@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 /**
- * Unit tests for run.js SMS spotting functions
+ * Unit tests for run.js
  *
- * Tests SMS message construction for SOTAMAT:
- * - Mode mapping (mapModeForSotamat)
- * - Spot SMS URI construction (buildSpotSmsUri)
- * - QRT SMS URI construction (buildQrtSmsUri)
+ * Covers:
+ * - SMS message construction for SOTAMAT
+ *   - Mode mapping (mapModeForSotamat)
+ *   - Spot SMS URI construction (buildSpotSmsUri)
+ *   - QRT SMS URI construction (buildQrtSmsUri)
+ * - CW macro template expansion (expandCwMacroTemplate)
+ * - Keyer family selection (getKeyerFamily)
+ * - Band-range graph helper (getVisibleLicenseClasses) — visible classes
+ *   determine which rows the VFO band-range stack renders
  *
  * Usage:
  *   node test/unit/test_run.js
@@ -457,6 +462,53 @@ describe('expandCwMacroTemplate', () => {
         AppState.callSign = "AB6D";
         const result2 = expandCwMacroTemplate("CQ SOTA DE {MYCALL} {MYCALL} K");
         assertEqual(result2, "CQ SOTA DE AB6D AB6D K", "MYCALL loaded produces full message");
+    });
+});
+
+// ============================================================================
+// Band-range graph helpers (getVisibleLicenseClasses)
+// ============================================================================
+//
+// Copied verbatim from run.js. The band-range bar renders one row per
+// currently-visible license class. N and A badges (and therefore N and A
+// rows) are hidden unless the user's configured license is one of those
+// legacy classes.
+
+function getVisibleLicenseClasses() {
+    const showLegacy = AppState.licenseClass === "N" || AppState.licenseClass === "A";
+    return showLegacy ? ["N", "T", "G", "A", "E"] : ["T", "G", "E"];
+}
+
+describe('getVisibleLicenseClasses', () => {
+    it('hides N and A for unlicensed user', () => {
+        AppState.licenseClass = null;
+        const v = getVisibleLicenseClasses();
+        assertEqual(v.join(","), "T,G,E", "default visible badges");
+    });
+
+    it('hides N and A for Technician', () => {
+        AppState.licenseClass = "T";
+        assertEqual(getVisibleLicenseClasses().join(","), "T,G,E");
+    });
+
+    it('hides N and A for General', () => {
+        AppState.licenseClass = "G";
+        assertEqual(getVisibleLicenseClasses().join(","), "T,G,E");
+    });
+
+    it('hides N and A for Extra', () => {
+        AppState.licenseClass = "E";
+        assertEqual(getVisibleLicenseClasses().join(","), "T,G,E");
+    });
+
+    it('shows all 5 badges for Novice', () => {
+        AppState.licenseClass = "N";
+        assertEqual(getVisibleLicenseClasses().join(","), "N,T,G,A,E");
+    });
+
+    it('shows all 5 badges for Advanced', () => {
+        AppState.licenseClass = "A";
+        assertEqual(getVisibleLicenseClasses().join(","), "N,T,G,A,E");
     });
 });
 

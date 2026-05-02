@@ -51,6 +51,9 @@ Control your radio during activation.
 
 **Tune section:**
 - VFO display with frequency/mode
+  - **Band-range graph** at the top is a stack of thin horizontal rows, one per visible license class (top = Extra, bottom = Technician; Novice/Advanced rows appear only when your configured license is one of those legacy classes). Each row's filled segments show where that class has FCC privileges across the current band; empty stretches mean the class has no access there. The coloring is **operator-centric**: a **solid** segment is colored by your current radio mode (blue = CW, yellow = DATA, green = PHONE) and means you can operate there in that mode; a **striped** segment means your current mode is forbidden but the segment is open to one or more other modes — the stripes show which modes would let you operate there if you switched. The colors rotate when you change modes (e.g. switch from SSB to CW and the SSB-permitted greens become CW-permitted blues; areas that allowed only DATA+CW go from striped blue+yellow to solid blue). A single white tick spans the whole stack at the dial frequency, with a faint band around it showing the mode's occupied bandwidth; the tick turns red when you can't legally transmit in your current mode. Hovering a segment shows the class, exact frequency range, and full FCC mode list.
+  - License-class badges on the left light up to show who is permitted to operate at the current frequency/mode.
+  - Mode indicator on the right.
 - Band buttons (40m, 20m, 17m, 15m, 12m, 10m)
 - Mode buttons (CW, SSB, DATA, AM, FM)
 - Power and ATU controls

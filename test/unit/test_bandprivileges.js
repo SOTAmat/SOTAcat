@@ -216,9 +216,9 @@ describe('Band Lookup', () => {
 describe('40m Band Privileges', () => {
     // 40m structure:
     // 7.000-7.025: CW only, Extra only
-    // 7.025-7.125: CW/DATA, E/G/T
-    // 7.125-7.175: CW/DATA/PHONE, E/G
-    // 7.175-7.300: CW/DATA/PHONE, E/G/T
+    // 7.025-7.125: CW/DATA, E/A/G/T/N
+    // 7.125-7.175: CW/DATA/PHONE, E/A only
+    // 7.175-7.300: CW/DATA/PHONE, E/A/G
 
     describe('7.000-7.025 MHz (CW only, Extra only)', () => {
         const freq = 7010000;
@@ -242,7 +242,7 @@ describe('40m Band Privileges', () => {
         });
     });
 
-    describe('7.025-7.125 MHz (CW/DATA, E/G/T)', () => {
+    describe('7.025-7.125 MHz (CW/DATA, E/A/G/T/N)', () => {
         const freq = 7074000; // FT8 frequency
 
         it('All classes can TX DATA', () => {
@@ -259,19 +259,40 @@ describe('40m Band Privileges', () => {
         });
     });
 
-    describe('7.125-7.175 MHz (CW/DATA/PHONE, E/G)', () => {
+    describe('7.125-7.175 MHz (CW/DATA/PHONE, E/A only)', () => {
         const freq = 7150000;
 
-        it('Extra and General can TX Phone', () => {
-            for (const cls of ['E', 'G']) {
+        it('Extra and Advanced can TX Phone', () => {
+            for (const cls of ['E', 'A']) {
                 const result = checkPrivileges(freq, 'USB', cls);
                 assertTrue(result.userCanTransmit, `${cls} should TX USB at 7.150`);
             }
         });
 
+        it('General cannot TX Phone (issue #104)', () => {
+            const result = checkPrivileges(freq, 'USB', 'G');
+            assertFalse(result.userCanTransmit, 'General should not TX at 7.150');
+            assertEqual(result.warning, 'Outside your privileges');
+        });
+
         it('Technician cannot TX Phone', () => {
             const result = checkPrivileges(freq, 'USB', 'T');
             assertFalse(result.userCanTransmit, 'Tech should not TX at 7.150');
+            assertEqual(result.warning, 'Outside your privileges');
+        });
+    });
+
+    describe('7.175-7.300 MHz (CW/DATA/PHONE, E/A/G)', () => {
+        const freq = 7200000;
+
+        it('General can TX Phone', () => {
+            const result = checkPrivileges(freq, 'USB', 'G');
+            assertTrue(result.userCanTransmit, 'General should TX USB at 7.200');
+        });
+
+        it('Technician cannot TX Phone (issue #104)', () => {
+            const result = checkPrivileges(freq, 'USB', 'T');
+            assertFalse(result.userCanTransmit, 'Tech should not TX at 7.200');
             assertEqual(result.warning, 'Outside your privileges');
         });
     });
@@ -444,8 +465,9 @@ describe('80m Band Privileges', () => {
 
 describe('10m Band Privileges', () => {
     // 10m structure:
-    // 28.000-28.300: CW/DATA, E/G/T
-    // 28.300-29.700: CW/DATA/PHONE, E/G/T
+    // 28.000-28.300: CW/DATA, E/A/G/T/N
+    // 28.300-28.500: CW/DATA/PHONE, E/A/G/T/N
+    // 28.500-29.700: CW/DATA/PHONE, E/A/G
 
     describe('28.300-29.700 MHz (all classes, all modes)', () => {
         const freq = 28400000;
@@ -593,7 +615,7 @@ describe('70cm Band Privileges', () => {
     });
 });
 
-describe('30m WARC Band (CW/DATA only)', () => {
+describe('30m WARC Band (CW/DATA only, no Tech)', () => {
     const freq = 10125000;
 
     it('Phone not allowed for any class', () => {
@@ -604,12 +626,105 @@ describe('30m WARC Band (CW/DATA only)', () => {
         }
     });
 
-    it('CW allowed for all classes', () => {
-        for (const cls of ['E', 'G', 'T']) {
+    it('CW allowed for E/G (Extra and General)', () => {
+        for (const cls of ['E', 'G']) {
             const result = checkPrivileges(freq, 'CW', cls);
             assertTrue(result.userCanTransmit, `${cls} should TX CW at 10.125`);
         }
     });
+
+    it('Technician cannot TX on 30m (issue #104)', () => {
+        const result = checkPrivileges(freq, 'CW', 'T');
+        assertFalse(result.userCanTransmit, 'Tech should not TX on 30m WARC band');
+    });
+});
+
+describe('17m WARC Band (no Tech)', () => {
+    it('Extra/General can TX Phone at 18.130', () => {
+        for (const cls of ['E', 'G']) {
+            const result = checkPrivileges(18130000, 'USB', cls);
+            assertTrue(result.userCanTransmit, `${cls} should TX USB at 18.130`);
+        }
+    });
+
+    it('Technician cannot TX Phone at 18.130 (issue #104)', () => {
+        const result = checkPrivileges(18130000, 'USB', 'T');
+        assertFalse(result.userCanTransmit, 'Tech should not TX phone on 17m');
+    });
+
+    it('Technician cannot TX CW at 18.080 (issue #104)', () => {
+        const result = checkPrivileges(18080000, 'CW', 'T');
+        assertFalse(result.userCanTransmit, 'Tech should not TX CW on 17m WARC band');
+    });
+});
+
+describe('12m WARC Band (no Tech)', () => {
+    it('Extra/General can TX Phone at 24.950', () => {
+        for (const cls of ['E', 'G']) {
+            const result = checkPrivileges(24950000, 'USB', cls);
+            assertTrue(result.userCanTransmit, `${cls} should TX USB at 24.950`);
+        }
+    });
+
+    it('Technician cannot TX Phone at 24.950 (issue #104)', () => {
+        const result = checkPrivileges(24950000, 'USB', 'T');
+        assertFalse(result.userCanTransmit, 'Tech should not TX phone on 12m');
+    });
+
+    it('Technician cannot TX CW at 24.900 (issue #104)', () => {
+        const result = checkPrivileges(24900000, 'CW', 'T');
+        assertFalse(result.userCanTransmit, 'Tech should not TX CW on 12m WARC band');
+    });
+});
+
+describe('15m Phone Privileges (issue #104)', () => {
+    it('Extra/General can TX Phone at 21.300', () => {
+        for (const cls of ['E', 'G']) {
+            const result = checkPrivileges(21300000, 'USB', cls);
+            assertTrue(result.userCanTransmit, `${cls} should TX USB at 21.300`);
+        }
+    });
+
+    it('Technician cannot TX Phone at 21.300', () => {
+        const result = checkPrivileges(21300000, 'USB', 'T');
+        assertFalse(result.userCanTransmit, 'Tech should not TX phone on 15m');
+    });
+});
+
+describe('10m Phone above 28.500 (issue #104)', () => {
+    it('Extra/General can TX Phone at 28.600', () => {
+        for (const cls of ['E', 'G']) {
+            const result = checkPrivileges(28600000, 'USB', cls);
+            assertTrue(result.userCanTransmit, `${cls} should TX USB at 28.600`);
+        }
+    });
+
+    it('Technician cannot TX Phone at 28.600', () => {
+        const result = checkPrivileges(28600000, 'USB', 'T');
+        assertFalse(result.userCanTransmit, 'Tech phone privs end at 28.500');
+    });
+});
+
+describe('Data not allowed in HF phone segments (FCC 97.305(c))', () => {
+    // RTTY/Data emissions are not authorized in HF phone sub-bands.
+    // (160m and 60m mix data+phone in the same allocation, so they're excluded.)
+    const cases = [
+        { band: '80m',  freq: 3850000,  cls: 'G' },
+        { band: '40m',  freq: 7200000,  cls: 'G' },
+        { band: '20m',  freq: 14250000, cls: 'G' },
+        { band: '17m',  freq: 18130000, cls: 'G' },
+        { band: '15m',  freq: 21300000, cls: 'G' },
+        { band: '12m',  freq: 24950000, cls: 'G' },
+        { band: '10m',  freq: 28400000, cls: 'G' },
+    ];
+
+    for (const { band, freq, cls } of cases) {
+        it(`${band}: Data forbidden at ${(freq / 1e6).toFixed(3)} MHz`, () => {
+            const result = checkPrivileges(freq, 'DATA', cls);
+            assertFalse(result.modeAllowed, `Data should not be allowed at ${freq} on ${band}`);
+            assertEqual(result.warning, 'Data not allowed here');
+        });
+    }
 });
 
 describe('License Badge Status', () => {
