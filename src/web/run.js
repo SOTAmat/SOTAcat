@@ -102,9 +102,23 @@ function updateFrequencyDisplay() {
 
 // Update mode display with current VFO mode
 function updateModeDisplay() {
+    const currentMode = AppState.vfoMode || "USB";
+
+    // Determine mode family class once
+    const modeClasses = ["msg-mode-cw", "msg-mode-voice", "msg-mode-data"];
+    let msgClass = "msg-mode-voice"; // default for SSB/USB/LSB/AM/FM
+    if (currentMode === "CW") {
+        msgClass = "msg-mode-cw";
+    } else if (currentMode === "DATA") {
+        msgClass = "msg-mode-data";
+    }
+
+    // Update VFO mode display text + color class
     const display = document.getElementById("current-mode");
     if (display) {
-        display.textContent = AppState.vfoMode || "USB";
+        display.textContent = currentMode;
+        modeClasses.forEach((cls) => display.classList.remove(cls));
+        display.classList.add(msgClass);
         // Brief visual feedback using CSS class
         display.classList.add("feedback-warning");
         setTimeout(() => {
@@ -114,8 +128,6 @@ function updateModeDisplay() {
 
     // Update mode button active states
     document.querySelectorAll(".btn-mode").forEach((btn) => btn.classList.remove("active"));
-
-    const currentMode = AppState.vfoMode || "USB";
     if (currentMode === "CW") {
         document.getElementById("btn-cw")?.classList.add("active");
     } else if (currentMode === "USB" || currentMode === "LSB") {
@@ -129,17 +141,7 @@ function updateModeDisplay() {
     }
 
     // Update Msg button colors to match current mode family
-    const modeClasses = ["msg-mode-cw", "msg-mode-voice", "msg-mode-data"];
     const msgButtons = document.querySelectorAll(".btn-msg");
-    let msgClass = "msg-mode-voice"; // default for SSB
-
-    if (currentMode === "CW") {
-        msgClass = "msg-mode-cw";
-    } else if (currentMode === "DATA") {
-        msgClass = "msg-mode-data";
-    }
-    // SSB/USB/LSB/AM/FM all → msg-mode-voice
-
     msgButtons.forEach((btn) => {
         modeClasses.forEach((cls) => btn.classList.remove(cls));
         btn.classList.add(msgClass);

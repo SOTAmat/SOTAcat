@@ -106,6 +106,11 @@
     --mode-voice: #1f7330;     /* white text contrast 5.2:1 */
     --mode-data: #f08c00;      /* DARK text — see #btn-data.active rule */
 
+    /* Mode colors for use as TEXT on dark operational surfaces (brighter shades) */
+    --mode-cw-on-dark: #4dabf7;
+    --mode-voice-on-dark: #69db7c;
+    --mode-data-on-dark: #ffd43b;
+
     /* Action accent */
     --action-primary: #212529;
     --action-on-primary: #ffffff;
@@ -238,10 +243,6 @@ a {
     align-items: flex-end;
 }
 
-.status-container span,
-.health-container span {
-    color: var(--text-op-data);
-}
 
 /* =========================== Card Components */
 
@@ -416,6 +417,12 @@ a {
     border: 2px solid transparent;
     border-bottom: 1px solid #2b3036;
     transition: border-color 0.2s ease;
+}
+
+@media (min-width: 768px) {
+    .vfo-display {
+        justify-content: center;
+    }
 }
 
 /* Main frequency + mode row */
@@ -650,6 +657,10 @@ input.frequency-display {
     letter-spacing: 1.5px;
     text-transform: uppercase;
 }
+
+.mode-display.msg-mode-cw    { color: var(--mode-cw-on-dark); }
+.mode-display.msg-mode-voice { color: var(--mode-voice-on-dark); }
+.mode-display.msg-mode-data  { color: var(--mode-data-on-dark); }
 
 /* Grid layouts for CAT controls */
 .freq-controls,
@@ -2018,7 +2029,7 @@ button.password-visibility-toggle svg {
     font-weight: 700;
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-family: var(--font-family);
     cursor: pointer;
     min-height: 56px;
     display: flex;
