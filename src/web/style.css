@@ -141,6 +141,35 @@
     /* Band rainbow opacity (theme-aware via Phase 4) */
     --band-opacity: 0.35;
 
+    /* Band rainbow — RGB triplets only; opacity applied via --band-opacity */
+    --band-160m: 124, 252, 0;
+    --band-80m: 229, 80, 229;
+    --band-60m: 0, 0, 139;
+    --band-40m: 89, 89, 255;
+    --band-30m: 98, 217, 98;
+    --band-20m: 242, 196, 12;
+    --band-17m: 242, 242, 97;
+    --band-15m: 204, 161, 102;
+    --band-12m: 178, 34, 34;
+    --band-10m: 255, 105, 180;
+    --band-6m: 255, 0, 0;
+    --band-2m: 255, 20, 147;
+    --band-70cm: 153, 153, 0;
+    --band-23cm: 90, 184, 199;
+    --band-2200m: 255, 69, 0;
+    --band-600m: 30, 144, 255;
+    --band-11m: 0, 255, 0;
+    --band-8m: 127, 0, 241;
+    --band-5m: 224, 224, 224;
+    --band-4m: 204, 0, 68;
+    --band-1p25m: 204, 255, 0;
+    --band-2p4GHz: 255, 127, 80;
+    --band-5p8GHz: 204, 0, 153;
+    --band-10GHz: 105, 105, 105;
+    --band-24GHz: 243, 237, 198;
+    --band-47GHz: 255, 231, 134;
+    --band-76GHz: 186, 249, 216;
+
     /* ========================================================================
        COMPAT SHIMS — old tokens aliased to new equivalents.
        Phase 6 will delete these after every consumer migrates.
@@ -1400,85 +1429,85 @@ tbody tr:active {
 
 /* Band-specific colors adapted from QRZ.com - 0.35 opacity for outdoor visibility */
 .band-160m {
-    background-color: rgba(124, 252, 0, 0.35);
+    background-color: rgba(var(--band-160m), var(--band-opacity));
 }
 .band-80m {
-    background-color: rgba(229, 80, 229, 0.35);
+    background-color: rgba(var(--band-80m), var(--band-opacity));
 }
 .band-60m {
-    background-color: rgba(0, 0, 139, 0.35);
+    background-color: rgba(var(--band-60m), var(--band-opacity));
 }
 .band-40m {
-    background-color: rgba(89, 89, 255, 0.35);
+    background-color: rgba(var(--band-40m), var(--band-opacity));
 }
 .band-30m {
-    background-color: rgba(98, 217, 98, 0.35);
+    background-color: rgba(var(--band-30m), var(--band-opacity));
 }
 .band-20m {
-    background-color: rgba(242, 196, 12, 0.35);
+    background-color: rgba(var(--band-20m), var(--band-opacity));
 }
 .band-17m {
-    background-color: rgba(242, 242, 97, 0.4);
+    background-color: rgba(var(--band-17m), var(--band-opacity));
 }
 .band-15m {
-    background-color: rgba(204, 161, 102, 0.35);
+    background-color: rgba(var(--band-15m), var(--band-opacity));
 }
 .band-12m {
-    background-color: rgba(178, 34, 34, 0.35);
+    background-color: rgba(var(--band-12m), var(--band-opacity));
 }
 .band-10m {
-    background-color: rgba(255, 105, 180, 0.35);
+    background-color: rgba(var(--band-10m), var(--band-opacity));
 }
 .band-6m {
-    background-color: rgba(255, 0, 0, 0.35);
+    background-color: rgba(var(--band-6m), var(--band-opacity));
 }
 .band-2m {
-    background-color: rgba(255, 20, 147, 0.35);
+    background-color: rgba(var(--band-2m), var(--band-opacity));
 }
 .band-70cm {
-    background-color: rgba(153, 153, 0, 0.35);
+    background-color: rgba(var(--band-70cm), var(--band-opacity));
 }
 .band-23cm {
-    background-color: rgba(90, 184, 199, 0.35);
+    background-color: rgba(var(--band-23cm), var(--band-opacity));
 }
 .band-2200m {
-    background-color: rgba(255, 69, 0, 0.35);
+    background-color: rgba(var(--band-2200m), var(--band-opacity));
 }
 .band-600m {
-    background-color: rgba(30, 144, 255, 0.35);
+    background-color: rgba(var(--band-600m), var(--band-opacity));
 }
 .band-11m {
-    background-color: rgba(0, 255, 0, 0.35);
+    background-color: rgba(var(--band-11m), var(--band-opacity));
 }
 .band-8m {
-    background-color: rgba(127, 0, 241, 0.35);
+    background-color: rgba(var(--band-8m), var(--band-opacity));
 }
 .band-5m {
-    background-color: rgba(224, 224, 224, 0.35);
+    background-color: rgba(var(--band-5m), var(--band-opacity));
 }
 .band-4m {
-    background-color: rgba(204, 0, 68, 0.35);
+    background-color: rgba(var(--band-4m), var(--band-opacity));
 }
 .band-1p25m {
-    background-color: rgba(204, 255, 0, 0.35);
+    background-color: rgba(var(--band-1p25m), var(--band-opacity));
 }
 .band-2p4GHz {
-    background-color: rgba(255, 127, 80, 0.35);
+    background-color: rgba(var(--band-2p4GHz), var(--band-opacity));
 }
 .band-5p8GHz {
-    background-color: rgba(204, 0, 153, 0.35);
+    background-color: rgba(var(--band-5p8GHz), var(--band-opacity));
 }
 .band-10GHz {
-    background-color: rgba(105, 105, 105, 0.35);
+    background-color: rgba(var(--band-10GHz), var(--band-opacity));
 }
 .band-24GHz {
-    background-color: rgba(243, 237, 198, 0.35);
+    background-color: rgba(var(--band-24GHz), var(--band-opacity));
 }
 .band-47GHz {
-    background-color: rgba(255, 231, 134, 0.35);
+    background-color: rgba(var(--band-47GHz), var(--band-opacity));
 }
 .band-76GHz {
-    background-color: rgba(186, 249, 216, 0.35);
+    background-color: rgba(var(--band-76GHz), var(--band-opacity));
 }
 
 /* Ensure link text remains visible with band colors */
