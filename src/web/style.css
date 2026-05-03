@@ -79,6 +79,76 @@
 
     /* Table Layout */
     --table-header-height: 41px;
+
+    /* ========================================================================
+       NEW TOKEN SYSTEM (Phase 0 — Color Redesign 2026-05-02)
+       Spec: Documentation/for-AI-agents/specs/2026-05-02-color-system-design.md
+       ======================================================================== */
+
+    /* Surfaces */
+    --surface-page: #eceef2;
+    --surface-card: #ffffff;
+    --surface-op-header: #0f1419;   /* always dark, both themes */
+    --surface-op-vfo: #15181c;      /* always dark, both themes */
+    --surface-op-modebar: #181d22;  /* always dark, both themes */
+
+    /* Text */
+    --text-primary-new: #212529;
+    --text-secondary-new: #6c757d;
+    --text-on-op: #f8f9fa;
+    --text-op-accent: #ffd43b;
+    --text-op-data: #74c0fc;
+
+    /* Mode hues — locked mapping (same in both themes) */
+    --mode-cw: #1c7ed6;
+    --mode-voice: #2f9e44;
+    --mode-data: #f08c00;
+
+    /* Action accent */
+    --action-primary: #212529;
+    --action-on-primary: #ffffff;
+    --action-secondary-border: #212529;
+
+    /* Critical state — XMIT, hard errors */
+    --state-critical: #e03131;
+    --state-critical-pastel-bg: #fff5f5;
+    --state-critical-pastel-fg: #c92a2a;
+
+    /* Transient state — scan, MyCall, working */
+    --state-transient: #1098ad;
+
+    /* Status — allowed / success */
+    --status-ok-bg: #ebfbee;
+    --status-ok-fg: #2b8a3e;
+    --status-ok-border: #b2f2bb;
+
+    /* Status — neutral / not-applicable */
+    --status-na-bg: #f1f3f5;
+    --status-na-fg: #6c757d;
+    --status-na-border: #dee2e6;
+
+    /* Borders */
+    --border-default-new: #dee2e6;
+    --border-strong: #212529;
+
+    /* Band rainbow opacity (theme-aware via Phase 4) */
+    --band-opacity: 0.35;
+
+    /* ========================================================================
+       COMPAT SHIMS — old tokens aliased to new equivalents.
+       Phase 6 will delete these after every consumer migrates.
+       Keep this list maintained; remove an alias only when the old token has
+       zero remaining references in the file.
+       ======================================================================== */
+    --primary: var(--mode-cw);
+    --primary-dark: #1864ab;
+    --primary-light: #4dabf7;
+    --success: var(--status-ok-fg);
+    --success-dark: #2b8a3e;
+    --danger: var(--state-critical);
+    --danger-dark: #c92a2a;
+    --warning: var(--mode-data);
+    --warning-dark: #d9480f;
 }
 
 /* =========================== Reset & Base */
