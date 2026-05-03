@@ -435,7 +435,7 @@ a {
     font-weight: 700;
     border-radius: 6px;
     cursor: pointer;
-    font-family: var(--font-mono);
+    font-family: var(--font-family);
     letter-spacing: 1px;
     min-height: 44px;
 }
