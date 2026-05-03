@@ -669,6 +669,9 @@ input.frequency-display {
 
 .mode-grid {
     grid-template-columns: repeat(5, 1fr);
+    background: var(--surface-op-modebar);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
 }
 
 .xmit-controls {
@@ -715,59 +718,49 @@ input.frequency-display {
 
 /* Base mode button */
 .btn-mode {
-    color: var(--text-primary);
+    color: var(--text-on-op);
     border: 2px solid transparent;
     padding: 0;
+    min-height: 60px;
+    background: #495057;
 }
 
-/* Disabled mode button */
-.btn-mode:disabled {
-    background: var(--gray-3);
-    color: var(--gray-5);
-    cursor: not-allowed;
-    border-color: transparent;
-}
+/* Disabled mode button (overridden by specific ID selectors below) */
 
 /* CW family */
-#btn-cw {
-    background: var(--mode-cw-enabled);
-}
 #btn-cw.active {
-    background: var(--primary);
+    background: var(--mode-cw);
     color: var(--white);
-    border-color: var(--primary-dark);
+    border-color: transparent;
 }
 #btn-cw:disabled {
-    background: var(--gray-3);
-    color: var(--gray-5);
+    background: #495057;
+    color: #adb5bd;
+    opacity: 0.6;
 }
 
 /* Voice family */
-#btn-ssb, #btn-am, #btn-fm {
-    background: var(--mode-voice-enabled);
-}
 #btn-ssb.active, #btn-am.active, #btn-fm.active {
-    background: var(--success);
+    background: var(--mode-voice);
     color: var(--white);
-    border-color: var(--success-dark);
+    border-color: transparent;
 }
 #btn-ssb:disabled, #btn-am:disabled, #btn-fm:disabled {
-    background: var(--gray-3);
-    color: var(--gray-5);
+    background: #495057;
+    color: #adb5bd;
+    opacity: 0.6;
 }
 
 /* Data family */
-#btn-data {
-    background: var(--mode-data-enabled);
-}
 #btn-data.active {
-    background: var(--warning);
-    color: var(--gray-9);
-    border-color: var(--warning-dark);
+    background: var(--mode-data);
+    color: var(--white);
+    border-color: transparent;
 }
 #btn-data:disabled {
-    background: var(--gray-3);
-    color: var(--gray-5);
+    background: #495057;
+    color: #adb5bd;
+    opacity: 0.6;
 }
 
 .btn-power {
@@ -2348,26 +2341,26 @@ button.password-visibility-toggle svg {
     }
     /* Mode button hovers per family */
     #btn-cw:hover:not(:disabled):not(.active) {
-        background: #9ac4e8;
+        background: #596470;
     }
     #btn-cw.active:hover:not(:disabled) {
-        background: var(--primary-dark);
+        background: #1864ab;
     }
     #btn-ssb:hover:not(:disabled):not(.active),
     #btn-am:hover:not(:disabled):not(.active),
     #btn-fm:hover:not(:disabled):not(.active) {
-        background: #9fd9a8;
+        background: #596470;
     }
     #btn-ssb.active:hover:not(:disabled),
     #btn-am.active:hover:not(:disabled),
     #btn-fm.active:hover:not(:disabled) {
-        background: var(--success-dark);
+        background: #2b8a3e;
     }
     #btn-data:hover:not(:disabled):not(.active) {
-        background: #ebd288;
+        background: #596470;
     }
     #btn-data.active:hover:not(:disabled) {
-        background: var(--warning-dark);
+        background: #d97706;
     }
     .btn-power:hover:not(:disabled) {
         background: var(--gray-7);
