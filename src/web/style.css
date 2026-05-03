@@ -138,6 +138,17 @@
     --border-default-new: #dee2e6;
     --border-strong: #212529;
 
+    /* Program/Type badges (operator-learned colors, preserved as-is) */
+    --program-sota: #8b4513;      /* Mountain brown */
+    --program-pota: #2f855a;      /* Park green */
+    --program-wwff: #d69e2e;      /* Wildlife gold */
+    --program-gma: #805ad5;       /* Mountain purple */
+    --program-iota: #3182ce;      /* Island blue */
+    --program-wca: #744210;       /* Castle brown */
+    --program-zlota: #4b0082;     /* New Zealand indigo */
+    --program-wwbota: #38a169;    /* Wildlife green */
+    --program-hema: #d69e2e;      /* Heritage gold */
+
     /* Band rainbow opacity (theme-aware via Phase 4) */
     --band-opacity: 0.35;
 
@@ -1363,47 +1374,47 @@ tbody tr:active {
 }
 
 .type-badge-SOTA {
-    background: #8b4513; /* Mountain brown */
+    background: var(--program-sota);
     color: white;
 }
 
 .type-badge-POTA {
-    background: #2f855a; /* Park green */
+    background: var(--program-pota);
     color: white;
 }
 
 .type-badge-WWFF {
-    background: #d69e2e; /* Wildlife gold */
+    background: var(--program-wwff);
     color: var(--gray-9);
 }
 
 .type-badge-GMA {
-    background: #805ad5; /* Mountain purple */
+    background: var(--program-gma);
     color: white;
 }
 
 .type-badge-IOTA {
-    background: #3182ce; /* Island blue */
+    background: var(--program-iota);
     color: white;
 }
 
 .type-badge-WCA {
-    background: #744210; /* Castle brown */
+    background: var(--program-wca);
     color: white;
 }
 
 .type-badge-ZLOTA {
-    background: #4b0082; /* New Zealand indigo */
+    background: var(--program-zlota);
     color: white;
 }
 
 .type-badge-WWBOTA {
-    background: #38a169; /* Wildlife green */
+    background: var(--program-wwbota);
     color: white;
 }
 
 .type-badge-HEMA {
-    background: #d69e2e; /* Heritage gold */
+    background: var(--program-hema);
     color: var(--gray-9);
 }
 
