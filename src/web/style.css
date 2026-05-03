@@ -937,11 +937,11 @@ input.frequency-display {
     opacity: 0.7;
 }
 .btn-msg.msg-mode-voice {
-    background: var(--success);
+    background: var(--mode-voice);
     color: var(--white);
 }
 .btn-msg.msg-mode-voice:active {
-    background: var(--success-dark);
+    opacity: 0.7;
 }
 .btn-msg.msg-mode-data {
     background: var(--warning);
@@ -1006,11 +1006,11 @@ input.frequency-display {
     opacity: 0.7;
 }
 .btn-mycall.msg-mode-voice {
-    background: var(--success);
+    background: var(--mode-voice);
     color: var(--white);
 }
 .btn-mycall.msg-mode-voice:active:not(:disabled) {
-    background: var(--success-dark);
+    opacity: 0.7;
 }
 .btn-mycall.msg-mode-data {
     background: var(--warning);
@@ -1389,7 +1389,7 @@ tbody tr:active {
 .mode-cell-SSB,
 .mode-cell-AM,
 .mode-cell-FM {
-    background: var(--success);
+    background: var(--mode-voice);
 }
 .mode-cell-DATA {
     background: var(--warning);
@@ -2460,7 +2460,7 @@ button.password-visibility-toggle svg {
         opacity: 0.85;
     }
     .btn-auto-refresh-active:hover:not(:disabled) {
-        background: var(--success-dark);
+        opacity: 0.85;
     }
 
     /* Icon buttons */
@@ -2529,7 +2529,7 @@ button.password-visibility-toggle svg {
         opacity: 0.7;
     }
     .btn-msg.msg-mode-voice:hover:not(:disabled) {
-        background: var(--success-dark);
+        opacity: 0.7;
     }
     .btn-msg.msg-mode-data:hover:not(:disabled) {
         background: var(--warning-dark);
@@ -2571,15 +2571,15 @@ button.password-visibility-toggle svg {
 }
 
 .feedback-success {
-    color: var(--success);
+    color: var(--status-ok-fg);
 }
 
 .feedback-warning {
-    color: var(--warning);
+    color: var(--text-op-accent);
 }
 
 .feedback-bg-success {
-    background: var(--success) !important;
+    background: var(--status-ok-bg) !important;
 }
 
 .text-center {
