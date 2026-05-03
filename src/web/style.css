@@ -918,8 +918,8 @@ input.frequency-display {
 }
 
 .btn-tune {
-    background: var(--warning);
-    color: var(--gray-9);
+    background: var(--action-primary);
+    color: var(--action-on-primary);
     padding: 0;
 }
 
@@ -2520,7 +2520,7 @@ button.password-visibility-toggle svg {
         background: var(--gray-7);
     }
     .btn-tune:hover:not(:disabled) {
-        background: var(--warning-dark);
+        opacity: 0.85;
     }
     .btn-msg:hover:not(:disabled) {
         background: var(--gray-6);
