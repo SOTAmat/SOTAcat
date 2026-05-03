@@ -483,47 +483,23 @@ a {
     margin-left: var(--space-md);
 }
 
+/* Modifier on top of .status-pill — compact circular badges with uppercase letters */
 .license-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     border-radius: 50%;
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    font-weight: 700;
-    color: var(--gray-6);
-    background: transparent;
-    border: 2px solid var(--gray-7);
-    transition: all 0.2s ease;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    justify-content: center;
+    gap: 0;  /* No gap needed since we hide icons */
 }
 
-/* Badge states */
-.license-badge.allowed {
-    color: var(--success);
-    border-color: var(--success);
-}
-
-.license-badge.denied {
-    color: var(--gray-6);
-    border-color: var(--gray-7);
-    opacity: 0.5;
-}
-
-/* User's own license class - slightly more prominent */
-.license-badge.user-class {
-    font-weight: 800;
-}
-
-.license-badge.user-class.allowed {
-    box-shadow: 0 0 0 2px rgba(64, 192, 87, 0.3);
-}
-
-.license-badge.user-class.denied {
-    color: var(--danger);
-    border-color: var(--danger);
-    opacity: 0.8;
+/* License badges don't use icons — just the letter */
+.license-badge.ok::before,
+.license-badge.na::before {
+    content: none;
 }
 
 /* ============================================================================
