@@ -63,10 +63,12 @@ Add this block. Keep existing tokens above it untouched for now.
     --text-op-accent: #ffd43b;      /* amber on dark — VFO mode tag, header title */
     --text-op-data: #74c0fc;        /* cyan on dark — voltage, time, RX-meter */
 
-    /* Mode hues — locked mapping (same in both themes) */
-    --mode-cw: #1c7ed6;
-    --mode-voice: #2f9e44;
-    --mode-data: #f08c00;
+    /* Mode hues — locked mapping (same in both themes)
+       Shades chosen so white text meets WCAG AA on CW + voice;
+       DATA uses dark text since amber's luminance can't support white. */
+    --mode-cw: #1864ab;        /* white text contrast 6.0:1 */
+    --mode-voice: #1f7330;     /* white text contrast 5.2:1 */
+    --mode-data: #f08c00;      /* DARK text — see Task 4 button rules */
 
     /* Action accent */
     --action-primary: #212529;
