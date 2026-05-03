@@ -750,14 +750,13 @@ input.frequency-display {
 /* CAT-specific button variants */
 .btn-freq {
     padding: 0;
+    background: transparent;
+    color: var(--action-primary);
+    border: 2px solid var(--action-primary);
 }
 .btn-freq.down {
-    background: var(--danger);
-    color: var(--white);
 }
 .btn-freq.up {
-    background: var(--success);
-    color: var(--white);
 }
 
 .btn-band {
@@ -2406,11 +2405,8 @@ button.password-visibility-toggle svg {
     }
 
     /* CAT page controls */
-    .btn-freq.down:hover:not(:disabled) {
-        background: var(--danger-dark);
-    }
-    .btn-freq.up:hover:not(:disabled) {
-        background: var(--success-dark);
+    .btn-freq:hover:not(:disabled) {
+        background: rgba(0, 0, 0, 0.08);
     }
     .btn-band:hover:not(:disabled):not(.active) {
         background: var(--gray-4);
