@@ -1,15 +1,6 @@
 /* =========================== Design System Variables */
 :root {
-    /* Mantine-inspired Color Palette with High Contrast */
-    --primary: #228be6;
-    --primary-dark: #1971c2;
-    --primary-light: #4dabf7;
-    --success: #40c057;
-    --success-dark: #37a34a;
-    --danger: #fa5252;
-    --danger-dark: #e03131;
-    --warning: #fab005;
-    --warning-dark: #e9a100;
+    /* Legacy palette — DEPRECATED and removed in Phase 6 */
     --dark: #212529;
     --gray-9: #212529;
     --gray-8: #343a40;
@@ -23,11 +14,6 @@
     --gray-0: #f8f9fa;
     --white: #ffffff;
     --black: #000000;
-
-    /* Mode button color families (enabled = muted, for non-active buttons) */
-    --mode-cw-enabled: #b3d4f0;
-    --mode-voice-enabled: #b8e6c0;
-    --mode-data-enabled: #f5dfa0;
 
     /* Semantic Colors */
     --bg-primary: var(--white);
@@ -180,22 +166,6 @@
     --band-24GHz: 243, 237, 198;
     --band-47GHz: 255, 231, 134;
     --band-76GHz: 186, 249, 216;
-
-    /* ========================================================================
-       COMPAT SHIMS — old tokens aliased to new equivalents.
-       Phase 6 will delete these after every consumer migrates.
-       Keep this list maintained; remove an alias only when the old token has
-       zero remaining references in the file.
-       ======================================================================== */
-    --primary: var(--mode-cw);
-    --primary-dark: #1864ab;
-    --primary-light: #4dabf7;
-    --success: var(--status-ok-fg);
-    --success-dark: #2b8a3e;
-    --danger: var(--state-critical);
-    --danger-dark: #c92a2a;
-    --warning: var(--mode-data);
-    --warning-dark: #d9480f;
 }
 
 /* =========================== Reset & Base */
@@ -2406,28 +2376,6 @@ button.password-visibility-toggle svg {
 }
 
 /* High Contrast Mode for Outdoor Visibility */
-@media (prefers-contrast: high) {
-    :root {
-        --primary: #0066cc;
-        --primary-dark: #004499;
-        --gray-3: #999999;
-        --text-secondary: #666666;
-    }
-
-    .section-card {
-        border: 2px solid var(--gray-8);
-    }
-
-    th {
-        background: var(--gray-9);
-        color: var(--white);
-    }
-
-    [class*="btn-"].btn-primary {
-        border: 2px solid var(--action-primary);
-    }
-}
-
 /* Touch-friendly adjustments */
 @media (pointer: coarse) {
     /* Increase all touch targets slightly */
@@ -2632,11 +2580,6 @@ button.password-visibility-toggle svg {
     /* Band-rainbow opacity bumped for visibility on dark */
     --band-opacity: 0.55;
 
-    /* Compat shims also need dark overrides for any consumer not yet migrated */
-    --primary: var(--mode-cw);
-    --success: var(--status-ok-fg);
-    --danger: var(--state-critical);
-    --warning: var(--mode-data);
 }
 
 /* Body / page-level surfaces */
