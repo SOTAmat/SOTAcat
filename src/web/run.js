@@ -238,17 +238,16 @@ function updatePrivilegeDisplay() {
     const badges = { N: badgeN, T: badgeT, G: badgeG, A: badgeA, E: badgeE };
     for (const [cls, badge] of Object.entries(badges)) {
         // Remove all state classes
-        badge.classList.remove("status-pill", "ok", "na", "user-class");
+        badge.classList.remove("allowed", "denied", "user-class");
 
-        // Add status-pill base class and state based on whether this class can TX here
-        badge.classList.add("status-pill");
+        // Add allowed/denied based on whether this class can TX here
         if (classStatus[cls]) {
-            badge.classList.add("ok");
+            badge.classList.add("allowed");
         } else {
-            badge.classList.add("na");
+            badge.classList.add("denied");
         }
 
-        // Mark user's own license class (for emphasis if needed in future)
+        // Mark user's own license class
         if (cls === userLicense) {
             badge.classList.add("user-class");
         }

@@ -518,23 +518,51 @@ a {
     margin-left: var(--space-md);
 }
 
-/* Modifier on top of .status-pill — compact circular badges with uppercase letters */
+/* License class badges — outlined letters with 3-state coloring */
 .license-badge {
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border-radius: 50%;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    gap: 0;  /* No gap needed since we hide icons */
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--gray-6);
+    background: transparent;
+    border: 2px solid var(--gray-7);
+    transition: all 0.2s ease;
 }
 
-/* License badges don't use icons — just the letter */
-.license-badge.ok::before,
-.license-badge.na::before {
-    content: none;
+/* State: permitted — operator can use this class here */
+.license-badge.allowed {
+    color: var(--status-ok-fg);
+    border-color: var(--status-ok-fg);
+}
+
+/* State: unavailable — class doesn't apply to operator */
+.license-badge.denied {
+    color: var(--gray-6);
+    border-color: var(--gray-7);
+    opacity: 0.5;
+}
+
+/* Marker: this is the OPERATOR'S OWN license class — slightly bolder */
+.license-badge.user-class {
+    font-weight: 800;
+}
+
+/* Operator's class AND permitted — add green glow */
+.license-badge.user-class.allowed {
+    box-shadow: 0 0 0 2px rgba(64, 192, 87, 0.3);
+}
+
+/* State: out-of-range — operator's class but not allowed at current freq/mode */
+.license-badge.user-class.denied {
+    color: var(--state-critical);
+    border-color: var(--state-critical);
+    opacity: 0.8;
 }
 
 /* ============================================================================
