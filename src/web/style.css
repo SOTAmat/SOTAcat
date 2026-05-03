@@ -445,6 +445,41 @@ a {
     margin-top: var(--space-lg);
 }
 
+/* Segmented control — Auto/Light/Dark and similar tri-state choices */
+.seg-control {
+    display: inline-flex;
+    background: rgba(0, 0, 0, 0.04);
+    border: 2px solid var(--border-default-new);
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 2px;
+    gap: 0;
+}
+
+.seg-btn {
+    background: transparent;
+    color: var(--text-secondary-new);
+    border: none;
+    padding: 10px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    letter-spacing: 1px;
+    min-height: 44px;
+}
+
+.seg-btn.active {
+    background: var(--action-primary);
+    color: var(--action-on-primary);
+}
+
+[data-theme="dark"] .seg-control {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--border-default-new);
+}
+
 /* =========================== CAT Page Specific Buttons */
 
 /* VFO Display */
