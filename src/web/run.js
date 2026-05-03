@@ -147,6 +147,14 @@ function updateModeDisplay() {
         btn.classList.add(msgClass);
     });
 
+    // Update XMIT button color to match current mode family (base state only;
+    // .active state still wins via CSS cascade and shows red-critical pulse)
+    const xmitBtn = document.getElementById("xmit-button");
+    if (xmitBtn) {
+        modeClasses.forEach((cls) => xmitBtn.classList.remove(cls));
+        xmitBtn.classList.add(msgClass);
+    }
+
     applyKeyerFamilyHints();
 }
 

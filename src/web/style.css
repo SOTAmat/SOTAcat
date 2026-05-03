@@ -34,7 +34,7 @@
 
     /* Typography */
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --font-mono: "SF Mono", Monaco, "Courier New", monospace;
+    --font-mono: ui-monospace, "SF Mono", "Roboto Mono", Monaco, "Cascadia Mono", monospace;
     --text-xs: 12px;
     --text-sm: 14px;
     --text-md: 16px;
@@ -246,7 +246,7 @@ a {
 .status-container,
 .health-container {
     color: var(--text-on-op);
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
     display: flex;
     flex-direction: column;
@@ -936,6 +936,22 @@ input.frequency-display {
     min-height: 60px;
 }
 
+.btn-xmit.msg-mode-cw {
+    background: var(--mode-cw);
+    color: var(--white);
+    border-color: var(--mode-cw);
+}
+.btn-xmit.msg-mode-voice {
+    background: var(--mode-voice);
+    color: var(--white);
+    border-color: var(--mode-voice);
+}
+.btn-xmit.msg-mode-data {
+    background: var(--mode-data);
+    color: var(--gray-9);
+    border-color: var(--mode-data);
+}
+
 .btn-xmit.active {
     background: var(--state-critical);
     border-color: #a51111;
@@ -960,6 +976,12 @@ input.frequency-display {
     50% {
         opacity: 0.55;
     }
+}
+
+/* Cyan transient pulse — animates background only, leaves border + opacity alone */
+@keyframes pulse-transient-bg {
+    0%, 100% { background-color: var(--state-transient); }
+    50% { background-color: #0a7884; }   /* darker cyan for the dim half of the pulse */
 }
 
 /* MyCall button: colored by mode like Msg buttons */
@@ -996,7 +1018,8 @@ input.frequency-display {
 }
 .btn-mycall.active {
     background: var(--state-transient);
-    animation: pulse 1.5s infinite;
+    border: 2px solid #0a7884;
+    animation: pulse-transient-bg 1.5s ease-in-out infinite;
 }
 /* Match sizing of other Chase control buttons */
 .controls-grid .btn-mycall {
@@ -1018,7 +1041,8 @@ input.frequency-display {
 }
 .btn-scan.active {
     background: var(--state-transient);
-    animation: pulse 1.5s infinite;
+    border: 2px solid #0a7884;
+    animation: pulse-transient-bg 1.5s ease-in-out infinite;
 }
 
 .btn-send {
