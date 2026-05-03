@@ -486,6 +486,46 @@ a {
     opacity: 0.8;
 }
 
+/* ============================================================================
+   Status pills — Allowed / Denied / Not-applicable, with redundant icons
+   for color-vision-deficient operators. Used for license badges, privilege
+   indicators, and any binary OK/NOT-OK status display.
+   ============================================================================ */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1.5px solid;
+    line-height: 1;
+}
+
+.status-pill.ok {
+    background: var(--status-ok-bg);
+    color: var(--status-ok-fg);
+    border-color: var(--status-ok-border);
+}
+
+.status-pill.no {
+    background: var(--state-critical-pastel-bg);
+    color: var(--state-critical-pastel-fg);
+    border-color: var(--state-critical-pastel-fg);
+}
+
+.status-pill.na {
+    background: var(--status-na-bg);
+    color: var(--status-na-fg);
+    border-color: var(--status-na-border);
+}
+
+/* Redundant icons for color-blind accessibility — no HTML change needed */
+.status-pill.ok::before { content: "✓"; font-weight: 700; }
+.status-pill.no::before { content: "✕"; font-weight: 700; }
+/* .status-pill.na has no icon — neutral state */
+
 /* Band-range graph: stacked thin rows above the VFO, one row per license
    class (top = most-restrictive E, bottom = T or N). Each row's segments
    show where that class has FCC privileges; segments are sub-divided into
