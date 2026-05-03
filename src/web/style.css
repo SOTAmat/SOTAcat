@@ -932,7 +932,7 @@ input.frequency-display {
     color: var(--text-on-op);
     border: 2px solid #343a40;
     padding: 0;
-    font-family: var(--font-mono);
+    font-family: var(--font-family);
     min-height: 60px;
 }
 
