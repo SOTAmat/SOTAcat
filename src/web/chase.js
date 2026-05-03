@@ -896,6 +896,29 @@ function buildReferenceLink(spot) {
     return refLink;
 }
 
+/**
+ * Compute spot-age background color for a given age in minutes.
+ * Theme-aware: light returns warm pink → red; dark returns dim warm → muted red.
+ * Fresh spots (< 5 min) return 'transparent'.
+ */
+function spotAgeColor(ageMinutes) {
+    if (ageMinutes < 5) return 'transparent';
+
+    const theme = document.documentElement.getAttribute('data-theme') || 'light';
+    const t = Math.min((ageMinutes - 5) / 55, 1); // 0..1 over 5–60 min range
+
+    if (theme === 'dark') {
+        // hsl(0, 0%→50%, 14%→26%) — warm dim to muted red
+        const sat = Math.round(t * 50);
+        const lit = Math.round(14 + t * 12);
+        return `hsl(0, ${sat}%, ${lit}%)`;
+    }
+
+    // light: preserve existing behavior — 97% → 75%
+    const lightness = 97 - t * 22;
+    return `hsl(0, 80%, ${lightness}%)`;
+}
+
 // Build a single chase table row element
 function buildChaseRow(spot, isMySpot) {
     const row = document.createElement("tr");
@@ -942,13 +965,9 @@ function buildChaseRow(spot, isMySpot) {
     const utcCell = row.insertCell();
     utcCell.textContent = formattedTime;
 
-    // Age-based coloring: fresh spots are neutral, older spots turn warm/red
+    // Age-based coloring: fresh spots are neutral, older spots turn warm/red (theme-aware)
     const ageMinutes = (Date.now() - ts.getTime()) / 60000;
-    if (ageMinutes > 5) {
-        const t = Math.min((ageMinutes - 5) / 55, 1); // 0..1 over 5–60 min range
-        const lightness = 97 - t * 22; // 97% → 75%
-        utcCell.style.backgroundColor = `hsl(0, 80%, ${lightness}%)`;
-    }
+    utcCell.style.backgroundColor = spotAgeColor(ageMinutes);
 
     // 2. Callsign
     const callsignCell = row.insertCell();
