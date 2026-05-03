@@ -2008,7 +2008,7 @@ button.password-visibility-toggle svg {
 .tabBar button {
     flex: 1;
     background: transparent;
-    color: #6c757d;
+    color: #adb5bd;
     border: none;
     border-bottom: 3px solid transparent;
     padding: 12px 4px;
@@ -2019,6 +2019,10 @@ button.password-visibility-toggle svg {
     font-family: 'JetBrains Mono', 'Courier New', monospace;
     cursor: pointer;
     min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .tabBar button .tabIcons {
