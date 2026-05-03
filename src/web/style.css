@@ -1772,7 +1772,7 @@ button.password-visibility-toggle svg {
 }
 
 .toggle-switch input:checked + .toggle-slider {
-    background-color: var(--primary);
+    background-color: var(--action-primary);
 }
 
 .toggle-switch input:checked + .toggle-slider:before {
@@ -1780,7 +1780,7 @@ button.password-visibility-toggle svg {
 }
 
 .toggle-switch input:focus + .toggle-slider {
-    box-shadow: 0 0 0 3px rgba(34, 139, 230, 0.2);
+    box-shadow: 0 0 0 3px rgba(33, 37, 41, 0.2);
 }
 
 .btn-icon {
