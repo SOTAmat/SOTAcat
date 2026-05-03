@@ -696,8 +696,8 @@ a {
 }
 
 .vfo-band-range-tick.out-of-priv {
-    background: var(--danger);
-    box-shadow: 0 0 6px var(--danger), 0 0 0 1px rgba(0, 0, 0, 0.6);
+    background: var(--state-critical);
+    box-shadow: 0 0 6px var(--state-critical), 0 0 0 1px rgba(0, 0, 0, 0.6);
 }
 
 .vfo-band-range-bandwidth {
@@ -732,7 +732,7 @@ a {
 }
 
 .vfo-display.warning-privilege .vfo-warning {
-    color: var(--danger);
+    color: var(--state-critical);
 }
 
 .frequency-display {
@@ -1883,8 +1883,8 @@ button.password-visibility-toggle svg {
 }
 
 .btn-icon.btn-remove {
-    color: var(--danger);
-    border-color: var(--danger);
+    color: var(--state-critical);
+    border-color: var(--state-critical);
 }
 
 .tune-targets-buttons {
