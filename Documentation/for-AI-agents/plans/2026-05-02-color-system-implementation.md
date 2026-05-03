@@ -276,47 +276,64 @@ grep -n "vfo\|class=\"freq" src/web/run.html src/web/qrx.html 2>/dev/null | head
 ```
 Note the exact class/id names used for the VFO container, frequency text, and mode tag.
 
-- [ ] **Step 2: Replace VFO container rule**
+- [ ] **Step 2: Convert VFO container layout from centered-vertical to inline-horizontal**
 
-Use the actual selector found in Step 1 (likely `.vfo-container`, `.vfo-display`, `#vfo`, or similar). Replace with:
+The existing VFO uses a centered vertical stack (`text-align: center; flex-direction: column; align-items: center; justify-content: center;`). The cockpit pattern is inline horizontal — frequency and mode share a baseline with optional side meta. Update `.vfo-display` to:
+- ADD/REPLACE: `padding: 14px 16px;`, `border-bottom: 1px solid #2b3036;`, `align-items: baseline;`, `gap: 12px;`
+- REMOVE: `text-align: center;`, `flex-direction: column;`, `justify-content: center;`
+- KEEP: `background: var(--surface-op-vfo);` (already set), `display: flex;`, any `border-radius`, `transition`. Decide whether `margin-bottom` is still desired (probably yes — keeps spacing below VFO before content area).
+
+After the edit the rule should resolve to roughly:
 
 ```css
-/* Replace the actual selector for the VFO container */
 .vfo-display {
     background: var(--surface-op-vfo);
+    border-radius: var(--radius-md);
     padding: 14px 16px;
-    border-bottom: 1px solid #2b3036;
+    margin-bottom: var(--space-lg);
     display: flex;
     align-items: baseline;
     gap: 12px;
+    border: 2px solid transparent;       /* keeps the warning-mode/privilege variants working */
+    transition: border-color 0.2s ease;
 }
 ```
 
-- [ ] **Step 3: Replace VFO frequency text rule (drops blue, becomes neutral)**
+- [ ] **Step 3: Update `.frequency-display` — minimal cockpit conversion (preserves tuned size/spacing)**
+
+The existing display has been tuned for outdoor readability. Keep the tuned values; only update what conflicts with the cockpit aesthetic. After the edit the rule should look like:
 
 ```css
-/* The selector for the frequency number text (was probably color: var(--primary)) */
-.vfo-frequency {
-    color: var(--text-on-op);
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+.frequency-display {
+    color: var(--text-on-op);            /* was var(--primary-light) — drops blue collision */
+    font-family: var(--font-mono);       /* keep project monospace stack */
+    font-size: 32px;                     /* KEEP existing — tuned for outdoor glance read */
+    font-weight: 700;                    /* KEEP */
+    letter-spacing: 2px;                 /* KEEP existing — wider digit separation */
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    border: none;
+    line-height: 1.2;
 }
 ```
+The only required net change vs. pre-Task-3 state is the `color` token swap (already done by previous Task 3 commit). No further action needed on `.frequency-display` if its `color` is already `var(--text-on-op)`.
 
-- [ ] **Step 4: Replace VFO mode tag rule**
+- [ ] **Step 4: Update `.mode-display` — add cockpit aesthetic (uppercase + letter-spacing) without changing tuned size**
+
+Add the cockpit aesthetic on top of the existing rule. After the edit:
 
 ```css
-.vfo-mode {
-    color: var(--text-op-accent);
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+.mode-display {
+    color: var(--text-op-accent);        /* already done by previous Task 3 commit */
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);           /* KEEP existing 18px — tuned */
+    font-weight: 600;                    /* KEEP existing */
+    letter-spacing: 1.5px;               /* ADD */
+    text-transform: uppercase;           /* ADD */
 }
 ```
+Net change: add `letter-spacing` and `text-transform`.
 
 - [ ] **Step 5: Update VFO warning border tokens**
 
