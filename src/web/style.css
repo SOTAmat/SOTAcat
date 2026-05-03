@@ -405,15 +405,13 @@ a {
 .vfo-display {
     background: var(--surface-op-vfo);
     border-radius: var(--radius-md);
-    padding: var(--space-lg);
+    padding: 14px 16px;
     margin-bottom: var(--space-lg);
-    text-align: center;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-sm);
+    align-items: baseline;
+    gap: 12px;
     border: 2px solid transparent;
+    border-bottom: 1px solid #2b3036;
     transition: border-color 0.2s ease;
 }
 
@@ -646,6 +644,8 @@ input.frequency-display {
     font-size: var(--text-lg);
     color: var(--text-op-accent);
     font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
 }
 
 /* Grid layouts for CAT controls */
