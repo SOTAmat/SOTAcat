@@ -408,6 +408,7 @@ a {
     padding: 14px 16px;
     margin-bottom: var(--space-lg);
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 12px;
     border: 2px solid transparent;
