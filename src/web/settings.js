@@ -1200,6 +1200,52 @@ async function manualCheckFirmwareVersion() {
 }
 
 // ============================================================================
+// Theme Toggle Logic
+// ============================================================================
+
+function initThemeToggle() {
+    const buttons = document.querySelectorAll('.seg-control .seg-btn');
+    const meta = document.getElementById('theme-meta');
+    if (buttons.length === 0) return;  // settings page not loaded
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function applyTheme(value) {
+        const dark = value === 'dark' || (value === 'auto' && mql.matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    }
+
+    function updateUi(value) {
+        buttons.forEach(b => {
+            b.classList.toggle('active', b.dataset.themeValue === value);
+        });
+        if (meta) {
+            meta.textContent = value === 'auto'
+                ? 'Auto follows system'
+                : (value === 'dark' ? 'Dark theme' : 'Light theme');
+        }
+    }
+
+    function setTheme(value) {
+        localStorage.setItem('sotacat-theme', value);
+        applyTheme(value);
+        updateUi(value);
+    }
+
+    buttons.forEach(b => {
+        b.addEventListener('click', () => setTheme(b.dataset.themeValue));
+    });
+
+    mql.addEventListener('change', () => {
+        if ((localStorage.getItem('sotacat-theme') || 'auto') === 'auto') {
+            applyTheme('auto');
+        }
+    });
+
+    const current = localStorage.getItem('sotacat-theme') || 'auto';
+    updateUi(current);
+}
+
+// ============================================================================
 // Event Handler Attachment
 // ============================================================================
 
@@ -1401,6 +1447,7 @@ function attachSettingsEventListeners() {
 function onSettingsAppearing() {
     fetchSettings();
     attachSettingsEventListeners();
+    initThemeToggle();
     loadCallSign();
     loadTuneTargets();
     loadCwMacros();
