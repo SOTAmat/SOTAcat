@@ -367,11 +367,11 @@ a {
 }
 
 .btn-auto-refresh-active {
-    background: var(--success);
-    box-shadow: 0 0 0 3px rgba(64, 192, 87, 0.2);
+    background: var(--state-transient);
+    box-shadow: 0 0 0 3px rgba(16, 152, 173, 0.2);
 }
 .btn-auto-refresh-active:active:not(:disabled) {
-    background: var(--success-dark);
+    background: #0c7e8c;
 }
 
 .btn-info {
@@ -947,7 +947,7 @@ input.frequency-display {
     cursor: not-allowed;
 }
 .btn-mycall.active {
-    background: var(--danger);
+    background: var(--state-transient);
     animation: pulse 1.5s infinite;
 }
 /* Match sizing of other Chase control buttons */
@@ -957,7 +957,7 @@ input.frequency-display {
     padding: 0 var(--space-md);
 }
 
-/* Scan button: blue default, red pulsing when active (scanning) */
+/* Scan button: blue default, cyan pulsing when active (scanning) */
 .btn-scan {
     background: var(--primary);
     color: var(--white);
@@ -969,7 +969,7 @@ input.frequency-display {
     background: var(--primary-dark);
 }
 .btn-scan.active {
-    background: var(--danger);
+    background: var(--state-transient);
     animation: pulse 1.5s infinite;
 }
 
