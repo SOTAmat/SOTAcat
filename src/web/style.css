@@ -338,19 +338,22 @@ a {
 
 /* Button color variants */
 .btn-primary {
-    background: var(--primary);
-    color: var(--white);
+    background: var(--action-primary);
+    color: var(--action-on-primary);
+    border: 2px solid var(--action-primary);
 }
 .btn-primary:active:not(:disabled) {
-    background: var(--primary-dark);
+    opacity: 0.7;
 }
 
 .btn-secondary {
-    background: var(--gray-2);
-    color: var(--text-primary);
+    background: transparent;
+    color: var(--action-primary);
+    border: 2px solid var(--action-secondary-border);
+    min-height: 60px;
 }
 .btn-secondary:active:not(:disabled) {
-    background: var(--gray-3);
+    opacity: 0.7;
 }
 
 .btn-refresh {
@@ -837,14 +840,18 @@ input.frequency-display {
 }
 
 .btn-xmit {
-    background: var(--gray-8);
-    color: var(--white);
+    background: #495057;
+    color: var(--text-on-op);
+    border: 2px solid #343a40;
     padding: 0;
+    font-family: var(--font-mono);
+    min-height: 60px;
 }
 
 .btn-xmit.active {
-    background: var(--danger);
-    animation: pulse 1.5s infinite;
+    background: var(--state-critical);
+    border-color: #a51111;
+    animation: pulse-critical 1.4s ease-in-out infinite;
 }
 
 @keyframes pulse {
@@ -854,6 +861,16 @@ input.frequency-display {
     }
     50% {
         opacity: 0.7;
+    }
+}
+
+@keyframes pulse-critical {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.55;
     }
 }
 
@@ -918,11 +935,12 @@ input.frequency-display {
 
 .btn-send {
     min-width: 80px;
-    background: var(--primary);
-    color: var(--white);
+    background: var(--action-primary);
+    color: var(--action-on-primary);
+    border: 2px solid var(--action-primary);
 }
 .btn-send:active:not(:disabled) {
-    background: var(--primary-dark);
+    opacity: 0.7;
 }
 
 /* Spot Actions Grid */
@@ -933,13 +951,15 @@ input.frequency-display {
 }
 
 .btn-spot {
-    background: var(--primary);
-    color: var(--white);
+    background: var(--action-primary);
+    color: var(--action-on-primary);
+    border: 2px solid var(--action-primary);
     font-weight: 600;
     padding: 0;
+    min-height: 60px;
 }
 .btn-spot:active:not(:disabled) {
-    background: var(--primary-dark);
+    opacity: 0.7;
 }
 
 /* =========================== Form Elements */
@@ -2286,7 +2306,7 @@ button.password-visibility-toggle svg {
     }
 
     [class*="btn-"].btn-primary {
-        border: 2px solid var(--primary-dark);
+        border: 2px solid var(--action-primary);
     }
 }
 
@@ -2313,10 +2333,10 @@ button.password-visibility-toggle svg {
 @media (hover: hover) {
     /* Primary buttons */
     .btn-primary:hover:not(:disabled) {
-        background: var(--primary-dark);
+        opacity: 0.85;
     }
     .btn-secondary:hover:not(:disabled) {
-        background: var(--gray-3);
+        opacity: 0.85;
     }
     .btn-refresh:hover:not(:disabled) {
         background: var(--primary-dark);
@@ -2400,16 +2420,16 @@ button.password-visibility-toggle svg {
         background: var(--warning-dark);
     }
     .btn-xmit:hover:not(:disabled):not(.active) {
-        background: var(--gray-7);
+        opacity: 0.85;
     }
     .btn-xmit.active:hover:not(:disabled) {
-        background: var(--danger-dark);
+        opacity: 0.85;
     }
     .btn-send:hover:not(:disabled) {
-        background: var(--primary-dark);
+        opacity: 0.85;
     }
     .btn-spot:hover:not(:disabled) {
-        background: var(--primary-dark);
+        opacity: 0.85;
     }
 
     /* Chase table */
