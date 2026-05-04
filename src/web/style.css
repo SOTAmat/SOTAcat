@@ -1133,6 +1133,14 @@ input.frequency-display {
     color: var(--gray-9);
 }
 
+/* CW family (CW/CW_R + voice modes that the backend forces to CW) — Key
+   button matches macro-button blue. Disabled state inherits .btn:disabled
+   opacity 0.6, so empty input → faded blue; text in input → full blue. */
+[data-keyer-family="cw"] #cw-freeform-send {
+    background: var(--mode-cw);
+    color: var(--white);
+}
+
 /* Free-form CW Input Row */
 .cw-freeform-row {
     display: flex;
