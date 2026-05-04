@@ -1358,15 +1358,17 @@ tbody tr:active {
 }
 
 /* Currently tuned row — congruent teal family with the Scan button.
-   Pale teal tint distinguishes from neutral row alternation; darker-teal
-   left marker reads clearly against the pale tint. */
-.tuned-row {
-    background: rgba(16, 152, 173, 0.14);
-    border-left: 4px solid #0c7e8c;
+   Uses #chase-table prefix to outrank `tbody tr.even-row` alternation
+   (specificity 0,1,2). Stronger teal tint than before so it reads over
+   both white (odd) and gray (even) row backgrounds; wider darker-teal
+   left marker for at-a-glance visibility under sun. */
+#chase-table .tuned-row {
+    background: rgba(16, 152, 173, 0.30);
+    border-left: 8px solid #053f4a;
 }
 
-.tuned-row td:first-child {
-    padding-left: calc(var(--space-sm) - 4px);
+#chase-table .tuned-row td:first-child {
+    padding-left: calc(var(--space-sm) - 8px);   /* = 0 — content sits right after the marker */
 }
 
 /* User's own spot row (frozen at top) - higher specificity than .tuned-row */
@@ -1383,10 +1385,10 @@ tbody tr:active {
     font-weight: 600;
 }
 
-/* my-spot-row takes precedence over tuned-row */
+/* my-spot-row takes precedence over tuned-row — same wider marker for consistency */
 #chase-table .my-spot-row.tuned-row {
     background: var(--bg-my-spot);
-    border-left: 4px solid var(--border-my-spot);
+    border-left: 8px solid var(--border-my-spot);
 }
 
 /* Mode cells */
