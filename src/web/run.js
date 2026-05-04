@@ -147,12 +147,27 @@ function updateModeDisplay() {
         btn.classList.add(msgClass);
     });
 
-    // Update XMIT button color to match current mode family (base state only;
-    // .active state still wins via CSS cascade and shows red-critical pulse)
+    // XMIT (Toggle TX) is meaningful only in PHONE modes (SSB/USB/LSB/AM/FM).
+    // CW uses the keyer / Msg buttons; DATA uses external software. Disable
+    // and drop mode-color classes outside PHONE so the button reads as
+    // unavailable rather than tappable-and-blue.
     const xmitBtn = document.getElementById("xmit-button");
     if (xmitBtn) {
         modeClasses.forEach((cls) => xmitBtn.classList.remove(cls));
-        xmitBtn.classList.add(msgClass);
+        const isPhone = currentMode !== "CW" && currentMode !== "CW_R" &&
+                        currentMode !== "DATA" && currentMode !== "DATA_R";
+        if (isPhone) {
+            xmitBtn.classList.add(msgClass);   // msg-mode-voice → green
+            xmitBtn.disabled = false;
+            xmitBtn.title = "";
+        } else {
+            xmitBtn.disabled = true;
+            xmitBtn.title = currentMode === "CW" || currentMode === "CW_R"
+                ? "Toggle TX not available in CW mode — use Msg buttons / keyer"
+                : "Toggle TX not available in DATA mode";
+            // Also clear .active in case the radio is mid-transmit when mode changes
+            xmitBtn.classList.remove("active");
+        }
     }
 
     applyKeyerFamilyHints();
