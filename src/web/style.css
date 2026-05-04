@@ -445,11 +445,6 @@ a {
     color: var(--action-on-primary);
 }
 
-[data-theme="dark"] .seg-control {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: var(--border-default-new);
-}
-
 /* =========================== CAT Page Specific Buttons */
 
 /* VFO Display */
@@ -2564,102 +2559,4 @@ button.password-visibility-toggle svg {
 
 .text-muted {
     color: var(--text-secondary);
-}
-
-/* ============================================================================
-   DARK THEME (Phase 4 — Color Redesign 2026-05-01)
-   Activated by html[data-theme="dark"] (set by inline script in <head>).
-   Operational chrome (header, VFO, mode bar) is always dark — no override needed.
-   ============================================================================ */
-[data-theme="dark"] {
-    /* Surfaces */
-    --surface-page: #0a0d10;
-    --surface-card: #181d22;
-
-    /* Text */
-    --text-primary-new: #f1f3f5;
-    --text-secondary-new: #adb5bd;
-
-    /* Action accent — inverts (light fill on dark theme) */
-    --action-primary: #f1f3f5;
-    --action-on-primary: #0a0d10;
-    --action-secondary-border: #f1f3f5;
-
-    /* Status pills — darker bgs, lighter text */
-    --state-critical-pastel-bg: #3b1f1f;
-    --state-critical-pastel-fg: #ff8787;
-
-    --status-ok-bg: #1f2e23;
-    --status-ok-fg: #69db7c;
-    --status-ok-border: #2b8a3e;
-
-    --status-na-bg: #1c1f23;
-    --status-na-fg: #adb5bd;
-    --status-na-border: #2b3036;
-
-    /* Borders */
-    --border-default-new: #2b3036;
-    --border-strong: #000000;
-
-    /* Band-rainbow opacity bumped for visibility on dark */
-    --band-opacity: 0.55;
-
-}
-
-/* Body / page-level surfaces */
-[data-theme="dark"] body {
-    background: var(--surface-page);
-    color: var(--text-primary-new);
-}
-
-/* Cards */
-[data-theme="dark"] .section-card,
-[data-theme="dark"] .settings-card,
-[data-theme="dark"] .card,
-[data-theme="dark"] table {
-    background: var(--surface-card);
-    color: var(--text-primary-new);
-}
-
-/* Toggle dark variant — light fill when on, dark thumb */
-[data-theme="dark"] .toggle-track,
-[data-theme="dark"] .toggle-slider {
-    background: #495057;
-}
-[data-theme="dark"] input[type="checkbox"]:checked + .toggle-track,
-[data-theme="dark"] input[type="checkbox"]:checked + .toggle-slider,
-[data-theme="dark"] .toggle-track.on,
-[data-theme="dark"] .toggle-slider.on {
-    background: var(--action-primary);
-}
-[data-theme="dark"] .toggle-track::after,
-[data-theme="dark"] .toggle-slider::after {
-    background: #ffffff;
-}
-[data-theme="dark"] input[type="checkbox"]:checked + .toggle-track::after,
-[data-theme="dark"] input[type="checkbox"]:checked + .toggle-slider::after,
-[data-theme="dark"] .toggle-track.on::after,
-[data-theme="dark"] .toggle-slider.on::after {
-    background: #212529;
-}
-
-/* My-spot row */
-[data-theme="dark"] #chase-table .my-spot-row {
-    background: #2a2418;
-    color: var(--text-primary-new);
-}
-
-/* Band cells — light text on most; dark text on yellow/gold/light bands.
-   The yellow/gold/light bands need dark text on top of their tinted bg. */
-[data-theme="dark"] [class*="band-"] {
-    color: var(--text-primary-new);
-}
-[data-theme="dark"] .band-20m,
-[data-theme="dark"] .band-17m,
-[data-theme="dark"] .band-1p25m,
-[data-theme="dark"] .band-2p4GHz,
-[data-theme="dark"] .band-24GHz,
-[data-theme="dark"] .band-47GHz,
-[data-theme="dark"] .band-76GHz {
-    color: #212529 !important;
 }
