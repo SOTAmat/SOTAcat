@@ -298,3 +298,11 @@ Before marking any phase complete, verify on a real phone:
 - Whether to retire the existing `@media (prefers-contrast: high)` block entirely in Phase 6, or keep it as an extra-contrast layer. Recommendation: retire — the new design's defaults already meet or exceed what that block provided.
 - Whether to add a "boost" sub-mode for direct sunlight (one-tap brightness/saturation amplification beyond Light). Not in current scope; revisit after Phase 5 if outdoor users report needing it.
 - Whether the band-range graph in Run (`run.js:399`) needs additional visual encoding (pattern/position) for full color-blind support. Out of scope for this redesign; flag for future work.
+
+---
+
+## Postscript (2026-05-03) — Dark mode dropped
+
+Sections §4 dark-theme columns, §5 dark-theme overrides, §6.3 (theme switching mechanism), and Phase 4–5 of the migration plan are **historical only**. After real-device testing on the user's phone, dark mode coverage gaps were extensive (sub-cards, headings, Run-page cards, Chase row highlighting all inadequately covered). Rather than chase down every uncovered selector, the project committed to **light mode only** going forward, optimized for the dominant context: outdoor SOTA activations in direct sunlight.
+
+The light-theme tokens defined in §4 remain in use — they describe the single-theme defaults. The `[data-theme]` attribute mechanism, the `localStorage["sotacat-theme"]` key, and the AUTO/LIGHT/DARK segmented control have all been removed from the codebase.

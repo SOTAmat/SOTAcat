@@ -1774,3 +1774,11 @@ This plan was reviewed against the spec on 2026-05-02. Coverage:
 | §7 Six-phase migration | Phases 0–6 = Tasks 1–20 |
 | §8 Per-phase testing | Embedded in each task's verify step + Task 21 |
 | §9 Risks (theme flash, gzip regen, shim creep) | Mitigated by Task 16 (inline script), gzip step in every task, Task 19 (shim removal) |
+
+---
+
+## Postscript (2026-05-03) — Phases 4 + 5 reverted
+
+Phase 4 (`[data-theme="dark"]` block) and Phase 5 (theme toggle UI + persistence) were reverted after real-device testing showed extensive dark-mode coverage gaps. The project is light-mode only going forward. See the spec postscript for rationale.
+
+Tasks 15–18 are no longer relevant. Task 21 (final hardware verification) remains and applies to the light-only state.
