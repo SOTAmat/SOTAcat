@@ -222,6 +222,10 @@ a:visited { color: var(--link-visited); }
 a:hover { opacity: 0.85; }
 a:active { opacity: 0.7; }
 
+/* Inside dense tabular data, drop the underline — color alone is enough,
+   and the underline competes with row alternation for visual attention. */
+#chase-table a { text-decoration: none; }
+
 /* =========================== Layout Components */
 
 /* Main Container */
@@ -983,10 +987,19 @@ input.frequency-display {
     }
 }
 
-/* Cyan transient pulse — animates background only, leaves border + opacity alone */
+/* Cyan transient pulse — animates background only, leaves border + opacity alone.
+   Used by .btn-mycall.active where the idle base is mode-colored (blue/green/amber)
+   and any pulsing cyan is visually distinct from the idle. */
 @keyframes pulse-transient-bg {
     0%, 100% { background-color: var(--state-transient); }
     50% { background-color: #0a7884; }   /* darker cyan for the dim half of the pulse */
+}
+
+/* Scan-active pulse — both phases brighter than scan-idle teal so the pulse
+   always reads as "more alive" than the calm idle state. */
+@keyframes pulse-scan {
+    0%, 100% { background-color: #1098ad; }   /* bright teal */
+    50% { background-color: #22b8cf; }         /* even brighter */
 }
 
 /* MyCall button: colored by mode like Msg buttons */
@@ -1033,10 +1046,11 @@ input.frequency-display {
     padding: 0 var(--space-md);
 }
 
-/* Scan button: blue default, cyan pulsing when active (scanning) */
+/* Scan button: calm teal idle ("ready to scan"), brighter pulsing teal active ("Stop"). */
 .btn-scan {
-    background: var(--action-primary);
-    color: var(--action-on-primary);
+    background: #0c7e8c;
+    color: var(--text-on-op);
+    border: 2px solid #074550;
     min-height: var(--touch-target-sm);
     font-size: var(--text-sm);
     padding: 0 var(--space-md);
@@ -1045,9 +1059,9 @@ input.frequency-display {
     opacity: 0.7;
 }
 .btn-scan.active {
-    background: var(--state-transient);
-    border: 2px solid #0a7884;
-    animation: pulse-transient-bg 1.5s ease-in-out infinite;
+    background: #1098ad;
+    border: 2px solid #22b8cf;
+    animation: pulse-scan 1.2s ease-in-out infinite;
 }
 
 .btn-send {
@@ -1343,10 +1357,12 @@ tbody tr:active {
     background: var(--gray-2);
 }
 
-/* Currently tuned row - matches radio VFO frequency/mode */
+/* Currently tuned row — congruent teal family with the Scan button.
+   Pale teal tint distinguishes from neutral row alternation; darker-teal
+   left marker reads clearly against the pale tint. */
 .tuned-row {
-    background: rgba(0, 0, 0, 0.08);
-    border-left: 4px solid var(--action-primary);
+    background: rgba(16, 152, 173, 0.14);
+    border-left: 4px solid #0c7e8c;
 }
 
 .tuned-row td:first-child {
