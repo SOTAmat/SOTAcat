@@ -1359,12 +1359,13 @@ tbody tr:active {
 
 /* Currently tuned row — congruent teal family with the Scan button.
    Uses #chase-table prefix to outrank `tbody tr.even-row` alternation
-   (specificity 0,1,2). Stronger teal tint than before so it reads over
-   both white (odd) and gray (even) row backgrounds; wider darker-teal
-   left marker for at-a-glance visibility under sun. */
+   (specificity 0,1,2). Marker bar uses the SAME teal as the row tint —
+   no contrast needed because the adjacent UTC column (immune to row
+   highlighting) provides the natural visual edge between marker and
+   non-tuned content. */
 #chase-table .tuned-row {
     background: rgba(16, 152, 173, 0.30);
-    border-left: 8px solid #053f4a;
+    border-left: 8px solid rgba(16, 152, 173, 0.30);
 }
 
 #chase-table .tuned-row td:first-child {
