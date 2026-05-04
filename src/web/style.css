@@ -1326,7 +1326,7 @@ tr:last-child td {
 }
 
 tbody tr.even-row {
-    background: var(--gray-0);
+    background: var(--gray-2);
 }
 
 tbody tr:active {
@@ -1335,7 +1335,7 @@ tbody tr:active {
 
 /* Currently tuned row - matches radio VFO frequency/mode */
 .tuned-row {
-    background: rgba(34, 139, 230, 0.12);
+    background: rgba(0, 0, 0, 0.08);
     border-left: 4px solid var(--action-primary);
 }
 
