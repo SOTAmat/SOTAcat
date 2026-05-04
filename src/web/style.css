@@ -102,6 +102,11 @@
     --action-on-primary: #ffffff;
     --action-secondary-border: #212529;
 
+    /* Hyperlinks — universal blue+underlined affordance.
+       Brighter than --mode-cw so links and CW-mode badges read as different things. */
+    --link: #0d6efd;
+    --link-visited: #6f42c1;
+
     /* Critical state — XMIT, hard errors */
     --state-critical: #e03131;
     --state-critical-pastel-bg: #fff5f5;
@@ -207,10 +212,15 @@ h3 {
     font-size: var(--text-lg);
 }
 
+/* Hyperlinks — universal blue+underlined affordance.
+   Distinct from mode-cw filled badges by treatment (underlined text vs solid bg). */
 a {
-    color: var(--action-primary);
-    text-decoration: none;
+    color: var(--link);
+    text-decoration: underline;
 }
+a:visited { color: var(--link-visited); }
+a:hover { opacity: 0.85; }
+a:active { opacity: 0.7; }
 
 /* =========================== Layout Components */
 
