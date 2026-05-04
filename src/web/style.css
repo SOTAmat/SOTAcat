@@ -187,7 +187,7 @@ body {
     font-size: var(--text-md);
     line-height: 1.5;
     color: var(--text-primary);
-    background: var(--gray-0);
+    background: var(--surface-page);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
@@ -2277,9 +2277,26 @@ button.password-visibility-toggle svg {
         font-size: var(--text-md);
     }
 
+    /* Edge-to-edge cards on phones — recover horizontal content width.
+       Cards stay differentiated via stronger page bg (--surface-page on body)
+       + subtle shadow + header bg color. */
+    #content-area {
+        padding: 0 0 80px;            /* keep bottom 80px for tab bar clearance */
+    }
     .section-card {
-        margin: var(--space-sm);
-        border-radius: var(--radius-md);
+        margin: 0 0 var(--space-sm);  /* no horizontal margin; 8px between stacked cards */
+        border-radius: 6px;
+    }
+    .section-content {
+        padding: var(--space-md) var(--space-sm);   /* 12 vertical, 8 horizontal */
+    }
+    .section-header {
+        padding: var(--space-md) 10px;              /* 12 vertical, 10 horizontal */
+    }
+    .settings-card {
+        padding: var(--space-md) 10px;              /* match section style; was --space-lg = 20px */
+        margin: 0 0 var(--space-sm);
+        border-radius: 6px;
     }
 
     /* Tables Mobile */
