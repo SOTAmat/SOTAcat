@@ -316,7 +316,7 @@ a:active { opacity: 0.7; }
 }
 
 .section-content {
-    padding: var(--space-lg);
+    padding: var(--space-md);
     background: var(--white);
 }
 
@@ -462,7 +462,7 @@ a:active { opacity: 0.7; }
     background: var(--surface-op-vfo);
     border-radius: var(--radius-md);
     padding: 14px 16px;
-    margin-bottom: var(--space-lg);
+    margin-bottom: var(--space-md);
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -766,7 +766,7 @@ input.frequency-display {
 .xmit-controls {
     display: grid;
     gap: var(--space-sm);
-    margin-bottom: var(--space-lg);
+    margin-bottom: var(--space-md);
 }
 
 .freq-controls {
@@ -780,7 +780,7 @@ input.frequency-display {
 .mode-grid {
     grid-template-columns: repeat(5, 1fr);
     background: var(--surface-op-modebar);
-    padding: var(--space-md);
+    padding: var(--space-sm);
     border-radius: var(--radius-md);
 }
 
