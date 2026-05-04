@@ -1046,11 +1046,13 @@ input.frequency-display {
     padding: 0 var(--space-md);
 }
 
-/* Scan button: calm teal idle ("ready to scan"), brighter pulsing teal active ("Stop"). */
+/* Scan button: calm teal idle ("ready to scan"), brighter pulsing teal active ("Stop").
+   Transparent border on idle reserves the layout slot for the active-state border so the
+   button doesn't shift by 2px when scanning starts. */
 .btn-scan {
     background: #0c7e8c;
     color: var(--text-on-op);
-    border: 2px solid #074550;
+    border: 2px solid transparent;
     min-height: var(--touch-target-sm);
     font-size: var(--text-sm);
     padding: 0 var(--space-md);
