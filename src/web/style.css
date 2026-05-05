@@ -121,6 +121,9 @@
     /* ham2k Polo brand color — log button only */
     --polo: #006783;
 
+    /* ATU tune button — physical hardware op, distinct from XMIT-red */
+    --atu: #be4bdb;
+
     /* Status — allowed / success */
     --status-ok-bg: #ebfbee;
     --status-ok-fg: #2b8a3e;
@@ -914,9 +917,13 @@ input.frequency-display {
 }
 
 .btn-tune {
-    background: var(--action-primary);
-    color: var(--action-on-primary);
+    background: var(--atu);
+    color: var(--white);
+    border: 2px solid var(--atu);
     padding: 0;
+}
+.btn-tune:active:not(:disabled) {
+    opacity: 0.7;
 }
 
 /* Msg buttons: pushbuttons colored by current mode (saturated at rest) */
