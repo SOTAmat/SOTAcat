@@ -124,6 +124,12 @@
     /* ATU tune button — physical hardware op, distinct from XMIT-red */
     --atu: #be4bdb;
 
+    /* Scan + Auto-refresh — operational/searching transient. Violet keeps it
+       distinct from PoLo/spot/mode hues. */
+    --scan-idle: #5f3dc4;
+    --scan-active-min: #7950f2;
+    --scan-active-max: #9775fa;
+
     /* Status — allowed / success */
     --status-ok-bg: #ebfbee;
     --status-ok-fg: #2b8a3e;
@@ -400,11 +406,12 @@ a:active { opacity: 0.7; }
 }
 
 .btn-auto-refresh-active {
-    background: var(--state-transient);
-    box-shadow: 0 0 0 3px rgba(16, 152, 173, 0.2);
+    background: var(--scan-active-min);
+    border: 2px solid var(--scan-active-max);
+    animation: pulse-scan 1.5s ease-in-out infinite;
 }
 .btn-auto-refresh-active:active:not(:disabled) {
-    background: #0c7e8c;
+    opacity: 0.7;
 }
 
 .btn-info {
@@ -1019,11 +1026,9 @@ input.frequency-display {
     50% { background-color: #0a7884; }   /* darker cyan for the dim half of the pulse */
 }
 
-/* Scan-active pulse — both phases brighter than scan-idle teal so the pulse
-   always reads as "more alive" than the calm idle state. */
 @keyframes pulse-scan {
-    0%, 100% { background-color: #1098ad; }   /* bright teal */
-    50% { background-color: #22b8cf; }         /* even brighter */
+    0%, 100% { background-color: var(--scan-active-min); }
+    50% { background-color: var(--scan-active-max); }
 }
 
 /* MyCall button: colored by mode like Msg buttons */
@@ -1074,7 +1079,7 @@ input.frequency-display {
    Transparent border on idle reserves the layout slot for the active-state border so the
    button doesn't shift by 2px when scanning starts. */
 .btn-scan {
-    background: #0c7e8c;
+    background: var(--scan-idle);
     color: var(--text-on-op);
     border: 2px solid transparent;
     min-height: var(--touch-target-sm);
@@ -1085,8 +1090,8 @@ input.frequency-display {
     opacity: 0.7;
 }
 .btn-scan.active {
-    background: #1098ad;
-    border: 2px solid #22b8cf;
+    background: var(--scan-active-min);
+    border: 2px solid var(--scan-active-max);
     animation: pulse-scan 1.2s ease-in-out infinite;
 }
 
