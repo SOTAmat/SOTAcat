@@ -115,6 +115,12 @@
     /* Transient state — scan, MyCall, working */
     --state-transient: #1098ad;
 
+    /* Spot announcements — bright orange ("Big Orange Splot"). PoLo gets its own teal. */
+    --spot: #fd7e14;
+
+    /* ham2k Polo brand color — log button only */
+    --polo: #006783;
+
     /* Status — allowed / success */
     --status-ok-bg: #ebfbee;
     --status-ok-fg: #2b8a3e;
@@ -1095,15 +1101,23 @@ input.frequency-display {
 }
 
 .btn-spot {
-    background: var(--action-primary);
-    color: var(--action-on-primary);
-    border: 2px solid var(--action-primary);
+    background: var(--spot);
+    color: var(--gray-9);
+    border: 2px solid var(--spot);
     font-weight: 600;
     padding: 0;
     min-height: 60px;
 }
 .btn-spot:active:not(:disabled) {
     opacity: 0.7;
+}
+
+/* PoLo log button — uses ham2k Polo brand teal (deeper than spot) */
+#polo-spot-button,
+#polo-chase-button {
+    background: var(--polo);
+    color: var(--white);
+    border-color: var(--polo);
 }
 
 /* =========================== Form Elements */
