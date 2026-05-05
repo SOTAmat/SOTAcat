@@ -844,7 +844,21 @@ input.frequency-display {
     transition: transform 0.05s;
 }
 
-/* Disabled mode button (overridden by specific ID selectors below) */
+/* Inactive but enabled — pale mode-color tint identifies the button at a glance.
+   30% mode color mixed with the dark mode-bar background gives a tint that's
+   clearly mode-coded but obviously subordinate to .active (full saturation).
+   .active and :disabled rules below have higher specificity and still win. */
+#btn-cw {
+    background: color-mix(in srgb, var(--mode-cw) 30%, var(--surface-op-modebar));
+}
+#btn-ssb,
+#btn-am,
+#btn-fm {
+    background: color-mix(in srgb, var(--mode-voice) 30%, var(--surface-op-modebar));
+}
+#btn-data {
+    background: color-mix(in srgb, var(--mode-data) 30%, var(--surface-op-modebar));
+}
 
 /* CW family */
 #btn-cw.active {
