@@ -112,9 +112,6 @@
     --state-critical-pastel-bg: #fff5f5;
     --state-critical-pastel-fg: #c92a2a;
 
-    /* Transient state — scan, MyCall, working */
-    --state-transient: #1098ad;
-
     /* Spot announcements — bright orange ("Big Orange Splot"). PoLo gets its own teal. */
     --spot: #fd7e14;
 
@@ -1018,14 +1015,6 @@ input.frequency-display {
     }
 }
 
-/* Cyan transient pulse — animates background only, leaves border + opacity alone.
-   Used by .btn-mycall.active where the idle base is mode-colored (blue/green/amber)
-   and any pulsing cyan is visually distinct from the idle. */
-@keyframes pulse-transient-bg {
-    0%, 100% { background-color: var(--state-transient); }
-    50% { background-color: #0a7884; }   /* darker cyan for the dim half of the pulse */
-}
-
 @keyframes pulse-scan {
     0%, 100% { background-color: var(--scan-active-min); }
     50% { background-color: var(--scan-active-max); }
@@ -1064,9 +1053,9 @@ input.frequency-display {
     cursor: not-allowed;
 }
 .btn-mycall.active {
-    background: var(--state-transient);
-    border: 2px solid #0a7884;
-    animation: pulse-transient-bg 1.5s ease-in-out infinite;
+    background: var(--state-critical);
+    border: 2px solid #a51111;
+    animation: pulse-critical 1.4s ease-in-out infinite;
 }
 /* Match sizing of other Chase control buttons */
 .controls-grid .btn-mycall {
