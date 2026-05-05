@@ -86,11 +86,11 @@
     --text-op-data: #74c0fc;
 
     /* Mode hues — locked mapping (same in both themes)
-       Shades chosen so white text meets WCAG AA on CW + voice;
-       DATA uses dark text since amber's luminance can't support white. */
-    --mode-cw: #1864ab;        /* white text contrast 6.0:1 */
-    --mode-voice: #1f7330;     /* white text contrast 5.2:1 */
-    --mode-data: #f08c00;      /* DARK text — see #btn-data.active rule */
+       Shades chosen so dark text meets WCAG AA on all three;
+       restored to Tier 1 brightness for consistency. */
+    --mode-cw: #228be6;        /* restored bright blue */
+    --mode-voice: #40c057;     /* restored bright green */
+    --mode-data: #fab005;      /* restored YELLOW */
 
     /* Mode colors for use as TEXT on dark operational surfaces (brighter shades) */
     --mode-cw-on-dark: #4dabf7;
@@ -863,7 +863,7 @@ input.frequency-display {
 /* CW family */
 #btn-cw.active {
     background: var(--mode-cw);
-    color: var(--white);
+    color: var(--gray-9);
     border-color: transparent;
 }
 #btn-cw:disabled {
@@ -875,7 +875,7 @@ input.frequency-display {
 /* Voice family */
 #btn-ssb.active, #btn-am.active, #btn-fm.active {
     background: var(--mode-voice);
-    color: var(--white);
+    color: var(--gray-9);
     border-color: transparent;
 }
 #btn-ssb:disabled, #btn-am:disabled, #btn-fm:disabled {
@@ -924,14 +924,14 @@ input.frequency-display {
 }
 .btn-msg.msg-mode-cw {
     background: var(--mode-cw);
-    color: var(--white);
+    color: var(--gray-9);
 }
 .btn-msg.msg-mode-cw:active {
     opacity: 0.7;
 }
 .btn-msg.msg-mode-voice {
     background: var(--mode-voice);
-    color: var(--white);
+    color: var(--gray-9);
 }
 .btn-msg.msg-mode-voice:active {
     opacity: 0.7;
@@ -961,12 +961,12 @@ input.frequency-display {
 
 .btn-xmit.msg-mode-cw {
     background: var(--mode-cw);
-    color: var(--white);
+    color: var(--gray-9);
     border-color: var(--mode-cw);
 }
 .btn-xmit.msg-mode-voice {
     background: var(--mode-voice);
-    color: var(--white);
+    color: var(--gray-9);
     border-color: var(--mode-voice);
 }
 .btn-xmit.msg-mode-data {
@@ -1024,14 +1024,14 @@ input.frequency-display {
 }
 .btn-mycall.msg-mode-cw {
     background: var(--mode-cw);
-    color: var(--white);
+    color: var(--gray-9);
 }
 .btn-mycall.msg-mode-cw:active:not(:disabled) {
     opacity: 0.7;
 }
 .btn-mycall.msg-mode-voice {
     background: var(--mode-voice);
-    color: var(--white);
+    color: var(--gray-9);
 }
 .btn-mycall.msg-mode-voice:active:not(:disabled) {
     opacity: 0.7;
@@ -1120,7 +1120,7 @@ input.frequency-display {
 
 .btn-cw-macro {
     background: var(--mode-cw);
-    color: var(--white);
+    color: var(--gray-9);
     font-weight: 600;
     min-width: 80px;
     padding: var(--space-sm) var(--space-sm);
@@ -1152,7 +1152,7 @@ input.frequency-display {
    opacity 0.6, so empty input → faded blue; text in input → full blue. */
 [data-keyer-family="cw"] #cw-freeform-send {
     background: var(--mode-cw);
-    color: var(--white);
+    color: var(--gray-9);
 }
 
 /* Free-form CW Input Row */
@@ -1422,7 +1422,7 @@ tbody tr:active {
     border-radius: var(--radius-sm);
     font-weight: 600;
     text-align: center;
-    color: var(--white);
+    color: var(--gray-9);
 }
 
 .mode-cell-CW {
@@ -1435,7 +1435,6 @@ tbody tr:active {
 }
 .mode-cell-DATA {
     background: var(--mode-data);
-    color: var(--gray-9);
 }
 .mode-cell-OTHER {
     background: var(--gray-6);
@@ -2535,7 +2534,7 @@ button.password-visibility-toggle svg {
         background: #596470;
     }
     #btn-cw.active:hover:not(:disabled) {
-        background: #0d4d8a;
+        opacity: 0.85;
     }
     #btn-ssb:hover:not(:disabled):not(.active),
     #btn-am:hover:not(:disabled):not(.active),
@@ -2545,13 +2544,13 @@ button.password-visibility-toggle svg {
     #btn-ssb.active:hover:not(:disabled),
     #btn-am.active:hover:not(:disabled),
     #btn-fm.active:hover:not(:disabled) {
-        background: #155a25;
+        opacity: 0.85;
     }
     #btn-data:hover:not(:disabled):not(.active) {
         background: #596470;
     }
     #btn-data.active:hover:not(:disabled) {
-        background: #d97706;
+        opacity: 0.85;
     }
     .btn-power:hover:not(:disabled) {
         background: var(--gray-7);
