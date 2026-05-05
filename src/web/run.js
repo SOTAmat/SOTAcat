@@ -316,6 +316,13 @@ const LICENSE_CLASS_RANK = ["N", "T", "G", "A", "E"];
 // Keep this order stable so the stripe layout stays consistent across rows.
 const MODE_CATEGORIES = ["CW", "DATA", "PHONE"];
 
+// Map mode categories to CSS token names (on-dark palette)
+const STRIPE_TOKEN_BY_CATEGORY = {
+    CW: "--mode-cw-on-dark",
+    DATA: "--mode-data-on-dark",
+    PHONE: "--mode-voice-on-dark",
+};
+
 // Determine which license-class badges are currently rendered in the VFO
 // (matches the visibility logic in updatePrivilegeDisplay()).
 // Novice + Advanced badges are hidden unless the user actually holds one of
@@ -421,7 +428,7 @@ function updateBandRangeDisplay() {
             for (const m of stripeModes) {
                 const stripe = document.createElement("div");
                 stripe.className = "vfo-band-range-mode-stripe";
-                stripe.style.setProperty("--stripe-color", `var(--mode-${m.toLowerCase()}-color)`);
+                stripe.style.setProperty("--stripe-color", `var(${STRIPE_TOKEN_BY_CATEGORY[m]})`);
                 segEl.appendChild(stripe);
             }
 

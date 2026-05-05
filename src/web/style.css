@@ -590,9 +590,6 @@ a:active { opacity: 0.7; }
    side-by-side stripes colored by allowed mode (CW / DATA / PHONE). A
    single tick + bandwidth overlay spans the full stack. */
 .vfo-band-range {
-    --mode-cw-color: #4dabf7;     /* CW    — blue   */
-    --mode-data-color: #ffd43b;   /* DATA  — yellow */
-    --mode-phone-color: #51cf66;  /* PHONE — green  */
     --label-width: 14px;
     --row-gap: 0;
     --row-height: 5px;
