@@ -1075,20 +1075,12 @@ async function tuneAtu() {
 // CW Macro Button Functions
 // ============================================================================
 
-const DEFAULT_CW_MACROS = [
-    { label: "CQ SOTA", template: "CQ SOTA DE {MYCALL} {MYCALL} K" },
-    { label: "UR 5NN", template: "UR 5NN {MYREF} BK" },
-    { label: "MY REF", template: "{MYREF}" },
-    { label: "PSE AGN", template: "PSE AGN" },
-    { label: "TU 73 QRZ", template: "TU 73 QRZ" },
-];
-
 // Render CW macro buttons into the #cw-macro-buttons container
 function renderCwMacroButtons() {
     const container = document.getElementById("cw-macro-buttons");
     if (!container) return;
 
-    const macros = AppState.cwMacros && AppState.cwMacros.length > 0 ? AppState.cwMacros : DEFAULT_CW_MACROS;
+    const macros = AppState.cwMacros || [];
     container.innerHTML = "";
 
     macros.forEach((macro, index) => {
@@ -1103,7 +1095,7 @@ function renderCwMacroButtons() {
 
 // Handle CW macro button press: expand template and send
 function onCwMacroButtonPress(index) {
-    const macros = AppState.cwMacros && AppState.cwMacros.length > 0 ? AppState.cwMacros : DEFAULT_CW_MACROS;
+    const macros = AppState.cwMacros || [];
     if (index < 0 || index >= macros.length) return;
 
     const expanded = expandCwMacroTemplate(macros[index].template);
@@ -1525,13 +1517,12 @@ async function onSpotAppearing() {
 
     // Ensure callsign, location, and macros are loaded before rendering buttons.
     // Without these awaits, {MYCALL} and {MYREF} resolve to "" on first visit,
-    // and macro buttons may show defaults with wrong index-to-template mappings
-    // when AppState.cwMacros loads asynchronously after buttons are already rendered.
+    // and macro buttons may render empty before AppState.cwMacros loads.
     await ensureCallSignLoaded();
     await getLocation();
     await loadCwMacrosAsync();
 
-    // Render CW macro buttons from AppState (or defaults)
+    // Render CW macro buttons from AppState (empty until configured in Settings)
     renderCwMacroButtons();
 
     // Attach event listeners for all controls

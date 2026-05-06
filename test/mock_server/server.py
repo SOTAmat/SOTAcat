@@ -71,12 +71,8 @@ DEFAULT_STATE = {
         {"url": "http://rx.linkfanel.net/", "enabled": False},
     ],
     "tune_targets_mobile": False,
-    # CW macros
-    "cw_macros": [
-        {"label": "CQ SOTA", "template": "CQ SOTA DE {MYCALL} {MYCALL} K"},
-        {"label": "UR 5NN", "template": "UR 5NN {MYREF} BK"},
-        {"label": "TU 73", "template": "TU 73 QRZ"},
-    ],
+    # CW macros (empty by default — must be configured in Settings)
+    "cw_macros": [],
     # WiFi settings
     "sta1_ssid": "HomeNetwork",
     "sta1_pass": "********",
