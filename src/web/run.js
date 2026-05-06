@@ -442,6 +442,171 @@ function updateBandRangeDisplay() {
     stack.replaceChildren(frag);
 }
 
+// ============================================================================
+// Drag-to-tune (mouse) / tap-to-tune (touch) on the band-range chart
+// ============================================================================
+// Mouse: pointerdown anywhere in #vfo-band-range starts a live drag — the
+// visual tick follows the pointer (snapped per-mode, clamped to band edges)
+// and CAT writes are throttled to ~15 Hz, with a final canonical
+// setFrequency() on pointerup.
+//
+// Touch: tap-to-jump only. We do NOT track the finger live (avoids
+// flooding the rig and conflicting with native page scroll). The tick
+// jumps to the release coordinates on pointerup; pointercancel (e.g.
+// the browser handing off to a scroll gesture) commits nothing.
+//
+// VFO read polling is suppressed automatically because the drag/tap path
+// updates RunState.lastUserAction, which getCurrentVfoState() already
+// honors via its existing 2s window.
+
+const DRAG_WRITE_THROTTLE_MS = 66;
+const DRAG_DEAD_ZONE_PX = 3;
+
+let dragState = null;
+
+function pixelToFrequencyHz(clientX, overlayRect, bandMin, bandMax) {
+    const frac = (clientX - overlayRect.left) / overlayRect.width;
+    return bandMin + frac * (bandMax - bandMin);
+}
+
+function snapFrequencyHz(hz, snapHz) {
+    return Math.round(hz / snapHz) * snapHz;
+}
+
+function clampFrequencyHz(hz, bandMin, bandMax) {
+    return Math.max(bandMin, Math.min(bandMax, hz));
+}
+
+function computeDragFrequency(clientX, state) {
+    const raw = pixelToFrequencyHz(clientX, state.overlayRect, state.bandMin, state.bandMax);
+    return clampFrequencyHz(snapFrequencyHz(raw, state.snapHz), state.bandMin, state.bandMax);
+}
+
+function applyDragFrequency(hz, state) {
+    AppState.vfoFrequencyHz = hz;
+    AppState.vfoLastUpdated = Date.now();
+    RunState.lastUserAction = Date.now(); // Suppress VFO read polling for 2s
+    updateFrequencyDisplay();
+    updatePrivilegeDisplay();   // redraws the tick at the new position
+    notifyVfoSubscribers();
+
+    const now = Date.now();
+    if (now - state.lastWriteAt >= DRAG_WRITE_THROTTLE_MS) {
+        state.lastWriteAt = now;
+        setFrequencyImmediate(hz);
+    }
+}
+
+function onBandRangeDragStart(event) {
+    // Mouse: only the primary (left) button initiates. Touch reports
+    // button === 0 too, so this check is harmless there.
+    if (event.button !== 0) return;
+    const container = document.getElementById("vfo-band-range");
+    if (!container || container.classList.contains("hidden")) return;
+
+    const overlay = container.querySelector(".vfo-band-range-overlay");
+    if (!overlay) return;
+
+    const band = getBandFromFrequency(AppState.vfoFrequencyHz);
+    const segments = band ? FCC_AMATEUR_PRIVILEGES[band] : null;
+    if (!segments || segments.length === 0) return;
+
+    const isTouch = event.pointerType === "touch";
+
+    dragState = {
+        startX: event.clientX,
+        lastWriteAt: 0,
+        exceededDeadZone: false,
+        bandMin: segments[0].min,
+        bandMax: segments[segments.length - 1].max,
+        snapHz: getSnapStepHz(AppState.vfoMode),
+        overlayRect: overlay.getBoundingClientRect(),
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        isTouch: isTouch,
+        container: container,
+    };
+
+    container.classList.add("is-dragging");
+
+    document.addEventListener("pointermove", onBandRangeDragMove);
+    document.addEventListener("pointerup", onBandRangeDragEnd);
+    document.addEventListener("pointercancel", onBandRangeDragEnd);
+
+    if (!isTouch) {
+        // Mouse: capture the pointer so the drag tracks even if the cursor
+        // wanders out of the container, and prevent text-selection side
+        // effects. Apply initial position immediately so a click without
+        // movement still moves the tick visually before pointerup.
+        try {
+            container.setPointerCapture(event.pointerId);
+        } catch (_) { /* setPointerCapture can throw if pointer already gone */ }
+        event.preventDefault();
+        const initialHz = computeDragFrequency(event.clientX, dragState);
+        applyDragFrequency(initialHz, dragState);
+    }
+    // Touch: don't preventDefault (let the browser hand off to a scroll
+    // gesture if that's what the user is doing), don't capture, and don't
+    // commit the touch-down position — we wait until pointerup.
+}
+
+function onBandRangeDragMove(event) {
+    if (!dragState) return;
+    if (Math.abs(event.clientX - dragState.startX) >= DRAG_DEAD_ZONE_PX) {
+        dragState.exceededDeadZone = true;
+    }
+    // Touch: no live tracking — tap-to-jump only. Mouse: live drag.
+    if (dragState.isTouch) return;
+    const hz = computeDragFrequency(event.clientX, dragState);
+    applyDragFrequency(hz, dragState);
+}
+
+function onBandRangeDragEnd(event) {
+    if (!dragState) return;
+
+    // Touch + pointercancel = browser handed off to a scroll/zoom gesture.
+    // Don't commit a phantom retune to wherever the finger happened to be
+    // when the cancel fired. Mouse + pointercancel is rare (e.g. focus
+    // loss) and the throttled writes have already kept the radio in sync,
+    // so committing the cancel coords there is harmless.
+    const shouldCommit = !(dragState.isTouch && event.type === "pointercancel");
+    const finalHz = shouldCommit ? computeDragFrequency(event.clientX, dragState) : null;
+
+    document.removeEventListener("pointermove", onBandRangeDragMove);
+    document.removeEventListener("pointerup", onBandRangeDragEnd);
+    document.removeEventListener("pointercancel", onBandRangeDragEnd);
+
+    const container = dragState.container;
+    container.classList.remove("is-dragging");
+    if (!dragState.isTouch) {
+        try {
+            container.releasePointerCapture(dragState.pointerId);
+        } catch (_) { /* may already be released */ }
+    }
+
+    dragState = null;
+
+    if (shouldCommit) {
+        // Canonical write through the debounced path. Handles the
+        // click/tap-without-drag case (one setFrequency at release point),
+        // and on mouse drags it lands the final value cleanly even if a
+        // throttled write fired ~66ms ago.
+        setFrequency(finalHz);
+    }
+}
+
+function setupBandRangeDrag() {
+    if (typeof window === "undefined") return;
+    const container = document.getElementById("vfo-band-range");
+    if (!container) return;
+
+    // Listener on the persistent parent: survives updateBandRangeDisplay()
+    // rebuilds, and pointerdown bubbles up from row/segment children. The
+    // overlay stays pointer-events: none so segment title= tooltips keep
+    // working on hover-capable devices.
+    container.addEventListener("pointerdown", onBandRangeDragStart);
+}
+
 // Update mode and msg button disabled states based on band privileges
 function updateButtonPrivileges() {
     const frequencyHz = AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ;
@@ -588,6 +753,25 @@ function notifyVfoSubscribers() {
     });
 }
 
+// Send frequency to radio without debouncing. Used by the drag-to-tune
+// path which throttles itself; setFrequency() calls this from inside its
+// debounced timer. Caller is responsible for updating AppState/display.
+async function setFrequencyImmediate(frequencyHz) {
+    const url = `/api/v1/frequency?frequency=${frequencyHz}`;
+    try {
+        const response = await fetch(url, { method: "PUT" });
+        if (response.ok) {
+            Log.debug("Spot")("Frequency updated:", frequencyHz);
+        } else {
+            Log.error("Spot")("Frequency update failed");
+            getCurrentVfoState(); // Revert display on error
+        }
+    } catch (error) {
+        Log.error("Spot")("Frequency fetch error:", error);
+        getCurrentVfoState(); // Revert display on error
+    }
+}
+
 // Set radio frequency with 300ms debouncing to avoid flooding (frequencyHz: integer in Hz)
 function setFrequency(frequencyHz) {
     RunState.lastUserAction = Date.now(); // Mark user action timestamp
@@ -607,22 +791,8 @@ function setFrequency(frequencyHz) {
 
     // Debounce frequency updates to avoid flooding the radio
     RunState.pendingFrequencyUpdate = setTimeout(async () => {
-        const url = `/api/v1/frequency?frequency=${frequencyHz}`;
-
         try {
-            const response = await fetch(url, { method: "PUT" });
-
-            if (response.ok) {
-                Log.debug("Spot")("Frequency updated:", frequencyHz);
-            } else {
-                Log.error("Spot")("Frequency update failed");
-                // Revert display on error
-                getCurrentVfoState();
-            }
-        } catch (error) {
-            Log.error("Spot")("Frequency fetch error:", error);
-            // Revert display on error
-            getCurrentVfoState();
+            await setFrequencyImmediate(frequencyHz);
         } finally {
             RunState.pendingFrequencyUpdate = null;
         }
@@ -1340,6 +1510,8 @@ function attachSpotEventListeners() {
         });
     }
 
+    // Band-range drag-to-tune (desktop only; no-op on touch / narrow viewports)
+    setupBandRangeDrag();
 }
 
 // ============================================================================

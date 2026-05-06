@@ -503,6 +503,28 @@ a {
     border-right: 1px solid rgba(255, 255, 255, 0.45);
 }
 
+/* Drag-to-tune (mouse) / tap-to-tune (touch). The overlay stays
+   pointer-events: none so segment title= tooltips on the rows below keep
+   firing on hover; the tick re-enables pointer events for itself so the
+   handler still receives it (via bubbling on touch, plus a differentiated
+   cursor on hover-capable devices). */
+.vfo-band-range-tick {
+    pointer-events: auto;
+}
+
+@media (pointer: fine) {
+    #vfo-band-range {
+        cursor: col-resize;
+    }
+    .vfo-band-range-tick {
+        cursor: ew-resize;
+    }
+    #vfo-band-range.is-dragging,
+    #vfo-band-range.is-dragging .vfo-band-range-tick {
+        cursor: grabbing;
+    }
+}
+
 /* VFO warning states - prominent background + thick border */
 .vfo-display.warning-mode {
     background: var(--bg-warning-blend);

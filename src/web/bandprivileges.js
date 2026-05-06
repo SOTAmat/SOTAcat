@@ -26,6 +26,20 @@ const MODE_BANDWIDTH_HZ = {
     DATA_R: 3000,
 };
 
+// Snap step in Hz used by drag-to-tune on the band-range chart.
+// Matched to operator habits: fine for CW, coarse for FM channels.
+const MODE_SNAP_HZ = {
+    CW:     100,
+    CW_R:   100,
+    DATA:   500,
+    DATA_R: 500,
+    USB:   1000,
+    LSB:   1000,
+    SSB:   1000,
+    AM:    1000,
+    FM:    5000,
+};
+
 // ============================================================================
 // FCC Band Privilege Table
 // ============================================================================
@@ -155,6 +169,16 @@ function getModeCategory(radioMode) {
 function getModeBandwidth(radioMode) {
     const mode = (radioMode || "USB").toUpperCase();
     return MODE_BANDWIDTH_HZ[mode] || 3000;
+}
+
+/**
+ * Get snap step (Hz) for drag-to-tune given the current mode.
+ * @param {string} radioMode - Mode from radio (raw, not category)
+ * @returns {number} Snap step in Hz
+ */
+function getSnapStepHz(radioMode) {
+    const mode = (radioMode || "").toUpperCase();
+    return MODE_SNAP_HZ[mode] ?? 1000;
 }
 
 // ============================================================================

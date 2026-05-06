@@ -131,6 +131,50 @@ the dial frequency and the translucent bandwidth window
 the per-row tracks. Mode bandwidth comes from `getModeBandwidth` and
 `getSignal{Lower,Upper}Edge` in `bandprivileges.js`.
 
+#### Drag-to-tune (mouse) and tap-to-jump (touch)
+
+`setupBandRangeDrag()` (run.js) wires a `pointerdown` listener to the
+persistent `#vfo-band-range` container. The handler reads
+`event.pointerType` and branches on `"touch"` vs anything else. Pixel-X
+is mapped to frequency via the cached overlay rect (`bandMin + frac *
+(bandMax - bandMin)`), then snapped to a mode-specific step from
+`MODE_SNAP_HZ` in `bandprivileges.js` (CW = 100 Hz, DATA = 500 Hz,
+PHONE = 1 kHz, FM = 5 kHz), then clamped to the current band's overall
+`[bandMin, bandMax]`.
+
+**Mouse**: `pointerdown` applies the position eagerly (instant click
+feedback), `pointermove` updates the visual tick and fires throttled CAT
+writes at ~15 Hz (66 ms) by calling `setFrequencyImmediate()` directly —
+this bypasses the 300 ms debounce in `setFrequency()` so the rig retunes
+live. `setPointerCapture()` keeps the drag tracking even if the cursor
+wanders out of the container. On `pointerup`/`pointercancel` a final
+canonical `setFrequency()` lands the released value through the
+debounced path.
+
+**Touch**: tap-to-jump only — no live finger-tracking. `pointerdown`
+records state but does not commit (so a finger landing on the chart
+while reaching to scroll the page doesn't accidentally retune).
+`pointermove` is ignored (the chart rows are too small to drag
+precisely with a finger, and continuous CAT writes would fight native
+scroll). `preventDefault()` and `setPointerCapture()` are skipped so the
+browser is free to hand off the gesture to scroll/zoom. On `pointerup`,
+the final position is computed from the release coordinates and
+committed via `setFrequency()`. On `pointercancel` (the browser's
+signal that scroll has taken over), nothing is committed.
+
+VFO read polling is suppressed automatically because the path updates
+`RunState.lastUserAction`, which `getCurrentVfoState()` already checks
+(existing 2 s window).
+
+The overlay itself stays `pointer-events: none` so segment `title=`
+tooltips on the rows below keep firing on hover. Only the 2 px tick
+gets `pointer-events: auto` — needed both to differentiate the cursor
+on desktop (`ew-resize` over the tick, `col-resize` elsewhere,
+`grabbing` while `#vfo-band-range.is-dragging`) and to ensure the tick
+is hit-testable on touch (the parent handler still receives the event
+via bubbling). Cursor rules are gated by `@media (pointer: fine)` since
+cursors don't apply on touch.
+
 ## Modifying the UI
 
 1. Edit files in `src/web/`
