@@ -1782,3 +1782,19 @@ This plan was reviewed against the spec on 2026-05-02. Coverage:
 Phase 4 (`[data-theme="dark"]` block) and Phase 5 (theme toggle UI + persistence) were reverted after real-device testing showed extensive dark-mode coverage gaps. The project is light-mode only going forward. See the spec postscript for rationale.
 
 Tasks 15–18 are no longer relevant. Task 21 (final hardware verification) remains and applies to the light-only state.
+
+---
+
+## Postscript (2026-05-05) — Plan is now historical; see current-state doc
+
+This plan captures the **original phased migration**. Phases 0–3 + 6 landed as written (with iteration). Phases 4–5 reverted (see above). After Phase 6 completed, additional work continued under user-driven direction: real-device polish, mobile compaction, the v2 palette (mode brightness restored with dark text, DATA back to yellow), the PoLo / SPOT / ATU / Scan-violet additions, MyCall corrected to follow mode color and pulse red-critical when transmitting, and Tier 2 token consolidation.
+
+For the **current state** of every token, every consumer, every page rule, and the list of open work items, see:
+
+  **`Documentation/for-AI-agents/specs/2026-05-05-color-system-current-state.md`**
+
+Open items at session pause (2026-05-05):
+- Tuned-row chase color (currently still old teal — needs migration to derive from `--scan-idle` violet)
+- Scan-active outline visibility (border same hue as bg pulse — needs swap to white outline)
+- Outline standardization rule application across the codebase
+- Final hardware verification on the v2 palette

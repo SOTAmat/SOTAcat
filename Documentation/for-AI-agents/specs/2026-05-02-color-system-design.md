@@ -306,3 +306,13 @@ Before marking any phase complete, verify on a real phone:
 Sections §4 dark-theme columns, §5 dark-theme overrides, §6.3 (theme switching mechanism), and Phase 4–5 of the migration plan are **historical only**. After real-device testing on the user's phone, dark mode coverage gaps were extensive (sub-cards, headings, Run-page cards, Chase row highlighting all inadequately covered). Rather than chase down every uncovered selector, the project committed to **light mode only** going forward, optimized for the dominant context: outdoor SOTA activations in direct sunlight.
 
 The light-theme tokens defined in §4 remain in use — they describe the single-theme defaults. The `[data-theme]` attribute mechanism, the `localStorage["sotacat-theme"]` key, and the AUTO/LIGHT/DARK segmented control have all been removed from the codebase.
+
+---
+
+## Postscript (2026-05-05) — Spec is now historical; see current-state doc
+
+This spec captures the **original design intent and rationale**. After execution and many iterations, the actual state of the code has diverged in three substantial ways (mode brightness restored with dark text, operational palette reassigned to violet/orange, the PoLo and ATU and Spot families added). For the **current truth** about every token, every consumer, and every open item, see:
+
+  **`Documentation/for-AI-agents/specs/2026-05-05-color-system-current-state.md`**
+
+Read this 2026-05-02 spec for *why* the system is the way it is. Read the 2026-05-05 doc for *what's actually in the code right now*.
