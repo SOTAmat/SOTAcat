@@ -617,7 +617,7 @@ input.frequency-display {
 }
 
 .xmit-controls {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
 }
 
 .power-controls {
@@ -861,8 +861,16 @@ input.frequency-display {
 /* Spot Actions Grid */
 .spot-actions {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr 1fr 1fr auto 1fr;
     gap: var(--space-sm);
+    align-items: stretch;
+}
+
+.spot-action-separator {
+    width: 2px;
+    background: var(--gray-3);
+    border-radius: 1px;
+    align-self: stretch;
 }
 
 .btn-spot {
@@ -2173,9 +2181,9 @@ button.password-visibility-toggle svg {
         height: var(--touch-target-sm);
     }
 
-    /* Spot page: 2x2 grid for transmit controls */
+    /* Spot page: 3-up grid for transmit controls (Msg1, Msg2, Toggle TX) */
     .xmit-controls {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
     }
 
     /* Chase page: keep TX Toggle and PoLo buttons on same row */
