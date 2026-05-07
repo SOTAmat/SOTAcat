@@ -95,6 +95,51 @@ describe('Spots module shell', () => {
     });
 });
 
+describe('Spots cache (localStorage)', () => {
+    it('saveCache writes JSON with timestamp', () => {
+        const sb = makeSandbox();
+        sb.Spots._saveCache([{ hertz: 14250000, mode: 'USB' }]);
+        const raw = sb.localStorage.getItem('chaseSpotCache');
+        assertTrue(raw, 'cache key should exist');
+        const parsed = JSON.parse(raw);
+        assertEqual(parsed.spots.length, 1, 'one spot saved');
+        assertTrue(parsed.timestamp > 0, 'timestamp set');
+    });
+
+    it('restoreCache populates spots when fresh', () => {
+        const sb = makeSandbox();
+        sb.localStorage.setItem('chaseSpotCache', JSON.stringify({
+            spots: [{ hertz: 14250000 }, { hertz: 7100000 }],
+            timestamp: Date.now() - 1000,  // 1 second ago
+        }));
+        const restored = sb.Spots._restoreCache();
+        assertEqual(restored, true, 'restoreCache returns true on success');
+        assertEqual(sb.Spots.getAll().length, 2, 'spots populated from cache');
+    });
+
+    it('restoreCache discards stale entries', () => {
+        const sb = makeSandbox();
+        const stale = (3600 + 60) * 1000;  // older than TTL
+        sb.localStorage.setItem('chaseSpotCache', JSON.stringify({
+            spots: [{ hertz: 14250000 }],
+            timestamp: Date.now() - stale,
+        }));
+        const restored = sb.Spots._restoreCache();
+        assertEqual(restored, false, 'restoreCache returns false on stale');
+        assertNull(sb.Spots.getAll(), 'spots not populated');
+        assertEqual(sb.localStorage.getItem('chaseSpotCache'), null, 'stale entry removed');
+    });
+
+    it('Spots.clear() empties cache and state', () => {
+        const sb = makeSandbox();
+        sb.Spots._saveCache([{ hertz: 14250000 }]);
+        sb.Spots._restoreCache();
+        sb.Spots.clear();
+        assertNull(sb.Spots.getAll(), 'state cleared');
+        assertEqual(sb.localStorage.getItem('chaseSpotCache'), null, 'cache cleared');
+    });
+});
+
 console.log(`\n${testsPassed} passed, ${testsFailed} failed`);
 if (testsFailed > 0) {
     process.exit(1);

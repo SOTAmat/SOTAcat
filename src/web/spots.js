@@ -24,4 +24,48 @@ const SpotsState = {
 
 var Spots = {
     getAll() { return SpotsState.spots; },
+
+    _saveCache(spots) {
+        try {
+            localStorage.setItem(SPOTS_CACHE_KEY, JSON.stringify({
+                spots: spots,
+                timestamp: Date.now(),
+            }));
+        } catch (e) {
+            Log.warn("Spots")("Failed to save cache:", e);
+        }
+    },
+
+    _restoreCache() {
+        try {
+            const cached = localStorage.getItem(SPOTS_CACHE_KEY);
+            if (!cached) return false;
+
+            const { spots, timestamp } = JSON.parse(cached);
+            const ageMs = Date.now() - timestamp;
+            if (ageMs > SPOTS_CACHE_TTL_SECONDS * 1000) {
+                localStorage.removeItem(SPOTS_CACHE_KEY);
+                return false;
+            }
+
+            SpotsState.spots = spots;
+            SpotsState.lastFetchCompleteTime = timestamp;
+            Log.info("Spots")(`Restored ${spots.length} spots (age ${Math.round(ageMs / 1000)}s)`);
+            return true;
+        } catch (e) {
+            Log.warn("Spots")("Failed to restore cache:", e);
+            localStorage.removeItem(SPOTS_CACHE_KEY);
+            return false;
+        }
+    },
+
+    clear() {
+        SpotsState.spots = null;
+        SpotsState.lastFetchCompleteTime = 0;
+        try {
+            localStorage.removeItem(SPOTS_CACHE_KEY);
+        } catch (e) {
+            // best-effort
+        }
+    },
 };
