@@ -1,6 +1,6 @@
 # SOTAcat Documentation (Cursor)
 
-This folder contains Cursor-focused notes for navigating the SOTAcat firmware repo. For user and developer docs, use the `Documentation/` tree.
+This folder contains Cursor-focused notes for navigating the SOTAcat firmware repo. For user and developer docs, use the `docs/` tree.
 
 ## Project Overview
 
@@ -36,7 +36,8 @@ SOTAcat/
 |-- lib/ft8_encoder/         # FT8 encoding library
 |-- scripts/                 # Build helpers (asset compression)
 |-- test/                    # Unit + integration tests
-|-- Documentation/           # Canonical user/dev docs
+|-- docs/                    # Canonical user/dev docs
+|-- website/                 # GitHub Pages source (geolocation bridge)
 |-- platformio.ini           # PlatformIO configuration
 |-- sdkconfig.seeed_xiao_esp32c3_*  # ESP-IDF configs
 `-- partition_definitions/   # Partition tables
@@ -61,7 +62,7 @@ SOTAcat/
 
 ## Build and Flash
 
-See `Documentation/dev/BUILD.md` for full detail. Quick examples:
+See `docs/dev/BUILD.md` for full detail. Quick examples:
 
 ```bash
 make build
@@ -81,5 +82,5 @@ PlatformIO environments:
 
 ## Related Docs
 
-- Developer: `Documentation/dev/BUILD.md`, `Documentation/dev/Architecture.md`, `Documentation/dev/Web-UI.md`
-- User: `Documentation/user/Getting-Started.md`, `Documentation/user/UI-Tour.md`, `Documentation/user/Troubleshooting.md`
+- Developer: `docs/dev/BUILD.md`, `docs/dev/Architecture.md`, `docs/dev/Web-UI.md`
+- User: `docs/user/Getting-Started.md`, `docs/user/UI-Tour.md`, `docs/user/Troubleshooting.md`

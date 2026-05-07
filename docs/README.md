@@ -1,21 +1,24 @@
-# docs/ — Geolocation Module
+# SOTAcat Documentation
 
-**This directory contains code, not documentation.**
+![SOTAcat CHASE page](images/chase-spots.png)
 
-The JavaScript here powers the "Locate me" feature in the QRX page.
+## For Users
+- [Getting Started](user/Getting-Started.md) — 60-second setup
+- [UI Tour](user/UI-Tour.md) — What each tab does
+- [Networking](user/Networking.md) — WiFi modes and troubleshooting
+- [Tune Targets](user/Tune-Targets.md) — WebSDR/KiwiSDR URL templates
+- [Troubleshooting](user/Troubleshooting.md) — Common issues
+- [FAQ](user/FAQ.md) — Slack invitation, common questions
 
-## Why This Exists
+## For Developers
+- [Build](dev/BUILD.md) — Compile and flash firmware
+- [Architecture](dev/Architecture.md) — System overview
+- [Web UI](dev/Web-UI.md) — Asset pipeline and API mapping
 
-Browsers require a **secure context** (HTTPS) for the Geolocation API. Since SOTAcat serves pages over HTTP (no TLS on embedded device), we can't call `navigator.geolocation` directly.
+## Hardware
+- [Hardware Guide](Hardware.md) — Purchase and build options
 
-**The workaround:**
-1. QRX page opens a small HTTPS helper page (hosted externally or via GitHub Pages)
-2. That page requests geolocation permission and gets coordinates
-3. Coordinates are passed back to SOTAcat via URL parameters or postMessage
+---
 
-This module contains the HTTPS-side code that bridges the gap.
-
-## For Documentation
-
-See [Documentation/](../Documentation/) for user and developer guides.
+**Note:** The `website/` directory contains the geolocation module code that powers the "Locate me" feature. See [website/README.md](../website/README.md) for developer details.
 

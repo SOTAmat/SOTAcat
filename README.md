@@ -8,13 +8,13 @@ WiFi CAT control for Elecraft KX2/KX3/KH1. Your phone becomes your radio console
 
 Tap a spot, radio tunes. Scan to cycle through spots hands-free. SOTA, POTA, WWFF—all in one list.
 
-![CHASE page with spots and tap-to-tune](Documentation/images/chase-spots.png)
+![CHASE page with spots and tap-to-tune](docs/images/chase-spots.png)
 
 ### Control your rig and spot in all conditions
 
 Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
 
-![RUN page with rig controls and spotting](Documentation/images/run-tune.png)
+![RUN page with rig controls and spotting](docs/images/run-tune.png)
 
 ## Get Started in 60 Seconds
 
@@ -22,7 +22,7 @@ Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
 2. **Open** — Browse to `http://192.168.4.1` or `http://sotacat.local`
 3. **Verify** — You should see the header bar with UTC time, battery %, and green connection dot
 
-> **Android note:** `.local` addresses may not work. Use `192.168.4.1` or see [Networking guide](Documentation/user/Networking.md).
+> **Android note:** `.local` addresses may not work. Use `192.168.4.1` or see [Networking guide](docs/user/Networking.md).
 
 ## In the Field
 
@@ -38,23 +38,23 @@ Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
 - SMS Spot / SMS QRT buttons
 - Full click-to-pounce workflow
 
-> **Page not responding?** See [Networking troubleshooting](Documentation/user/Networking.md#connection-lost-recovery)
+> **Page not responding?** See [Networking troubleshooting](docs/user/Networking.md#connection-lost-recovery)
 
 ## Documentation
 
-**Users:** [Getting Started](Documentation/user/Getting-Started.md) · [UI Tour](Documentation/user/UI-Tour.md) · [Networking](Documentation/user/Networking.md) · [Troubleshooting](Documentation/user/Troubleshooting.md)
+**Users:** [Getting Started](docs/user/Getting-Started.md) · [UI Tour](docs/user/UI-Tour.md) · [Networking](docs/user/Networking.md) · [Troubleshooting](docs/user/Troubleshooting.md)
 
-**Developers:** [Build](Documentation/dev/BUILD.md) · [Architecture](Documentation/dev/Architecture.md) · [Web UI](Documentation/dev/Web-UI.md)
+**Developers:** [Build](docs/dev/BUILD.md) · [Architecture](docs/dev/Architecture.md) · [Web UI](docs/dev/Web-UI.md)
 
-**Hardware:** [Get a SOTAcat](Documentation/Hardware.md)
+**Hardware:** [Get a SOTAcat](docs/Hardware.md)
 
 ## Get a SOTAcat
 
 - **Buy pre-made:** [K5EM's Store](https://store.invertedlabs.com/product/sotacat/)
-- **Build your own:** [Hardware guide](Documentation/Hardware.md)
+- **Build your own:** [Hardware guide](docs/Hardware.md)
 
 ## Support
 
 - **Bug?** [GitHub Issues](https://github.com/SOTAmat/SOTAcat/issues)
 - **Suggestion?** [GitHub Discussions](https://github.com/SOTAmat/SOTAcat/discussions)
-- **Help?** #sotacat-sotamat on SOTA-NA Slack — [how to join](Documentation/user/FAQ.md#slack)
+- **Help?** #sotacat-sotamat on SOTA-NA Slack — [how to join](docs/user/FAQ.md#slack)
