@@ -26,11 +26,6 @@ const ChaseState = {
     lastRefreshCompleteTime: 0,
     refreshTimerInterval: null,
 
-    // Auto-refresh state
-    autoRefreshEnabled: false,
-    autoRefreshTimeoutId: null,
-    nextAutoRefreshTime: 0,
-
     // Auto-refresh suggestion state
     suggestingAutoRefresh: false,
     suggestionRevertTimeoutId: null,
@@ -53,43 +48,6 @@ const ChaseState = {
 // ============================================================================
 // State Management Functions
 // ============================================================================
-
-// Save spot data to localStorage for cross-reload persistence
-function saveSpotsToCache(spots) {
-    try {
-        localStorage.setItem("chaseSpotCache", JSON.stringify({
-            spots: spots,
-            timestamp: Date.now()
-        }));
-    } catch (e) {
-        Log.warn("Chase")("Failed to save spots to localStorage:", e);
-    }
-}
-
-// Restore spot data from localStorage if not stale.
-// Returns true if cache was restored, false otherwise.
-function restoreSpotsFromCache() {
-    try {
-        const cached = localStorage.getItem("chaseSpotCache");
-        if (!cached) return false;
-
-        const { spots, timestamp } = JSON.parse(cached);
-        const ageMs = Date.now() - timestamp;
-        if (ageMs > CHASE_HISTORY_DURATION_SECONDS * 1000) {
-            localStorage.removeItem("chaseSpotCache");
-            return false;
-        }
-
-        AppState.latestChaseJson = spots;
-        ChaseState.lastRefreshCompleteTime = timestamp;
-        Log.info("Chase")(`Restored ${spots.length} spots from localStorage (age ${Math.round(ageMs / 1000)}s)`);
-        return true;
-    } catch (e) {
-        Log.warn("Chase")("Failed to restore spots from localStorage:", e);
-        localStorage.removeItem("chaseSpotCache");
-        return false;
-    }
-}
 
 // Load saved sort preferences from localStorage and update ChaseState
 function loadSortState() {
@@ -167,20 +125,6 @@ function onModeFilterChange(mode) {
     applyGlobalModeFilter();
 }
 
-// Load auto-refresh preference from localStorage
-function loadAutoRefreshEnabled() {
-    const saved = localStorage.getItem("chaseAutoRefreshEnabled");
-    // Default to false (disabled) when no saved preference exists
-    ChaseState.autoRefreshEnabled = saved !== null ? saved === "true" : false;
-    return ChaseState.autoRefreshEnabled;
-}
-
-// Save auto-refresh preference to localStorage
-function saveAutoRefreshEnabled(enabled) {
-    ChaseState.autoRefreshEnabled = enabled;
-    localStorage.setItem("chaseAutoRefreshEnabled", enabled.toString());
-}
-
 // ============================================================================
 // Utility Functions
 // ============================================================================
@@ -193,8 +137,8 @@ function updateRefreshTimer() {
     const now = Date.now();
 
     // Auto-refresh mode: show countdown
-    if (ChaseState.autoRefreshEnabled && ChaseState.nextAutoRefreshTime > 0) {
-        const remainingMs = ChaseState.nextAutoRefreshTime - now;
+    if (Spots.isAutoRefreshEnabled() && Spots.getNextAutoRefreshTime() > 0) {
+        const remainingMs = Spots.getNextAutoRefreshTime() - now;
 
         if (remainingMs <= 0) {
             timerElement.textContent = "Auto-refreshing now...";
@@ -250,8 +194,7 @@ function stopRefreshTimer() {
 
 // Start auto-refresh mode
 function startAutoRefresh() {
-    ChaseState.autoRefreshEnabled = true;
-    saveAutoRefreshEnabled(true);
+    Spots.startAutoRefresh();
 
     // Clear suggestion state since user accepted
     ChaseState.suggestingAutoRefresh = false;
@@ -260,23 +203,13 @@ function startAutoRefresh() {
         ChaseState.suggestionRevertTimeoutId = null;
     }
 
-    scheduleNextAutoRefresh();
     updateRefreshButtonLabel();
     updateRefreshTimer();
 }
 
 // Stop auto-refresh mode
 function stopAutoRefresh() {
-    ChaseState.autoRefreshEnabled = false;
-    saveAutoRefreshEnabled(false);
-
-    // Clear any pending auto-refresh timeout
-    if (ChaseState.autoRefreshTimeoutId) {
-        clearTimeout(ChaseState.autoRefreshTimeoutId);
-        ChaseState.autoRefreshTimeoutId = null;
-    }
-
-    ChaseState.nextAutoRefreshTime = 0;
+    Spots.stopAutoRefresh();
 
     // Clear suggestion state
     ChaseState.suggestingAutoRefresh = false;
@@ -289,30 +222,6 @@ function stopAutoRefresh() {
     updateRefreshTimer();
 }
 
-// Schedule the next auto-refresh
-function scheduleNextAutoRefresh() {
-    // Clear any existing timeout
-    if (ChaseState.autoRefreshTimeoutId) {
-        clearTimeout(ChaseState.autoRefreshTimeoutId);
-        ChaseState.autoRefreshTimeoutId = null;
-    }
-
-    if (!ChaseState.autoRefreshEnabled) {
-        return;
-    }
-
-    // Calculate next refresh time
-    ChaseState.nextAutoRefreshTime = Date.now() + CHASE_AUTO_REFRESH_INTERVAL_MS;
-
-    // Schedule the refresh
-    ChaseState.autoRefreshTimeoutId = setTimeout(() => {
-        Log.debug("Chase")("Auto-refresh triggered");
-        refreshChaseJson(true, true); // force=true, isAutoRefresh=true
-    }, CHASE_AUTO_REFRESH_INTERVAL_MS);
-
-    updateRefreshTimer();
-}
-
 // getBandFromFrequency() is now defined in main.js
 
 // Update refresh button label based on current state
@@ -320,7 +229,7 @@ function updateRefreshButtonLabel() {
     const refreshButton = document.getElementById("refresh-button");
     if (!refreshButton) return;
 
-    if (ChaseState.autoRefreshEnabled) {
+    if (Spots.isAutoRefreshEnabled()) {
         // Auto-refresh is enabled
         Log.debug("Chase")("Button state: Disable Auto-Refresh");
         refreshButton.textContent = "Disable Auto-Refresh";
@@ -1011,9 +920,9 @@ function buildChaseRow(spot, isMySpot) {
     return row;
 }
 
-// Update chase table display with sorted spots from AppState.latestChaseJson
-async function updateChaseTable() {
-    const data = await AppState.latestChaseJson;
+// Update chase table display with sorted spots from Spots module
+function updateChaseTable() {
+    const data = Spots.getAll();
     if (data === null) {
         Log.info("Chase")("Json is null");
         return;
@@ -1154,68 +1063,23 @@ function updateSortIndicators(headers, sortField, descending) {
 
 // Fetch latest spot data from Spothole API with rate limiting (force=true bypasses rate limit)
 async function refreshChaseJson(force, isAutoRefresh = false, userInitiated = false) {
-    // Get refresh button for UI feedback
     const refreshButton = document.getElementById("refresh-button");
 
-    // Check rate limit
-    const now = Date.now();
-    const timeSinceLastFetch = now - ChaseState.lastRefreshTime;
-
-    if (!force && timeSinceLastFetch < CHASE_MIN_REFRESH_INTERVAL_MS) {
-        Log.info("Chase")(`rate limit: Skipping fetch, only ${Math.round(timeSinceLastFetch / 1000)}s since last fetch (min 60s)`);
-        if (typeof updateChaseTable === "function") {
-            updateChaseTable();
-        }
-        return;
-    }
-
     try {
-        // Set button to refreshing state
         if (refreshButton) {
             refreshButton.textContent = "Refreshing...";
             refreshButton.disabled = true;
         }
 
-        Log.debug("Chase")("Fetching data from Spothole API");
-        ChaseState.lastRefreshTime = Date.now();
-
-        // Build fetch options
-        // NOTE: Always fetch all spots from Spothole API regardless of UI filters.
-        // Filtering is done client-side in applyTableFilters() for better UX
-        // (allows users to toggle filters without re-fetching data).
-        const fetchOptions = {
-            max_age: CHASE_HISTORY_DURATION_SECONDS,
-            limit: CHASE_API_SPOT_LIMIT,
-            dedupe: true,
-        };
-
-        // Get user location
-        const location = await getLocation();
-
-        // Fetch and process spots
-        const spots = await fetchAndProcessSpots(fetchOptions, location, true);
-
-        AppState.latestChaseJson = spots;
-        saveSpotsToCache(spots);
-        Log.info("Chase")(`Json updated: ${spots.length} spots`);
-
-        if (typeof updateChaseTable === "function") {
-            updateChaseTable();
-        } else {
-            Log.error("Chase")("updateChaseTable function not found");
-        }
-
-        // Update refresh complete time and restart timer
-        ChaseState.lastRefreshCompleteTime = Date.now();
+        await Spots.refresh({ force });
+        // updateChaseTable runs via the Spots subscriber installed in
+        // attachChaseEventListeners(); explicitly calling it here would
+        // double-render.
+        ChaseState.lastRefreshCompleteTime = Spots.getLastFetchCompleteTime();
         startRefreshTimer();
 
-        // If auto-refresh is enabled, schedule the next refresh
-        if (ChaseState.autoRefreshEnabled) {
-            scheduleNextAutoRefresh();
-        }
-
         // After a manual refresh, show "Auto-refresh?" prompt for 3 seconds
-        if (userInitiated && !ChaseState.autoRefreshEnabled) {
+        if (userInitiated && !Spots.isAutoRefreshEnabled()) {
             if (ChaseState.suggestionRevertTimeoutId) {
                 clearTimeout(ChaseState.suggestionRevertTimeoutId);
             }
@@ -1227,18 +1091,11 @@ async function refreshChaseJson(force, isAutoRefresh = false, userInitiated = fa
             }, AUTO_SUGGEST_PROMPT_MS);
         }
     } catch (error) {
-        Log.error("Chase")("Error fetching or processing data:", error);
-        // Show error to user if this was a manual refresh
+        Log.error("Chase")("Refresh error:", error);
         if (force && !isAutoRefresh) {
             alert("Failed to fetch spots from Spothole API. Please check your internet connection and try again.");
         }
-
-        // If auto-refresh is enabled, schedule retry
-        if (ChaseState.autoRefreshEnabled) {
-            scheduleNextAutoRefresh();
-        }
     } finally {
-        // Restore button to original state
         if (refreshButton) {
             updateRefreshButtonLabel();
             refreshButton.disabled = false;
@@ -1262,7 +1119,7 @@ function attachChaseEventListeners() {
     if (refreshButton) {
         refreshButton.addEventListener("click", () => {
             stopScan();
-            if (ChaseState.autoRefreshEnabled) {
+            if (Spots.isAutoRefreshEnabled()) {
                 // Currently in auto-refresh mode - turn it off
                 stopAutoRefresh();
             } else if (ChaseState.suggestingAutoRefresh) {
@@ -1357,6 +1214,14 @@ function attachChaseEventListeners() {
             });
         }
     });
+
+    // Re-render table whenever spots change (manual refresh, auto-refresh,
+    // or cache restore on page load).
+    Spots.subscribe(() => {
+        if (typeof updateChaseTable === "function") {
+            updateChaseTable();
+        }
+    });
 }
 
 // ============================================================================
@@ -1384,9 +1249,6 @@ async function onChaseAppearing() {
     // Start the refresh timer
     startRefreshTimer();
 
-    // Load auto-refresh preference
-    loadAutoRefreshEnabled();
-
     // Attach event listeners for all controls
     attachChaseEventListeners();
 
@@ -1404,21 +1266,25 @@ async function onChaseAppearing() {
         typeSelector.value = ChaseState.typeFilter;
     }
 
-    // Load data: prefer in-memory cache, then localStorage, then fresh fetch
-    if (AppState.latestChaseJson !== null) {
-        Log.debug("Chase")("tab appearing: Using in-memory data");
-        updateChaseTable();
-    } else if (restoreSpotsFromCache()) {
-        Log.debug("Chase")("tab appearing: Restored from localStorage");
+    // Restore cached spots so the table renders something immediately.
+    if (Spots.getAll() === null) {
+        if (Spots._restoreCache()) {
+            // _restoreCache populates state but doesn't notify; render now.
+            if (typeof updateChaseTable === "function") updateChaseTable();
+        }
+    }
+
+    if (Spots.loadAutoRefreshPref()) {
+        Spots.startAutoRefresh();
+    }
+
+    // Load data: prefer in-memory cache, then fresh fetch
+    if (Spots.getAll() !== null) {
+        Log.debug("Chase")("tab appearing: Using cached data");
         updateChaseTable();
     } else {
         Log.debug("Chase")("tab appearing: Fetching new data");
         refreshChaseJson(true);
-    }
-
-    // If auto-refresh was enabled, resume it (it was paused when leaving tab)
-    if (ChaseState.autoRefreshEnabled) {
-        scheduleNextAutoRefresh();
     }
 
     updateSortIndicators(document.querySelectorAll("#chase-table th"), ChaseState.sortField, ChaseState.descending);
@@ -1435,13 +1301,8 @@ function onChaseLeaving() {
     // Stop the refresh timer display
     stopRefreshTimer();
 
-    // Pause auto-refresh while away (but remember the state)
-    if (ChaseState.autoRefreshTimeoutId) {
-        clearTimeout(ChaseState.autoRefreshTimeoutId);
-        ChaseState.autoRefreshTimeoutId = null;
-        ChaseState.nextAutoRefreshTime = 0;
-    }
-    // Note: autoRefreshEnabled flag stays set, preserved in localStorage
+    // Note: auto-refresh state is managed by Spots module; it continues
+    // to run independently of tab visibility.
 
     // Clear suggestion state
     ChaseState.suggestingAutoRefresh = false;

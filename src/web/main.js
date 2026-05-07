@@ -78,9 +78,6 @@ function fetchQuiet(url, options = {}, context = "Fetch") {
 // ============================================================================
 
 const AppState = {
-    // Data caches
-    latestChaseJson: null,
-
     // Tab management
     currentTabName: null,
 
@@ -1355,8 +1352,7 @@ async function saveGpsToDevice(lat, lon) {
         AppState.gpsOverride = { latitude: lat, longitude: lon };
         localStorage.setItem("cachedGpsLocation", JSON.stringify(AppState.gpsOverride));
         clearDistanceCache();
-        AppState.latestChaseJson = null;
-        localStorage.removeItem("chaseSpotCache");
+        Spots.clear();
         return true;
     }
 
