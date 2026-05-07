@@ -1234,23 +1234,22 @@ async function onChaseAppearing() {
         typeSelector.value = ChaseState.typeFilter;
     }
 
-    // Restore cached spots so the table renders something immediately.
+    // If memory is empty, try the localStorage cache. Then render whatever
+    // we have. On true cold-start (no memory, no cache) fall through to a
+    // fresh fetch.
     if (Spots.getAll() === null) {
-        if (Spots._restoreCache()) {
-            // _restoreCache populates state but doesn't notify; render now.
-            if (typeof updateChaseTable === "function") updateChaseTable();
-        }
+        Spots._restoreCache();
     }
 
     if (Spots.loadAutoRefreshPref()) {
         Spots.startAutoRefresh();
     }
 
-    // Load data: prefer in-memory cache, then fresh fetch
     if (Spots.getAll() !== null) {
-        Log.debug("Chase")("tab appearing: Using cached data");
+        Log.debug("Chase")("tab appearing: rendering existing spots");
+        updateChaseTable();
     } else {
-        Log.debug("Chase")("tab appearing: Fetching new data");
+        Log.debug("Chase")("tab appearing: fetching new data");
         refreshChaseJson(true);
     }
 
