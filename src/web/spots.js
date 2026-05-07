@@ -134,4 +134,12 @@ var Spots = {
             }
         }
     },
+
+    subscribe(cb) {
+        SpotsState.subscribers.add(cb);
+    },
+
+    unsubscribe(cb) {
+        SpotsState.subscribers.delete(cb);
+    },
 };

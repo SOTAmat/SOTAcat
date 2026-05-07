@@ -201,6 +201,40 @@ describe('Spots.refresh()', () => {
     });
 });
 
+describe('Spots subscribers', () => {
+    it('subscribe is called when refresh completes', async () => {
+        const sb = makeSandbox();
+        sb.fetchAndProcessSpots = async () => [{ hertz: 14250000 }];
+        let received = null;
+        sb.Spots.subscribe(spots => { received = spots; });
+        await sb.Spots.refresh({ force: true });
+        assertTrue(received, 'subscriber fired');
+        assertEqual(received.length, 1, 'received the spots');
+    });
+
+    it('multiple subscribers all fire', async () => {
+        const sb = makeSandbox();
+        sb.fetchAndProcessSpots = async () => [];
+        let count = 0;
+        sb.Spots.subscribe(() => { count++; });
+        sb.Spots.subscribe(() => { count++; });
+        await sb.Spots.refresh({ force: true });
+        assertEqual(count, 2, 'both subscribers fired');
+    });
+
+    it('unsubscribe stops further calls', async () => {
+        const sb = makeSandbox();
+        sb.fetchAndProcessSpots = async () => [];
+        let count = 0;
+        const cb = () => { count++; };
+        sb.Spots.subscribe(cb);
+        await sb.Spots.refresh({ force: true });
+        sb.Spots.unsubscribe(cb);
+        await sb.Spots.refresh({ force: true });
+        assertEqual(count, 1, 'only fired once');
+    });
+});
+
 // Wait for any pending async its before reporting
 setTimeout(() => {
     console.log(`\n${testsPassed} passed, ${testsFailed} failed`);
