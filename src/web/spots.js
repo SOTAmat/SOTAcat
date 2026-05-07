@@ -7,8 +7,8 @@
 
 const SPOTS_CACHE_KEY = "chaseSpotCache";   // reused so existing caches keep working
 const SPOTS_CACHE_TTL_SECONDS = 3600;        // matches CHASE_HISTORY_DURATION_SECONDS
-const SPOTS_MIN_REFRESH_INTERVAL_MS = 60000;
-const SPOTS_AUTO_REFRESH_INTERVAL_MS = 60000;
+const SPOTS_MIN_REFRESH_INTERVAL_MS = 60000;   // Rate-limit gate: minimum gap between API calls
+const SPOTS_AUTO_REFRESH_INTERVAL_MS = 60000;  // Auto-refresh timer interval
 const SPOTS_API_LIMIT = 500;
 
 const SpotsState = {
