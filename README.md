@@ -44,7 +44,7 @@ Full rig control, CW keyer, and self-spotting—even off-grid via FT8.
 
 **Users:** [Getting Started](docs/user/Getting-Started.md) · [UI Tour](docs/user/UI-Tour.md) · [Networking](docs/user/Networking.md) · [Troubleshooting](docs/user/Troubleshooting.md)
 
-**Developers:** [Build](docs/dev/BUILD.md) · [Architecture](docs/dev/Architecture.md) · [Web UI](docs/dev/Web-UI.md)
+**Developers:** [Build](docs/dev/BUILD.md) · [Architecture](docs/dev/Architecture.md) · [Web UI](docs/dev/Web-UI.md) · [Testing](TESTING.md)
 
 **Hardware:** [Get a SOTAcat](docs/Hardware.md)
 

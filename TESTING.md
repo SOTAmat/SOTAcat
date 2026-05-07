@@ -6,8 +6,9 @@ Works on **Linux**, **macOS**, and **Windows**.
 
 ```bash
 # From project root – Linux/macOS
-make test-setup     # One-time setup: create venv and install dependencies
-make test           # Run test suite (default: 10 iterations, 60s stress)
+make test-unit      # JS unit tests (no device, no setup required)
+make test-setup     # One-time setup for integration tests: create venv and install deps
+make test           # Run integration suite (default: 10 iterations, 60s stress)
 
 # Quick validation
 make test ITERATIONS=5 STRESS_DURATION=30
@@ -24,9 +25,12 @@ python test/integration/run_tests.py --all --host 192.168.1.100
 
 SOTAcat has a comprehensive test suite covering:
 
-1. **Performance Tests** - Web server response times, asset loading, mDNS resolution
-2. **Stress Tests** - Multi-client concurrent access, mutex timeout validation
-3. **Unit Tests** - Embedded tests that run on device (PlatformIO)
+1. **Unit Tests** (`test/unit/`) — Pure JavaScript tests for web-UI logic. Run with Node.js, no device required.
+2. **Performance Tests** (`test/integration/`) — Web server response times, asset loading, mDNS resolution. Requires a live device.
+3. **Stress Tests** (`test/integration/`) — Multi-client concurrent access, mutex timeout validation. Requires a live device.
+
+### Unit Tests
+Pure JS tests for extracted web-UI logic — SMS-URI construction (SOTAmat spotting), CW macro template expansion, keyer family selection, band-range visibility, license-class privileges, etc. Each `test/unit/test_*.js` file runs standalone under Node.js with no dependencies. `make test-unit` runs all of them.
 
 ### Performance Test
 Tests 20 static assets and non-radio API endpoints:
@@ -45,8 +49,9 @@ Validates 3-tier mutex timeout system (500ms/2000ms/10000ms):
 ### From Project Root
 
 ```bash
-make test-setup                         # Setup test environment (once)
-make test                               # Default (10 iterations, 60s stress)
+make test-unit                          # JS unit tests (no setup, no device)
+make test-setup                         # Setup integration env (once)
+make test                               # Integration default (10 iterations, 60s stress)
 make test ITERATIONS=5 STRESS_DURATION=30  # Quick validation
 make test ITERATIONS=20                 # Extended performance test
 ```
@@ -169,15 +174,3 @@ For detailed information, see:
   - Endpoint coverage summary
   - What's tested vs. not tested
   - Coverage statistics (~60% of all API endpoints)
-
-- **[PlatformIO Unit Testing](https://docs.platformio.org/en/latest/advanced/unit-testing/index.html)** - Unit test framework
-
-## Unit Tests
-
-PlatformIO unit tests run embedded code directly on the device.
-
-```bash
-pio test -e seeed_xiao_esp32c3_debug
-```
-
-See `test/README` for more information about PlatformIO unit testing.
