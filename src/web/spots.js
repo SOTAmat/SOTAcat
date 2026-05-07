@@ -60,6 +60,9 @@ var Spots = {
     },
 
     clear() {
+        // Narrow reset: cache + spots only. Auto-refresh state, rate-limit
+        // timing, and any in-flight fetch are intentionally preserved
+        // (e.g. callers like a GPS-override change just need stale data gone).
         SpotsState.spots = null;
         SpotsState.lastFetchCompleteTime = 0;
         try {
