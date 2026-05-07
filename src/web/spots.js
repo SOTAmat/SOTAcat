@@ -145,4 +145,59 @@ var Spots = {
     unsubscribe(cb) {
         SpotsState.subscribers.delete(cb);
     },
+
+    startAutoRefresh() {
+        SpotsState.autoRefreshEnabled = true;
+        try { localStorage.setItem("chaseAutoRefreshEnabled", "true"); } catch (e) {}
+        this._scheduleNext();
+    },
+
+    stopAutoRefresh() {
+        SpotsState.autoRefreshEnabled = false;
+        try { localStorage.setItem("chaseAutoRefreshEnabled", "false"); } catch (e) {}
+        if (SpotsState.autoRefreshTimeoutId) {
+            clearTimeout(SpotsState.autoRefreshTimeoutId);
+            SpotsState.autoRefreshTimeoutId = null;
+        }
+        SpotsState.nextAutoRefreshTime = 0;
+    },
+
+    isAutoRefreshEnabled() {
+        return SpotsState.autoRefreshEnabled;
+    },
+
+    loadAutoRefreshPref() {
+        // Read persisted preference (used by chase.js on init).
+        // Does NOT auto-start the timer; call startAutoRefresh() if true.
+        try {
+            return localStorage.getItem("chaseAutoRefreshEnabled") === "true";
+        } catch (e) {
+            return false;
+        }
+    },
+
+    getNextAutoRefreshTime() {
+        return SpotsState.nextAutoRefreshTime;
+    },
+
+    _scheduleNext() {
+        if (SpotsState.autoRefreshTimeoutId) {
+            clearTimeout(SpotsState.autoRefreshTimeoutId);
+            SpotsState.autoRefreshTimeoutId = null;
+        }
+        if (!SpotsState.autoRefreshEnabled) return;
+
+        SpotsState.nextAutoRefreshTime = Date.now() + SPOTS_AUTO_REFRESH_INTERVAL_MS;
+        SpotsState.autoRefreshTimeoutId = setTimeout(async () => {
+            Log.debug("Spots")("Auto-refresh triggered");
+            try {
+                await Spots.refresh({ force: true });
+            } catch (e) {
+                Log.warn("Spots")("Auto-refresh failed:", e);
+            }
+            // Schedule the next one whether the fetch succeeded or not, so a
+            // transient network blip doesn't stop the chain.
+            if (SpotsState.autoRefreshEnabled) Spots._scheduleNext();
+        }, SPOTS_AUTO_REFRESH_INTERVAL_MS);
+    },
 };

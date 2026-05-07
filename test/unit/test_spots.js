@@ -249,6 +249,31 @@ describe('Spots subscribers', () => {
     });
 });
 
+describe('Spots auto-refresh', () => {
+    it('startAutoRefresh sets state, schedules next time', () => {
+        const sb = makeSandbox();
+        sb.Spots.startAutoRefresh();
+        assertEqual(sb.Spots.isAutoRefreshEnabled(), true, 'enabled flag set');
+        assertTrue(sb.Spots.getNextAutoRefreshTime() > Date.now(), 'next time scheduled');
+        sb.Spots.stopAutoRefresh();   // clean up timer
+    });
+
+    it('stopAutoRefresh clears state', () => {
+        const sb = makeSandbox();
+        sb.Spots.startAutoRefresh();
+        sb.Spots.stopAutoRefresh();
+        assertEqual(sb.Spots.isAutoRefreshEnabled(), false, 'flag cleared');
+        assertEqual(sb.Spots.getNextAutoRefreshTime(), 0, 'next time cleared');
+    });
+
+    it('startAutoRefresh persists to localStorage', () => {
+        const sb = makeSandbox();
+        sb.Spots.startAutoRefresh();
+        assertEqual(sb.localStorage.getItem('chaseAutoRefreshEnabled'), 'true', 'persisted');
+        sb.Spots.stopAutoRefresh();
+    });
+});
+
 // Wait for any pending async its before reporting
 setTimeout(() => {
     console.log(`\n${testsPassed} passed, ${testsFailed} failed`);
