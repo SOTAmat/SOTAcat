@@ -19,6 +19,7 @@ idf_component_register(
         "web/style.cssgz"
         "web/main.jsgz"
         "web/bandprivileges.jsgz"
+        "web/spots.jsgz"
         "web/chase.htmlgz"
         "web/chase.jsgz"
         "web/chase_api.jsgz"
