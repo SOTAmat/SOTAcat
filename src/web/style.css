@@ -408,7 +408,7 @@ a {
     --mode-cw-color: #4dabf7;     /* CW    — blue   */
     --mode-data-color: #ffd43b;   /* DATA  — amber  */
     --mode-phone-color: #51cf66;  /* PHONE — green  */
-    --mode-other-color: #adb5bd;  /* OTHER — gray   */
+    --mode-other-color: var(--gray-5);  /* OTHER — gray (matches palette) */
     --label-width: 14px;
     --row-gap: 0;
     --row-height: 5px;

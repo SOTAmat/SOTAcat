@@ -423,7 +423,7 @@ function updateBandRangeDisplay() {
     const spotsTrack = document.createElement("div");
     spotsTrack.className = "vfo-band-range-track";
 
-    const allSpots = (typeof Spots !== "undefined") ? Spots.getAll() : null;
+    const allSpots = Spots.getAll();
     const tickData = buildSpotTickData(allSpots, bandStart, bandEnd);
     for (const t of tickData) {
         const tick = document.createElement("div");
