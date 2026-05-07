@@ -21,9 +21,21 @@ function describe(name, fn) {
 
 function it(name, fn) {
     try {
-        fn();
-        testsPassed++;
-        console.log(`  ✓ ${name}`);
+        const r = fn();
+        if (r && typeof r.then === 'function') {
+            r.then(() => {
+                testsPassed++;
+                console.log(`  ✓ ${name}`);
+            }).catch((e) => {
+                testsFailed++;
+                console.log(`  ✗ ${name}`);
+                console.log(`    ${e.message}`);
+                failures.push({ name, error: e.message });
+            });
+        } else {
+            testsPassed++;
+            console.log(`  ✓ ${name}`);
+        }
     } catch (e) {
         testsFailed++;
         console.log(`  ✗ ${name}`);
@@ -140,7 +152,57 @@ describe('Spots cache (localStorage)', () => {
     });
 });
 
-console.log(`\n${testsPassed} passed, ${testsFailed} failed`);
-if (testsFailed > 0) {
-    process.exit(1);
-}
+describe('Spots.refresh()', () => {
+    it('fetches spots and stores them', async () => {
+        const sb = makeSandbox();
+        // Override the stub to return real-looking data
+        sb.fetchAndProcessSpots = async () => ([
+            { hertz: 14250000, mode: 'USB' },
+            { hertz: 7100000, mode: 'CW' },
+        ]);
+        const result = await sb.Spots.refresh({ force: true });
+        assertEqual(result.length, 2, 'returns fetched spots');
+        assertEqual(sb.Spots.getAll().length, 2, 'state populated');
+    });
+
+    it('rate-limited calls return cached data without fetching', async () => {
+        const sb = makeSandbox();
+        let callCount = 0;
+        sb.fetchAndProcessSpots = async () => { callCount++; return [{ hertz: 14250000 }]; };
+        await sb.Spots.refresh({ force: true });
+        await sb.Spots.refresh({ force: false });    // should be rate-limited
+        assertEqual(callCount, 1, 'second call did not refetch');
+    });
+
+    it('force=true bypasses rate limit', async () => {
+        const sb = makeSandbox();
+        let callCount = 0;
+        sb.fetchAndProcessSpots = async () => { callCount++; return []; };
+        await sb.Spots.refresh({ force: true });
+        await sb.Spots.refresh({ force: true });
+        assertEqual(callCount, 2, 'both forced calls fetched');
+    });
+
+    it('concurrent refresh calls dedupe to one fetch', async () => {
+        const sb = makeSandbox();
+        let callCount = 0;
+        sb.fetchAndProcessSpots = async () => {
+            callCount++;
+            // Hold the fetch open briefly
+            await new Promise(r => setTimeout(r, 10));
+            return [];
+        };
+        await Promise.all([
+            sb.Spots.refresh({ force: true }),
+            sb.Spots.refresh({ force: true }),
+            sb.Spots.refresh({ force: true }),
+        ]);
+        assertEqual(callCount, 1, 'in-flight call deduped');
+    });
+});
+
+// Wait for any pending async its before reporting
+setTimeout(() => {
+    console.log(`\n${testsPassed} passed, ${testsFailed} failed`);
+    if (testsFailed > 0) process.exit(1);
+}, 100);

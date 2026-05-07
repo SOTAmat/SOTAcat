@@ -71,4 +71,60 @@ var Spots = {
             // best-effort
         }
     },
+
+    async refresh({ force = false, location = undefined, fetchOptions = undefined } = {}) {
+        // Dedupe concurrent calls — return whichever fetch is already in flight.
+        if (SpotsState.lastFetchPromise) {
+            return SpotsState.lastFetchPromise;
+        }
+
+        // Rate limit (skipped when force=true)
+        const now = Date.now();
+        if (!force && now - SpotsState.lastFetchTime < SPOTS_MIN_REFRESH_INTERVAL_MS) {
+            Log.info("Spots")(`Rate limited; ${Math.round((now - SpotsState.lastFetchTime) / 1000)}s since last fetch`);
+            return SpotsState.spots;
+        }
+
+        SpotsState.lastFetchTime = now;
+
+        const opts = fetchOptions || {
+            max_age: SPOTS_CACHE_TTL_SECONDS,
+            limit: SPOTS_API_LIMIT,
+            dedupe: true,
+        };
+
+        const promise = (async () => {
+            try {
+                const loc = location !== undefined
+                    ? location
+                    : (typeof getLocation === "function" ? await getLocation() : null);
+                const spots = await fetchAndProcessSpots(opts, loc, true);
+                SpotsState.spots = spots;
+                SpotsState.lastFetchCompleteTime = Date.now();
+                this._saveCache(spots);
+                this._notify();
+                Log.info("Spots")(`Updated: ${spots.length} spots`);
+                return spots;
+            } finally {
+                SpotsState.lastFetchPromise = null;
+            }
+        })();
+
+        SpotsState.lastFetchPromise = promise;
+        return promise;
+    },
+
+    getLastFetchCompleteTime() {
+        return SpotsState.lastFetchCompleteTime;
+    },
+
+    _notify() {
+        for (const cb of SpotsState.subscribers) {
+            try {
+                cb(SpotsState.spots);
+            } catch (e) {
+                Log.warn("Spots")("subscriber threw:", e);
+            }
+        }
+    },
 };
