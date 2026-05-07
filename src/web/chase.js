@@ -4,10 +4,6 @@
 // Unified page for tracking SOTA, POTA, and other xOTA spots via Spothole API
 
 // Configuration constants - adjust these to change behavior
-const CHASE_HISTORY_DURATION_SECONDS = 3600; // 1 hour (3600 seconds)
-const CHASE_API_SPOT_LIMIT = 500; // Maximum number of spots to fetch from API
-const CHASE_MIN_REFRESH_INTERVAL_MS = 60000; // Minimum time between API calls (60 seconds)
-const CHASE_AUTO_REFRESH_INTERVAL_MS = 60000; // Auto-refresh interval (60 seconds)
 const REFRESH_TIMER_UPDATE_INTERVAL_MS = 1000; // Update refresh timer every second
 const AUTO_SUGGEST_PROMPT_MS = 3000; // Show "Auto-refresh?" prompt for 3 seconds after each manual refresh
 const VFO_FREQUENCY_TOLERANCE_HZ = 100; // +/- 100 Hz for matching radio to spots
@@ -1073,6 +1069,16 @@ async function refreshChaseJson(force, userInitiated = false) {
 // Event Handler Attachment
 // ============================================================================
 
+// Subscriber callback for Spots updates. Re-renders the chase table when
+// spots cache changes. Defined at module scope (not inline) so onChaseLeaving
+// can pass the same reference to Spots.unsubscribe() and avoid leaking
+// subscribers across tab switches.
+function onChaseSpotsChanged() {
+    if (typeof updateChaseTable === "function") {
+        updateChaseTable();
+    }
+}
+
 // Attach all Chase page event listeners
 function attachChaseEventListeners() {
     // Only attach once to prevent memory leaks
@@ -1183,11 +1189,7 @@ function attachChaseEventListeners() {
 
     // Re-render table whenever spots change (manual refresh, auto-refresh,
     // or cache restore on page load).
-    Spots.subscribe(() => {
-        if (typeof updateChaseTable === "function") {
-            updateChaseTable();
-        }
-    });
+    Spots.subscribe(onChaseSpotsChanged);
 }
 
 // ============================================================================
@@ -1285,6 +1287,9 @@ function onChaseLeaving() {
 
     // Save all settings
     saveSortState();
+
+    // Unsubscribe from Spots updates to prevent leaking subscribers across tab switches
+    Spots.unsubscribe(onChaseSpotsChanged);
 
     // Reset event listener flag so they can be reattached when returning to this tab
     // (necessary because DOM is recreated on each tab switch)
