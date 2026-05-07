@@ -29,6 +29,7 @@ DECLARE_ASSET (main_jsgz)
 DECLARE_ASSET (sclogo_jpg)
 DECLARE_ASSET (settings_htmlgz)
 DECLARE_ASSET (settings_jsgz)
+DECLARE_ASSET (spots_jsgz)
 DECLARE_ASSET (style_cssgz)
 DECLARE_ASSET (qrx_htmlgz)
 DECLARE_ASSET (qrx_jsgz)
@@ -69,6 +70,7 @@ static const asset_entry_t asset_map[] = {
     {"/main.js",           main_jsgz_srt,           main_jsgz_end,           "text/javascript", true,  3600 },
     {"/settings.js",       settings_jsgz_srt,       settings_jsgz_end,       "text/javascript", true,  3600 },
     {"/qrx.js",            qrx_jsgz_srt,            qrx_jsgz_end,            "text/javascript", true,  3600 },
+    {"/spots.js",          spots_jsgz_srt,          spots_jsgz_end,          "text/javascript", true,  3600 },
     {"/style.css",         style_cssgz_srt,         style_cssgz_end,         "text/css",        true,  300  },
     // Images - long cache (never change)
     {"/favicon.ico",       favicon_ico_srt,         favicon_ico_end,         "image/x-icon",    false, 86400}, // 1 day
