@@ -1062,7 +1062,7 @@ function updateSortIndicators(headers, sortField, descending) {
 // ============================================================================
 
 // Fetch latest spot data from Spothole API with rate limiting (force=true bypasses rate limit)
-async function refreshChaseJson(force, isAutoRefresh = false, userInitiated = false) {
+async function refreshChaseJson(force, userInitiated = false) {
     const refreshButton = document.getElementById("refresh-button");
 
     try {
@@ -1092,7 +1092,7 @@ async function refreshChaseJson(force, isAutoRefresh = false, userInitiated = fa
         }
     } catch (error) {
         Log.error("Chase")("Refresh error:", error);
-        if (force && !isAutoRefresh) {
+        if (force) {
             alert("Failed to fetch spots from Spothole API. Please check your internet connection and try again.");
         }
     } finally {
@@ -1127,7 +1127,7 @@ function attachChaseEventListeners() {
                 startAutoRefresh();
             } else {
                 // Normal manual refresh
-                refreshChaseJson(true, false, true);
+                refreshChaseJson(true, true);
             }
         });
     }
@@ -1281,7 +1281,6 @@ async function onChaseAppearing() {
     // Load data: prefer in-memory cache, then fresh fetch
     if (Spots.getAll() !== null) {
         Log.debug("Chase")("tab appearing: Using cached data");
-        updateChaseTable();
     } else {
         Log.debug("Chase")("tab appearing: Fetching new data");
         refreshChaseJson(true);
