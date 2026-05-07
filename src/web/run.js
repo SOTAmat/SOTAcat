@@ -410,6 +410,35 @@ function updateBandRangeDisplay() {
 
     const frag = document.createDocumentFragment();
 
+    // Spots row (top of stack). Built before license rows so DOM order
+    // gives us correct visual stacking — first child is topmost.
+    const spotsRow = document.createElement("div");
+    spotsRow.className = "vfo-band-range-row vfo-band-range-spots-row";
+
+    const spotsLabel = document.createElement("span");
+    spotsLabel.className = "vfo-band-range-label";
+    spotsLabel.textContent = "";  // empty — no label for the spots row
+    spotsRow.appendChild(spotsLabel);
+
+    const spotsTrack = document.createElement("div");
+    spotsTrack.className = "vfo-band-range-track";
+
+    const allSpots = (typeof Spots !== "undefined") ? Spots.getAll() : null;
+    const tickData = buildSpotTickData(allSpots, bandStart, bandEnd);
+    for (const t of tickData) {
+        const tick = document.createElement("div");
+        tick.className = "vfo-band-range-spot-tick";
+        tick.dataset.mode = t.modeCategory;
+        tick.dataset.hz = String(t.hz);
+        tick.dataset.modeRaw = t.modeRaw;
+        tick.style.left = `${t.leftPct}%`;
+        tick.title = t.title;
+        spotsTrack.appendChild(tick);
+    }
+
+    spotsRow.appendChild(spotsTrack);
+    frag.appendChild(spotsRow);
+
     for (const cls of rowsTopToBottom) {
         const row = document.createElement("div");
         row.className = "vfo-band-range-row";

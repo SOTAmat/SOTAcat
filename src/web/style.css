@@ -406,8 +406,9 @@ a {
    single tick + bandwidth overlay spans the full stack. */
 .vfo-band-range {
     --mode-cw-color: #4dabf7;     /* CW    — blue   */
-    --mode-data-color: #ffd43b;   /* DATA  — yellow */
+    --mode-data-color: #ffd43b;   /* DATA  — amber  */
     --mode-phone-color: #51cf66;  /* PHONE — green  */
+    --mode-other-color: #adb5bd;  /* OTHER — gray   */
     --label-width: 14px;
     --row-gap: 0;
     --row-height: 5px;
@@ -492,6 +493,41 @@ a {
 .vfo-band-range-tick.out-of-priv {
     background: var(--danger);
     box-shadow: 0 0 6px var(--danger), 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+/* Spots row: rendered above the license rows. Track is transparent so
+   ticks float over the VFO background; ticks are colored per mode. */
+.vfo-band-range-spots-row .vfo-band-range-track {
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;   /* let ticks extend slightly past the track */
+}
+
+.vfo-band-range-spot-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    margin-left: -1.5px;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.vfo-band-range-spot-tick[data-mode="cw"]    { background: var(--mode-cw-color); }
+.vfo-band-range-spot-tick[data-mode="data"]  { background: var(--mode-data-color); }
+.vfo-band-range-spot-tick[data-mode="phone"] { background: var(--mode-phone-color); }
+.vfo-band-range-spot-tick[data-mode="other"] { background: var(--mode-other-color); }
+
+/* Invisible touch hitbox extending the tappable area to ~24px wide.
+   Compromise between project's >=48px gloved-finger guideline and
+   the reality that 48px hitboxes overlap aggressively when spots cluster. */
+.vfo-band-range-spot-tick::before {
+    content: "";
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    left: -10px;
+    right: -10px;
 }
 
 .vfo-band-range-bandwidth {
