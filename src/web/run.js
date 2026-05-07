@@ -20,6 +20,7 @@ const RunState = {
 
     // UI state
     spotEventListenersAttached: false,
+    spotsRebuildPending: false,
 };
 
 // ============================================================================
@@ -670,6 +671,24 @@ function onBandRangeDragEnd(event) {
         // throttled write fired ~66ms ago.
         setFrequency(finalHz);
     }
+
+    // If a spots refresh fired during the drag, run the deferred rebuild.
+    if (RunState.spotsRebuildPending) {
+        RunState.spotsRebuildPending = false;
+        updateBandRangeDisplay();
+    }
+}
+
+function onSpotsChanged() {
+    // Skip rebuild while a drag-to-tune is in progress; replaceChildren
+    // would destroy the tick the user is dragging.
+    const container = document.getElementById("vfo-band-range");
+    if (container && container.classList.contains("is-dragging")) {
+        // Schedule a single rebuild on drag end.
+        RunState.spotsRebuildPending = true;
+        return;
+    }
+    updateBandRangeDisplay();
 }
 
 function setupBandRangeDrag() {
@@ -1581,6 +1600,10 @@ function attachSpotEventListeners() {
 
     // Band-range drag-to-tune (desktop only; no-op on touch / narrow viewports)
     setupBandRangeDrag();
+
+    // Re-render band range whenever spots change, so newly-arrived spots
+    // appear as ticks without the user having to switch tabs.
+    Spots.subscribe(onSpotsChanged);
 }
 
 // ============================================================================
@@ -1621,6 +1644,9 @@ async function onSpotAppearing() {
 function onSpotLeaving() {
     Log.info("Spot")("tab leaving");
     stopVfoUpdates();
+
+    // Unsubscribe from spot updates — no need to rebuild while the tab is hidden.
+    Spots.unsubscribe(onSpotsChanged);
 
     // Reset event listener flag so they can be reattached when returning to this tab
     // (necessary because DOM is recreated on each tab switch)
