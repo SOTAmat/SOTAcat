@@ -126,7 +126,10 @@ var Spots = {
     },
 
     _notify() {
-        for (const cb of SpotsState.subscribers) {
+        // Snapshot before iterating so a subscriber that calls unsubscribe()
+        // (on itself or a peer) during the notify doesn't silently skip
+        // unvisited subscribers.
+        for (const cb of Array.from(SpotsState.subscribers)) {
             try {
                 cb(SpotsState.spots);
             } catch (e) {

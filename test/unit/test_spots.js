@@ -233,6 +233,20 @@ describe('Spots subscribers', () => {
         await sb.Spots.refresh({ force: true });
         assertEqual(count, 1, 'only fired once');
     });
+
+    it('self-unsubscribe during notify does not skip peers', async () => {
+        const sb = makeSandbox();
+        sb.fetchAndProcessSpots = async () => [];
+        let aFired = 0;
+        let bFired = 0;
+        const a = () => { aFired++; sb.Spots.unsubscribe(a); };
+        const b = () => { bFired++; };
+        sb.Spots.subscribe(a);
+        sb.Spots.subscribe(b);
+        await sb.Spots.refresh({ force: true });
+        assertEqual(aFired, 1, 'a fired once');
+        assertEqual(bFired, 1, 'b also fired (was not skipped by a unsubscribing)');
+    });
 });
 
 // Wait for any pending async its before reporting
