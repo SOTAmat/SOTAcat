@@ -1111,6 +1111,48 @@ function saveActiveTab(tabName) {
     localStorage.setItem("activeTab", tabName.toLowerCase());
 }
 
+// Tune radio to specified frequency (Hz) and mode (adjusts SSB sideband based on frequency)
+async function tuneRadioHz(frequency, mode) {
+    let useMode = mode.toUpperCase();
+    if (useMode === "SSB") {
+        if (frequency < LSB_USB_BOUNDARY_HZ) useMode = "LSB";
+        else useMode = "USB";
+    }
+
+    // Open tune targets (WebSDR, KiwiSDR, etc.) - don't await, run in parallel
+    openTuneTargets(frequency, useMode);
+
+    try {
+        const freqResponse = await fetch(`/api/v1/frequency?frequency=${frequency}`, { method: "PUT" });
+
+        if (!freqResponse.ok) {
+            Log.error("Tune")("Frequency update failed");
+            return;
+        }
+
+        Log.debug("Tune")("Frequency updated:", frequency);
+
+        const modeResponse = await fetch(`/api/v1/mode?mode=${useMode}`, { method: "PUT" });
+
+        if (!modeResponse.ok) {
+            Log.error("Tune")("Mode update failed");
+            return;
+        }
+
+        Log.debug("Tune")("Mode updated:", useMode);
+
+        // Update global VFO state
+        AppState.vfoFrequencyHz = frequency;
+        AppState.vfoMode = useMode;
+        AppState.vfoLastUpdated = Date.now();
+
+        // Notify any page-specific listeners (chase row highlight, etc.).
+        if (typeof onTuneRadioComplete === "function") onTuneRadioComplete();
+    } catch (error) {
+        Log.error("Tune")("Tune radio error:", error);
+    }
+}
+
 // Track loaded tab scripts to avoid duplicates
 const loadedTabScripts = new Set();
 
