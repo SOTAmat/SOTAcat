@@ -74,6 +74,9 @@ var Spots = {
 
     async refresh({ force = false, location = undefined, fetchOptions = undefined } = {}) {
         // Dedupe concurrent calls — return whichever fetch is already in flight.
+        // Note: force=true does NOT bypass this dedup; running two parallel
+        // fetches is wasteful, and a force-after-in-flight caller already gets
+        // the freshest data when the in-flight call resolves.
         if (SpotsState.lastFetchPromise) {
             return SpotsState.lastFetchPromise;
         }
@@ -85,6 +88,10 @@ var Spots = {
             return SpotsState.spots;
         }
 
+        // Advance lastFetchTime BEFORE the fetch completes. This intentionally
+        // makes a failed fetch count against the rate limit (matching prior
+        // chase.js behavior). Manual retries via force=true bypass this gate;
+        // auto-refresh has its own 60s timer chain that retries regardless.
         SpotsState.lastFetchTime = now;
 
         const opts = fetchOptions || {
