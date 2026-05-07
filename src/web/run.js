@@ -284,6 +284,54 @@ function updatePrivilegeDisplay() {
     }
 }
 
+// ============================================================================
+// Spot ticks on band-range chart
+// ============================================================================
+// Pure helper: turn a list of spots into the data needed to render ticks
+// on the spots row. Mode categories are lowercased to match CSS data-mode
+// attribute values (cw / data / phone / other).
+function buildSpotTickData(spots, bandStart, bandEnd) {
+    if (!spots || !Array.isArray(spots)) return [];
+    const span = bandEnd - bandStart;
+    if (span <= 0) return [];
+
+    const out = [];
+    for (const spot of spots) {
+        const hz = spot.hertz;
+        if (typeof hz !== "number") continue;
+        if (hz < bandStart || hz > bandEnd) continue;
+
+        const rawMode = spot.mode || "";
+
+        // Prefer the upstream modeType (CW/SSB/AM/FM/DATA/OTHER) over
+        // getModeCategory, which falls back to PHONE for unknown mode strings
+        // and would mis-color digital modes like FT8.
+        let modeCategory;
+        switch ((spot.modeType || "").toUpperCase()) {
+            case "CW":                        modeCategory = "cw";    break;
+            case "DATA":                      modeCategory = "data";  break;
+            case "SSB": case "AM": case "FM": modeCategory = "phone"; break;
+            case "OTHER":                     modeCategory = "other"; break;
+            default:
+                modeCategory = getModeCategory(rawMode).toLowerCase();
+        }
+
+        const leftPct = ((hz - bandStart) / span) * 100;
+        const freqMHz = (hz / 1e6).toFixed(3);
+        const callsign = spot.activatorCallsign || spot.spothole_dx_call || "?";
+
+        out.push({
+            leftPct,
+            modeCategory,
+            hz,
+            modeRaw: rawMode,
+            callsign,
+            title: `${callsign} · ${freqMHz} MHz · ${rawMode}`,
+        });
+    }
+    return out;
+}
+
 // License classes ordered most-accessible → most-restricted
 const LICENSE_CLASS_RANK = ["N", "T", "G", "A", "E"];
 
