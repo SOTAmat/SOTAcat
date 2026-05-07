@@ -576,6 +576,11 @@ function applyDragFrequency(hz, state) {
 }
 
 function onBandRangeDragStart(event) {
+    // Skip if the pointerdown landed on a spot tick — its click handler
+    // takes care of the tune, and we don't want a phantom drag commit.
+    if (event.target && event.target.closest && event.target.closest(".vfo-band-range-spot-tick")) {
+        return;
+    }
     // Mouse: only the primary (left) button initiates. Touch reports
     // button === 0 too, so this check is harmless there.
     if (event.button !== 0) return;
@@ -701,6 +706,22 @@ function setupBandRangeDrag() {
     // overlay stays pointer-events: none so segment title= tooltips keep
     // working on hover-capable devices.
     container.addEventListener("pointerdown", onBandRangeDragStart);
+
+    // Tap-to-tune on spot ticks. Listener is on the persistent container so
+    // it survives updateBandRangeDisplay() rebuilds. We stop propagation so
+    // the drag-to-tune handler doesn't also re-tune to the click position.
+    container.addEventListener("click", (event) => {
+        const tick = event.target.closest(".vfo-band-range-spot-tick");
+        if (!tick) return;
+        event.stopPropagation();
+
+        const hz = Number(tick.dataset.hz);
+        const modeRaw = tick.dataset.modeRaw || "";
+        if (!Number.isFinite(hz)) return;
+
+        Log.info("Run")(`Tap-to-tune to spot: ${hz} Hz, mode ${modeRaw}`);
+        tuneRadioHz(hz, modeRaw);
+    });
 }
 
 // Update mode and msg button disabled states based on band privileges
