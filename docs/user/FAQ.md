@@ -29,6 +29,14 @@ This works in areas with no cell service but where FT8 propagation reaches an RB
 
 Android's mDNS support varies by device and OS version. Use `http://192.168.4.1` instead, or install [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover the address.
 
+## Where do firmware updates come from?
+
+The Firmware card in Settings checks [SOTAcat's GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases) directly. That's the only authoritative source. Don't trust mirrors or side-channel binaries.
+
+## Why is my CHASE list missing VHF/UHF (or other) spots?
+
+By default, CHASE filters to bands your KX2/KX3/KH1 natively supports. If you operate with a transverter, uncheck **"Show only bands my radio can access"** in Settings to see all spots.
+
 ---
 
 [← Troubleshooting](Troubleshooting.md)

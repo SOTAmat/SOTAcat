@@ -42,6 +42,10 @@ Some features require configuration:
 - Band/mode buttons grayed? → Radio may be in menu or transmitting
 - License badges wrong? → Set license class in Settings
 
+## CHASE Missing Spots
+
+CHASE filters spots to bands your radio can natively cover (KX2/KX3/KH1 native band lists). If you operate with a transverter and expect VHF/UHF spots, disable **"Show only bands my radio can access"** under Settings. The filter defaults to on.
+
 ## Still Stuck?
 
 - **Bug?** [GitHub Issues](https://github.com/SOTAmat/SOTAcat/issues) — include firmware version, device type, steps to reproduce

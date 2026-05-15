@@ -100,5 +100,145 @@ it('handles empty input', () => {
     assertEqual(fn(null, 14000000, 14350000).length, 0);
 });
 
+// ============================================================================
+// Spot lifecycle: tap-to-tune, defer-during-drag, unsubscribe on tab exit
+// ============================================================================
+
+function loadLifecycleSandbox() {
+    const subscribeCalls = [];
+    const unsubscribeCalls = [];
+    const tunes = [];
+    const updateCalls = [];
+    const listeners = {};
+
+    const mockContainer = {
+        _hasDragging: false,
+        classList: {
+            contains(c) { return c === "is-dragging" && mockContainer._hasDragging; },
+            add() {},
+            remove() {},
+        },
+        addEventListener(name, fn) { listeners[name] = fn; },
+        querySelector() { return null; },
+    };
+
+    const sandbox = {
+        console: console,
+        Number: Number,
+        document: {
+            getElementById(id) { return id === "vfo-band-range" ? mockContainer : null; },
+            addEventListener() {},
+            removeEventListener() {},
+            querySelectorAll() { return []; },
+        },
+        window: {},
+        RunState: { spotsRebuildPending: false },
+        AppState: {},
+        Spots: {
+            subscribe(cb) { subscribeCalls.push(cb); },
+            unsubscribe(cb) { unsubscribeCalls.push(cb); },
+        },
+        tuneRadioHz(hz, mode) { tunes.push({ hz, mode }); },
+        updateBandRangeDisplay() { updateCalls.push(true); },
+        stopVfoUpdates() {},
+        Log: {
+            info() { return () => {}; }, warn() { return () => {}; },
+            error() { return () => {}; }, debug() { return () => {}; },
+        },
+        // Stubs for setupBandRangeDrag's references we don't exercise here.
+        onBandRangeDragStart() {},
+        _subscribeCalls: subscribeCalls,
+        _unsubscribeCalls: unsubscribeCalls,
+        _tunes: tunes,
+        _updateCalls: updateCalls,
+        _listeners: listeners,
+        _mockContainer: mockContainer,
+    };
+    vm.createContext(sandbox);
+
+    const code = fs.readFileSync(path.join(__dirname, '../../src/web/run.js'), 'utf8');
+
+    const onSpotsChangedMatch = code.match(/function onSpotsChanged\([^)]*\)\s*\{[\s\S]*?\n\}/);
+    const setupDragMatch = code.match(/function setupBandRangeDrag\(\)\s*\{[\s\S]*?\n\}/);
+    const onSpotLeavingMatch = code.match(/function onSpotLeaving\(\)\s*\{[\s\S]*?\n\}/);
+    if (!onSpotsChangedMatch || !setupDragMatch || !onSpotLeavingMatch) {
+        throw new Error('could not extract lifecycle functions from run.js');
+    }
+    vm.runInContext(onSpotsChangedMatch[0], sandbox);
+    vm.runInContext(setupDragMatch[0], sandbox);
+    vm.runInContext(onSpotLeavingMatch[0], sandbox);
+    return sandbox;
+}
+
+console.log('\nSpot tick lifecycle');
+
+it('onSpotsChanged rebuilds the band range immediately when not dragging', () => {
+    const sb = loadLifecycleSandbox();
+    sb._mockContainer._hasDragging = false;
+    sb.onSpotsChanged();
+    assertEqual(sb._updateCalls.length, 1, 'rebuild called');
+    assertEqual(sb.RunState.spotsRebuildPending, false, 'no pending flag');
+});
+
+it('onSpotsChanged defers rebuild while drag is in progress', () => {
+    const sb = loadLifecycleSandbox();
+    sb._mockContainer._hasDragging = true;
+    sb.onSpotsChanged();
+    assertEqual(sb._updateCalls.length, 0, 'no rebuild during drag');
+    assertEqual(sb.RunState.spotsRebuildPending, true, 'pending flag set');
+});
+
+it('tap on a spot tick calls tuneRadioHz with the tick\'s hz and mode', () => {
+    const sb = loadLifecycleSandbox();
+    sb.setupBandRangeDrag();
+    const click = sb._listeners.click;
+    if (typeof click !== 'function') throw new Error('click listener not registered');
+
+    let propagationStopped = false;
+    const tick = {
+        dataset: { hz: '14250000', modeRaw: 'USB' },
+    };
+    click({
+        target: { closest(sel) { return sel === '.vfo-band-range-spot-tick' ? tick : null; } },
+        stopPropagation() { propagationStopped = true; },
+    });
+    assertEqual(sb._tunes.length, 1, 'tuned once');
+    assertEqual(sb._tunes[0].hz, 14250000);
+    assertEqual(sb._tunes[0].mode, 'USB');
+    assertEqual(propagationStopped, true, 'stops propagation so drag handler skips');
+});
+
+it('tap outside any spot tick is a no-op (drag-to-tune still handles it)', () => {
+    const sb = loadLifecycleSandbox();
+    sb.setupBandRangeDrag();
+    const click = sb._listeners.click;
+    let propagationStopped = false;
+    click({
+        target: { closest() { return null; } },
+        stopPropagation() { propagationStopped = true; },
+    });
+    assertEqual(sb._tunes.length, 0, 'no tune');
+    assertEqual(propagationStopped, false, 'propagation untouched so drag handler can run');
+});
+
+it('tap with invalid hz (NaN) is a no-op', () => {
+    const sb = loadLifecycleSandbox();
+    sb.setupBandRangeDrag();
+    const click = sb._listeners.click;
+    const tick = { dataset: { hz: 'not-a-number', modeRaw: 'CW' } };
+    click({
+        target: { closest() { return tick; } },
+        stopPropagation() {},
+    });
+    assertEqual(sb._tunes.length, 0, 'invalid hz: no tune');
+});
+
+it('onSpotLeaving unsubscribes the same callback that was subscribed', () => {
+    const sb = loadLifecycleSandbox();
+    sb.onSpotLeaving();
+    assertEqual(sb._unsubscribeCalls.length, 1, 'unsubscribed once');
+    assertEqual(sb._unsubscribeCalls[0], sb.onSpotsChanged, 'unsubscribes onSpotsChanged');
+});
+
 console.log(`\n${testsPassed} passed, ${testsFailed} failed`);
 if (testsFailed > 0) process.exit(1);

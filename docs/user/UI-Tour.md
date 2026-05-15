@@ -51,7 +51,8 @@ Control your radio during activation.
 
 **Tune section:**
 - VFO display with frequency/mode
-  - **Band-range graph** at the top is a stack of thin horizontal rows, one per visible license class (top = Extra, bottom = Technician; Novice/Advanced rows appear only when your configured license is one of those legacy classes). Each row's filled segments show where that class has FCC privileges across the current band; empty stretches mean the class has no access there. The coloring is **operator-centric**: a **solid** segment is colored by your current radio mode (blue = CW, yellow = DATA, green = PHONE) and means you can operate there in that mode; a **striped** segment means your current mode is forbidden but the segment is open to one or more other modes — the stripes show which modes would let you operate there if you switched. The colors rotate when you change modes (e.g. switch from SSB to CW and the SSB-permitted greens become CW-permitted blues; areas that allowed only DATA+CW go from striped blue+yellow to solid blue). A single white tick spans the whole stack at the dial frequency, with a faint band around it showing the mode's occupied bandwidth; the tick turns red when you can't legally transmit in your current mode. Hovering a segment shows the class, exact frequency range, and full FCC mode list. You can also retune from the chart itself: **on desktop**, click anywhere to jump the dial there or drag the tick to retune live; **on touch**, tap to jump (no live drag — the rows are too small for finger drags and would fight page scrolling). Either way the dial snaps to a sensible step for your current mode (100 Hz on CW, 500 Hz on DATA, 1 kHz on SSB/AM, 5 kHz on FM) and stays clamped to the current band's edges.
+  - **Spots row** sits above the band-range graph: a thin horizontal track of mode-colored ticks marking every spot currently visible on the CHASE page that falls within the current band (blue = CW, green = PHONE, amber = DATA). Ticks refresh live as spots come in. **Tap a tick to tune the radio** to that spot's frequency and mode. (Distinct from the VFO tick below — that one drags; spot ticks just tap.)
+  - **Band-range graph** at the top is a stack of thin horizontal rows, one per visible license class (top = Extra, bottom = Technician; Novice/Advanced rows appear only when your configured license is one of those legacy classes). Each row's filled segments show where that class has FCC privileges across the current band; empty stretches mean the class has no access there. The coloring is **operator-centric**: a **solid** segment is colored by your current radio mode (blue = CW, yellow = DATA, green = PHONE) and means you can operate there in that mode; a **striped** segment means your current mode is forbidden but the segment is open to one or more other modes — the stripes show which modes would let you operate there if you switched. The colors rotate when you change modes (e.g. switch from SSB to CW and the SSB-permitted greens become CW-permitted blues; areas that allowed only DATA+CW go from striped blue+yellow to solid blue). A single white **VFO tick** spans the whole stack at the dial frequency, with a faint band around it showing the mode's occupied bandwidth; the tick turns red when you can't legally transmit in your current mode. Hovering a segment shows the class, exact frequency range, and full FCC mode list. You can also retune from the chart itself: **on desktop**, click anywhere to jump the dial there or drag the VFO tick to retune live; **on touch**, tap to jump (no live drag — the rows are too small for finger drags and would fight page scrolling). Either way the dial snaps to a sensible step for your current mode (100 Hz on CW, 500 Hz on DATA, 1 kHz on SSB/AM, 5 kHz on FM) and stays clamped to the current band's edges.
   - License-class badges on the left light up to show who is permitted to operate at the current frequency/mode.
   - Mode indicator on the right.
 - Band buttons (40m, 20m, 17m, 15m, 12m, 10m)
@@ -61,8 +62,9 @@ Control your radio during activation.
 ![Tune controls](../images/run-tune.png)
 
 **Spot section:**
-- SOTAmat button (FT8 self-spot, works offline with gateway coverage)
-- SMS Spot / SMS QRT (requires cell service)
+- SOTAmāt button (FT8 self-spot, works offline with gateway coverage)
+- Spot SMS / QRT SMS (requires cell service)
+- **Tell PoLo** — hand off the current frequency, mode, and (when set) your activation reference to the [Ham2K PoLo](https://ham2k.com/) logging app via a deep-link. Useful after self-spotting: tap to switch to PoLo with the QSO row pre-filled.
 
 ![Spot controls](../images/run-spot.png)
 
@@ -91,8 +93,9 @@ One-time setup and preferences.
 
 ![Tune targets settings](../images/settings-tune-targets.png)
 
-- CW macros (configurable keyer buttons with placeholders)
+- CW/Data macros (configurable keyer buttons with placeholders; sent as CW in CW/CW-R, as RTTY in DATA + FSK-D, as PSK31 in DATA + PSK-D)
 - Display settings (compact mode, scan dwell time)
+- "Show only bands my radio can access" — when enabled (default), the CHASE list hides spots outside your radio's native band coverage. Turn it off if you operate with a transverter so VHF/UHF spots stay visible.
 
 ![Display and chase filter settings](../images/settings-display-and-chase-filters.png)
 

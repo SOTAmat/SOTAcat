@@ -60,6 +60,23 @@ SOTAcat/
 - **Battery + power**: `src/battery_monitor.cpp`, `src/max17260.cpp`, `src/enter_deep_sleep.cpp`
 - **Web UI assets**: `src/web/*` (embedded via build scripts)
 
+## Key Web Modules
+
+- `main.js` — shared state (`AppState`), `tuneRadioHz`, `RADIO_CAPABILITIES`, band plan.
+- `spots.js` — global spot store (fetch + cache + subscribe/notify + auto-refresh). Consumed by `chase.js` and `run.js`.
+- `bandprivileges.js` — FCC privilege tables (HF + VHF/UHF), `MODE_SNAP_HZ` for drag-to-tune.
+- `run.js` — band-range chart + spot ticks + drag-to-tune (mouse) / tap-to-jump (touch).
+- `chase.js` — spot list + scan; opt-out radio-band filter via `AppState.filterBandsEnabled`.
+
+## Adding a New Web Asset (dual-wiring rule)
+
+Any file added under `src/web/` must be registered in **both** of these places — both are required:
+
+1. `src/CMakeLists.txt` — append it to the `EMBED_FILES` list so the build embeds it.
+2. `src/webserver.cpp` — add it to the `asset_map` so the HTTP server can serve it.
+
+If you skip #1 the build fails. If you skip #2 the file is in the binary but unreachable and the browser sees `ERR_EMPTY_RESPONSE`. The second failure is silent — always check both files.
+
 ## Build and Flash
 
 See `docs/dev/BUILD.md` for full detail. Quick examples:

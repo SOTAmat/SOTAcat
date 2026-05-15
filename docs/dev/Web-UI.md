@@ -10,6 +10,15 @@ Web assets in `src/web/` are:
 3. Embedded in firmware binary
 4. Served by ESP32 web server
 
+### Dual-wiring rule (read this before adding files)
+
+Every file under `src/web/` must be registered in **two** places — both are required:
+
+1. **`src/CMakeLists.txt`** — add the file to the `EMBED_FILES` list so the build embeds it in the firmware binary.
+2. **`src/webserver.cpp`** — add an entry to the `asset_map` so the HTTP server knows what URL path to serve it from.
+
+Miss the CMakeLists entry → the file isn't in the binary (build- or link-time error). Miss the `asset_map` entry → the file is in the binary but unreachable, and the browser gets `ERR_EMPTY_RESPONSE`. The second mode is the silent failure — always grep both files when adding a new asset.
+
 ## File Structure
 
 ```
@@ -20,22 +29,72 @@ src/web/
 ├── run.html           # RUN tab content
 ├── settings.html      # Settings tab content
 ├── about.html         # About tab content
-├── main.js            # Core app logic
+├── main.js            # Core app logic, AppState, tuneRadioHz, RADIO_CAPABILITIES
 ├── qrx.js             # QRX functionality
-├── chase.js           # CHASE functionality
-├── chase_api.js       # Spothole API client
-├── run.js             # RUN functionality
+├── chase.js           # CHASE functionality (consumes spots.js)
+├── chase_api.js       # Spothole API client (used by spots.js)
+├── run.js             # RUN functionality + band-range chart + spot ticks
 ├── settings.js        # Settings functionality
 ├── style.css          # All styling
-└── bandprivileges.js  # FCC band data
+├── bandprivileges.js  # FCC band data, mode helpers, MODE_SNAP_HZ
+└── spots.js           # Global spot store: fetch, cache, subscribe/notify, auto-refresh
 ```
 
 `bandprivileges.js` is a shared module loaded globally from `index.html`.
 Both `run.js` (badges, warning states, button enablement, and the VFO
 band-range bar) and `chase.js` (per-row privilege flagging) read from
-`FCC_AMATEUR_PRIVILEGES` and use the bandwidth/edge helpers.
+`FCC_AMATEUR_PRIVILEGES` and use the bandwidth/edge helpers. It also
+exposes `MODE_SNAP_HZ` — per-mode snap step in Hz used by drag-to-tune
+on the band-range chart (CW = 100, DATA = 500, SSB/AM = 1000, FM = 5000).
 
-### Radio Capabilities
+### Spots Module (`spots.js`)
+
+`spots.js` is the single source of truth for spot data. Any page that
+needs spots (CHASE, RUN's spot-tick row) reads from this module instead
+of fetching directly. Loaded globally from `index.html` and exposed as
+the `Spots` global.
+
+**Public API:**
+
+- `Spots.getAll()` — current spot array (`null` before first load).
+- `Spots.refresh({ force, location, fetchOptions })` — fetch from
+  Spothole. Returns the array (or cached spots if rate-limited).
+- `Spots.clear()` — drop in-memory spots + localStorage cache. Auto-refresh
+  state and the rate-limit clock are intentionally preserved (this is a
+  data reset, not a state-machine reset).
+- `Spots.subscribe(cb)` / `Spots.unsubscribe(cb)` — page callbacks fired
+  with the new array whenever a refresh completes. Always unsubscribe on
+  teardown — `chase.js` and `run.js` both subscribe on tab-enter and
+  unsubscribe on leave.
+- `Spots.startAutoRefresh()` / `Spots.stopAutoRefresh()` /
+  `Spots.isAutoRefreshEnabled()` / `Spots.loadAutoRefreshPref()` —
+  60 s auto-refresh state machine. Preference persists to
+  `localStorage["chaseAutoRefreshEnabled"]`.
+- `Spots.getLastFetchCompleteTime()` / `Spots.getNextAutoRefreshTime()` —
+  for "Refreshed Ns ago" / "Next refresh in Ns" UI.
+
+**Rate-limit and dedup semantics:**
+
+- A 60 s rate-limit gate between API calls. `force=true` bypasses the
+  gate (for manual refresh / auto-refresh tick) but does **not** bypass
+  in-flight dedup.
+- Concurrent `refresh()` calls dedup to a single fetch — additional
+  callers receive the in-flight promise.
+- `lastFetchTime` advances *before* the fetch resolves, so a network
+  failure still counts against the 60 s gate. Auto-refresh has its own
+  timer chain that retries regardless.
+- `_notify()` snapshots the subscriber set before iterating so a
+  subscriber that calls `unsubscribe()` on itself or a peer during
+  notify doesn't cause peers to be silently skipped.
+
+**Cache:** `localStorage["chaseSpotCache"]` (1 h TTL, matching
+`CHASE_HISTORY_DURATION_SECONDS`). The key name is preserved for
+compatibility with caches from earlier chase-only versions.
+
+**Design context:** `docs/superpowers/specs/2026-05-06-spot-ticks-design.md`
+and `docs/superpowers/plans/2026-05-06-spot-ticks.md`.
+
+### Radio Capabilities (in `main.js`)
 
 `main.js` declares `RADIO_CAPABILITIES`, a per-radio record describing the
 native bands and modes each supported transceiver can use *without* a
@@ -131,7 +190,29 @@ the dial frequency and the translucent bandwidth window
 the per-row tracks. Mode bandwidth comes from `getModeBandwidth` and
 `getSignal{Lower,Upper}Edge` in `bandprivileges.js`.
 
+### Spot ticks on the Run page
+
+Above the license-class stack, `run.js` renders a separate
+`.vfo-band-range-spots-row` containing one `.vfo-band-range-spot-tick`
+per spot whose `hertz` falls within the current band's `[bandMin,
+bandMax]`. `buildSpotTickData(spots, bandStart, bandEnd)` is the pure
+helper that filters and computes `leftPct` + `modeCategory` for each
+tick — it's the unit-testable seam (see `test/unit/test_run_spot_ticks.js`).
+
+Ticks are colored by mode category (`cw` / `data` / `phone` / `other`,
+see `style.css` `[data-mode]` selectors). The pointer handler on
+`#vfo-band-range` short-circuits when `event.target.closest(".vfo-band-range-spot-tick")`
+matches — instead of drag-to-tune, a spot tick tap calls
+`tuneRadioHz(spotHz, spotMode)` directly. There is **no** drag
+semantics for spot ticks: tap-only on both mouse and touch.
+
+The spots row is rebuilt on each `Spots` subscriber callback, but
+rebuild is deferred while `RunState.isDragging` is true so a live drag
+doesn't reflow the row under the user's finger/cursor.
+
 #### Drag-to-tune (mouse) and tap-to-jump (touch)
+
+The drag/tap pipeline below applies to the VFO tick, **not** spot ticks.
 
 `setupBandRangeDrag()` (run.js) wires a `pointerdown` listener to the
 persistent `#vfo-band-range` container. The handler reads

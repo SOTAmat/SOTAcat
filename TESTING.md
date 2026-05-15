@@ -30,7 +30,28 @@ SOTAcat has a comprehensive test suite covering:
 3. **Stress Tests** (`test/integration/`) — Multi-client concurrent access, mutex timeout validation. Requires a live device.
 
 ### Unit Tests
-Pure JS tests for extracted web-UI logic — SMS-URI construction (SOTAmat spotting), CW macro template expansion, keyer family selection, band-range visibility, license-class privileges, etc. Each `test/unit/test_*.js` file runs standalone under Node.js with no dependencies. `make test-unit` runs all of them.
+Pure JS tests for extracted web-UI logic. Each `test/unit/test_*.js` file runs standalone under Node.js with no dependencies — `make test-unit` runs all of them. The harness is a small custom runner (no Jest/Mocha); each file builds its own VM sandbox and loads only the code under test (usually by extracting specific functions from the relevant `src/web/*.js` file). PlatformIO's old unit-test harness is no longer used.
+
+**Test files (`test/unit/`)**:
+
+| File | Scope |
+|---|---|
+| `test_band_range_drag.js` | Drag-to-tune math: pixel → Hz, snap step per mode, clamp to band edges |
+| `test_bandprivileges.js` | FCC privilege tables (HF + VHF/UHF), mode categories, bandwidth/edge logic, 97.305(c) phone/data segregation |
+| `test_battery_charging.js` | Battery charging icon selection from API state |
+| `test_chase_resume.js` | Chase/Scan resume from last row (#102): startScan picks `clickedTunedRow` first; advanceScan increments before tune; empty-row stop |
+| `test_chase_tab_reentry.js` | Chase tab re-entry: subscribe/unsubscribe paired across attach/leave cycles (no subscriber leak); `onChaseSpotsChanged` rebuilds the table |
+| `test_qrx.js` | QRX-page helpers: distance formatting, reference auto-formatting |
+| `test_radio_capabilities.js` | `RADIO_CAPABILITIES` per-radio table; `getRadioBands` / `getRadioModes` / `radioCanTransmit` |
+| `test_run.js` | RUN helpers: SOTAmat SMS construction, CW macro expansion, `getKeyerFamily` (CW vs DATA vs forced-CW), `getVisibleLicenseClasses` |
+| `test_run_spot_ticks.js` | `buildSpotTickData` — band filter, position %, mode category; tap-to-tune dispatch; defer-rebuild-during-drag; unsubscribe on tab exit |
+| `test_spots.js` | `spots.js` module: cache, refresh + force, rate-limit, concurrent dedup, subscribe/unsubscribe (incl. self-unsubscribe during notify), auto-refresh state machine |
+| `test_tune.js` | `tuneRadioHz`: SSB sideband by frequency boundary, CW preservation |
+| `test_xota_deeplink.js` | SOTAmat / PoLo deep-link URL construction, `getSigFromReference` pattern matching |
+
+**Not yet covered (backend C++):** `src/handler_*.cpp`, `src/radio_driver_kx.cpp`, the CAT protocol core, and the keyer chunking / TQ polling logic (#101 no-false-disconnect fix, #98 RTTY/PSK keying) have no test harness. Introducing host-side Unity or Catch2 is a separate initiative; until then, those changes are manually validated against a real device via `make test` (integration).
+
+**Related**: in-progress feature specs and implementation plans live under [`docs/superpowers/specs/`](docs/superpowers/specs/) and [`docs/superpowers/plans/`](docs/superpowers/plans/).
 
 ### Performance Test
 Tests 20 static assets and non-radio API endpoints:

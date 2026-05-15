@@ -14,6 +14,7 @@
 - [Build](dev/BUILD.md) — Compile and flash firmware
 - [Architecture](dev/Architecture.md) — System overview
 - [Web UI](dev/Web-UI.md) — Asset pipeline and API mapping
+- [superpowers/](superpowers/) — In-progress feature specs and implementation plans
 
 ## Hardware
 - [Hardware Guide](Hardware.md) — Purchase and build options

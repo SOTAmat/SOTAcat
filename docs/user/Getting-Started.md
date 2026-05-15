@@ -36,6 +36,10 @@ In Settings, configure:
 2. **License class** — For band privilege indicators
 3. **WiFi networks** — See [Networking](Networking.md) for WiFi mode options
 
+## Updating Firmware
+
+New firmware is published exclusively to [SOTAcat's GitHub Releases page](https://github.com/SOTAmat/SOTAcat/releases). Any other source (mirror, Slack drop, side-channel) is not authoritative — the OTA flow on the Firmware settings card checks GitHub Releases directly.
+
 ## Next Steps
 
 1. [UI Tour](UI-Tour.md) — learn what each tab does
