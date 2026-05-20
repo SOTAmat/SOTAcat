@@ -35,3 +35,18 @@ struct RadioSnapshotData {
                (now_us - mode_stamp_us) < RADIO_SNAPSHOT_FRESH_US;
     }
 };
+
+// Thread-safe accessor for the single shared snapshot. Implemented in
+// radio_snapshot.cpp with a FreeRTOS mutex distinct from the radio
+// mutex — readers (HTTP handlers) never contend on UART.
+namespace radio_snapshot {
+// Copy the whole snapshot out under the lock.
+RadioSnapshotData get();
+// Merge-update individual fields under the lock; pass the esp_timer
+// "now" once so all touched stamps share it.
+void set_frequency(long hz, int64_t now_us);
+void set_mode(long mode, int64_t now_us);
+void set_volume(long volume, int64_t now_us);
+void set_power(long power, int64_t now_us);
+void set_xmit_state(long state, int64_t now_us);
+}  // namespace radio_snapshot
