@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_service.h"
 #include "timed_lock.h"
 #include "webserver.h"
 
@@ -55,15 +56,14 @@ esp_err_t handler_volume_put (httpd_req_t * req) {
 
     long delta = atoi (param_value);
 
-    // Tier 2: Moderate timeout for SET operations (read + write)
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "volume SET")) {
-        if (!kxRadio.supports_volume())
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "volume not supported on this radio");
+    if (!kxRadio.supports_volume())
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "volume not supported on this radio");
 
-         // Set new volume
-        if (!kxRadio.set_volume (delta))
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to set volume");
-    }
+    int rc = radio_service_set_blocking (RadioCmdType::SET_VOLUME, delta, 800);
+    if (rc < 0)
+        REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
+    if (rc == 0)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to set volume");
 
     REPLY_WITH_SUCCESS();
 }

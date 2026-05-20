@@ -98,37 +98,37 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
 
     radio_mode_t mode = MODE_UNKNOWN;
 
-    // Tier 2: Moderate timeout for SET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "mode SET")) {
-        // Determine the radio mode based on the "mode" parameter
-        if (!strcmp (mode_param, "SSB")) {
-            // Get the current frequency and set the mode to LSB or USB based on the frequency
-            long frequency = 0;
-            if (!kxRadio.get_frequency (frequency))
-                frequency = 0;
-            if (frequency > 0)
-                mode = (frequency < 10000000) ? MODE_LSB : MODE_USB;
+    // Determine the radio mode based on the "mode" parameter
+    if (!strcmp (mode_param, "SSB")) {
+        // Read current frequency from snapshot; LSB below 10 MHz, USB at/above.
+        long f = radio_snapshot::get().frequency_hz;
+        if (f <= 0) {
+            radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);
+            REPLY_WITH_SERVICE_UNAVAILABLE (req, "frequency unknown, retry SSB after refresh");
         }
-        else
-#define COUNTOF(array) (sizeof (array) / sizeof (array[0]))
-            // Iterate through the radio_mode_map to find a matching mode
-            for (radio_mode_map_t const * mode_kv = &radio_mode_map[COUNTOF (radio_mode_map) - 1];
-                 mode_kv >= &radio_mode_map[0];
-                 --mode_kv)
-                if (!strcmp (mode_param, mode_kv->name)) {
-                    mode = mode_kv->mode;
-                    break;
-                }
-
-        // Respond with an error if the mode is not recognized
-        if (mode == MODE_UNKNOWN)
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode");
-
-        // Set the radio mode
-        ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
-        if (!kxRadio.set_mode (mode, SC_KX_COMMUNICATION_RETRIES))
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode for radio");
+        mode = (f < 10000000) ? MODE_LSB : MODE_USB;
     }
+    else
+#define COUNTOF(array) (sizeof (array) / sizeof (array[0]))
+        // Iterate through the radio_mode_map to find a matching mode
+        for (radio_mode_map_t const * mode_kv = &radio_mode_map[COUNTOF (radio_mode_map) - 1];
+             mode_kv >= &radio_mode_map[0];
+             --mode_kv)
+            if (!strcmp (mode_param, mode_kv->name)) {
+                mode = mode_kv->mode;
+                break;
+            }
+
+    // Respond with an error if the mode is not recognized
+    if (mode == MODE_UNKNOWN)
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode");
+
+    ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
+    int rc = radio_service_set_blocking (RadioCmdType::SET_MODE, (long)mode, 800);
+    if (rc < 0)
+        REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
+    if (rc == 0)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set mode");
 
     REPLY_WITH_SUCCESS();
 }
