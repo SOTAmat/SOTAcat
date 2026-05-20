@@ -32,6 +32,15 @@ int main() {
     // Same skew guard for mode.
     assert(!s.mode_fresh(0));
 
+    // Xmit state, mirroring frequency/mode.
+    s.xmit_state    = 0;
+    s.xmit_stamp_us = 7'000'000;
+    assert(s.has_xmit());
+    assert(s.xmit_fresh(7'000'000));
+    assert(!s.xmit_fresh(7'000'000 + RADIO_SNAPSHOT_FRESH_US + 1));
+    // Same skew guard.
+    assert(!s.xmit_fresh(0));
+
     printf("test_radio_snapshot: OK\n");
     return 0;
 }

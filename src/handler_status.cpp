@@ -1,9 +1,12 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_service.h"
+#include "radio_snapshot.h"
 #include "timed_lock.h"
 #include "webserver.h"
 
 #include <esp_log.h>
+#include <esp_timer.h>
 static const char * TAG8 = "sc:hdl_stat";
 
 /**
@@ -21,7 +24,7 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
 
     const char * symbol;
 
-    if (!kxRadio.is_connected())
+    if (!radio_service_link_up())
         symbol = "⚫";
     else if (Ft8RadioExclusive) {
         symbol = "⚪";
@@ -32,23 +35,19 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
         symbol = "🔴";
     }
     else {
-        long transmitting = -1;
-
-        // Tier 1: Fast timeout for GET operations
-        TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET")) {
-            if (!kxRadio.get_xmit_state (transmitting))
-                transmitting = -1;
-        }
-
-        switch (transmitting) {
-        case 0:
-            symbol = "🟢";
-            break;
-        case 1:
-            symbol = "🔴";
-            break;
-        default:  // includes transmitting == -1, the failure case
-            symbol = "⚪";
+        // Never touch the radio here — read the cached xmit state the
+        // service task maintains. Stale/unknown -> ⚪, and request a
+        // refresh so the next poll is accurate.
+        RadioSnapshotData snap = radio_snapshot::get();
+        int64_t           now  = esp_timer_get_time();
+        if (!snap.has_xmit())
+            radio_service_request_refresh (RadioCmdType::REFRESH_XMIT);
+        else if (!snap.xmit_fresh (now))
+            radio_service_request_refresh (RadioCmdType::REFRESH_XMIT);
+        switch (snap.xmit_state) {
+        case 0:  symbol = "🟢"; break;
+        case 1:  symbol = "🔴"; break;
+        default: symbol = "⚪";
         }
     }
 

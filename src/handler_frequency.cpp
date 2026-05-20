@@ -1,16 +1,13 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_service.h"
+#include "radio_snapshot.h"
 #include "timed_lock.h"
 #include "webserver.h"
 
 #include <esp_log.h>
 #include <esp_timer.h>
 static const char * TAG8 = "sc:hdl_freq";
-
-// Frequency cache to reduce radio contention under heavy load
-static long          cached_frequency      = 0;
-static int64_t       cached_frequency_time = 0;
-static const int64_t FREQUENCY_CACHE_US    = 200000;  // 200ms cache
 
 /**
  * Handles a HTTP GET request to retrieve the current frequency from the radio.
@@ -20,64 +17,22 @@ static const int64_t FREQUENCY_CACHE_US    = 200000;  // 200ms cache
  */
 esp_err_t handler_frequency_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    long    frequency;
-    int64_t now = esp_timer_get_time();
+    RadioSnapshotData snap = radio_snapshot::get();
+    int64_t           now  = esp_timer_get_time();
 
-    if (Ft8RadioExclusive) {
-        if (cached_frequency > 0) {
-            frequency = cached_frequency;
-            ESP_LOGW (TAG8, "ft8 active - returning cached frequency: %ld", frequency);
-        }
-        else {
-            ESP_LOGW (TAG8, "ft8 active - no cached frequency available");
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
-        }
-    }
-    // Check cache first to reduce radio mutex contention
-    else if (cached_frequency > 0 && (now - cached_frequency_time) < FREQUENCY_CACHE_US) {
-        frequency = cached_frequency;
-        ESP_LOGV (TAG8, "returning cached frequency: %ld", frequency);
-    }
-    else {
-        // Cache miss or expired - query radio with timeout
-        // Tier 1: Fast timeout for GET operations
-        {
-            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
-            if (lock.acquired()) {
-                if (!kxRadio.get_frequency (frequency))
-                    frequency = -1;
-
-                if (frequency > 0) {
-                    // Update cache
-                    cached_frequency      = frequency;
-                    cached_frequency_time = now;
-                    ESP_LOGD (TAG8, "cached new frequency: %ld", frequency);
-                }
-            }
-            else {
-                // Mutex timeout - return stale cache if available
-                if (cached_frequency > 0) {
-                    frequency = cached_frequency;
-                    ESP_LOGW (TAG8, "radio busy - returning stale cached frequency: %ld", frequency);
-                }
-                else {
-                    ESP_LOGW (TAG8, "radio busy - no cached frequency available");
-                    REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
-                }
-            }
-        }  // TimedLock destructor runs here, after radio access is complete
+    if (!snap.has_frequency()) {
+        // Nothing known yet (cold start / radio never present).
+        radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "frequency unavailable");
     }
 
-    if (frequency <= 0)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "invalid frequency from radio");
+    if (!snap.frequency_fresh (now))
+        radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);
 
-    // Frequency is valid, send response back to phone
     char buf[16];
-    snprintf (buf, sizeof (buf), "%ld", frequency);
-
+    snprintf (buf, sizeof (buf), "%ld", snap.frequency_hz);
     REPLY_WITH_STRING (req, buf, "frequency");
 }
 
@@ -105,11 +60,6 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
 
         if (!success)
             REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set frequency");
-
-        // Invalidate cache after setting new frequency
-        cached_frequency      = freq;
-        cached_frequency_time = esp_timer_get_time();
-        ESP_LOGD (TAG8, "cache updated with new frequency: %d", freq);
     }
 
     REPLY_WITH_SUCCESS();
