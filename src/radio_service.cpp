@@ -22,8 +22,9 @@ static constexpr size_t   RADIO_QUEUE_LEN    = 8;
 struct RadioCmd {
     RadioCmdType   type;
     long           arg;
-    TaskHandle_t   waiter;   // non-null for SETs
-    uint32_t       seq;      // 0 for refresh requests, non-zero for SETs
+    TaskHandle_t   waiter;        // non-null for SETs
+    uint32_t       seq;           // 0 for refresh requests, non-zero for SETs
+    int64_t        expires_at_us; // 0 = no expiry (refresh); else absolute esp_timer_get_time() deadline
 };
 
 static QueueHandle_t      s_queue = nullptr;
@@ -69,24 +70,43 @@ static void do_refresh (RadioCmdType which) {
     publish_health();
 }
 
-static int do_set (RadioCmdType type, long arg) {
+// IMPORTANT: We may have waited an unbounded time on the radio mutex
+// because unconverted handlers (FT8, keyer, handler_cat, time SET,
+// handler_volume_get) still take it directly. If the waiting handler
+// has already timed out (its ack window is SET_ACK_TIMEOUT_MS ~800 ms)
+// and reported HTTP 500 to the user, applying the radio change here
+// would be a silent-late application — the user saw "failed" but the
+// frequency/mode/volume/ATU actually changed. See spec line 55:
+// "no silent success". Skip the application if cmd.expires_at_us has
+// passed. Once all radio-mutex-taking handlers route through this task,
+// the expiry check becomes a no-op safeguard rather than essential.
+static int do_set (const RadioCmd & cmd) {
     int64_t   now  = esp_timer_get_time();
     TimedLock lock = kxRadio.timed_lock (portMAX_DELAY, "radiosvc set");
+    if (cmd.expires_at_us != 0 && esp_timer_get_time() > cmd.expires_at_us) {
+        // Handler already gave up; do NOT apply the radio change.
+        // Honest-failure contract: user saw 500, must not silently apply later.
+        ESP_LOGW (TAG8, "SET expired before mutex acquired (waited >%lld ms past deadline); skipping",
+                  (long long) ((esp_timer_get_time() - cmd.expires_at_us) / 1000));
+        s_health.record_failure();
+        publish_health();
+        return 0;
+    }
     bool ok = false;
-    switch (type) {
+    switch (cmd.type) {
     case RadioCmdType::SET_FREQUENCY:
-        ok = kxRadio.set_frequency (arg, SC_KX_COMMUNICATION_RETRIES);
-        if (ok) radio_snapshot::set_frequency (arg, now);
+        ok = kxRadio.set_frequency (cmd.arg, SC_KX_COMMUNICATION_RETRIES);
+        if (ok) radio_snapshot::set_frequency (cmd.arg, now);
         break;
     case RadioCmdType::SET_MODE:
-        ok = kxRadio.set_mode ((radio_mode_t)arg, SC_KX_COMMUNICATION_RETRIES);
-        if (ok) radio_snapshot::set_mode (arg, now);
+        ok = kxRadio.set_mode ((radio_mode_t)cmd.arg, SC_KX_COMMUNICATION_RETRIES);
+        if (ok) radio_snapshot::set_mode (cmd.arg, now);
         break;
     case RadioCmdType::SET_VOLUME:
-        ok = kxRadio.set_volume (arg);
+        ok = kxRadio.set_volume (cmd.arg);
         break;
     case RadioCmdType::SET_POWER:
-        ok = kxRadio.set_power (arg);
+        ok = kxRadio.set_power (cmd.arg);
         break;
     case RadioCmdType::SET_ATU:
         ok = kxRadio.tune_atu();
@@ -110,9 +130,13 @@ static void radio_service_task (void *) {
             continue;  // idle: nothing queued (on-demand only)
 
         if (cmd.waiter) {
-            int result = do_set (cmd.type, cmd.arg);
+            int result = do_set (cmd);
             // Pack (seq << 1) | result_bit so the waiter can verify the
             // notification is for THIS call, not a prior timed-out one.
+            // Always notify, even when do_set skipped on expiry — the waiter
+            // task may have moved on but the notification keeps the seq-tag
+            // invariant intact (the next SET will see notev_seq != my_seq
+            // and loop past it).
             uint32_t notev = (cmd.seq << 1) | ((result == 1) ? 1u : 0u);
             xTaskNotify (cmd.waiter, notev, eSetValueWithOverwrite);
         } else {
@@ -148,7 +172,7 @@ void radio_service_request_refresh (RadioCmdType which) {
         xQueuePeek (s_queue, &peek, 0) == pdTRUE &&
         peek.waiter == nullptr && peek.type == which)
         return;
-    RadioCmd cmd { which, 0, nullptr, 0 };
+    RadioCmd cmd { which, 0, nullptr, 0, 0 };  // expires_at_us=0 = no expiry
     xQueueSend (s_queue, &cmd, 0);  // drop if full — a later poll retries
 }
 
@@ -169,7 +193,11 @@ int radio_service_set_blocking (RadioCmdType type, long arg, uint32_t timeout_ms
     if (my_seq == 0)  // wrap (essentially never): skip the reserved value
         my_seq = s_next_seq.fetch_add (1, std::memory_order_relaxed);
 
-    RadioCmd cmd { type, arg, xTaskGetCurrentTaskHandle(), my_seq };
+    // Compute deadline BEFORE enqueue so the worker can see it and skip a
+    // SET whose handler has already given up (the worker may sit blocked on
+    // the radio mutex behind an unconverted handler for many seconds).
+    int64_t  deadline_us = esp_timer_get_time() + (int64_t) timeout_ms * 1000;
+    RadioCmd cmd { type, arg, xTaskGetCurrentTaskHandle(), my_seq, deadline_us };
     xTaskNotifyStateClear (NULL);
     if (xQueueSend (s_queue, &cmd, pdMS_TO_TICKS (50)) != pdTRUE)
         return 0;  // queue full -> treat as failure
@@ -177,7 +205,6 @@ int radio_service_set_blocking (RadioCmdType type, long arg, uint32_t timeout_ms
     // Bounded wait, but loop past notifications carrying a different seq
     // (those are leftovers from an earlier SET that already timed out
     // and whose worker reply landed on us anyway).
-    int64_t deadline_us = esp_timer_get_time() + (int64_t) timeout_ms * 1000;
     for (;;) {
         int64_t  remaining_us = deadline_us - esp_timer_get_time();
         if (remaining_us <= 0)
