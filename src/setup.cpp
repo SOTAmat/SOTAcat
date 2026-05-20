@@ -5,6 +5,7 @@
 #include "hardware_specific.h"
 #include "idle_status_task.h"
 #include "kx_radio.h"
+#include "radio_service.h"
 #include "settings.h"
 #include "setup_adc.h"
 #include "timed_lock.h"
@@ -157,6 +158,11 @@ void setup () {
     // Wait for radio connection
     xTaskNotifyWait (0, 0, &notification_value, portMAX_DELAY);
     ESP_LOGI (TAG8, "radio connection established.");
+
+    // The radio is connected; hand all further CAT I/O to the radio
+    // service task so HTTP handlers never block on the radio.
+    radio_service_start();
+    ESP_LOGI (TAG8, "radio service task started.");
 
     //  We exit with the LED off.
     gpio_set_level (LED_BLUE, LED_OFF);
