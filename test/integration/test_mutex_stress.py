@@ -179,6 +179,26 @@ class ControlClient(StressTestClient):
             time.sleep(3 + random() * 4)
 
 
+def responsiveness_probe(host, stop_event, results):
+    """While radio endpoints are hammered, /version (no radio) must
+    stay fast. With the server decoupled from radio I/O this holds
+    even if the radio is physically off."""
+    latencies = []
+    while not stop_event.is_set():
+        t0 = time.time()
+        try:
+            r = requests.get(f"http://{host}/api/v1/version", timeout=3)
+            if r.status_code == 200:
+                latencies.append(time.time() - t0)
+        except requests.RequestException:
+            latencies.append(99.0)
+        time.sleep(0.25)
+    results["probe_max_latency"] = max(latencies) if latencies else 99.0
+    results["probe_p95"] = (
+        sorted(latencies)[int(len(latencies) * 0.95)] if latencies else 99.0
+    )
+
+
 class MutexStressTest:
     """Orchestrates multi-client stress testing"""
 
@@ -189,6 +209,9 @@ class MutexStressTest:
         self.clients: List[StressTestClient] = []
         self.threads: List[threading.Thread] = []
         self.all_stats: List[ClientStats] = []
+        self.probe_results: Dict = {}
+        self.probe_stop_event = threading.Event()
+        self.probe_thread: threading.Thread = None
 
     def verify_host_reachable(self) -> bool:
         """Check if host is accessible"""
@@ -267,6 +290,17 @@ class MutexStressTest:
             self.threads.append(thread)
             time.sleep(0.1)  # Stagger startup
 
+        # Start the responsiveness probe alongside the stress clients.
+        # Probes /api/v1/version (no radio I/O) so we can assert that
+        # non-radio endpoints stay fast even while the radio endpoints
+        # are hammered (and even if the radio is physically off).
+        self.probe_thread = threading.Thread(
+            target=responsiveness_probe,
+            args=(self.host, self.probe_stop_event, self.probe_results),
+            daemon=True,
+        )
+        self.probe_thread.start()
+
         print(f"✓ Launched {len(self.clients)} concurrent clients")
         print()
 
@@ -288,6 +322,22 @@ class MutexStressTest:
             thread.join(timeout=5)
         print("✓ All clients completed")
         print()
+
+        # Stop and join the responsiveness probe
+        self.probe_stop_event.set()
+        if self.probe_thread is not None:
+            self.probe_thread.join(timeout=5)
+
+        results = self.probe_results
+        print(
+            f"Responsiveness probe: /version p95="
+            f"{results.get('probe_p95', 99.0):.3f}s, "
+            f"max={results.get('probe_max_latency', 99.0):.3f}s"
+        )
+        print()
+        assert results["probe_p95"] < 1.0, (
+            f"/version p95 {results['probe_p95']:.2f}s — server still "
+            f"stalling on radio I/O")
 
         # Collect and display results
         return self.generate_report()
