@@ -22,7 +22,7 @@ esp_err_t handler_atu_put (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    int rc = radio_service_set_blocking (RadioCmdType::SET_ATU, 0, 800);
+    int rc = radio_service_set_blocking (RadioCmdType::SET_ATU, 0, SET_ATU_TIMEOUT_MS);
     if (rc < 0)
         REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
     if (rc == 0)

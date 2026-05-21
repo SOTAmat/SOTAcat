@@ -16,8 +16,7 @@
 
 static const char * TAG8 = "sc:radiosvc";
 
-static constexpr uint32_t SET_ACK_TIMEOUT_MS = 800;
-static constexpr size_t   RADIO_QUEUE_LEN    = 8;
+static constexpr size_t RADIO_QUEUE_LEN = 8;
 
 struct RadioCmd {
     RadioCmdType   type;
@@ -85,8 +84,9 @@ static void do_refresh (RadioCmdType which) {
 // IMPORTANT: We may have waited an unbounded time on the radio mutex
 // because unconverted handlers (FT8, keyer, handler_cat, time SET,
 // handler_volume_get) still take it directly. If the waiting handler
-// has already timed out (its ack window is SET_ACK_TIMEOUT_MS ~800 ms)
-// and reported HTTP 500 to the user, applying the radio change here
+// has already timed out (its ack window is the per-op SET_*_TIMEOUT_MS
+// defined in radio_service.h) and reported HTTP 500 to the user,
+// applying the radio change here
 // would be a silent-late application — the user saw "failed" but the
 // frequency/mode/volume/ATU actually changed. See spec line 55:
 // "no silent success". Skip the application if cmd.expires_at_us has

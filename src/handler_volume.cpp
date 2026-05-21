@@ -59,7 +59,7 @@ esp_err_t handler_volume_put (httpd_req_t * req) {
     if (!kxRadio.supports_volume())
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "volume not supported on this radio");
 
-    int rc = radio_service_set_blocking (RadioCmdType::SET_VOLUME, delta, 800);
+    int rc = radio_service_set_blocking (RadioCmdType::SET_VOLUME, delta, SET_VOLUME_TIMEOUT_MS);
     if (rc < 0)
         REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
     if (rc == 0)

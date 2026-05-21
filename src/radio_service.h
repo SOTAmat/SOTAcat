@@ -37,3 +37,16 @@ void radio_service_request_refresh(RadioCmdType which);
 //   0  = failed/timed out (radio answered but command failed, or no ack)
 //  -1  = rejected immediately because link is known-down
 int radio_service_set_blocking(RadioCmdType type, long arg, uint32_t timeout_ms);
+
+// Per-operation ack timeouts for radio_service_set_blocking(). Sized to
+// the radio's real CAT-op duration, not the spec's optimistic ~800 ms
+// (which fails band-switch tunes and is completely insufficient for
+// ATU tunes that legitimately take 5-10 s on the radio side).
+//
+// Reference: pre-decoupling code used RADIO_LOCK_TIMEOUT_MODERATE_MS
+// (2 s) for most SETs and RADIO_LOCK_TIMEOUT_CRITICAL_MS (10 s) for
+// ATU; these values match that intent with headroom for retries.
+static constexpr uint32_t SET_FREQ_TIMEOUT_MS   = 3000;   // band-switch tunes measure 0.7-1.7 s
+static constexpr uint32_t SET_MODE_TIMEOUT_MS   = 2000;
+static constexpr uint32_t SET_VOLUME_TIMEOUT_MS = 1000;
+static constexpr uint32_t SET_ATU_TIMEOUT_MS    = 12000;  // ATU tune is 5-10 s on the radio
