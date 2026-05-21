@@ -38,6 +38,17 @@ static std::atomic<bool>  s_started { false };
 // Starts at 1 to keep 0 reserved as "no notification yet" sentinel.
 static std::atomic<uint32_t> s_next_seq { 1 };
 
+// During link-down, refresh requests are throttled to one CAT probe per
+// LINK_DOWN_PROBE_INTERVAL_US. Without this, every stale-snapshot GET
+// enqueues a refresh, the queue fills with refreshes, and each takes
+// ~6 s of blocking CAT to a dead radio + ESP_LOGI("Retrying...") spam.
+// Under client polling that saturates WiFi/HTTP scheduling and degrades
+// every endpoint (even ones that don't touch the radio). 10 s is a
+// recovery balance: fast enough to feel responsive after re-plugging
+// the radio, slow enough to keep the system idle when it stays dead.
+static constexpr int64_t    LINK_DOWN_PROBE_INTERVAL_US = 10'000'000;  // 10 s
+static std::atomic<int64_t> s_last_cat_attempt_us { 0 };
+
 // Mirror health into an atomic so handlers read it lock-free.
 static void publish_health() { s_link_up.store (s_health.is_up(), std::memory_order_release); }
 
@@ -47,6 +58,7 @@ bool radio_service_link_up() { return s_link_up.load (std::memory_order_acquire)
 
 static void do_refresh (RadioCmdType which) {
     int64_t  now = esp_timer_get_time();
+    s_last_cat_attempt_us.store (now, std::memory_order_release);
     TimedLock lock = kxRadio.timed_lock (portMAX_DELAY, "radiosvc refresh");
     // portMAX_DELAY is safe: only this task ever takes the radio mutex,
     // so it is never actually contended; the lock is kept only to keep
@@ -82,6 +94,7 @@ static void do_refresh (RadioCmdType which) {
 // the expiry check becomes a no-op safeguard rather than essential.
 static int do_set (const RadioCmd & cmd) {
     int64_t   now  = esp_timer_get_time();
+    s_last_cat_attempt_us.store (now, std::memory_order_release);
     TimedLock lock = kxRadio.timed_lock (portMAX_DELAY, "radiosvc set");
     if (cmd.expires_at_us != 0 && esp_timer_get_time() > cmd.expires_at_us) {
         // Handler already gave up; do NOT apply the radio change.
@@ -140,6 +153,18 @@ static void radio_service_task (void *) {
             uint32_t notev = (cmd.seq << 1) | ((result == 1) ? 1u : 0u);
             xTaskNotify (cmd.waiter, notev, eSetValueWithOverwrite);
         } else {
+            // Refresh: throttle during link-down to avoid 6 s × N CAT thrash
+            // and ESP_LOGI("Retrying...") spam (kx_radio.cpp:87 at INFO level).
+            // Drop the refresh if link is known-down AND we attempted recently;
+            // otherwise proceed (one CAT probe per LINK_DOWN_PROBE_INTERVAL_US
+            // during link-down acts as the recovery probe).
+            int64_t now = esp_timer_get_time();
+            if (!s_link_up.load (std::memory_order_acquire) &&
+                (now - s_last_cat_attempt_us.load (std::memory_order_acquire))
+                < LINK_DOWN_PROBE_INTERVAL_US) {
+                ESP_LOGD (TAG8, "skipping refresh during link-down probe window");
+                continue;  // skip CAT; loop back to dequeue next
+            }
             do_refresh (cmd.type);
         }
     }
