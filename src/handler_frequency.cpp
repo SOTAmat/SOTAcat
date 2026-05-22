@@ -54,13 +54,9 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
     if (freq <= 0)
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid frequency");
 
-    int rc = radio_service_set_blocking (RadioCmdType::SET_FREQUENCY, freq, SET_ACK_TIMEOUT_MS);
+    int rc = radio_service_set (RadioCmdType::SET_FREQUENCY, freq);
     if (rc < 0)
         REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
-    if (rc == 0)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set frequency");
-    if (rc == 2)
-        REPLY_WITH_ACCEPTED (req, "frequency change accepted, applying");
 
-    REPLY_WITH_SUCCESS();
+    REPLY_WITH_ACCEPTED (req, "frequency change accepted, applying");
 }

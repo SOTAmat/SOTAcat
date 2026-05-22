@@ -22,13 +22,9 @@ esp_err_t handler_atu_put (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    int rc = radio_service_set_blocking (RadioCmdType::SET_ATU, 0, SET_ACK_TIMEOUT_MS);
+    int rc = radio_service_set (RadioCmdType::SET_ATU, 0);
     if (rc < 0)
         REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
-    if (rc == 0)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to send ATU command");
-    if (rc == 2)
-        REPLY_WITH_ACCEPTED (req, "ATU tune accepted, running");
 
-    REPLY_WITH_SUCCESS();
+    REPLY_WITH_ACCEPTED (req, "ATU tune accepted, running");
 }

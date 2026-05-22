@@ -11,44 +11,43 @@
 #include <esp_task_wdt.h>
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
+#include <freertos/semphr.h>
 #include <freertos/task.h>
 
 static const char * TAG8 = "sc:radiosvc";
 
-static constexpr size_t RADIO_QUEUE_LEN = 8;
+// During link-down, refresh CAT probes are throttled to one per this
+// interval. Without it, every stale-snapshot GET sets the refresh slot,
+// the worker runs a ~6 s blocking CAT to a dead radio + ESP_LOGI spam,
+// and under client polling that saturates WiFi/HTTP scheduling and
+// degrades every endpoint. 10 s balances recovery latency against idle.
+static constexpr int64_t LINK_DOWN_PROBE_INTERVAL_US = 10'000'000;  // 10 s
 
-struct RadioCmd {
-    RadioCmdType   type;
-    long           arg;
-    TaskHandle_t   waiter;        // non-null for SETs
-    uint32_t       seq;           // 0 for refresh requests, non-zero for SETs
-    int64_t        expires_at_us; // 0 = no expiry (refresh); else absolute esp_timer_get_time() deadline
-};
-
-static QueueHandle_t      s_queue = nullptr;
-static RadioLinkHealth    s_health;
-static std::atomic<bool>  s_link_up { false };
-static std::atomic<bool>  s_started { false };
-
-// Generation counter for set-blocking notifications. Pack (seq, result_bit)
-// into the 32-bit notify value so a wait that picks up a stale notification
-// (a previously timed-out SET's worker reply) can be detected and ignored.
-// Starts at 1 to keep 0 reserved as "no notification yet" sentinel.
-static std::atomic<uint32_t> s_next_seq { 1 };
-
-// During link-down, refresh requests are throttled to one CAT probe per
-// LINK_DOWN_PROBE_INTERVAL_US. Without this, every stale-snapshot GET
-// enqueues a refresh, the queue fills with refreshes, and each takes
-// ~6 s of blocking CAT to a dead radio + ESP_LOGI("Retrying...") spam.
-// Under client polling that saturates WiFi/HTTP scheduling and degrades
-// every endpoint (even ones that don't touch the radio). 10 s is a
-// recovery balance: fast enough to feel responsive after re-plugging
-// the radio, slow enough to keep the system idle when it stays dead.
-static constexpr int64_t    LINK_DOWN_PROBE_INTERVAL_US = 10'000'000;  // 10 s
+static RadioLinkHealth      s_health;
+static std::atomic<bool>    s_link_up { false };
+static std::atomic<bool>    s_started { false };
 static std::atomic<int64_t> s_last_cat_attempt_us { 0 };
+static std::atomic<TaskHandle_t> s_worker { nullptr };
 
-// Mirror health into an atomic so handlers read it lock-free.
+// All pending work is held as per-type slots (not a FIFO queue), so a
+// burst of N requests of the same type collapses to one automatically:
+// newest-wins for frequency/mode/power/atu, accumulate for volume (a
+// delta). Protected by s_req_mutex. The worker drains every slot on each
+// wake; handlers set a slot and notify the worker. SET handlers are thus
+// pure fire-and-forget — they never block the single HTTP server task.
+static SemaphoreHandle_t s_req_mutex = nullptr;
+
+// Refresh slots, indexed [type - REFRESH_FREQUENCY], i.e. 0..2.
+static bool s_refresh_pending[3] = { false, false, false };
+
+struct PendingSet {
+    long    arg           = 0;
+    int64_t expires_at_us = 0;
+    bool    valid         = false;
+};
+// SET slots, indexed [type - SET_FREQUENCY], i.e. 0..4.
+static PendingSet s_set_pending[5];
+
 static void publish_health() { s_link_up.store (s_health.is_up(), std::memory_order_release); }
 
 bool radio_service_link_up() { return s_link_up.load (std::memory_order_acquire); }
@@ -81,47 +80,37 @@ static void do_refresh (RadioCmdType which) {
     publish_health();
 }
 
-// IMPORTANT: We may have waited an unbounded time on the radio mutex
-// because unconverted handlers (FT8, keyer, handler_cat, time SET,
-// handler_volume_get) still take it directly. cmd.expires_at_us is the
-// worker's apply window (SET_APPLY_DEADLINE_MS, 5 s, defined in
-// radio_service.h) — NOT the handler's 800 ms ack window. Under the
-// 202-Accepted contract the handler returns 202 after 800 ms and the
-// client confirms via a later GET, so an async application after the
-// ack window is exactly expected. The expiry skip below now guards a
-// different thing: applying a SET more than SET_APPLY_DEADLINE_MS after
-// the user's action (e.g. one stuck for many seconds behind an FT8
-// transmission) — don't retune the radio long after the click.
-static int do_set (const RadioCmd & cmd) {
-    int64_t   now  = esp_timer_get_time();
+// expires_at_us is the worker's apply window (SET_APPLY_DEADLINE_MS, 5 s).
+// SET handlers are fire-and-forget (HTTP 202); the client confirms the
+// outcome via a later GET. The expiry skip guards against applying a SET
+// long after the user's action — e.g. one that sat while the worker was
+// stuck behind a ~13 s FT8 transmission holding the radio mutex.
+static void do_set (RadioCmdType type, long arg, int64_t expires_at_us) {
+    int64_t   now = esp_timer_get_time();
     s_last_cat_attempt_us.store (now, std::memory_order_release);
     TimedLock lock = kxRadio.timed_lock (portMAX_DELAY, "radiosvc set");
-    if (cmd.expires_at_us != 0 && esp_timer_get_time() > cmd.expires_at_us) {
-        // SET sat queued longer than SET_APPLY_DEADLINE_MS (5 s) — likely
-        // stuck behind a long unconverted op (e.g. ~13 s FT8 transmission).
-        // Too stale to apply: retuning the radio this long after the user's
-        // click would be a surprising, unwanted change. Skip it.
-        ESP_LOGW (TAG8, "SET expired before mutex acquired (waited >%lld ms past deadline); skipping",
-                  (long long) ((esp_timer_get_time() - cmd.expires_at_us) / 1000));
+    if (expires_at_us != 0 && esp_timer_get_time() > expires_at_us) {
+        ESP_LOGW (TAG8, "SET expired before mutex acquired (>%lld ms past deadline); skipping",
+                  (long long) ((esp_timer_get_time() - expires_at_us) / 1000));
         s_health.record_failure();
         publish_health();
-        return 0;
+        return;
     }
     bool ok = false;
-    switch (cmd.type) {
+    switch (type) {
     case RadioCmdType::SET_FREQUENCY:
-        ok = kxRadio.set_frequency (cmd.arg, SC_KX_COMMUNICATION_RETRIES);
-        if (ok) radio_snapshot::set_frequency (cmd.arg, now);
+        ok = kxRadio.set_frequency (arg, SC_KX_COMMUNICATION_RETRIES);
+        if (ok) radio_snapshot::set_frequency (arg, now);
         break;
     case RadioCmdType::SET_MODE:
-        ok = kxRadio.set_mode ((radio_mode_t)cmd.arg, SC_KX_COMMUNICATION_RETRIES);
-        if (ok) radio_snapshot::set_mode (cmd.arg, now);
+        ok = kxRadio.set_mode ((radio_mode_t)arg, SC_KX_COMMUNICATION_RETRIES);
+        if (ok) radio_snapshot::set_mode (arg, now);
         break;
     case RadioCmdType::SET_VOLUME:
-        ok = kxRadio.set_volume (cmd.arg);
+        ok = kxRadio.set_volume (arg);
         break;
     case RadioCmdType::SET_POWER:
-        ok = kxRadio.set_power (cmd.arg);
+        ok = kxRadio.set_power (arg);
         break;
     case RadioCmdType::SET_ATU:
         ok = kxRadio.tune_atu();
@@ -133,41 +122,63 @@ static int do_set (const RadioCmd & cmd) {
     if (ok) s_health.record_success();
     else    s_health.record_failure();
     publish_health();
-    return ok ? 1 : 0;
 }
 
 static void radio_service_task (void *) {
     ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
     for (;;) {
         ESP_ERROR_CHECK (esp_task_wdt_reset());
-        RadioCmd cmd;
-        if (xQueueReceive (s_queue, &cmd, pdMS_TO_TICKS (1000)) != pdTRUE)
-            continue;  // idle: nothing queued (on-demand only)
+        // Wait for a request, or wake every 1 s anyway to service the
+        // task watchdog. pdTRUE clears the notification count, so any
+        // number of producer notifications collapse into one wake — we
+        // drain every slot below regardless.
+        ulTaskNotifyTake (pdTRUE, pdMS_TO_TICKS (1000));
 
-        if (cmd.waiter) {
-            int result = do_set (cmd);
-            // Pack (seq << 1) | result_bit so the waiter can verify the
-            // notification is for THIS call, not a prior timed-out one.
-            // Always notify, even when do_set skipped on expiry — the waiter
-            // task may have moved on but the notification keeps the seq-tag
-            // invariant intact (the next SET will see notev_seq != my_seq
-            // and loop past it).
-            uint32_t notev = (cmd.seq << 1) | ((result == 1) ? 1u : 0u);
-            xTaskNotify (cmd.waiter, notev, eSetValueWithOverwrite);
-        } else {
-            // Refresh: throttle during link-down to avoid 6 s × N CAT thrash
-            // and ESP_LOGI("Retrying...") spam (kx_radio.cpp:87 at INFO level).
-            // Drop the refresh if link is known-down AND we attempted recently;
-            // otherwise proceed (one CAT probe per LINK_DOWN_PROBE_INTERVAL_US
-            // during link-down acts as the recovery probe).
+        // Drain SET slots first (freq, mode, volume, power, atu order:
+        // a tune sets frequency then mode, matching the client).
+        // Each drained CAT op can block several seconds on an unreachable
+        // radio (a SET retries 3x with ~6 s readback each), so the task
+        // watchdog is serviced before every op rather than only once per
+        // loop — otherwise draining two pending SETs in one pass could
+        // exceed the WDT timeout without an intervening reset.
+        for (int i = 0; i < 5; ++i) {
+            PendingSet ps;
+            xSemaphoreTake (s_req_mutex, portMAX_DELAY);
+            ps                     = s_set_pending[i];
+            s_set_pending[i].valid = false;
+            s_set_pending[i].arg   = 0;  // reset volume accumulator
+            xSemaphoreGive (s_req_mutex);
+            if (ps.valid) {
+                ESP_ERROR_CHECK (esp_task_wdt_reset());
+                do_set ((RadioCmdType) ((int) RadioCmdType::SET_FREQUENCY + i),
+                        ps.arg, ps.expires_at_us);
+            }
+        }
+
+        // Drain refresh slots (freq, mode, xmit).
+        for (int i = 0; i < 3; ++i) {
+            bool pending;
+            xSemaphoreTake (s_req_mutex, portMAX_DELAY);
+            pending              = s_refresh_pending[i];
+            s_refresh_pending[i] = false;
+            xSemaphoreGive (s_req_mutex);
+            if (!pending)
+                continue;
+            // Throttle refresh CAT during link-down so a dead radio plus
+            // active client polling cannot saturate the system. One CAT
+            // probe per LINK_DOWN_PROBE_INTERVAL_US acts as the recovery
+            // probe; the rest are dropped (the next GET re-sets the slot).
             int64_t now = esp_timer_get_time();
             if (!s_link_up.load (std::memory_order_acquire) &&
                 (now - s_last_cat_attempt_us.load (std::memory_order_acquire))
                 < LINK_DOWN_PROBE_INTERVAL_US) {
                 ESP_LOGD (TAG8, "skipping refresh during link-down probe window");
-                continue;  // skip CAT; loop back to dequeue next
+                continue;
             }
-            do_refresh (cmd.type);
+            // See the SET-drain note above: a refresh CAT op also blocks
+            // several seconds on a dead radio, so reset the WDT per op.
+            ESP_ERROR_CHECK (esp_task_wdt_reset());
+            do_refresh ((RadioCmdType) ((int) RadioCmdType::REFRESH_FREQUENCY + i));
         }
     }
 }
@@ -175,14 +186,15 @@ static void radio_service_task (void *) {
 void radio_service_start() {
     if (s_started.load (std::memory_order_acquire))
         return;
-    QueueHandle_t q = xQueueCreate (RADIO_QUEUE_LEN, sizeof (RadioCmd));
-    if (!q) {
-        ESP_LOGE (TAG8, "failed to create radio service queue");
+    s_req_mutex = xSemaphoreCreateMutex();
+    if (!s_req_mutex) {
+        ESP_LOGE (TAG8, "failed to create radio service mutex");
         abort();
     }
-    s_queue = q;
+    TaskHandle_t worker = nullptr;
     xTaskCreate (&radio_service_task, "radio_service", 4096, NULL,
-                 SC_TASK_PRIORITY_NORMAL, NULL);
+                 SC_TASK_PRIORITY_NORMAL, &worker);
+    s_worker.store (worker, std::memory_order_release);
     s_started.store (true, std::memory_order_release);
     ESP_LOGI (TAG8, "radio service task started");
 }
@@ -190,75 +202,36 @@ void radio_service_start() {
 // --- producer API (called from HTTP handler tasks) ------------------
 
 void radio_service_request_refresh (RadioCmdType which) {
-    if (!s_queue) return;
-    // Coalesce: only the queue head is inspectable via xQueuePeek, so we
-    // collapse this to a single check. Duplicates past the head can still
-    // enqueue — harmless (refresh is idempotent, bounded queue catches it).
-    RadioCmd peek;
-    if (uxQueueMessagesWaiting (s_queue) > 0 &&
-        xQueuePeek (s_queue, &peek, 0) == pdTRUE &&
-        peek.waiter == nullptr && peek.type == which)
+    int idx = (int) which - (int) RadioCmdType::REFRESH_FREQUENCY;
+    if (idx < 0 || idx > 2 || !s_req_mutex)
         return;
-    RadioCmd cmd { which, 0, nullptr, 0, 0 };  // expires_at_us=0 = no expiry
-    xQueueSend (s_queue, &cmd, 0);  // drop if full — a later poll retries
+    xSemaphoreTake (s_req_mutex, portMAX_DELAY);
+    s_refresh_pending[idx] = true;
+    xSemaphoreGive (s_req_mutex);
+    TaskHandle_t w = s_worker.load (std::memory_order_acquire);
+    if (w)
+        xTaskNotifyGive (w);
 }
 
-// Sequence-tagged blocking SET. Returns:
-//   1  = applied and confirmed
-//   0  = failed (radio answered but command failed, or could not enqueue)
-//  -1  = rejected immediately: link known-down
-//   2  = enqueued, no ack within timeout — will apply asynchronously
-//
-// The hazard this guards against: ESP-IDF esp_http_server runs HTTP
-// handlers on a single task, so two back-to-back SETs share a waiter
-// TaskHandle. If call N times out at 800ms but its worker reply lands
-// afterwards, call N+1's xTaskNotifyWait will pick up N's stale
-// notification and treat it as its own ack — a wrong-result leak. We tag
-// each notification with a per-call sequence number and loop past any
-// notification carrying a different seq.
-int radio_service_set_blocking (RadioCmdType type, long arg, uint32_t timeout_ms) {
+int radio_service_set (RadioCmdType type, long arg) {
     if (!radio_service_link_up())
-        return -1;  // fast reject, sub-millisecond
-    if (!s_queue)
-        return 0;
-
-    uint32_t my_seq = s_next_seq.fetch_add (1, std::memory_order_relaxed);
-    if (my_seq == 0)  // wrap (essentially never): skip the reserved value
-        my_seq = s_next_seq.fetch_add (1, std::memory_order_relaxed);
-
-    // Two distinct deadlines, computed BEFORE enqueue:
-    //  - ack_deadline_us:   how long THIS handler blocks waiting for an ack
-    //                       before returning 2 (SET_ACK_TIMEOUT_MS, 800 ms).
-    //  - apply_deadline_us: how long the queued cmd stays valid for the
-    //                       worker to apply it (SET_APPLY_DEADLINE_MS, 5 s).
-    // The cmd carries apply_deadline_us so the worker honors a SET whose
-    // handler already returned 202; the wait loop below uses ack_deadline_us.
-    int64_t  now_us            = esp_timer_get_time();
-    int64_t  ack_deadline_us   = now_us + (int64_t) timeout_ms * 1000;
-    int64_t  apply_deadline_us = now_us + (int64_t) SET_APPLY_DEADLINE_MS * 1000;
-    RadioCmd cmd { type, arg, xTaskGetCurrentTaskHandle(), my_seq, apply_deadline_us };
-    xTaskNotifyStateClear (NULL);
-    if (xQueueSend (s_queue, &cmd, pdMS_TO_TICKS (50)) != pdTRUE)
-        return 0;  // queue full -> treat as failure
-
-    // Bounded wait, but loop past notifications carrying a different seq
-    // (those are leftovers from an earlier SET that already timed out
-    // and whose worker reply landed on us anyway).
-    for (;;) {
-        int64_t  remaining_us = ack_deadline_us - esp_timer_get_time();
-        if (remaining_us <= 0)
-            return 2;  // timeout — enqueued, will apply async (caller maps to 202)
-        uint32_t wait_ticks = pdMS_TO_TICKS ((uint32_t) ((remaining_us + 999) / 1000));
-        if (wait_ticks == 0) wait_ticks = 1;
-
-        uint32_t notev = 0;
-        if (xTaskNotifyWait (0, 0xFFFFFFFF, &notev, wait_ticks) != pdTRUE)
-            return 2;  // timeout — enqueued, will apply async (caller maps to 202)
-
-        uint32_t notev_seq    = notev >> 1;
-        uint32_t notev_result = notev & 1u;
-        if (notev_seq != my_seq)
-            continue;  // stale (from a prior timed-out SET); keep waiting
-        return (int) notev_result;
-    }
+        return -1;  // fast reject, sub-millisecond — link known-down
+    if (!s_req_mutex)
+        return -1;  // service not started yet
+    int idx = (int) type - (int) RadioCmdType::SET_FREQUENCY;
+    if (idx < 0 || idx > 4)
+        return -1;  // not a SET command type
+    int64_t expires = esp_timer_get_time() + (int64_t) SET_APPLY_DEADLINE_MS * 1000;
+    xSemaphoreTake (s_req_mutex, portMAX_DELAY);
+    if (type == RadioCmdType::SET_VOLUME && s_set_pending[idx].valid)
+        s_set_pending[idx].arg += arg;   // volume is a delta — accumulate
+    else
+        s_set_pending[idx].arg = arg;    // newest-wins
+    s_set_pending[idx].expires_at_us = expires;
+    s_set_pending[idx].valid         = true;
+    xSemaphoreGive (s_req_mutex);
+    TaskHandle_t w = s_worker.load (std::memory_order_acquire);
+    if (w)
+        xTaskNotifyGive (w);
+    return 0;  // accepted — applies asynchronously
 }

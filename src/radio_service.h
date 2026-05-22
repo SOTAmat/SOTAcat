@@ -1,8 +1,9 @@
 #pragma once
 // The radio service task is the SOLE owner of the radio mutex. HTTP
 // handlers never call kxRadio.* directly anymore — they enqueue work
-// here and either return immediately (GET refresh) or wait for a
-// bounded ack (SET). See 2026-05-15-radio-decoupling-design.md.
+// here and return immediately: refreshes and SETs are both fire-and-
+// forget. A SET handler replies HTTP 202 and the client confirms the
+// outcome via a later GET. See 2026-05-15-radio-decoupling-design.md.
 #include <cstdint>
 
 enum class RadioCmdType {
@@ -26,32 +27,25 @@ void radio_service_start();
 // the service task.
 bool radio_service_link_up();
 
-// Fire-and-forget: enqueue a refresh of one cached field. Coalesces —
-// if an identical refresh is already queued, this is a no-op. Never
+// Fire-and-forget: request a refresh of one cached field. Sets a
+// per-type slot (newest-wins coalescing — a burst of identical refresh
+// requests collapses to one) and wakes the radio service task. Never
 // blocks. Used by GET handlers when the snapshot is stale.
 void radio_service_request_refresh(RadioCmdType which);
 
-// Enqueue a SET and block the calling (HTTP handler) task up to
-// timeout_ms for a real ack. Returns:
-//   1  = applied and confirmed
-//   0  = failed (radio answered but command failed, or could not enqueue)
-//  -1  = rejected immediately because link is known-down
-//   2  = enqueued, no ack within timeout — will apply asynchronously
-int radio_service_set_blocking(RadioCmdType type, long arg, uint32_t timeout_ms);
-
-// Bounded ack-wait for radio_service_set_blocking(). Kept short so a SET
-// handler cannot starve the single esp_http_server task longer than this
-// (must stay well under the client's VFO_TIMEOUT_MS, 2000 ms). Fast ops
-// (within-band tune, mode) confirm within this window and return HTTP
-// 200; slower ops (band-switch tune, ATU) return HTTP 202 Accepted and
-// complete asynchronously in the radio service task.
-static constexpr uint32_t SET_ACK_TIMEOUT_MS = 800;
+// Fire-and-forget SET. Stores the command in a per-type slot (newest-
+// wins; volume deltas accumulate) and wakes the radio service task,
+// then returns immediately — it NEVER blocks the HTTP server task.
+// Returns:
+//    0 = accepted; will apply asynchronously (handler replies HTTP 202)
+//   -1 = rejected: link known-down, or service not started (handler 503)
+// Success/failure of the actual radio op is observed by the client via
+// a subsequent GET (the snapshot updates only on confirmed CAT success).
+int radio_service_set(RadioCmdType type, long arg);
 
 // How long after enqueue a SET command remains valid for the worker to
-// apply. Decoupled from SET_ACK_TIMEOUT_MS: the handler stops *waiting*
-// after 800 ms (returning HTTP 202), but the worker should still *apply*
-// the command when it gets to it. 5 s covers a few rapid back-to-back
-// band-switch tunes (each ~1.5 s of CAT) without dropping any; a SET
-// stuck behind a full ~13 s FT8 transmission still expires and is
-// skipped (don't retune the radio long after the user's click).
+// apply. 5 s covers a few rapid back-to-back band-switch tunes (each
+// ~1.5 s of CAT) without dropping any; a SET stuck behind a full ~13 s
+// FT8 transmission still expires and is skipped (don't retune the radio
+// long after the user's click).
 static constexpr uint32_t SET_APPLY_DEADLINE_MS = 5000;
