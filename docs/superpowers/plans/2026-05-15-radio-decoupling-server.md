@@ -29,8 +29,15 @@ This plan landed on branch `radio-web-decoupling` across the following commits:
 | `dfccc72` | fix: skip expired SETs in radio service (Task 7.5, added post-Task-7) |
 | `3d4eb92` | test: add /version responsiveness probe |
 | `cc68f71` | test: cold-probe + relax stress p95 to <2s |
+| `96c3d93` | fix: throttle CAT refreshes during link-down (Task 7.7, post-hardware-testing) |
+| `2ddf754` | fix: per-operation SET timeouts (Task 7.8 — superseded by 7.9/7.11) |
+| `7efe9fa` | fix: SET returns 202 when ack is slow (Task 7.9, post-hardware-testing) |
+| `9160a48` | fix: decouple SET apply-deadline from ack (Task 7.10, post-hardware-testing) |
+| `aa51055` | feat: pure-async SET with slot coalescing (Task 7.11, post-hardware-testing) |
 
-**Spec compliance:** all design-spec properties are met, with the following adjudicated deviations recorded inline below: skew-safe freshness predicates (Task 2), Meyers-singleton mutex init (Task 3), `has_xmit`/`xmit_fresh` predicates + cold-start cache write-back cleanup (Task 6), `REPLY_WITH_SERVICE_UNAVAILABLE` helper macro + `supports_volume()` precondition retained + SSB cold-start refresh (Task 7), `expires_at_us` defense-in-depth for SETs (new Task 7.5), and stress p95 threshold relaxed to <2 s with a dedicated cold-probe asserting per-endpoint max <200 ms (Task 8).
+**SET-path redesign (post-hardware-testing).** On-device testing after the initial land revealed the SET model itself was wrong, not just mistuned. The plan's "SET handler enqueues, then blocks for a bounded ack, returns honest 200/5xx" design starved the single `esp_http_server` task: any handler blocked on its ack-wait could not service concurrent polls, and an unbounded burst (rapid Chase-spot clicking) saturated the server. Across Tasks 7.7–7.11 the SET path was redesigned from "enqueue + bounded ack-wait" to **pure-async fire-and-forget (HTTP 202) + per-type slot coalescing**: a SET handler stores a request slot, wakes the worker, and returns 202 immediately; link-down still returns 503 synchronously; success is later confirmed by the client's subsequent GET. Verified on hardware: a burst of 12 rapid PUTs all returned 202 in 15–27 ms, interleaved GETs stayed at 16–23 ms, and the radio settled on the last commanded frequency — no server starvation.
+
+**Spec compliance:** all design-spec properties are met, with the following adjudicated deviations recorded inline below: skew-safe freshness predicates (Task 2), Meyers-singleton mutex init (Task 3), `has_xmit`/`xmit_fresh` predicates + cold-start cache write-back cleanup (Task 6), `REPLY_WITH_SERVICE_UNAVAILABLE` helper macro + `supports_volume()` precondition retained + SSB cold-start refresh (Task 7), `expires_at_us` defense-in-depth for SETs (new Task 7.5), stress p95 threshold relaxed to <2 s with a dedicated cold-probe asserting per-endpoint max <200 ms (Task 8), and the post-hardware-testing SET-path redesign to pure-async 202 + slot coalescing (Tasks 7.7–7.11) — which supersedes the spec's bounded-ack-wait / honest-200-5xx SET model.
 
 **Known residual scope (out of phase, see end of Self-Review):** `src/handler_cat.cpp`, `src/handler_ft8.cpp`, `src/handler_time.cpp`, and `handler_volume_get` still take `kxRadio.timed_lock` directly. The Task 7.5 expires-at fix makes the residual safe under load; full conversion is a potential follow-up that would let the spec's "sole mutex owner" claim be literally true.
 
@@ -825,6 +832,8 @@ git commit -m "feat: GET handlers serve cached snapshot, never block radio"
 2. **`supports_volume()` precondition preserved.** The plan said to drop the guard from `handler_volume_put` and let the CAT op fail. But `handler_volume_get` still returns 404 "not supported" via the same predicate, so dropping it on PUT created a contract divergence. Re-introduced the `supports_volume()` precondition in `handler_volume_put` (returns 404 before enqueue). `supports_volume()` is a const non-blocking accessor (verified at `include/kx_radio.h:114`), so this does not compromise the decoupling.
 3. **SSB cold-start in mode SET.** The plan's SSB branch reads `radio_snapshot::get().frequency_hz`; if zero (no snapshot yet), it falls through to `MODE_UNKNOWN` → 404 "invalid mode" — misleading to the user. Landed code, when `f <= 0`, enqueues `REFRESH_FREQUENCY` and returns 503 "frequency unknown, retry SSB after refresh" via the new helper macro.
 
+**Subsequently superseded:** the `radio_service_set_blocking` + bounded-ack model described here was fully redesigned post-hardware-testing into a pure-async fire-and-forget path — see Tasks 7.9 and 7.11. `radio_service_set_blocking` no longer exists; the API is now `radio_service_set(type, arg)` returning 0 (accepted → HTTP 202) or -1 (link-down → HTTP 503).
+
 **Files:**
 - Modify: `src/handler_frequency.cpp` (`handler_frequency_put`)
 - Modify: `src/handler_mode.cpp` (`handler_mode_put`)
@@ -927,6 +936,58 @@ git commit -m "feat: SET handlers enqueue with bounded ack, fast-reject link dow
 - Modify: `src/radio_service.cpp`
 
 **Steps:** documents an already-landed commit; no forward-looking steps. See `dfccc72` for the diff.
+
+---
+
+### Task 7.7: throttle CAT during link-down (post-hardware-testing fix)
+
+**Defect:** GET handlers enqueue a refresh on every stale snapshot, including during link-down. On a dead radio each refresh is a ~6 s blocking CAT plus `ESP_LOGI("Retrying...")` spam; under client polling this saturated WiFi/HTTP scheduling and degraded every endpoint (verified on hardware: `/version` 200–3500 ms with the radio off vs 14–33 ms with it on).
+
+**Fix as landed (`96c3d93`):** the radio service worker throttles refresh CAT attempts during link-down to one per `LINK_DOWN_PROBE_INTERVAL_US` (10 s) — that one attempt doubles as the recovery probe; the rest are dropped.
+
+**Files:** `src/radio_service.cpp`. Documents an already-landed commit; no forward-looking steps.
+
+---
+
+### Task 7.8: per-operation SET timeouts (superseded by 7.9/7.11)
+
+**Defect:** the plan's single 800 ms `SET_ACK_TIMEOUT_MS` was too short. Band-switch frequency tunes measured 0.7–1.7 s (frequent false-500s); ATU tunes take 5–10 s on the radio (always false-500 — ATU was completely broken).
+
+**Fix as landed (`2ddf754`):** introduced per-op timeout constants sized to actual CAT durations (frequency 3 s, ATU 12 s, etc.).
+
+**Superseded by 7.9/7.11 — not in current code.** The long per-op timeouts re-introduced HTTP-server starvation (see Task 7.9); per-op timeouts were removed and the SET path was ultimately redesigned to be pure-async (Task 7.11). Recorded here only so a reader does not assume per-op timeouts still exist.
+
+---
+
+### Task 7.9: SET returns 202 when ack is slow (post-hardware-testing fix)
+
+**Defect:** Task 7.8's long timeouts starved the single `esp_http_server` task — a SET handler blocked for the whole ack-wait, so a 3 s frequency timeout starved concurrent VFO polls (client `VFO_TIMEOUT_MS` = 2 s) and produced `AbortError`.
+
+**Fix as landed (`7efe9fa`):** `radio_service_set_blocking` gained a third return code 2 ("enqueued, no ack within timeout"); handlers reply HTTP **202 Accepted** for code 2. The ack-wait was reverted to a single 800 ms `SET_ACK_TIMEOUT_MS`; slow ops return 202 and complete asynchronously, confirmed by a later client GET.
+
+**Files:** `src/radio_service.{h,cpp}`, the four SET handlers, `include/webserver.h`. Documents an already-landed commit.
+
+---
+
+### Task 7.10: decouple SET apply-deadline from ack (post-hardware-testing fix)
+
+**Defect:** `do_set`'s expiry check used the 800 ms ack timeout as the apply-deadline, so a second rapid SET queued behind a ~1.5 s band-switch CAT was dropped as "expired" — even though the handler had already returned 202.
+
+**Fix as landed (`9160a48`):** decoupled the two deadlines — `SET_ACK_TIMEOUT_MS` (800 ms) bounds only the handler's wait; a new `SET_APPLY_DEADLINE_MS` (5 s) bounds how long the worker may still apply a queued SET.
+
+**Files:** `src/radio_service.{h,cpp}`. Documents an already-landed commit.
+
+---
+
+### Task 7.11: pure-async SET with slot coalescing (post-hardware-testing redesign)
+
+**Defect:** even at an 800 ms ack-wait, a SET handler blocking the single HTTP server task could not survive an unbounded burst — rapid Chase-spot clicking queued many SETs whose cumulative blocking starved the server.
+
+**Fix as landed (`aa51055`):** the radio service task's FIFO queue + sequence-tag + notify-to-handler + handler wait-loop was replaced with per-type request slots (refresh bools; SET `{arg, expires_at, valid}` structs) under one mutex plus a single worker task-notification. SET handlers became **pure fire-and-forget**: store a slot, wake the worker, return HTTP 202 immediately (link-down still returns 503 synchronously). A burst of N same-type requests collapses to one — newest-wins for frequency/mode/power/atu, **accumulate** for volume (a delta). The API changed from `radio_service_set_blocking(type, arg, timeout)` to `radio_service_set(type, arg)` returning 0 (accepted → 202) or -1 (link-down → 503). The worker also resets the task watchdog before each drained CAT op (a drain pass can span multiple multi-second blocking ops); `s_worker` is `std::atomic<TaskHandle_t>`.
+
+Verified on hardware: 12 rapid PUTs all returned 202 in 15–27 ms; interleaved GETs stayed at 16–23 ms; the radio settled on the last commanded frequency.
+
+**Files:** `src/radio_service.{h,cpp}`, the four SET handlers. Documents an already-landed commit.
 
 ---
 
@@ -1035,7 +1096,7 @@ git commit --allow-empty -m "chore: server-side radio decoupling phase validated
 - Link-health state machine + closing the "never cleared" gap → Tasks 1, 6 (Step 3 swaps `is_connected()` for `radio_service_link_up()`).
 - Radio service task, sole mutex owner *for the converted handlers*, on-demand only → Tasks 4, 5. See **Residual scope** below for unconverted handlers (`handler_cat`, `handler_ft8`, `handler_time`, `handler_volume_get`) that still take `kxRadio.timed_lock` directly; the Task 7.5 expires-at fix renders that residual safe.
 - Cache-only GET, stale→enqueue refresh, cold-start fast fail → Task 6.
-- SET enqueue + bounded ack, fast-reject link-down (HTTP 503) → Task 7 (via the new `REPLY_WITH_SERVICE_UNAVAILABLE` helper macro; see Task 7 As-landed note 1).
+- SET enqueue + bounded ack, fast-reject link-down (HTTP 503) → Task 7 (via the new `REPLY_WITH_SERVICE_UNAVAILABLE` helper macro; see Task 7 As-landed note 1). **Evolved post-hardware-testing:** the bounded-ack model proved to starve the single HTTP server task under SET bursts. The final landed design (Tasks 7.7–7.11) is pure-async — SET handlers store a per-type request slot, wake the worker, and return HTTP 202 immediately; link-down still returns 503 synchronously; success is confirmed by the client's subsequent GET. The spec text describing a bounded ack-wait and honest 200/5xx for SETs is superseded.
 - GET payloads byte-identical (bare value text; ⚫ only via connectionStatus) → Task 6 keeps `REPLY_WITH_STRING` payloads unchanged.
 - Coalesced refresh, bounded queue, frequency newest-wins → Task 4 (`radio_service_request_refresh` coalesce; `RADIO_QUEUE_LEN`; frequency SET is last-write via the radio applying queued order — acceptable, debounced client-side already).
 - Testing: pure-logic red-green (Tasks 1–2), integration cold-probe + stress (Task 8), manual checklist (Task 9). Matches the spec's "host-compilable if possible, else integration + manual" statement.
