@@ -46,3 +46,12 @@ int radio_service_set_blocking(RadioCmdType type, long arg, uint32_t timeout_ms)
 // 200; slower ops (band-switch tune, ATU) return HTTP 202 Accepted and
 // complete asynchronously in the radio service task.
 static constexpr uint32_t SET_ACK_TIMEOUT_MS = 800;
+
+// How long after enqueue a SET command remains valid for the worker to
+// apply. Decoupled from SET_ACK_TIMEOUT_MS: the handler stops *waiting*
+// after 800 ms (returning HTTP 202), but the worker should still *apply*
+// the command when it gets to it. 5 s covers a few rapid back-to-back
+// band-switch tunes (each ~1.5 s of CAT) without dropping any; a SET
+// stuck behind a full ~13 s FT8 transmission still expires and is
+// skipped (don't retune the radio long after the user's click).
+static constexpr uint32_t SET_APPLY_DEADLINE_MS = 5000;

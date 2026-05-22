@@ -84,21 +84,23 @@ static void do_refresh (RadioCmdType which) {
 // IMPORTANT: We may have waited an unbounded time on the radio mutex
 // because unconverted handlers (FT8, keyer, handler_cat, time SET,
 // handler_volume_get) still take it directly. cmd.expires_at_us is the
-// handler's ack window (SET_ACK_TIMEOUT_MS, defined in radio_service.h);
-// if it has long since passed, the handler has already replied to the
-// client. NOTE: with the 202-Accepted contract a timed-out SET handler
-// replies 202 (not 500), so an async application AFTER expiry is exactly
-// what the client expects — it confirms via a later GET. The expiry
-// skip below stays only as a safeguard against an extreme late
-// application; once all radio-mutex-taking handlers route through this
-// task the wait is bounded and the check becomes a near no-op.
+// worker's apply window (SET_APPLY_DEADLINE_MS, 5 s, defined in
+// radio_service.h) — NOT the handler's 800 ms ack window. Under the
+// 202-Accepted contract the handler returns 202 after 800 ms and the
+// client confirms via a later GET, so an async application after the
+// ack window is exactly expected. The expiry skip below now guards a
+// different thing: applying a SET more than SET_APPLY_DEADLINE_MS after
+// the user's action (e.g. one stuck for many seconds behind an FT8
+// transmission) — don't retune the radio long after the click.
 static int do_set (const RadioCmd & cmd) {
     int64_t   now  = esp_timer_get_time();
     s_last_cat_attempt_us.store (now, std::memory_order_release);
     TimedLock lock = kxRadio.timed_lock (portMAX_DELAY, "radiosvc set");
     if (cmd.expires_at_us != 0 && esp_timer_get_time() > cmd.expires_at_us) {
-        // Handler already gave up; do NOT apply the radio change.
-        // Honest-failure contract: user saw 500, must not silently apply later.
+        // SET sat queued longer than SET_APPLY_DEADLINE_MS (5 s) — likely
+        // stuck behind a long unconverted op (e.g. ~13 s FT8 transmission).
+        // Too stale to apply: retuning the radio this long after the user's
+        // click would be a surprising, unwanted change. Skip it.
         ESP_LOGW (TAG8, "SET expired before mutex acquired (waited >%lld ms past deadline); skipping",
                   (long long) ((esp_timer_get_time() - cmd.expires_at_us) / 1000));
         s_health.record_failure();
@@ -224,11 +226,17 @@ int radio_service_set_blocking (RadioCmdType type, long arg, uint32_t timeout_ms
     if (my_seq == 0)  // wrap (essentially never): skip the reserved value
         my_seq = s_next_seq.fetch_add (1, std::memory_order_relaxed);
 
-    // Compute deadline BEFORE enqueue so the worker can see it and skip a
-    // SET whose handler has already given up (the worker may sit blocked on
-    // the radio mutex behind an unconverted handler for many seconds).
-    int64_t  deadline_us = esp_timer_get_time() + (int64_t) timeout_ms * 1000;
-    RadioCmd cmd { type, arg, xTaskGetCurrentTaskHandle(), my_seq, deadline_us };
+    // Two distinct deadlines, computed BEFORE enqueue:
+    //  - ack_deadline_us:   how long THIS handler blocks waiting for an ack
+    //                       before returning 2 (SET_ACK_TIMEOUT_MS, 800 ms).
+    //  - apply_deadline_us: how long the queued cmd stays valid for the
+    //                       worker to apply it (SET_APPLY_DEADLINE_MS, 5 s).
+    // The cmd carries apply_deadline_us so the worker honors a SET whose
+    // handler already returned 202; the wait loop below uses ack_deadline_us.
+    int64_t  now_us            = esp_timer_get_time();
+    int64_t  ack_deadline_us   = now_us + (int64_t) timeout_ms * 1000;
+    int64_t  apply_deadline_us = now_us + (int64_t) SET_APPLY_DEADLINE_MS * 1000;
+    RadioCmd cmd { type, arg, xTaskGetCurrentTaskHandle(), my_seq, apply_deadline_us };
     xTaskNotifyStateClear (NULL);
     if (xQueueSend (s_queue, &cmd, pdMS_TO_TICKS (50)) != pdTRUE)
         return 0;  // queue full -> treat as failure
@@ -237,7 +245,7 @@ int radio_service_set_blocking (RadioCmdType type, long arg, uint32_t timeout_ms
     // (those are leftovers from an earlier SET that already timed out
     // and whose worker reply landed on us anyway).
     for (;;) {
-        int64_t  remaining_us = deadline_us - esp_timer_get_time();
+        int64_t  remaining_us = ack_deadline_us - esp_timer_get_time();
         if (remaining_us <= 0)
             return 2;  // timeout — enqueued, will apply async (caller maps to 202)
         uint32_t wait_ticks = pdMS_TO_TICKS ((uint32_t) ((remaining_us + 999) / 1000));
