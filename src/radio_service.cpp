@@ -23,6 +23,14 @@ static const char * TAG8 = "sc:radiosvc";
 // degrades every endpoint. 10 s balances recovery latency against idle.
 static constexpr int64_t LINK_DOWN_PROBE_INTERVAL_US = 10'000'000;  // 10 s
 
+// The worker is normally the radio mutex's only contender, but FT8 and
+// the unconverted handler_cat/handler_time paths take it directly. Bound
+// the worker's lock-acquire so a worker wake can never sit past the 20 s
+// task watchdog waiting for the mutex. On failure the slot is re-armed
+// and retried on a later wake. Must stay well under the 20 s WDT; do NOT
+// use RADIO_LOCK_TIMEOUT_FT8_MS.
+static constexpr uint32_t WORKER_LOCK_TIMEOUT_MS = 3000;
+
 static RadioLinkHealth      s_health;
 static std::atomic<bool>    s_link_up { false };
 static std::atomic<bool>    s_started { false };
@@ -54,13 +62,20 @@ bool radio_service_link_up() { return s_link_up.load (std::memory_order_acquire)
 
 // --- the worker -----------------------------------------------------
 
-static void do_refresh (RadioCmdType which) {
-    int64_t  now = esp_timer_get_time();
+// Returns true if the radio mutex was acquired and a refresh was attempted;
+// false if the lock could not be acquired (FT8 / handler_cat held it) — the
+// caller re-arms the slot for a later wake. A failed acquire never reaches
+// the radio, so it is not a CAT attempt and does not touch the snapshot.
+static bool do_refresh (RadioCmdType which) {
+    // The lock is bounded by WORKER_LOCK_TIMEOUT_MS, not portMAX_DELAY:
+    // FT8 and the unconverted handler_cat/handler_time paths also contend
+    // for the radio mutex, so an unbounded wait could sit past the 20 s
+    // task watchdog — which is exactly why the bound and the FT8 skip exist.
+    TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc refresh");
+    if (!lock.acquired())
+        return false;
+    int64_t now = esp_timer_get_time();
     s_last_cat_attempt_us.store (now, std::memory_order_release);
-    TimedLock lock = kxRadio.timed_lock (portMAX_DELAY, "radiosvc refresh");
-    // portMAX_DELAY is safe: only this task ever takes the radio mutex,
-    // so it is never actually contended; the lock is kept only to keep
-    // the kxRadio is_locked() assertions in DELEGATE_BOOL happy.
     bool ok = false;
     if (which == RadioCmdType::REFRESH_FREQUENCY) {
         long hz = 0;
@@ -78,6 +93,7 @@ static void do_refresh (RadioCmdType which) {
     if (ok) s_health.record_success();
     else    s_health.record_failure();
     publish_health();
+    return true;
 }
 
 // expires_at_us is the worker's apply window (SET_APPLY_DEADLINE_MS, 5 s).
@@ -85,16 +101,22 @@ static void do_refresh (RadioCmdType which) {
 // outcome via a later GET. The expiry skip guards against applying a SET
 // long after the user's action — e.g. one that sat while the worker was
 // stuck behind a ~13 s FT8 transmission holding the radio mutex.
-static void do_set (RadioCmdType type, long arg, int64_t expires_at_us) {
-    int64_t   now = esp_timer_get_time();
+// Returns true if the radio mutex was acquired — whether the SET was then
+// applied, expired-skipped, or CAT-failed; false if the lock could not be
+// acquired (FT8 / handler_cat held it), in which case the caller re-arms
+// the slot. The caller only needs "did we get the radio or not".
+static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us) {
+    TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc set");
+    if (!lock.acquired())
+        return false;
+    int64_t now = esp_timer_get_time();
     s_last_cat_attempt_us.store (now, std::memory_order_release);
-    TimedLock lock = kxRadio.timed_lock (portMAX_DELAY, "radiosvc set");
     if (expires_at_us != 0 && esp_timer_get_time() > expires_at_us) {
         ESP_LOGW (TAG8, "SET expired before mutex acquired (>%lld ms past deadline); skipping",
                   (long long) ((esp_timer_get_time() - expires_at_us) / 1000));
         s_health.record_failure();
         publish_health();
-        return;
+        return true;
     }
     bool ok = false;
     switch (type) {
@@ -122,6 +144,7 @@ static void do_set (RadioCmdType type, long arg, int64_t expires_at_us) {
     if (ok) s_health.record_success();
     else    s_health.record_failure();
     publish_health();
+    return true;
 }
 
 static void radio_service_task (void *) {
@@ -133,6 +156,15 @@ static void radio_service_task (void *) {
         // number of producer notifications collapse into one wake — we
         // drain every slot below regardless.
         ulTaskNotifyTake (pdTRUE, pdMS_TO_TICKS (1000));
+
+        // FT8 owns the radio for the whole transmission (handler_ft8.cpp
+        // holds the radio mutex continuously, ~27 s including the window
+        // wait). Do NO CAT work while FT8 is active: leave SET and refresh
+        // slots armed; they drain on a later wake once FT8 clears. The loop
+        // still hits esp_task_wdt_reset() and the 1 s ulTaskNotifyTake
+        // timeout, so the watchdog stays fed. FT8 timing takes precedence.
+        if (Ft8RadioExclusive)
+            continue;
 
         // Drain SET slots first (freq, mode, volume, power, atu order:
         // a tune sets frequency then mode, matching the client).
@@ -150,8 +182,18 @@ static void radio_service_task (void *) {
             xSemaphoreGive (s_req_mutex);
             if (ps.valid) {
                 ESP_ERROR_CHECK (esp_task_wdt_reset());
-                do_set ((RadioCmdType) ((int) RadioCmdType::SET_FREQUENCY + i),
-                        ps.arg, ps.expires_at_us);
+                RadioCmdType st = (RadioCmdType) ((int) RadioCmdType::SET_FREQUENCY + i);
+                if (!do_set (st, ps.arg, ps.expires_at_us)) {
+                    // Couldn't get the radio (FT8 / handler_cat held it).
+                    // Re-arm so a later wake retries — unless the command has
+                    // expired, or a newer SET of this type already arrived.
+                    if (ps.expires_at_us == 0 || esp_timer_get_time() <= ps.expires_at_us) {
+                        xSemaphoreTake (s_req_mutex, portMAX_DELAY);
+                        if (!s_set_pending[i].valid)
+                            s_set_pending[i] = ps;
+                        xSemaphoreGive (s_req_mutex);
+                    }
+                }
             }
         }
 
@@ -178,7 +220,12 @@ static void radio_service_task (void *) {
             // See the SET-drain note above: a refresh CAT op also blocks
             // several seconds on a dead radio, so reset the WDT per op.
             ESP_ERROR_CHECK (esp_task_wdt_reset());
-            do_refresh ((RadioCmdType) ((int) RadioCmdType::REFRESH_FREQUENCY + i));
+            RadioCmdType rt = (RadioCmdType) ((int) RadioCmdType::REFRESH_FREQUENCY + i);
+            if (!do_refresh (rt)) {
+                xSemaphoreTake (s_req_mutex, portMAX_DELAY);
+                s_refresh_pending[i] = true;   // re-arm; retried next wake
+                xSemaphoreGive (s_req_mutex);
+            }
         }
     }
 }

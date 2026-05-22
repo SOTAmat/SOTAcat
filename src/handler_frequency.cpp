@@ -24,11 +24,15 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
 
     if (!snap.has_frequency()) {
         // Nothing known yet (cold start / radio never present).
-        radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);
+        // Skip the refresh-enqueue during FT8 — the radio service does no
+        // CAT work while Ft8RadioExclusive is set, so the slot would only
+        // churn; matches handler_status.cpp's FT8 guard.
+        if (!Ft8RadioExclusive)
+            radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "frequency unavailable");
     }
 
-    if (!snap.frequency_fresh (now))
+    if (!snap.frequency_fresh (now) && !Ft8RadioExclusive)
         radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);
 
     char buf[16];

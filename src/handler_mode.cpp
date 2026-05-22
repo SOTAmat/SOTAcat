@@ -47,10 +47,14 @@ radio_mode_t get_radio_mode () {
     int64_t           now  = esp_timer_get_time();
 
     if (!snap.has_mode()) {
-        radio_service_request_refresh (RadioCmdType::REFRESH_MODE);
+        // Skip the refresh-enqueue during FT8 — the radio service does no
+        // CAT work while Ft8RadioExclusive is set, so the slot would only
+        // churn; matches handler_status.cpp's FT8 guard.
+        if (!Ft8RadioExclusive)
+            radio_service_request_refresh (RadioCmdType::REFRESH_MODE);
         return MODE_UNKNOWN;
     }
-    if (!snap.mode_fresh (now))
+    if (!snap.mode_fresh (now) && !Ft8RadioExclusive)
         radio_service_request_refresh (RadioCmdType::REFRESH_MODE);
 
     radio_mode_t mode = static_cast<radio_mode_t> (snap.mode);
