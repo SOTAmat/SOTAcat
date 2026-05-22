@@ -124,11 +124,13 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode");
 
     ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
-    int rc = radio_service_set_blocking (RadioCmdType::SET_MODE, (long)mode, SET_MODE_TIMEOUT_MS);
+    int rc = radio_service_set_blocking (RadioCmdType::SET_MODE, (long)mode, SET_ACK_TIMEOUT_MS);
     if (rc < 0)
         REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
     if (rc == 0)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set mode");
+    if (rc == 2)
+        REPLY_WITH_ACCEPTED (req, "mode change accepted, applying");
 
     REPLY_WITH_SUCCESS();
 }

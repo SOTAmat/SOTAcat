@@ -83,15 +83,15 @@ static void do_refresh (RadioCmdType which) {
 
 // IMPORTANT: We may have waited an unbounded time on the radio mutex
 // because unconverted handlers (FT8, keyer, handler_cat, time SET,
-// handler_volume_get) still take it directly. If the waiting handler
-// has already timed out (its ack window is the per-op SET_*_TIMEOUT_MS
-// defined in radio_service.h) and reported HTTP 500 to the user,
-// applying the radio change here
-// would be a silent-late application — the user saw "failed" but the
-// frequency/mode/volume/ATU actually changed. See spec line 55:
-// "no silent success". Skip the application if cmd.expires_at_us has
-// passed. Once all radio-mutex-taking handlers route through this task,
-// the expiry check becomes a no-op safeguard rather than essential.
+// handler_volume_get) still take it directly. cmd.expires_at_us is the
+// handler's ack window (SET_ACK_TIMEOUT_MS, defined in radio_service.h);
+// if it has long since passed, the handler has already replied to the
+// client. NOTE: with the 202-Accepted contract a timed-out SET handler
+// replies 202 (not 500), so an async application AFTER expiry is exactly
+// what the client expects — it confirms via a later GET. The expiry
+// skip below stays only as a safeguard against an extreme late
+// application; once all radio-mutex-taking handlers route through this
+// task the wait is bounded and the check becomes a near no-op.
 static int do_set (const RadioCmd & cmd) {
     int64_t   now  = esp_timer_get_time();
     s_last_cat_attempt_us.store (now, std::memory_order_release);
@@ -201,13 +201,19 @@ void radio_service_request_refresh (RadioCmdType which) {
     xQueueSend (s_queue, &cmd, 0);  // drop if full — a later poll retries
 }
 
-// Sequence-tagged blocking SET. The hazard this guards against: ESP-IDF
-// esp_http_server runs HTTP handlers on a single task, so two back-to-back
-// SETs share a waiter TaskHandle. If call N times out at 800ms but its
-// worker reply lands afterwards, call N+1's xTaskNotifyWait will pick up
-// N's stale notification and treat it as its own ack — a wrong-result
-// leak. We tag each notification with a per-call sequence number and
-// loop past any notification carrying a different seq.
+// Sequence-tagged blocking SET. Returns:
+//   1  = applied and confirmed
+//   0  = failed (radio answered but command failed, or could not enqueue)
+//  -1  = rejected immediately: link known-down
+//   2  = enqueued, no ack within timeout — will apply asynchronously
+//
+// The hazard this guards against: ESP-IDF esp_http_server runs HTTP
+// handlers on a single task, so two back-to-back SETs share a waiter
+// TaskHandle. If call N times out at 800ms but its worker reply lands
+// afterwards, call N+1's xTaskNotifyWait will pick up N's stale
+// notification and treat it as its own ack — a wrong-result leak. We tag
+// each notification with a per-call sequence number and loop past any
+// notification carrying a different seq.
 int radio_service_set_blocking (RadioCmdType type, long arg, uint32_t timeout_ms) {
     if (!radio_service_link_up())
         return -1;  // fast reject, sub-millisecond
@@ -233,13 +239,13 @@ int radio_service_set_blocking (RadioCmdType type, long arg, uint32_t timeout_ms
     for (;;) {
         int64_t  remaining_us = deadline_us - esp_timer_get_time();
         if (remaining_us <= 0)
-            return 0;  // genuine timeout
+            return 2;  // timeout — enqueued, will apply async (caller maps to 202)
         uint32_t wait_ticks = pdMS_TO_TICKS ((uint32_t) ((remaining_us + 999) / 1000));
         if (wait_ticks == 0) wait_ticks = 1;
 
         uint32_t notev = 0;
         if (xTaskNotifyWait (0, 0xFFFFFFFF, &notev, wait_ticks) != pdTRUE)
-            return 0;  // timeout
+            return 2;  // timeout — enqueued, will apply async (caller maps to 202)
 
         uint32_t notev_seq    = notev >> 1;
         uint32_t notev_result = notev & 1u;

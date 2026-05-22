@@ -141,6 +141,36 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
     } while (0)
 
 /**
+ * Send a 202 Accepted response with a JSON message payload.
+ *
+ * Used by radio SET handlers when the command was enqueued to the radio
+ * service but no ack arrived within the bounded ack-wait. The command is
+ * NOT a failure — it will apply asynchronously in the radio service task;
+ * the client confirms the new state via a subsequent GET (e.g. its VFO
+ * poll). 202 is a success-class status, so the browser treats it as `.ok`
+ * and the client proceeds with no client-side change.
+ *
+ * ESP-IDF's `httpd_err_code_t` enum does not include 202, so we set the
+ * raw status line directly via `httpd_resp_set_status` and send the JSON
+ * body via `httpd_resp_send`. Logged at INFO level — 202 is not an error.
+ *
+ * @param req     The HTTP request handler (type: `httpd_req_t *`).
+ * @param message The message (type: `const char *`) logged and included in
+ *                the JSON response body.
+ */
+#define REPLY_WITH_ACCEPTED(req, message)                                         \
+    do {                                                                          \
+        ESP_LOGI (TAG8, "%s", message);                                           \
+        const char * json_msg_template = "{\"message\": \"%s\"}";                 \
+        char         json_msg[128];                                               \
+        snprintf (json_msg, sizeof (json_msg), json_msg_template, message);       \
+        httpd_resp_set_status (req, "202 Accepted");                              \
+        httpd_resp_set_type (req, "application/json");                            \
+        httpd_resp_send (req, json_msg, HTTPD_RESP_USE_STRLEN);                   \
+        return ESP_OK;                                                            \
+    } while (0)
+
+/**
  * Logs a success message, sets the HTTP status to "204 No Content", sends an empty response,
  * and exits the current function with `ESP_OK`.
  */

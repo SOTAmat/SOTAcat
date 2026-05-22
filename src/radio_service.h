@@ -34,19 +34,15 @@ void radio_service_request_refresh(RadioCmdType which);
 // Enqueue a SET and block the calling (HTTP handler) task up to
 // timeout_ms for a real ack. Returns:
 //   1  = applied and confirmed
-//   0  = failed/timed out (radio answered but command failed, or no ack)
+//   0  = failed (radio answered but command failed, or could not enqueue)
 //  -1  = rejected immediately because link is known-down
+//   2  = enqueued, no ack within timeout — will apply asynchronously
 int radio_service_set_blocking(RadioCmdType type, long arg, uint32_t timeout_ms);
 
-// Per-operation ack timeouts for radio_service_set_blocking(). Sized to
-// the radio's real CAT-op duration, not the spec's optimistic ~800 ms
-// (which fails band-switch tunes and is completely insufficient for
-// ATU tunes that legitimately take 5-10 s on the radio side).
-//
-// Reference: pre-decoupling code used RADIO_LOCK_TIMEOUT_MODERATE_MS
-// (2 s) for most SETs and RADIO_LOCK_TIMEOUT_CRITICAL_MS (10 s) for
-// ATU; these values match that intent with headroom for retries.
-static constexpr uint32_t SET_FREQ_TIMEOUT_MS   = 3000;   // band-switch tunes measure 0.7-1.7 s
-static constexpr uint32_t SET_MODE_TIMEOUT_MS   = 2000;
-static constexpr uint32_t SET_VOLUME_TIMEOUT_MS = 1000;
-static constexpr uint32_t SET_ATU_TIMEOUT_MS    = 12000;  // ATU tune is 5-10 s on the radio
+// Bounded ack-wait for radio_service_set_blocking(). Kept short so a SET
+// handler cannot starve the single esp_http_server task longer than this
+// (must stay well under the client's VFO_TIMEOUT_MS, 2000 ms). Fast ops
+// (within-band tune, mode) confirm within this window and return HTTP
+// 200; slower ops (band-switch tune, ATU) return HTTP 202 Accepted and
+// complete asynchronously in the radio service task.
+static constexpr uint32_t SET_ACK_TIMEOUT_MS = 800;
