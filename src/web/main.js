@@ -1340,6 +1340,24 @@ updateConnectionStatus();
 setInterval(updateConnectionStatus, CONNECTION_STATUS_UPDATE_INTERVAL_MS);
 
 // ============================================================================
+// Page Visibility — Immediate Resume on Foreground
+// ============================================================================
+// Mobile browsers throttle/freeze background tabs: setInterval ticks stop and
+// in-flight fetches get aborted. When the user returns to SOTAcat (e.g. after
+// switching to Polo and back), don't wait up to 5s for the next polling tick;
+// refresh status immediately so a stale "disconnected" overlay clears and the
+// VFO display snaps back to live.
+
+document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState !== "visible") return;
+    if (pollingPaused) return; // a sub-tab switch is mid-flight; let its finally{} restart polling
+    Log.debug("Visibility")("Page visible — refreshing pollers");
+    updateConnectionStatus();
+    fetchVfoState();
+    updateBatteryInfo();
+});
+
+// ============================================================================
 // Geolocation Bridge Callback Handling
 // ============================================================================
 
