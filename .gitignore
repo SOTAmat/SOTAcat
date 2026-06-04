@@ -107,3 +107,6 @@ firmware/
 # Gzip-compressed web assets (build artifacts from kowalski/wip branch)
 src/web/*.*gz
 
+# Claude Code git worktrees (local tooling, not project content)
+.claude/worktrees/
+
