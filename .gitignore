@@ -104,6 +104,10 @@ esp32.bin
 SOTACAT-ESP32C3-OTA.bin
 firmware/
 
+# Per-release hand-written notes: transient input to `make github-release`;
+# content is published to the GitHub release body, not tracked here.
+RELEASE_NOTES_*.md
+
 # Gzip-compressed web assets (build artifacts from kowalski/wip branch)
 src/web/*.*gz
 

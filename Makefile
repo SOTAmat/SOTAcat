@@ -133,12 +133,18 @@ github-release:
 	@echo "Building release firmware and webtools assets..."
 	pio run -e seeed_xiao_esp32c3_release -t package_webtools
 	@TAG=$$(sed -n 's/.*BUILD_DATE_TIME "\([0-9]*\):\([0-9]*\)".*/v\1.\2/p' include/build_info.h); \
-	echo "Creating GitHub release $$TAG..."; \
+	NOTES="RELEASE_NOTES_$$TAG.md"; \
+	if [ ! -f "$$NOTES" ]; then \
+		echo "ERROR: release notes file $$NOTES not found." >&2; \
+		echo "  Create it (see prior releases for form), then re-run." >&2; \
+		exit 1; \
+	fi; \
+	echo "Creating GitHub release $$TAG from $$NOTES..."; \
 	gh release create "$$TAG" \
 		$(FIRMWARE_DIR)/SOTACAT-ESP32C3-OTA.bin \
 		$(FIRMWARE_DIR)/esp32c3.bin \
 		$(FIRMWARE_DIR)/manifest.json \
-		--generate-notes \
+		--notes-file "$$NOTES" \
 		--title "$$TAG"
 
 # Convenience aliases
