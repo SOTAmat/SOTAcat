@@ -6,7 +6,7 @@
 
 1. Verify phone is connected to `SOTACAT_xxxx` WiFi
 2. Try `http://192.168.4.1` (not https)
-3. Check SOTAcat has power (LED on device)
+3. Check SOTAcat has power (LED on device — see [LED Patterns](LED-Patterns.md))
 
 ## .local Not Resolving
 
