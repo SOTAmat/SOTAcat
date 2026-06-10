@@ -361,7 +361,9 @@ function expandCwMacroTemplate(template) {
     const freqHz = AppState.vfoFrequencyHz || 0;
     const replacements = {
         MYCALL: AppState.callSign || "",
-        MYREF: getLocationBasedReference_forMacro() || "",
+        // CW convention: drop the hyphen, keep the slash (W6/NC-298 → W6/NC298,
+        // US-1234 → US1234). Mirrors expandCwMacroTemplate in main.js.
+        MYREF: (getLocationBasedReference_forMacro() || "").replace(/-/g, ""),
         "FREQ-KHZ": freqHz ? Math.round(freqHz / 1000).toString() : "",
         "FREQ-MHZ": freqHz ? (freqHz / 1e6).toFixed(3) : "",
         MODE: (AppState.vfoMode || "").toLowerCase(),
@@ -384,12 +386,26 @@ describe('expandCwMacroTemplate', () => {
         assertEqual(result, "CQ SOTA DE AB6D K", "MYCALL substitution");
     });
 
-    it('substitutes {MYREF} with reference', () => {
+    it('substitutes {MYREF} with reference, dropping the hyphen (SOTA keeps slash)', () => {
         AppState.callSign = "AB6D";
         mockReference = "W6/NC-298";
 
         const result = expandCwMacroTemplate("UR 5NN {MYREF} BK");
-        assertEqual(result, "UR 5NN W6/NC-298 BK", "MYREF substitution");
+        assertEqual(result, "UR 5NN W6/NC298 BK", "MYREF SOTA hyphen dropped, slash kept");
+    });
+
+    it('drops the hyphen from a POTA {MYREF} (no slash)', () => {
+        mockReference = "US-1234";
+
+        const result = expandCwMacroTemplate("{MYREF}");
+        assertEqual(result, "US1234", "MYREF POTA hyphen dropped");
+    });
+
+    it('drops the hyphen from a WWFF {MYREF}', () => {
+        mockReference = "VKFF-0001";
+
+        const result = expandCwMacroTemplate("{MYREF}");
+        assertEqual(result, "VKFF0001", "MYREF WWFF hyphen dropped");
     });
 
     it('substitutes {FREQ-KHZ} from vfoFrequencyHz', () => {
@@ -438,7 +454,7 @@ describe('expandCwMacroTemplate', () => {
         AppState.vfoMode = "CW";
 
         const result = expandCwMacroTemplate("{MYCALL} {MYREF} {FREQ-KHZ} {MODE}");
-        assertEqual(result, "AB6D W6/NC-298 7030 cw", "multiple placeholders");
+        assertEqual(result, "AB6D W6/NC298 7030 cw", "multiple placeholders");
     });
 
     it('returns empty string for null template', () => {

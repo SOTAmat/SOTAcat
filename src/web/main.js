@@ -266,7 +266,12 @@ function expandCwMacroTemplate(template) {
 
     let expanded = template;
     expanded = expanded.replace(/\{MYCALL\}/gi, AppState.callSign || "");
-    expanded = expanded.replace(/\{MYREF\}/gi, getLocationBasedReference() || "");
+    // CW convention: drop the hyphen from the reference when keying it (the Morse
+    // for "-" is long and rarely read). The slash is kept, so SOTA W6/NC-298 keys
+    // as W6/NC298 and POTA US-1234 keys as US1234. Non-CW uses of the reference
+    // (PoLo deep-links, SMS spots) read getLocationBasedReference() directly and
+    // keep the hyphen.
+    expanded = expanded.replace(/\{MYREF\}/gi, (getLocationBasedReference() || "").replace(/-/g, ""));
 
     const freqHz = AppState.vfoFrequencyHz || 0;
     expanded = expanded.replace(/\{FREQ-KHZ\}/gi, String(Math.round(freqHz / 1000)));

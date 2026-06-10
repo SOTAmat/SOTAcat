@@ -70,7 +70,7 @@ Control your radio during activation.
 
 **Transmit section:**
 - TX toggle
-- Configurable CW macro buttons with placeholder support (`{MYCALL}`, `{MYREF}`, etc.)
+- Configurable CW macro buttons with placeholder support (`{MYCALL}`, `{MYREF}`, etc.). `{MYREF}` is keyed without the hyphen per CW convention (W6/NC-298 → W6/NC298; the SOTA slash is kept).
 - Configure macros in Settings → CW Macros
 - Macros are keyed in the radio's current mode: CW in CW/CW-R, RTTY in DATA + FSK-D, PSK31 in DATA + PSK-D. In SSB/FM/AM the radio is switched to CW temporarily and restored when done.
 
