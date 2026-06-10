@@ -198,12 +198,17 @@ a {
 }
 
 .solo-icon {
-    font-size: var(--text-md);
+    font-size: var(--text-xl);
     color: var(--gray-5);
     margin-left: auto;
     margin-right: var(--space-sm);
     cursor: pointer;
-    padding: var(--space-xs);
+    /* 48px square tap target, glyph centered */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
 }
 
 .solo-icon:hover {
@@ -211,9 +216,14 @@ a {
 }
 
 .collapse-icon {
-    font-size: var(--text-md);
+    font-size: var(--text-xl);
     color: var(--gray-6);
     transition: transform 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
 }
 
 .section-content {
