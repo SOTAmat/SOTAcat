@@ -1246,6 +1246,17 @@ function toggleSection(sectionId) {
     }
 }
 
+// Collapse a section if it isn't already collapsed (no-op when already collapsed).
+function collapseSection(sectionId) {
+    const content = document.getElementById(sectionId);
+    if (!content || content.classList.contains("collapsed")) return;
+    const iconId = sectionId.replace("-section", "-icon");
+    const icon = document.getElementById(iconId);
+    content.classList.add("collapsed");
+    icon.innerHTML = "&#9654;"; // Right triangle
+    localStorage.setItem(SECTION_STORAGE_KEYS[sectionId], "false");
+}
+
 // Solo a section: expand it and collapse all others.
 // If it's already the only expanded section, expand all others back.
 function soloSection(sectionId) {
@@ -1407,6 +1418,8 @@ function sendSpotSms() {
     const uri = buildSpotSmsUri();
     if (uri) {
         Log.info("Spot")("Opening SMS for spot:", uri);
+        // Amenity: roll up the Tune section once a spot is sent.
+        collapseSection("tune-section");
         window.location.href = uri;
     }
 }
