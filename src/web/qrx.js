@@ -473,7 +473,7 @@ function buildPoloSetupLink() {
     if (!isValidPoloReference(myRef)) return null;
     const mySig = getPoloSigFromReference(myRef);
     if (!mySig) return null;
-    return buildXotaDeepLink({ myRef: myRef, mySig: mySig });
+    return buildXotaDeepLink({ baseUrl: POLO_DEEP_LINK_BASE, myRef: myRef, mySig: mySig });
 }
 
 // Launch Ham2K Polo app to setup operation

@@ -673,6 +673,7 @@ function buildPoloChaseLink() {
     const mySig = getChaseUserSigFromReference(myRef);
 
     const params = {
+        baseUrl: POLO_DEEP_LINK_BASE,
         theirCall: theirCall,
         theirRef: theirRef,
         theirSig: theirSig,

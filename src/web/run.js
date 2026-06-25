@@ -1329,7 +1329,7 @@ function launchSOTAmat() {
     const myRef = getLocationBasedReference() || "";
     const validRef = isValidSpotReference(myRef);
     const url = buildXotaDeepLink({
-        baseUrl: "sotamat://api/v1?app=sotacat&appversion=2.2",
+        baseUrl: SOTAMAT_DEEP_LINK_BASE,
         myRef:  validRef ? myRef : null,
         mySig:  validRef ? getSigFromReference(myRef) : null,
         myCall: AppState.callSign || null,
@@ -1463,6 +1463,7 @@ function buildPoloSpotLink() {
     const mode = mapModeForPolo(AppState.vfoMode);
 
     return buildXotaDeepLink({
+        baseUrl: POLO_DEEP_LINK_BASE,
         myRef: myRef,
         mySig: mySig,
         freq: freq,

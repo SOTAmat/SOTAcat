@@ -709,11 +709,14 @@ function mapModeForPolo(mode) {
     return upperMode; // Default: pass through as-is
 }
 
+// Deep-link bases for buildXotaDeepLink.
+const POLO_DEEP_LINK_BASE = "com.ham2k.polo:///qso";  // note three slashes: polo wants path, not host
+const SOTAMAT_DEEP_LINK_BASE = "sotamat://api/v1?app=sotacat&appversion=2.2";
+
 // Build xOTA-style deep link URL (Polo, SOTAmat) from parameters.
-// All caller params are optional — only non-empty values are emitted.
-// params.baseUrl defaults to Polo's "com.ham2k.polo://qso"; pass an alternate
-// scheme (e.g. "sotamat://api/v1?app=sotacat&appversion=2.2") to target other
-// apps. The separator before our query parts is auto-detected: "&" when the
+// All other caller params are optional — only non-empty values are emitted.
+// params.baseUrl is REQUIRED: callers pass the target app's scheme explicitly.
+// The separator before our query parts is auto-detected: "&" when the
 // baseUrl already contains "?", "?" otherwise.
 // Internal params → URL params:
 //   mySig+myRef → our.refs=sig:ref, theirSig+theirRef → their.refs=sig:ref,
@@ -721,7 +724,11 @@ function mapModeForPolo(mode) {
 //   mode → mode, time → startAtMillis
 // returnpath=window.location.origin is always appended.
 function buildXotaDeepLink(params) {
-    const baseUrl = params.baseUrl || "com.ham2k.polo://qso";
+    if (!params.baseUrl) {
+        Log.error("DeepLink")("buildXotaDeepLink: baseUrl is required");
+        return null;
+    }
+    const baseUrl = params.baseUrl;
     const queryParts = [];
 
     if (params.mySig && params.myRef) {
