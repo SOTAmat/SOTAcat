@@ -11,16 +11,16 @@ Prepare for your activation before operating.
 
 - **Clock Sync** — Sync radio clock to your phone
 
-![Clock sync](../images/qrx-clock-sync.png)
+<img src="../images/qrx-clock-sync.png" alt="Clock sync" width="300">
 
 - **Location** — Set GPS coordinates (manual or "Locate Me")
 - **Activation Reference** — Enter your summit/park ID
 
-![Location and reference fields](../images/qrx-location-reference.png)
+<img src="../images/qrx-location-reference.png" alt="Location and reference fields" width="300">
 
 - **Nearest SOTA** — Find closest summits to your location
 
-![QRX setup](../images/qrx-setup-polo.png)
+<img src="../images/qrx-setup-polo.png" alt="QRX setup" width="300">
 
 ## CHASE — Click-to-Pounce
 
@@ -31,7 +31,7 @@ Hunt activators from the spot list.
 - Distance shown based on your saved location
 - Opens WebSDR/KiwiSDR if tune targets configured
 
-![CHASE page with spots](../images/chase-spots.png)
+<img src="../images/chase-spots.png" alt="CHASE page with spots" width="300">
 
 **Scan** — Press the Scan button to automatically cycle through visible spots. The radio tunes to each spot in turn and the row scrolls into view. The button changes to "Stop" while scanning. Any other interaction (refresh, filter change, column sort, row click, MyCall, or Log in PoLo) stops the scan.
 
@@ -59,14 +59,14 @@ Control your radio during activation.
 - Mode buttons (CW, SSB, DATA, AM, FM)
 - Power and ATU controls
 
-![Tune controls](../images/run-tune.png)
+<img src="../images/run-tune.png" alt="Tune controls" width="300">
 
 **Spot section:**
 - SOTAmāt button (FT8 self-spot, works offline with gateway coverage)
 - Spot SMS / QRT SMS (requires cell service)
 - **Tell PoLo** — hand off the current frequency, mode, and (when set) your activation reference to the [Ham2K PoLo](https://ham2k.com/) logging app via a deep-link. Useful after self-spotting: tap to switch to PoLo with the QSO row pre-filled.
 
-![Spot controls](../images/run-spot.png)
+<img src="../images/run-spot.png" alt="Spot controls" width="300">
 
 **Transmit section:**
 - TX toggle
@@ -74,11 +74,11 @@ Control your radio during activation.
 - Configure macros in Settings → CW Macros
 - Macros are keyed in the radio's current mode: CW in CW/CW-R, RTTY in DATA + FSK-D, PSK31 in DATA + PSK-D. In SSB/FM/AM the radio is switched to CW temporarily and restored when done.
 
-![Transmit controls](../images/run-transmit.png)
+<img src="../images/run-transmit.png" alt="Transmit controls" width="300">
 
 **Tip:** After self-spotting, use split-screen mode with PoLo (or your preferred logging app) on top and SOTAcat's Transmit section on the bottom. This gives you one-tap access to TX, CW macro buttons, and your log — ideal for working a pileup right after spotting yourself.
 
-![Split-screen with PoLo logging and SOTAcat Transmit](../images/splitscreen-polo-sotacat-run.png)
+<img src="../images/splitscreen-polo-sotacat-run.png" alt="Split-screen with PoLo logging and SOTAcat Transmit" width="300">
 
 ## Settings — Configuration
 
@@ -87,21 +87,21 @@ One-time setup and preferences.
 - Callsign and license class
 - WiFi networks (home, phone hotspot, AP mode)
 
-![WiFi settings](../images/settings-wifi.png)
+<img src="../images/settings-wifi.png" alt="WiFi settings" width="300">
 
 - Tune targets (WebSDR/KiwiSDR URLs)
 
-![Tune targets settings](../images/settings-tune-targets.png)
+<img src="../images/settings-tune-targets.png" alt="Tune targets settings" width="300">
 
 - CW/Data macros (configurable keyer buttons with placeholders; sent as CW in CW/CW-R, as RTTY in DATA + FSK-D, as PSK31 in DATA + PSK-D)
 - Display settings (compact mode, scan dwell time)
 - "Show only bands my radio can access" — when enabled (default), the CHASE list hides spots outside your radio's native band coverage. Turn it off if you operate with a transverter so VHF/UHF spots stay visible.
 
-![Display and chase filter settings](../images/settings-display-and-chase-filters.png)
+<img src="../images/settings-display-and-chase-filters.png" alt="Display and chase filter settings" width="300">
 
 - Firmware updates
 
-![Firmware settings](../images/settings-firmware.png)
+<img src="../images/settings-firmware.png" alt="Firmware settings" width="300">
 
 ## About — Info
 

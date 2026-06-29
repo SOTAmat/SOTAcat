@@ -1,6 +1,6 @@
 # SOTAcat Documentation
 
-![SOTAcat CHASE page](images/chase-spots.png)
+<img src="images/chase-spots.png" alt="SOTAcat CHASE page" width="300">
 
 ## For Users
 - [Getting Started](user/Getting-Started.md) — 60-second setup
