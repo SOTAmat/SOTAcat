@@ -1358,7 +1358,8 @@ function isSotaReference(ref) {
 
 // Update spot action buttons enabled state based on reference validity
 // SOTAmāt button is always enabled - the app has its own GPS and summit logic
-// SMS and Polo buttons require a valid reference (location-based)
+// SMS buttons require a valid reference (location-based)
+// Polo button only tells PoLo the VFO, so it needs no reference
 function updateSpotButtonStates() {
     const ref = getLocationBasedReference() || "";
     const isValid = isValidSpotReference(ref);
@@ -1371,9 +1372,9 @@ function updateSpotButtonStates() {
     if (sotamatBtn) sotamatBtn.disabled = false; // SOTAmāt app handles location itself
     if (smsSpotBtn) smsSpotBtn.disabled = !isValid;
     if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
-    if (poloSpotBtn) poloSpotBtn.disabled = !isValid;
+    if (poloSpotBtn) poloSpotBtn.disabled = false; // frequency comes from the radio at tap time
 
-    Log.debug("Spot")(`SOTAmāt enabled, SMS/Polo ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
+    Log.debug("Spot")(`SOTAmāt/Polo enabled, SMS ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
 }
 
 // Map radio mode to SOTAMAT-compatible mode string
@@ -1453,33 +1454,30 @@ function getSigFromReference(ref) {
     return null;
 }
 
-// Build Polo deep link for Spot page (my activation)
+// Build Polo deep link telling PoLo the current VFO (frequency + mode).
+// Spotting itself is handled by SOTAcat/SOTAmat/RBN; PoLo only needs its
+// log to follow the radio, via the /vfo route.
 function buildPoloSpotLink() {
-    const myRef = getLocationBasedReference() || "";
-    if (!isValidSpotReference(myRef)) return null;
-
-    const mySig = getSigFromReference(myRef);
     const freq = AppState.vfoFrequencyHz || null;
+    if (!freq) return null;
     const mode = mapModeForPolo(AppState.vfoMode);
 
     return buildXotaDeepLink({
-        baseUrl: POLO_DEEP_LINK_BASE,
-        myRef: myRef,
-        mySig: mySig,
+        baseUrl: POLO_DEEP_LINK_VFO_BASE,
         freq: freq,
         mode: mode,
     });
 }
 
-// Launch Ham2K Polo app for logging my activation
+// Launch Ham2K Polo app so its log follows the radio's VFO
 function launchPoloSpot() {
     const url = buildPoloSpotLink();
     if (url) {
-        Log.info("Spot")("Launching Polo for spot:", url);
+        Log.info("Spot")("Launching Polo with VFO:", url);
         // Use location.href for mobile deep link compatibility
         window.location.href = url;
     } else {
-        Log.warn("Spot")("Cannot launch Polo - no valid reference set");
+        Log.warn("Spot")("Cannot launch Polo - no frequency available");
     }
 }
 

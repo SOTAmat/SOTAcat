@@ -573,20 +573,6 @@ function onMyCallClick() {
 // ============================================================================
 // Note: buildXotaDeepLink() and mapModeForPolo() are defined in main.js
 
-// SOTA reference pattern for getSigFromReference
-const CHASE_SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;
-// POTA reference pattern
-const CHASE_POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;
-
-// Derive sig from reference format (for user's own activation reference)
-function getChaseUserSigFromReference(ref) {
-    if (!ref) return null;
-    if (CHASE_SOTA_REF_PATTERN.test(ref)) return "sota";
-    if (CHASE_POTA_REF_PATTERN.test(ref)) return "pota";
-    if (/^[A-Z]{2,4}FF-\d{4}$/i.test(ref)) return "wwff";
-    return null;
-}
-
 // Valid Polo sig types (lowercase)
 // Note: PoLo does not yet support "iota" as a recognized activity type
 const VALID_POLO_SIGS = ["sota", "pota", "wwff", "gma", "wca", "zlota"];
@@ -640,7 +626,8 @@ function updatePoloButtonState() {
     poloBtn.disabled = !isTunedSpotValidForPolo();
 }
 
-// Build Polo deep link for Chase page (their activation, optionally my activation for S2S)
+// Build Polo deep link for Chase page (their activation); PoLo presents the
+// QSO in whatever operation is currently open, so S2S needs no our.refs.
 function buildPoloChaseLink() {
     const tunedSpot = getTunedSpotData();
     if (!tunedSpot) {
@@ -668,24 +655,14 @@ function buildPoloChaseLink() {
     const theirRef = tunedSpot.locationId && tunedSpot.locationId !== "-" ? tunedSpot.locationId : null;
     const theirSig = isValidPoloSig(tunedSpot.sig) ? tunedSpot.sig.toLowerCase() : null;
 
-    // Check if user has their own activation reference (S2S/P2P scenario)
-    const myRef = getLocationBasedReference() || "";
-    const mySig = getChaseUserSigFromReference(myRef);
-
     const params = {
-        baseUrl: POLO_DEEP_LINK_BASE,
+        baseUrl: POLO_DEEP_LINK_QSO_BASE,
         theirCall: theirCall,
         theirRef: theirRef,
         theirSig: theirSig,
         freq: freq,
         mode: mode,
     };
-
-    // Include user's activation reference if set (S2S/P2P)
-    if (myRef && mySig) {
-        params.myRef = myRef;
-        params.mySig = mySig;
-    }
 
     Log.info("Chase")("Polo params:", JSON.stringify(params));
     return buildXotaDeepLink(params);

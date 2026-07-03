@@ -709,8 +709,12 @@ function mapModeForPolo(mode) {
     return upperMode; // Default: pass through as-is
 }
 
-// Deep-link bases for buildXotaDeepLink.
-const POLO_DEEP_LINK_BASE = "com.ham2k.polo:///qso";  // note three slashes: polo wants path, not host
+// Deep-link bases for buildXotaDeepLink. PoLo routes on the URL *path*, hence
+// three slashes (path-form; the host is reserved): /operation opens or creates
+// an operation, /vfo sets the logging frequency/mode, /qso presents a QSO.
+const POLO_DEEP_LINK_OPERATION_BASE = "com.ham2k.polo:///operation";
+const POLO_DEEP_LINK_VFO_BASE = "com.ham2k.polo:///vfo";
+const POLO_DEEP_LINK_QSO_BASE = "com.ham2k.polo:///qso";
 const SOTAMAT_DEEP_LINK_BASE = "sotamat://api/v1?app=sotacat&appversion=2.2";
 
 // Build xOTA-style deep link URL (Polo, SOTAmat) from parameters.
