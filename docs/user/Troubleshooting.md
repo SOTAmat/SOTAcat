@@ -46,6 +46,16 @@ Some features require configuration:
 
 CHASE filters spots to bands your radio can natively cover (KX2/KX3/KH1 native band lists). If you operate with a transverter and expect VHF/UHF spots, disable **"Show only bands my radio can access"** under Settings. The filter defaults to on.
 
+## Controls Broken After a Firmware Update
+
+If the UI loads but some controls stop working after you update firmware (e.g. band, mode, or frequency buttons in the Tune section snap back or do nothing), your browser is likely running stale cached scripts from the old version.
+
+Fix it by forcing a fresh load:
+
+- **Quick check:** open the page in a Private/Incognito tab. If it works there, it's a cache problem.
+- **iOS Safari:** Settings → Apps → Safari → Clear History and Website Data, then reopen the page.
+- **Android Chrome / desktop:** fully quit the browser and reopen, or clear cached site data for the SOTAcat address.
+
 ## Still Stuck?
 
 - **Bug?** [GitHub Issues](https://github.com/SOTAmat/SOTAcat/issues) — include firmware version, device type, steps to reproduce
