@@ -64,7 +64,7 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
  * @param param_value extracted value of the named query parameter
  */
 #define STANDARD_DECODE_PARAMETER(unsafe_buf, param_name, param_value)                               \
-    char param_value[128] = {0};                                                                      \
+    char param_value[128] = {0};                                                                     \
     if (httpd_query_key_value (unsafe_buf, param_name, param_value, sizeof (param_value)) != ESP_OK) \
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
 
@@ -118,13 +118,14 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
  * Logs a success message, sets the HTTP status to "204 No Content", sends an empty response,
  * and exits the current function with `ESP_OK`.
  */
-#define REPLY_WITH_SUCCESS()                             \
-    do {                                                 \
-        ESP_LOGD (TAG8, "success");                      \
-        httpd_resp_set_status (req, "204 No Content");   \
-        httpd_resp_set_hdr (req, "Connection", "close"); \
-        httpd_resp_send (req, NULL, 0);                  \
-        return ESP_OK;                                   \
+#define REPLY_WITH_SUCCESS()                                   \
+    do {                                                       \
+        ESP_LOGD (TAG8, "success");                            \
+        httpd_resp_set_status (req, "204 No Content");         \
+        httpd_resp_set_hdr (req, "Connection", "close");       \
+        httpd_resp_set_hdr (req, "Cache-Control", "no-store"); \
+        httpd_resp_send (req, NULL, 0);                        \
+        return ESP_OK;                                         \
     } while (0)
 
 
@@ -142,6 +143,7 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
     do {                                                           \
         ESP_LOGI (TAG8, "returning " description ": %s", payload); \
         httpd_resp_set_hdr (req, "Connection", "close");           \
+        httpd_resp_set_hdr (req, "Cache-Control", "no-store");     \
         httpd_resp_send (req, payload, HTTPD_RESP_USE_STRLEN);     \
         return ESP_OK;                                             \
     } while (0)

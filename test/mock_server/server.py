@@ -94,6 +94,37 @@ class MockSOTAcatServer:
         self._setup_routes()
 
     def _setup_routes(self):
+        # ------------------------------------------------------------------
+        # Cache policy — mirrors the firmware (src/webserver.cpp
+        # dynamic_file_handler + the REPLY_WITH_* macros in webserver.h):
+        #   * embedded web assets  -> ETag = firmware version + no-cache
+        #                             (revalidate; honor If-None-Match -> 304)
+        #   * /api/v1/* responses  -> no-store (live device state, never cached)
+        # NOTE: this reproduces the contract in a SEPARATE codebase. A green
+        # test against this mock validates the test/contract, not the firmware;
+        # the authoritative run is against a real device.
+        # ------------------------------------------------------------------
+        @self.app.after_request
+        def apply_cache_policy(response):
+            if request.path.startswith("/api/"):
+                response.headers["Cache-Control"] = "no-store"
+                for h in ("ETag", "Last-Modified", "Expires"):
+                    response.headers.pop(h, None)
+                return response
+
+            etag = '"%s"' % self.state["version"]
+            if request.headers.get("If-None-Match") == etag:
+                not_modified = Response(status=304)
+                not_modified.headers["ETag"] = etag
+                not_modified.headers["Cache-Control"] = "no-cache"
+                return not_modified
+
+            response.headers["ETag"] = etag
+            response.headers["Cache-Control"] = "no-cache"
+            for h in ("Last-Modified", "Expires"):
+                response.headers.pop(h, None)
+            return response
+
         # Static file serving
         @self.app.route("/")
         def index():

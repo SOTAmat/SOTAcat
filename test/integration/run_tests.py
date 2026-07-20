@@ -8,11 +8,14 @@ Usage:
     python3 run_tests.py --all                  # Run all tests
     python3 run_tests.py --performance          # Performance test only
     python3 run_tests.py --mutex                # Mutex stress test only
+    python3 run_tests.py --cache                # Cache-header contract test only (#110)
+    python3 run_tests.py --cache --mock         # Cache-header test against auto-started mock
     python3 run_tests.py --ui                   # UI test only (requires mock server or device)
     python3 run_tests.py --ui --mock            # UI test with auto-started mock server
 """
 
 import argparse
+import socket
 import subprocess
 import sys
 import time
@@ -71,6 +74,26 @@ class TestRunner:
         self.results.append(("Mutex Stress Test", result.returncode))
         return result.returncode
 
+    def run_cache_header_test(self, base_url: str = None) -> int:
+        """Run web-asset cache-header contract test (issue #110)"""
+        print("\n" + "=" * 70)
+        print("Running Cache-Header Contract Test")
+        print("=" * 70 + "\n")
+
+        if base_url is None:
+            base_url = f"http://{self.host}"
+
+        cmd = [
+            str(self.venv_python),
+            str(self.test_dir / "test_cache_headers.py"),
+            "--base-url",
+            base_url,
+        ]
+
+        result = subprocess.run(cmd)
+        self.results.append(("Cache-Header Test", result.returncode))
+        return result.returncode
+
     def start_mock_server(self, port: int = 8080) -> bool:
         """Start the mock server in the background"""
         print("\n" + "=" * 70)
@@ -89,16 +112,28 @@ class TestRunner:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            # Wait for server to start
-            time.sleep(3)
-            if self.mock_server_proc.poll() is not None:
-                print("Error: Mock server failed to start")
-                return False
-            print(f"Mock server started on port {port}")
-            return True
         except Exception as e:
             print(f"Error starting mock server: {e}")
             return False
+
+        # Poll for readiness rather than a fixed sleep: `pipx run` may spend
+        # many seconds resolving dependencies on a cold start before the server
+        # binds the port, so a fixed wait races the server and fails flakily.
+        timeout_s = 30
+        deadline = time.time() + timeout_s
+        while time.time() < deadline:
+            if self.mock_server_proc.poll() is not None:
+                print("Error: Mock server exited before becoming ready")
+                return False
+            try:
+                with socket.create_connection(("localhost", port), timeout=1):
+                    print(f"Mock server started on port {port}")
+                    return True
+            except OSError:
+                time.sleep(0.5)
+
+        print(f"Error: Mock server not ready on port {port} within {timeout_s}s")
+        return False
 
     def stop_mock_server(self):
         """Stop the mock server"""
@@ -161,13 +196,18 @@ def main():
     parser = argparse.ArgumentParser(description="SOTAcat Unified Test Runner")
     parser.add_argument("--host", default="sotacat.local", help="Target hostname or IP")
     parser.add_argument(
-        "--all", action="store_true", help="Run all device tests (performance + mutex)"
+        "--all", action="store_true", help="Run all device tests (performance + mutex + cache)"
     )
     parser.add_argument(
         "--performance", action="store_true", help="Run performance test only"
     )
     parser.add_argument(
         "--mutex", action="store_true", help="Run mutex stress test only"
+    )
+    parser.add_argument(
+        "--cache",
+        action="store_true",
+        help="Run cache-header contract test only (#110); works with --mock",
     )
     parser.add_argument("--ui", action="store_true", help="Run UI tests only")
     parser.add_argument(
@@ -214,20 +254,22 @@ def main():
     try:
         # Determine what to run
         run_device_tests = args.all or args.performance or args.mutex
+        run_cache_tests = args.all or args.cache
         run_ui_tests = args.ui
 
         # If nothing specified, default to device tests if venv exists
-        if not run_device_tests and not run_ui_tests:
+        if not run_device_tests and not run_cache_tests and not run_ui_tests:
             if venv_python.exists():
                 run_device_tests = True
+                run_cache_tests = True
             else:
                 print(
                     "No venv found. Use --ui --mock to run UI tests with mock server."
                 )
                 sys.exit(1)
 
-        # Device tests require venv
-        if run_device_tests and not venv_python.exists():
+        # Device and cache tests require venv (requests)
+        if (run_device_tests or run_cache_tests) and not venv_python.exists():
             print("Error: Virtual environment not found for device tests")
             print(f"Expected: {venv_python}")
             print("\nRun: make setup")
@@ -247,6 +289,11 @@ def main():
                 runner.run_mutex_stress_test(
                     duration=args.duration, clients=args.clients
                 )
+
+        # Run cache-header contract test (mock- or device-capable)
+        if run_cache_tests:
+            base_url = f"http://localhost:{args.port}" if args.mock else None
+            runner.run_cache_header_test(base_url=base_url)
 
         # Run UI tests
         if run_ui_tests:

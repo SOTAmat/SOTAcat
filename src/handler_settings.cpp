@@ -392,6 +392,7 @@ static esp_err_t retrieve_and_send_gps_settings (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     httpd_resp_set_type (req, "application/json");
+    httpd_resp_set_hdr (req, "Cache-Control", "no-store");
     auto settings_json = get_gps_settings_json();
     return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
 }
@@ -453,6 +454,7 @@ static esp_err_t retrieve_and_send_callsign_settings (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     httpd_resp_set_type (req, "application/json");
+    httpd_resp_set_hdr (req, "Cache-Control", "no-store");
     auto settings_json = get_callsign_settings_json();
     return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
 }
@@ -518,6 +520,7 @@ static esp_err_t retrieve_and_send_license_settings (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     httpd_resp_set_type (req, "application/json");
+    httpd_resp_set_hdr (req, "Cache-Control", "no-store");
     auto settings_json = get_license_settings_json();
     return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
 }
@@ -584,6 +587,7 @@ static esp_err_t retrieve_and_send_tune_targets (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     httpd_resp_set_type (req, "application/json");
+    httpd_resp_set_hdr (req, "Cache-Control", "no-store");
     auto settings_json = get_tune_targets_json();
     return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
 }
@@ -674,6 +678,7 @@ static esp_err_t retrieve_and_send_cw_macros (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     httpd_resp_set_type (req, "application/json");
+    httpd_resp_set_hdr (req, "Cache-Control", "no-store");
     auto settings_json = get_cw_macros_json();
     return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
 }

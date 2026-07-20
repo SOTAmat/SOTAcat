@@ -1,5 +1,6 @@
 #include "webserver.h"
 #include "globals.h"
+#include "hardware_specific.h"  // get_version_string()
 #include "kx_radio.h"
 #include "settings.h"
 
@@ -44,38 +45,37 @@ typedef struct
     const uint8_t * asset_end;
     const char *    asset_type;
     bool            gzipped;
-    long            cache_time;  // Cache time in seconds
 } asset_entry_t;
 
 /**
  * Represents an array of asset entries to facilitate URI to asset mapping.
  */
+// All assets are served with an ETag equal to the firmware version and
+// Cache-Control: no-cache (see dynamic_file_handler), so the browser revalidates
+// every asset and refetches the whole set atomically after a firmware update.
 static const asset_entry_t asset_map[] = {
-    // uri                 asset_start              asset_end                asset_type         gzip   cache_time
-    // =================== ======================== ======================== ================== ====== ==============
-    // HTML pages - short cache (content may change)
-    {"/",                  index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  }, // 5 min
-    {"/index.html",        index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true,  300  },
-    {"/about.html",        about_htmlgz_srt,        about_htmlgz_end,        "text/html",       true,  300  },
-    {"/run.html",          run_htmlgz_srt,          run_htmlgz_end,          "text/html",       true,  300  },
-    {"/chase.html",        chase_htmlgz_srt,        chase_htmlgz_end,        "text/html",       true,  300  },
-    {"/settings.html",     settings_htmlgz_srt,     settings_htmlgz_end,     "text/html",       true,  300  },
-    {"/qrx.html",          qrx_htmlgz_srt,          qrx_htmlgz_end,          "text/html",       true,  300  },
-    // JS/CSS - medium cache (versioned with firmware)
-    {"/about.js",          about_jsgz_srt,          about_jsgz_end,          "text/javascript", true,  300  }, // 5 min
-    {"/bandprivileges.js", bandprivileges_jsgz_srt, bandprivileges_jsgz_end, "text/javascript", true,  3600 },
-    {"/run.js",            run_jsgz_srt,            run_jsgz_end,            "text/javascript", true,  3600 },
-    {"/chase.js",          chase_jsgz_srt,          chase_jsgz_end,          "text/javascript", true,  3600 },
-    {"/chase_api.js",      chase_api_jsgz_srt,      chase_api_jsgz_end,      "text/javascript", true,  3600 },
-    {"/main.js",           main_jsgz_srt,           main_jsgz_end,           "text/javascript", true,  3600 },
-    {"/settings.js",       settings_jsgz_srt,       settings_jsgz_end,       "text/javascript", true,  3600 },
-    {"/qrx.js",            qrx_jsgz_srt,            qrx_jsgz_end,            "text/javascript", true,  3600 },
-    {"/spots.js",          spots_jsgz_srt,          spots_jsgz_end,          "text/javascript", true,  3600 },
-    {"/style.css",         style_cssgz_srt,         style_cssgz_end,         "text/css",        true,  300  },
-    // Images - long cache (never change)
-    {"/favicon.ico",       favicon_ico_srt,         favicon_ico_end,         "image/x-icon",    false, 86400}, // 1 day
-    {"/sclogo.jpg",        sclogo_jpg_srt,          sclogo_jpg_end,          "image/jpeg",      false, 86400},
-    {NULL,                 NULL,                    NULL,                    NULL,              true,  0    }  // Sent to mark end of array
+    // uri                 asset_start              asset_end                asset_type         gzip
+    // =================== ======================== ======================== ================== ======
+    {"/",                  index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true },
+    {"/index.html",        index_htmlgz_srt,        index_htmlgz_end,        "text/html",       true },
+    {"/about.html",        about_htmlgz_srt,        about_htmlgz_end,        "text/html",       true },
+    {"/run.html",          run_htmlgz_srt,          run_htmlgz_end,          "text/html",       true },
+    {"/chase.html",        chase_htmlgz_srt,        chase_htmlgz_end,        "text/html",       true },
+    {"/settings.html",     settings_htmlgz_srt,     settings_htmlgz_end,     "text/html",       true },
+    {"/qrx.html",          qrx_htmlgz_srt,          qrx_htmlgz_end,          "text/html",       true },
+    {"/about.js",          about_jsgz_srt,          about_jsgz_end,          "text/javascript", true },
+    {"/bandprivileges.js", bandprivileges_jsgz_srt, bandprivileges_jsgz_end, "text/javascript", true },
+    {"/run.js",            run_jsgz_srt,            run_jsgz_end,            "text/javascript", true },
+    {"/chase.js",          chase_jsgz_srt,          chase_jsgz_end,          "text/javascript", true },
+    {"/chase_api.js",      chase_api_jsgz_srt,      chase_api_jsgz_end,      "text/javascript", true },
+    {"/main.js",           main_jsgz_srt,           main_jsgz_end,           "text/javascript", true },
+    {"/settings.js",       settings_jsgz_srt,       settings_jsgz_end,       "text/javascript", true },
+    {"/qrx.js",            qrx_jsgz_srt,            qrx_jsgz_end,            "text/javascript", true },
+    {"/spots.js",          spots_jsgz_srt,          spots_jsgz_end,          "text/javascript", true },
+    {"/style.css",         style_cssgz_srt,         style_cssgz_end,         "text/css",        true },
+    {"/favicon.ico",       favicon_ico_srt,         favicon_ico_end,         "image/x-icon",    false},
+    {"/sclogo.jpg",        sclogo_jpg_srt,          sclogo_jpg_end,          "image/jpeg",      false},
+    {NULL,                 NULL,                    NULL,                    NULL,              true }  // Sent to mark end of array
 };
 
 /**
@@ -235,26 +235,27 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
     if (!found_file)
         return ESP_FAIL;
 
-    // Set headers
+    // ETag = firmware version. It changes on every OTA, so a browser's whole
+    // cached asset set revalidates together after an update — no stale-mix (#110).
+    char etag[80];
+    snprintf (etag, sizeof (etag), "\"%s\"", get_version_string());
+
+    // Unchanged firmware → cheap 304, no body.
+    char inm[80];
+    if (httpd_req_get_hdr_value_str (req, "If-None-Match", inm, sizeof (inm)) == ESP_OK &&
+        strcmp (inm, etag) == 0) {
+        httpd_resp_set_hdr (req, "ETag", etag);
+        httpd_resp_set_hdr (req, "Cache-Control", "no-cache");
+        httpd_resp_set_status (req, "304 Not Modified");
+        return httpd_resp_send (req, NULL, 0);
+    }
+
+    // Full response
     httpd_resp_set_type (req, asset_ptr->asset_type);
     if (asset_ptr->gzipped)
         httpd_resp_set_hdr (req, "Content-Encoding", "gzip");
-
-    // Add cache headers with immutable directive for long-cached assets
-    char cache_header[64];
-    if (asset_ptr->cache_time > 0) {
-        if (asset_ptr->cache_time >= 86400) {
-            // Long cache: add immutable directive (browser never revalidates)
-            snprintf (cache_header, sizeof (cache_header), "max-age=%ld, immutable", asset_ptr->cache_time);
-        }
-        else {
-            snprintf (cache_header, sizeof (cache_header), "max-age=%ld", asset_ptr->cache_time);
-        }
-    }
-    else {
-        snprintf (cache_header, sizeof (cache_header), "max-age=31536000, immutable");  // 1 year (cache forever)
-    }
-    httpd_resp_set_hdr (req, "Cache-Control", cache_header);
+    httpd_resp_set_hdr (req, "ETag", etag);
+    httpd_resp_set_hdr (req, "Cache-Control", "no-cache");
 
     // Use chunked transfer for large files
     size_t file_size = asset_ptr->asset_end - asset_ptr->asset_start;
