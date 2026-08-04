@@ -124,16 +124,23 @@ bool KXRadioDriver::set_volume (KXRadio & radio, long delta) {
     if (!radio.get_volume (current_volume))
         return false;
 
-    // Calculate new volume, clamped to 0-255
-    long new_volume = current_volume + delta * 20;
+    // AG uses the knob's 0-60 display scale, not the documented 0-255 (issue #87)
+    long new_volume = current_volume + delta * 5;
     if (new_volume < 0)
         new_volume = 0;
-    if (new_volume > 255)
-        new_volume = 255;
+    if (new_volume > 60)
+        new_volume = 60;
 
     ESP_LOGI (TAG8, "volume: %ld + %ld = %ld", current_volume, delta, new_volume);
 
-    return radio.put_to_kx ("AG", 3, new_volume, SC_KX_COMMUNICATION_RETRIES);
+    if (!radio.put_to_kx ("AG", 3, new_volume, SC_KX_COMMUNICATION_RETRIES))
+        return false;
+
+    // KX2 firmware bug (issue #87): AG writes the raw value to the audio
+    // hardware, skipping the knob's 2x-20 transform.  Re-sending our AI level
+    // runs the firmware's apply path, which recomputes hardware gain from the
+    // stored (clamped) value.  Never send AI4: it sets the AF mute flag.
+    return radio.put_to_kx ("AI", 1, 0, SC_KX_COMMUNICATION_RETRIES);
 }
 
 bool KXRadioDriver::get_xmit_state (KXRadio & radio, long & out_state) {

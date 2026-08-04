@@ -39,7 +39,8 @@ esp_err_t handler_volume_get (httpd_req_t * req) {
  * Handles an HTTP PUT request to adjust the audio gain (volume).
  *
  * This function adjusts the AF gain level on the radio by a delta value.
- * It reads the current volume, adds the delta (clamped to 0-255), and writes back.
+ * It reads the current volume, applies the delta (scaled and clamped by the
+ * radio driver), and writes back.
  *
  * @param req Pointer to the HTTP request structure. The "delta" query parameter
  *            specifies the amount to adjust (positive or negative).

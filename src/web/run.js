@@ -66,7 +66,7 @@ function setPowerMinMax(maximum) {
 // ============================================================================
 
 // Adjust volume (AF gain) by delta amount (delta: positive or negative integer)
-// KX2/KX3 AF gain range is 0-255; step of 21 ≈ 5 display units
+// Backend scales each delta unit to 5 display units on the radio's 0-60 AF scale
 function changeVolume(delta) {
     const url = `/api/v1/volume?delta=${delta}`;
     fetchQuiet(url, { method: "PUT" }, "Spot");
