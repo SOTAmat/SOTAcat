@@ -430,12 +430,28 @@ describe('20m Band Privileges', () => {
 
 describe('80m Band Privileges', () => {
     // 80m structure:
-    // 3.500-3.600: CW/DATA, E/G
-    // 3.600-3.700: CW/DATA/PHONE, Extra only
-    // 3.700-3.800: CW/DATA/PHONE, Extra only (General has NO privileges here!)
-    // 3.800-4.000: CW/DATA/PHONE, E/G
+    // 3.500-3.525: CW/DATA, Extra only
+    // 3.525-3.600: CW/DATA, E/A/G/T/N
+    // 3.600-3.700: CW/PHONE, Extra only
+    // 3.700-3.800: CW/PHONE, E/A
+    // 3.800-4.000: CW/PHONE, E/A/G
 
-    describe('3.700-3.800 MHz (Extra only)', () => {
+    describe('3.500-3.525 MHz (Extra-only CW floor)', () => {
+        const freq = 3510000;
+
+        it('Extra can TX CW', () => {
+            const result = checkPrivileges(freq, 'CW', 'E');
+            assertTrue(result.userCanTransmit, 'Extra should TX CW at 3.510');
+        });
+
+        it('General cannot TX CW (Extra only below 3.525)', () => {
+            const result = checkPrivileges(freq, 'CW', 'G');
+            assertFalse(result.userCanTransmit, 'General should not TX at 3.510');
+            assertEqual(result.warning, 'Outside your privileges');
+        });
+    });
+
+    describe('3.700-3.800 MHz (Extra/Advanced only)', () => {
         const freq = 3750000;
 
         it('Extra can TX Phone', () => {
@@ -838,6 +854,45 @@ describe('Novice License Privileges', () => {
             const result = checkPrivileges(14250000, 'CW', 'N');
             assertFalse(result.userCanTransmit, 'Novice should not TX on 20m');
         });
+    });
+
+    describe('23cm Novice sub-segment (1270-1295 MHz)', () => {
+        it('Novice can TX at 1280 MHz', () => {
+            const result = checkPrivileges(1280000000, 'FM', 'N');
+            assertTrue(result.userCanTransmit, 'Novice should TX at 1280 MHz');
+        });
+
+        it('Novice cannot TX at 1250 MHz (below sub-segment)', () => {
+            const result = checkPrivileges(1250000000, 'FM', 'N');
+            assertFalse(result.userCanTransmit, 'Novice should not TX at 1250 MHz');
+        });
+    });
+});
+
+describe('Technician HF CW Privileges', () => {
+    it('Tech can TX CW at 3.550 (80m)', () => {
+        const result = checkPrivileges(3550000, 'CW', 'T');
+        assertTrue(result.userCanTransmit, 'Tech should TX CW at 3.550');
+    });
+
+    it('Tech cannot TX CW at 3.510 (Extra-only floor)', () => {
+        const result = checkPrivileges(3510000, 'CW', 'T');
+        assertFalse(result.userCanTransmit, 'Tech should not TX at 3.510');
+    });
+
+    it('Tech can TX CW at 21.100 (15m)', () => {
+        const result = checkPrivileges(21100000, 'CW', 'T');
+        assertTrue(result.userCanTransmit, 'Tech should TX CW at 21.100');
+    });
+
+    it('Tech cannot TX phone at 3.550 (CW/DATA segment)', () => {
+        const result = checkPrivileges(3550000, 'USB', 'T');
+        assertFalse(result.userCanTransmit, 'Tech should not TX phone at 3.550');
+    });
+
+    it('Tech has no 20m privileges (empty T bar is correct)', () => {
+        const result = checkPrivileges(14100000, 'CW', 'T');
+        assertFalse(result.userCanTransmit, 'Tech should not TX anywhere on 20m');
     });
 });
 

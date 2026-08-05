@@ -55,8 +55,8 @@ const FCC_AMATEUR_PRIVILEGES = {
         { min: 1800000, max: 2000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G"] },
     ],
     "80m": [
-        { min: 3500000, max: 3525000, modes: ["CW", "DATA"], classes: ["E", "A", "G"] },
-        { min: 3525000, max: 3600000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "N"] },
+        { min: 3500000, max: 3525000, modes: ["CW", "DATA"], classes: ["E"] },
+        { min: 3525000, max: 3600000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T", "N"] },
         { min: 3600000, max: 3700000, modes: ["CW", "PHONE"], classes: ["E"] },
         { min: 3700000, max: 3800000, modes: ["CW", "PHONE"], classes: ["E", "A"] },
         { min: 3800000, max: 4000000, modes: ["CW", "PHONE"], classes: ["E", "A", "G"] },
@@ -93,7 +93,7 @@ const FCC_AMATEUR_PRIVILEGES = {
     ],
     "15m": [
         { min: 21000000, max: 21025000, modes: ["CW"], classes: ["E"] },
-        { min: 21025000, max: 21200000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "N"] },
+        { min: 21025000, max: 21200000, modes: ["CW", "DATA"], classes: ["E", "A", "G", "T", "N"] },
         { min: 21200000, max: 21225000, modes: ["CW", "PHONE"], classes: ["E"] },
         { min: 21225000, max: 21275000, modes: ["CW", "PHONE"], classes: ["E", "A"] },
         { min: 21275000, max: 21450000, modes: ["CW", "PHONE"], classes: ["E", "A", "G"] },
@@ -128,7 +128,10 @@ const FCC_AMATEUR_PRIVILEGES = {
         { min: 420000000, max: 450000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
     ],
     "23cm": [
-        { min: 1240000000, max: 1300000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+        // Novice privileges apply only in the 1270-1295 MHz sub-segment
+        { min: 1240000000, max: 1270000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
+        { min: 1270000000, max: 1295000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T", "N"] },
+        { min: 1295000000, max: 1300000000, modes: ["CW", "DATA", "PHONE"], classes: ["E", "A", "G", "T"] },
     ],
 };
 
