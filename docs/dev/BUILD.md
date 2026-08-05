@@ -120,14 +120,22 @@ sudo usermod -aG dialout $USER
 
 **GitHub Releases is the sole source of truth for SOTACAT firmware.** Both the firmware's automatic version-check (which queries the GitHub Releases API) and the ESP Web Tools flasher read exclusively from [GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases). `make github-release` is the only sanctioned publish path.
 
-```bash
-make github-release
-```
+**Prerequisites:** The [GitHub CLI](https://cli.github.com/) (`gh`) must be installed and authenticated, and a device must be available for pre-publish testing.
 
-This single command:
-1. Builds release firmware and runs the `package_webtools` PlatformIO target
-2. Extracts the version tag from `include/build_info.h` (e.g., `BUILD_DATE_TIME "260225:1828"` becomes tag `v260225.1828`)
-3. Creates a GitHub release with auto-generated notes and attaches three assets:
+### What must hold, or deployed devices break
+
+A release is not just a tarball — every SOTACAT in the field polls it daily. Violating any
+of these silently breaks the update path for *all* users, not just new ones:
+
+| Invariant | Enforced by | Failure mode |
+|-----------|-------------|--------------|
+| Tag is exactly `vYYMMDD.HHMM` — no suffix, no semver | `normalizeVersion` in `src/web/main.js` | "Invalid version format in release tag"; update check dead |
+| Assets named exactly `SOTACAT-ESP32C3-OTA.bin`, `esp32c3.bin`, `manifest.json` | exact-name asset lookup in `src/web/main.js`; fallback URL in `src/web/settings.js` | Update prompt appears, download 404s |
+| Release is **not** a draft and **not** a prerelease | GitHub's `/releases/latest` skips both | Release invisible to every consumer |
+| `manifest.json`'s embedded download URL carries the release tag | `_write_manifest_file()` bakes an absolute URL *before* the release exists | ESP Web Tools flasher 404s for new users |
+| `include/build_info.h` in the **tagged commit** equals the tag | `src/hardware_specific.cpp` builds the device version string from it | Device version never matches the tag → perpetual update prompt, or permanent false "up to date" |
+
+The three assets, all built into `firmware/webtools/` by the `package_webtools` target:
 
 | Asset | Purpose |
 |-------|---------|
@@ -135,13 +143,72 @@ This single command:
 | `esp32c3.bin` | Full merged flash image (for ESP Web Tools) |
 | `manifest.json` | ESP Web Tools install manifest |
 
-**Prerequisites:** The [GitHub CLI](https://cli.github.com/) (`gh`) must be installed and authenticated.
+### The tag is discovered, not chosen
 
-**Editing release notes:** The release is created with auto-generated notes from commits since the last release. You can edit the notes afterward on the GitHub Releases page.
+`make github-release` builds *first*, then derives the tag from `include/build_info.h`
+(`BUILD_DATE_TIME "260225:1828"` → `v260225.1828`), then requires a hand-written
+`RELEASE_NOTES_<TAG>.md` in the repo root. So you cannot name the notes file until the
+build has stamped the version. Release is therefore a two-pass process.
+
+`build_info.h` is re-stamped only when a source file's **mtime** is newer than the
+header's (`_should_update_build_info()` in `pio-pre-build-script.py`). That heuristic is
+not trustworthy — a `git checkout`, a stash, or a file-sync client can advance the header's
+mtime while restoring older content, after which no build will ever re-stamp it. Force the
+stamp rather than trusting it.
+
+### Procedure
+
+```bash
+# 1. Start clean and in sync — `gh release create` passes no --target, so it tags
+#    whatever origin/main points at, not your local HEAD.
+git status --porcelain          # must be empty
+git rev-parse HEAD origin/main  # must be identical
+
+# 2. Force a fresh stamp and build the artifacts.
+touch src/web/main.js
+pio run -e seeed_xiao_esp32c3_release -t package_webtools
+#    Confirm the log says "Updated include/build_info.h ...", not "Skipped".
+
+TAG=$(sed -n 's/.*BUILD_DATE_TIME "\([0-9]*\):\([0-9]*\)".*/v\1.\2/p' include/build_info.h)
+STAMP=$(sed -n 's/.*BUILD_DATE_TIME "\([^"]*\)".*/\1/p' include/build_info.h)
+sha256sum firmware/webtools/* | tee /tmp/release-digests.txt
+
+# 3. Verify the artifacts before they touch hardware.
+jq -r '.version, .builds[0].parts[0].path' firmware/webtools/manifest.json   # both carry $TAG
+strings firmware/webtools/SOTACAT-ESP32C3-OTA.bin | grep -F "$STAMP"        # binary carries $STAMP
+
+# 4. Test the exact candidate on a real device.
+make test-unit
+make ota-upload IP=sotacat.local
+curl -s http://sotacat.local/api/v1/version          # must echo $STAMP
+SOTACAT_TEST_HOST=sotacat.local SOTACAT_TEST_ARGS="--all --ui" \
+  pio run -e seeed_xiao_esp32c3_release -t verify_and_publish_webtools
+sha256sum -c /tmp/release-digests.txt                # tested bits == publish candidate
+
+# 5. Write RELEASE_NOTES_$TAG.md (see below), then commit and push.
+git add include/build_info.h && git commit -m "release $TAG"
+git push origin main
+git show HEAD:include/build_info.h                   # must contain $STAMP
+
+# 6. Publish, then verify from the outside as a device sees it.
+make github-release
+curl -s https://api.github.com/repos/SOTAmat/SOTAcat/releases/latest \
+  | jq '{tag_name, draft, prerelease, assets: [.assets[].name]}'
+```
+
+Finally, on the device — still running `$TAG` — trigger "check for updates" in Settings. It
+must report **up to date** and must not prompt. A prompt here means the tag and the device
+version disagree.
+
+**Release notes:** `RELEASE_NOTES_<TAG>.md` is required — `make github-release` aborts
+without it. It is gitignored (transient input, published to the release body), so there are
+no examples in the repo; retrieve the form from a published release with
+`gh release view <previous-tag> --json body -q .body`. Draft it from
+`git log --oneline <previous-tag>..HEAD`. Notes can be edited afterward on the Releases page.
 
 ### Mirroring a release to sotamat.com (optional, not recommended)
 
-Hosting a copy of the firmware on sotamat.com is **optional and not recommended**. If a mirror is published, it must be a byte-identical copy of the `SOTACAT-ESP32C3-OTA.bin` asset from an already-published GitHub Release — never a fresh local rebuild. Each build re-stamps `BUILD_DATE_TIME` in `include/build_info.h` (see `pio-pre-build-script.py`), so a rebuild produces a phantom version that no update check can ever see: devices flashed with it will report "up to date" against an older GitHub tag. See issue [#100](https://github.com/SOTAmat/SOTAcat/issues/100) for the incident that motivated this rule.
+Hosting a copy of the firmware on sotamat.com is **optional and not recommended**. If a mirror is published, it must be a byte-identical copy of the `SOTACAT-ESP32C3-OTA.bin` asset from an already-published GitHub Release — never a fresh local rebuild. A rebuild re-stamps `BUILD_DATE_TIME` in `include/build_info.h` (see [above](#the-tag-is-discovered-not-chosen)), producing a phantom version that no update check can ever see: devices flashed with it will report "up to date" against an older GitHub tag. See issue [#100](https://github.com/SOTAmat/SOTAcat/issues/100) for the incident that motivated this rule.
 
 ## End Users
 
