@@ -54,7 +54,8 @@ branch's core property is preserved unchanged.
 ## Non-goals
 
 - Converting `/power`, `/xmit`, `/keyer`, `/msg`, `/time`, `/volume` GET.
-  Same mechanism applies later; not in this change.
+  Same mechanism applies later; not in this change. *(Done later the same
+  day for all but `/keyer`, which already runs on its own task.)*
 - Any client-side change. The web UI already treats 2xx as success and
   polls; SOTAmat gets its read-your-write back without change.
 - Changing FT8 behaviour, priorities, or `RADIO_LOCK_TIMEOUT_FT8_MS`.
@@ -234,7 +235,7 @@ table.
 
 ## Concurrency model (summary)
 
-- Radio mutex: worker (plus FT8 / unconverted handlers) — unchanged.
+- Radio mutex: worker (plus FT8 and the keyer task) — unchanged.
 - Snapshot mutex: leaf — unchanged.
 - Slot mutex (`s_req_mutex`): unchanged; slots gain a `gen`.
 - Park table: **no lock** — server-task-only. Worker and timer communicate

@@ -24,6 +24,8 @@ struct RadioSnapshotData {
     bool has_frequency() const { return frequency_hz > 0; }
     bool has_mode() const { return mode > 0; }
     bool has_xmit() const { return xmit_state >= 0; }
+    bool has_power() const { return power >= 0; }
+    bool has_volume() const { return volume >= 0; }
 
     bool frequency_fresh(int64_t now_us) const {
         // now_us < stamp (clock skew / unset clock) reads stale, never
@@ -38,6 +40,14 @@ struct RadioSnapshotData {
     bool xmit_fresh(int64_t now_us) const {
         return has_xmit() && now_us >= xmit_stamp_us &&
                (now_us - xmit_stamp_us) < RADIO_SNAPSHOT_FRESH_US;
+    }
+    bool power_fresh(int64_t now_us) const {
+        return has_power() && now_us >= power_stamp_us &&
+               (now_us - power_stamp_us) < RADIO_SNAPSHOT_FRESH_US;
+    }
+    bool volume_fresh(int64_t now_us) const {
+        return has_volume() && now_us >= volume_stamp_us &&
+               (now_us - volume_stamp_us) < RADIO_SNAPSHOT_FRESH_US;
     }
 };
 

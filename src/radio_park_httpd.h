@@ -23,8 +23,10 @@ static constexpr uint32_t RADIO_PARK_SET_WAIT_MS = 1500;
 // Deadline sweep cadence while anything is parked (timer stops when empty).
 static constexpr uint32_t RADIO_PARK_TICK_MS = 100;
 // Occupancy cap (<= RADIO_PARK_KINDS). Each parked request holds one httpd
-// socket and ~1-2 KB of heap (IDF's request copy) until completed.
-static constexpr int RADIO_PARK_MAX = RADIO_PARK_KINDS;
+// socket and ~1-2 KB of heap (IDF's request copy) until completed; keep it
+// well under max_open_sockets (12) so page-asset fetches never starve.
+// Typical occupancy is 2-3 (freq + mode GETs, occasionally a SET).
+static constexpr int RADIO_PARK_MAX = 8;
 
 enum class RadioParkOutcome {
     DONE,        // matching op finished; `ok` says whether it succeeded

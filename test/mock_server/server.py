@@ -45,6 +45,7 @@ DEFAULT_STATE = {
     "mode": "USB",
     "power": 15,
     "xmit": 0,  # 0 = RX, 1 = TX
+    "volume": 120,  # AF gain 0-255
     "radio_type": "KX2",  # "KX2", "KX3", or "Unknown"
     # Radio-link emulation (see MockRadio). Settable live via _debug/state.
     "radio_latency_ms": 50,  # simulated CAT round-trip per operation
@@ -367,7 +368,8 @@ class MockSOTAcatServer:
                 return radio_reply(404, "invalid delta")
 
             def mutate():
-                print(f"[MOCK] Volume adjusted by {delta}")
+                self.state["volume"] = max(0, min(255, self.state.get("volume", 0) + delta))
+                print(f"[MOCK] Volume adjusted by {delta} -> {self.state['volume']}")
                 return True
 
             return radio_reply(*self.radio.apply("volume change", mutate))
@@ -511,36 +513,65 @@ class MockSOTAcatServer:
         # Time sync
         @self.app.route("/api/v1/time", methods=["PUT"])
         def set_time():
-            time_val = request.args.get("time")
-            if time_val:
+            try:
+                time_val = int(request.args.get("time", ""))
+            except ValueError:
+                return radio_reply(400, "invalid time value")
+
+            def mutate():
                 print(f"[MOCK] Time sync received: {time_val}")
-            return "", 200
+                return True
+
+            return radio_reply(*self.radio.apply("time sync", mutate))
 
         # Power control
+        @self.app.route("/api/v1/power", methods=["GET"])
+        def get_power():
+            return text_reply(self.radio.get_value("power"))
+
         @self.app.route("/api/v1/power", methods=["PUT"])
         def set_power():
-            power = request.args.get("power")
-            if power:
-                self.state["power"] = int(power)
-                print(f"[MOCK] Power set to {self.state['power']}W")
-            return "", 200
+            try:
+                power = int(request.args.get("power", ""))
+            except ValueError:
+                power = 0  # firmware uses atoi(): non-numeric == 0
+            if power < 0:
+                return radio_reply(404, "invalid power")
+
+            def mutate():
+                self.state["power"] = power
+                print(f"[MOCK] Power set to {power}W")
+                return True
+
+            return radio_reply(*self.radio.apply("power change", mutate))
+
+        # Volume (absolute read)
+        @self.app.route("/api/v1/volume", methods=["GET"])
+        def get_volume():
+            return text_reply(self.radio.get_value("volume"))
 
         # Transmit control
         @self.app.route("/api/v1/xmit", methods=["PUT"])
         def set_xmit():
-            state_val = request.args.get("state")
-            if state_val:
-                self.state["xmit"] = int(state_val)
-                status = "TX" if self.state["xmit"] else "RX"
-                print(f"[MOCK] Transmit state: {status}")
-            return "", 200
+            state_val = int(request.args.get("state", "0") or 0)
+
+            def mutate():
+                self.state["xmit"] = 1 if state_val else 0
+                print(f"[MOCK] Transmit state: {'TX' if state_val else 'RX'}")
+                return True
+
+            return radio_reply(*self.radio.apply("TX/RX toggle", mutate))
 
         # CW message playback
         @self.app.route("/api/v1/msg", methods=["PUT"])
         def play_message():
             bank = request.args.get("bank")
-            print(f"[MOCK] Playing CW message bank {bank}")
-            return "", 200
+
+            def mutate():
+                print(f"[MOCK] Playing CW message bank {bank}")
+                return True
+
+            return radio_reply(*self.radio.apply("message play", mutate))
 
         # CW keyer
         @self.app.route("/api/v1/keyer", methods=["PUT"])

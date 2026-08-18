@@ -2,6 +2,7 @@
 
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_driver.h"  // RadioTimeHms
 #include "radio_link_health.h"
 #include "radio_park_httpd.h"
 #include "radio_snapshot.h"
@@ -25,7 +26,7 @@ static const char * TAG8 = "sc:radiosvc";
 static constexpr int64_t LINK_DOWN_PROBE_INTERVAL_US = 5'000'000;  // 5 s
 
 // The worker is normally the radio mutex's only contender, but FT8 and
-// the unconverted handler_cat/handler_time paths take it directly. Bound
+// the CW keyer task take it directly. Bound
 // the worker's lock-acquire so a worker wake can never sit past the 20 s
 // task watchdog waiting for the mutex. On failure the slot is re-armed
 // and retried on a later wake. Must stay well under the 20 s WDT; do NOT
@@ -46,8 +47,8 @@ static std::atomic<TaskHandle_t> s_worker { nullptr };
 // pure fire-and-forget — they never block the single HTTP server task.
 static SemaphoreHandle_t s_req_mutex = nullptr;
 
-// Refresh slots, indexed [type - REFRESH_FREQUENCY], i.e. 0..2.
-static bool s_refresh_pending[3] = { false, false, false };
+// Refresh slots, indexed [type - REFRESH_FREQUENCY].
+static bool s_refresh_pending[RADIO_REFRESH_KINDS] = {};
 
 struct PendingSet {
     long     arg           = 0;
@@ -55,19 +56,25 @@ struct PendingSet {
     uint32_t gen           = 0;      // bumped on every arm; reported on completion
     bool     valid         = false;
 };
-// SET slots, indexed [type - SET_FREQUENCY], i.e. 0..4.
-static PendingSet s_set_pending[5];
-static uint32_t   s_set_gen[5] = { 0, 0, 0, 0, 0 };  // last armed generation per type
+// SET slots, indexed [type - SET_FREQUENCY].
+static PendingSet s_set_pending[RADIO_SET_KINDS];
+static uint32_t   s_set_gen[RADIO_SET_KINDS] = {};  // last armed generation per type
 
 bool radio_service_park_kind (RadioCmdType t, RadioParkKind & k) {
     switch (t) {
     case RadioCmdType::REFRESH_FREQUENCY: k = RadioParkKind::GET_FREQUENCY; return true;
     case RadioCmdType::REFRESH_MODE:      k = RadioParkKind::GET_MODE;      return true;
     case RadioCmdType::REFRESH_XMIT:      k = RadioParkKind::GET_XMIT;      return true;
+    case RadioCmdType::REFRESH_POWER:     k = RadioParkKind::GET_POWER;     return true;
+    case RadioCmdType::REFRESH_VOLUME:    k = RadioParkKind::GET_VOLUME;    return true;
     case RadioCmdType::SET_FREQUENCY:     k = RadioParkKind::SET_FREQUENCY; return true;
     case RadioCmdType::SET_MODE:          k = RadioParkKind::SET_MODE;      return true;
     case RadioCmdType::SET_VOLUME:        k = RadioParkKind::SET_VOLUME;    return true;
+    case RadioCmdType::SET_POWER:         k = RadioParkKind::SET_POWER;     return true;
     case RadioCmdType::SET_ATU:           k = RadioParkKind::SET_ATU;       return true;
+    case RadioCmdType::SET_XMIT:          k = RadioParkKind::SET_XMIT;      return true;
+    case RadioCmdType::SET_MSG:           k = RadioParkKind::SET_MSG;       return true;
+    case RadioCmdType::SET_TIME:          k = RadioParkKind::SET_TIME;      return true;
     default:                              return false;
     }
 }
@@ -158,6 +165,14 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
         long st = -1;
         ok = kxRadio.get_xmit_state (st);
         if (ok) radio_snapshot::set_xmit_state (st, now);
+    } else if (which == RadioCmdType::REFRESH_POWER) {
+        long p = -1;
+        ok = kxRadio.get_power (p) && p >= 0;
+        if (ok) radio_snapshot::set_power (p, now);
+    } else if (which == RadioCmdType::REFRESH_VOLUME) {
+        long v = -1;
+        ok = kxRadio.get_volume (v) && v >= 0;
+        if (ok) radio_snapshot::set_volume (v, now);
     }
     if (ok) s_health.record_success();
     else {
@@ -229,13 +244,30 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
     }
     case RadioCmdType::SET_VOLUME:
         ok = kxRadio.set_volume (arg);
+        // Volume is a delta; the absolute value is unknown until re-read.
         break;
     case RadioCmdType::SET_POWER:
         ok = kxRadio.set_power (arg);
+        if (ok) radio_snapshot::set_power (arg, now);
         break;
     case RadioCmdType::SET_ATU:
         ok = kxRadio.tune_atu();
         break;
+    case RadioCmdType::SET_XMIT:
+        ok = kxRadio.set_xmit_state (arg != 0);
+        if (ok) radio_snapshot::set_xmit_state (arg != 0 ? 1 : 0, now);
+        break;
+    case RadioCmdType::SET_MSG:
+        ok = kxRadio.play_message_bank ((int) arg);
+        break;
+    case RadioCmdType::SET_TIME: {
+        RadioTimeHms t;
+        t.hrs = (int) (arg / 3600);
+        t.min = (int) ((arg / 60) % 60);
+        t.sec = (int) (arg % 60);
+        ok    = kxRadio.sync_time (t);
+        break;
+    }
     default:
         ok = false;
         break;
@@ -276,7 +308,7 @@ static void radio_service_task (void *) {
         // watchdog is serviced before every op rather than only once per
         // loop — otherwise draining two pending SETs in one pass could
         // exceed the WDT timeout without an intervening reset.
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < RADIO_SET_KINDS; ++i) {
             PendingSet ps;
             xSemaphoreTake (s_req_mutex, portMAX_DELAY);
             ps                     = s_set_pending[i];
@@ -303,8 +335,8 @@ static void radio_service_task (void *) {
             }
         }
 
-        // Drain refresh slots (freq, mode, xmit).
-        for (int i = 0; i < 3; ++i) {
+        // Drain refresh slots (freq, mode, xmit, power, volume).
+        for (int i = 0; i < RADIO_REFRESH_KINDS; ++i) {
             bool pending;
             xSemaphoreTake (s_req_mutex, portMAX_DELAY);
             pending              = s_refresh_pending[i];
@@ -368,7 +400,7 @@ void radio_service_start() {
 
 void radio_service_request_refresh (RadioCmdType which) {
     int idx = (int) which - (int) RadioCmdType::REFRESH_FREQUENCY;
-    if (idx < 0 || idx > 2 || !s_req_mutex)
+    if (idx < 0 || idx >= RADIO_REFRESH_KINDS || !s_req_mutex)
         return;
     xSemaphoreTake (s_req_mutex, portMAX_DELAY);
     s_refresh_pending[idx] = true;
@@ -384,7 +416,7 @@ int radio_service_set (RadioCmdType type, long arg, uint32_t * gen_out) {
     if (!s_req_mutex)
         return -1;  // service not started yet
     int idx = (int) type - (int) RadioCmdType::SET_FREQUENCY;
-    if (idx < 0 || idx > 4)
+    if (idx < 0 || idx >= RADIO_SET_KINDS)
         return -1;  // not a SET command type
     int64_t expires = esp_timer_get_time() + (int64_t) SET_APPLY_DEADLINE_MS * 1000;
     xSemaphoreTake (s_req_mutex, portMAX_DELAY);

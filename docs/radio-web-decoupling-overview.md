@@ -322,11 +322,16 @@ those two set the status line directly.
 
 ## 9. Known residual / out of scope
 
-- **Unconverted handlers.** `handler_cat.cpp` (TX/RX, power, keyer, message
-  play), `handler_ft8.cpp`, `handler_time.cpp`, and the volume **GET** still
-  take the radio mutex directly. The radio service worker's FT8-yield and
-  bounded lock-acquire make this safe (no watchdog trip, no deadlock).
-  Converting them fully is possible follow-up work.
+- **Handlers converted (2026-08-17, later the same day).** `power` GET/PUT,
+  `volume` GET, `xmit` PUT, `msg` PUT and `time` PUT now go through the same
+  snapshot / slot / park machinery (`REFRESH_POWER`, `REFRESH_VOLUME`,
+  `SET_POWER`, `SET_XMIT`, `SET_MSG`, `SET_TIME`). The only code that still
+  takes the radio mutex directly is FT8 (`handler_ft8.cpp`), the CW keyer's
+  own background task (`handler_cat.cpp` `keyer_task`, already off the HTTP
+  task), and boot-time `connect()`. Hardware: contract test 12/12 incl. power
+  read-your-write and time sync. Caveat carried over from `main`: numeric
+  params are parsed with `atoi()`, so `power=abc` means `power=0` — the
+  contract test deliberately does not probe that on a live radio.
 - **Recovery probing (fixed 2026-08-17).** Originally only stale
   `frequency`/`mode` GETs armed the throttled recovery probe, so with no VFO
   poll running (observed on hardware: Chase tab on a phone, ⚫ for 35 s until

@@ -1,7 +1,13 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_park_httpd.h"
+#include "radio_service.h"
+#include "radio_set_http.h"
+#include "radio_snapshot.h"
 #include "timed_lock.h"
 #include "webserver.h"
+
+#include <esp_timer.h>
 
 #include <cstdlib>
 #include <cstring>
@@ -28,13 +34,7 @@ esp_err_t handler_xmit_put (httpd_req_t * req) {
 
     long xmit = atoi (param_value);  // Convert the parameter to an integer
 
-    // Tier 3: Critical timeout for TX/RX toggle
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "TX/RX toggle")) {
-        if (!kxRadio.set_xmit_state (xmit != 0))
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to set xmit");
-    }
-
-    REPLY_WITH_SUCCESS();
+    return radio_set_via_http (req, RadioCmdType::SET_XMIT, xmit != 0 ? 1 : 0, "TX/RX toggle");
 }
 
 /**
@@ -53,13 +53,7 @@ esp_err_t handler_msg_put (httpd_req_t * req) {
 
     long bank = atoi (param_value);  // Convert the parameter to an integer
 
-    // Tier 2: Quick timeout for fast SET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_QUICK_MS, "message play")) {
-        if (!kxRadio.play_message_bank (bank))
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to play message bank");
-    }
-
-    REPLY_WITH_SUCCESS();
+    return radio_set_via_http (req, RadioCmdType::SET_MSG, bank, "message play");
 }
 
 /**
@@ -70,23 +64,43 @@ esp_err_t handler_msg_put (httpd_req_t * req) {
  *
  * @param req Pointer to the HTTP request structure.
  */
+static void send_power (httpd_req_t * req, const RadioSnapshotData & snap) {
+    if (!snap.has_power()) {
+        // Never read successfully: unsupported on this radio, or not yet probed.
+        ESP_LOGE (TAG8, "power read not supported");
+        http_send_error_json (req, HTTPD_404_NOT_FOUND, "power read not supported");
+        return;
+    }
+    char buf[16];
+    snprintf (buf, sizeof (buf), "%ld", snap.power);
+    ESP_LOGI (TAG8, "returning power: %s", buf);
+    http_send_string (req, buf);
+}
+
+static void power_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
+    send_power (req, radio_snapshot::get());
+}
+
 esp_err_t handler_power_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    long power = -1;
-
-    // Tier 1: Fast timeout for GET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "power GET")) {
-        if (!kxRadio.get_power (power))
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "power read not supported");
+    RadioSnapshotData snap = radio_snapshot::get();
+    int64_t           now  = esp_timer_get_time();
+    if (snap.power_fresh (now)) {
+        send_power (req, snap);
+        return ESP_OK;
     }
-
-    char power_string[8];
-    snprintf (power_string, sizeof (power_string), "%ld", power);
-
-    REPLY_WITH_STRING (req, power_string, "power");
+    // Same shape as handler_frequency_get: arm a refresh; park if the link
+    // is up; otherwise answer from the snapshot.
+    if (!Ft8RadioExclusive) {
+        radio_service_request_refresh (RadioCmdType::REFRESH_POWER);
+        if (radio_service_link_up() &&
+            radio_park_request (req, RadioParkKind::GET_POWER, 0, RADIO_PARK_GET_WAIT_MS, power_get_complete))
+            return ESP_OK;
+    }
+    send_power (req, snap);
+    return snap.has_power() ? ESP_OK : ESP_FAIL;
 }
 
 /**
@@ -108,14 +122,10 @@ esp_err_t handler_power_put (httpd_req_t * req) {
     ESP_LOGI (TAG8, "setting power to '%s'", param_value);
 
     long desired_power = atoi (param_value);
+    if (desired_power < 0)
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid power");
 
-    // Tier 2: Moderate timeout for SET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "power SET")) {
-        if (!kxRadio.set_power (desired_power))
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "unable to set power");
-    }
-
-    REPLY_WITH_SUCCESS();
+    return radio_set_via_http (req, RadioCmdType::SET_POWER, desired_power, "power change");
 }
 
 /**

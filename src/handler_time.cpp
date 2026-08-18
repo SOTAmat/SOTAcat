@@ -1,6 +1,8 @@
 #include "globals.h"
 #include "kx_radio.h"
 #include "radio_driver.h"
+#include "radio_service.h"
+#include "radio_set_http.h"
 #include "timed_lock.h"
 #include "webserver.h"
 
@@ -58,11 +60,8 @@ esp_err_t handler_time_put (httpd_req_t * req) {
     if (!convert_client_time (time_value, &client_time))
         REPLY_WITH_FAILURE (req, HTTPD_400_BAD_REQUEST, "invalid time value");
 
-    // Tier 3: Critical timeout for time setting
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "time SET")) {
-        if (!kxRadio.sync_time (client_time))
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to sync radio time");
-    }
-
-    REPLY_WITH_SUCCESS();
+    // Slot args are a single long: pack as UTC seconds since midnight; the
+    // worker unpacks to h/m/s and calls sync_time.
+    long secs = client_time.hrs * 3600L + client_time.min * 60L + client_time.sec;
+    return radio_set_via_http (req, RadioCmdType::SET_TIME, secs, "time sync");
 }

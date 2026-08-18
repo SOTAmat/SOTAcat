@@ -24,14 +24,21 @@
 //   * The table is single-actor (HTTP server task only) — no locking here.
 #include <cstdint>
 
+// GET_* kinds first, then SET_* (is_set_kind() relies on that ordering).
 enum class RadioParkKind : int {
     GET_FREQUENCY = 0,
     GET_MODE,
     GET_XMIT,
+    GET_POWER,
+    GET_VOLUME,
     SET_FREQUENCY,
     SET_MODE,
     SET_VOLUME,
     SET_ATU,
+    SET_POWER,
+    SET_XMIT,
+    SET_MSG,
+    SET_TIME,
     COUNT
 };
 

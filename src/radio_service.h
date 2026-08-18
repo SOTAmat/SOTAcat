@@ -9,16 +9,26 @@
 
 #include <cstdint>
 
+// REFRESH_* must stay contiguous and precede the contiguous SET_* block:
+// the worker indexes its slot arrays by (type - REFRESH_FREQUENCY) and
+// (type - SET_FREQUENCY).
 enum class RadioCmdType {
     REFRESH_FREQUENCY,
     REFRESH_MODE,
     REFRESH_XMIT,
+    REFRESH_POWER,
+    REFRESH_VOLUME,
     SET_FREQUENCY,
     SET_MODE,        // arg = radio_mode_t value, or RADIO_MODE_SSB_AUTO
     SET_VOLUME,      // arg = delta
-    SET_POWER,       // arg = power
+    SET_POWER,       // arg = power (watts)
     SET_ATU,         // arg unused
+    SET_XMIT,        // arg = 0 (RX) / non-zero (TX)
+    SET_MSG,         // arg = message bank
+    SET_TIME,        // arg = UTC seconds since midnight (0..86399)
 };
+static constexpr int RADIO_REFRESH_KINDS = (int) RadioCmdType::REFRESH_VOLUME - (int) RadioCmdType::REFRESH_FREQUENCY + 1;
+static constexpr int RADIO_SET_KINDS     = (int) RadioCmdType::SET_TIME - (int) RadioCmdType::SET_FREQUENCY + 1;
 
 // Start the task. Call once, AFTER kxRadio.connect() has completed in
 // setup(). Idempotent.
@@ -58,7 +68,7 @@ static constexpr long    RADIO_MODE_SSB_AUTO             = -1;
 static constexpr long    RADIO_SSB_LSB_USB_BOUNDARY_HZ   = 10'000'000;
 
 // Map a service op to the park-table kind whose parked HTTP request it
-// satisfies. Returns false for ops no handler can park on (SET_POWER).
+// satisfies. Returns false only for unknown ops.
 bool radio_service_park_kind(RadioCmdType type, RadioParkKind & kind);
 
 // How long after enqueue a SET command remains valid for the worker to

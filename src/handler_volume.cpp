@@ -1,11 +1,14 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_park_httpd.h"
 #include "radio_service.h"
 #include "radio_set_http.h"
+#include "radio_snapshot.h"
 #include "timed_lock.h"
 #include "webserver.h"
 
 #include <esp_log.h>
+#include <esp_timer.h>
 static const char * TAG8 = "sc:hdl_vol.";
 
 /**
@@ -16,25 +19,43 @@ static const char * TAG8 = "sc:hdl_vol.";
  *
  * @param req Pointer to the HTTP request structure.
  */
+static void send_volume (httpd_req_t * req, const RadioSnapshotData & snap) {
+    if (!snap.has_volume()) {
+        ESP_LOGE (TAG8, "unable to read volume");
+        http_send_error_json (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to read volume");
+        return;
+    }
+    char buf[16];
+    snprintf (buf, sizeof (buf), "%ld", snap.volume);
+    ESP_LOGI (TAG8, "returning volume: %s", buf);
+    http_send_string (req, buf);
+}
+
+static void volume_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
+    send_volume (req, radio_snapshot::get());
+}
+
 esp_err_t handler_volume_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    long volume = -1;
+    if (!kxRadio.supports_volume())
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "volume not supported on this radio");
 
-    // Tier 1: Fast timeout for GET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "volume GET")) {
-        if (!kxRadio.supports_volume())
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "volume not supported on this radio");
-        if (!kxRadio.get_volume (volume))
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to read volume");
+    RadioSnapshotData snap = radio_snapshot::get();
+    int64_t           now  = esp_timer_get_time();
+    if (snap.volume_fresh (now)) {
+        send_volume (req, snap);
+        return ESP_OK;
     }
-
-    char volume_string[8];
-    snprintf (volume_string, sizeof (volume_string), "%ld", volume);
-
-    REPLY_WITH_STRING (req, volume_string, "volume");
+    if (!Ft8RadioExclusive) {
+        radio_service_request_refresh (RadioCmdType::REFRESH_VOLUME);
+        if (radio_service_link_up() &&
+            radio_park_request (req, RadioParkKind::GET_VOLUME, 0, RADIO_PARK_GET_WAIT_MS, volume_get_complete))
+            return ESP_OK;
+    }
+    send_volume (req, snap);
+    return snap.has_volume() ? ESP_OK : ESP_FAIL;
 }
 
 /**

@@ -212,9 +212,42 @@ class ContractTest:
                     self.put(f"mode?mode={orig_m}")
                 self.wait_get("frequency", str(orig_f), 3.0)
 
+        def power():
+            r, _ = self.get("power")
+            if r.status_code == 404:
+                return  # radio doesn't support power read; nothing to round-trip
+            self.expect(r.status_code == 200 and r.text.strip().lstrip("-").isdigit(),
+                        f"GET power: HTTP {r.status_code} {r.text!r}")
+            cur = int(r.text.strip())
+            # Re-assert the current value: exercises the SET path with no
+            # side effect on the operator's power setting.
+            r, dt = self.put(f"power?power={cur}")
+            self.expect(r.status_code in (204, 202), f"expected 204/202, got {r.status_code}")
+            self.expect(dt <= SET_BOUND_S, f"PUT took {dt*1000:.0f} ms > bound")
+            g, _ = self.get("power")
+            self.expect(g.text.strip() == str(cur), f"GET power after PUT read {g.text.strip()!r}, want {cur}")
+            # NOTE: no "invalid power" probe here on purpose — the firmware
+            # parses with atoi(), so power=abc means power=0 and WOULD change
+            # the operator's setting on a real radio.
+
+        def volume_get():
+            r, dt = self.get("volume")
+            self.expect(r.status_code in (200, 404), f"GET volume: HTTP {r.status_code}")
+            self.expect(dt <= GET_BOUND_S, f"GET volume took {dt*1000:.0f} ms")
+            if r.status_code == 200:
+                self.expect(r.text.strip().isdigit(), f"GET volume payload {r.text!r}")
+
+        def time_sync():
+            r, dt = self.put(f"time?time={int(time.time())}")
+            self.expect(r.status_code in (204, 202), f"expected 204/202, got {r.status_code}")
+            self.expect(dt <= SET_BOUND_S, f"PUT time took {dt*1000:.0f} ms > bound")
+
         self.check("PUT frequency -> 204 and read-your-write", freq)
         self.check("PUT mode -> 204 and read-your-write", mode)
         self.check("PUT mode=SSB resolves against the just-tuned frequency", ssb_after_tune)
+        self.check("GET/PUT power -> 204 and read-your-write (or 404 unsupported)", power)
+        self.check("GET volume -> bounded, numeric (or 404 unsupported)", volume_get)
+        self.check("PUT time -> 204/202, bounded", time_sync)
 
     def _test_sets_when_dead(self):
         def freq():
