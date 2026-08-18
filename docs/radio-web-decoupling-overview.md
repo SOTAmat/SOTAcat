@@ -298,7 +298,9 @@ those two set the status line directly.
     ~315 ms (park bound, last-known value), PUTs 202 in ~1.5 s, `/version`
     15 ms throughout; after ⚫ (~14 s) everything ~15 ms and PUTs 503.
     Console: CAT timeouts only — no watchdog, no park warnings.
-  - Radio powered on: ⚫ → 🟢 in ~2 s; next PUT 204.
+  - Radio powered on: ⚫ → 🟢 in ~2 s; next PUT 204. With **no** VFO poll
+    anywhere (status-only probe): ⚫ → 🟢 in ≤10 s via the `connectionStatus`
+    probe (see §9).
   - FT8 ×3 back-to-back via SOTAmat with the Run page polling on a phone
     *and* a desktop, plus a 1 Hz probe issuing PUTs: every PUT 503
     "radio busy (FT8)" in ~14 ms (never enqueued), GETs ~15 ms ⚪,
@@ -320,11 +322,19 @@ those two set the status line directly.
   take the radio mutex directly. The radio service worker's FT8-yield and
   bounded lock-acquire make this safe (no watchdog trip, no deadlock).
   Converting them fully is possible follow-up work.
-- **Recovery probing.** While the link is down, only stale `frequency`/`mode`
-  GETs arm the (throttled) recovery probe; `connectionStatus` alone never
-  does, and a SET is refused outright. Fine while the VFO poll runs on every
-  tab — but Phase 2's "gate VFO polling on connection state" would starve
-  recovery. Make `connectionStatus` arm a probe when down before doing that.
+- **Recovery probing (fixed 2026-08-17).** Originally only stale
+  `frequency`/`mode` GETs armed the throttled recovery probe, so with no VFO
+  poll running (observed on hardware: Chase tab on a phone, ⚫ for 35 s until
+  a tab switch) the glyph never recovered. `connectionStatus` now arms a
+  `REFRESH_XMIT` probe whenever the link is down (`TQ;`, ~100 ms; one per
+  10 s), so the header self-heals on every tab. Verified: status-only
+  polling, radio off→on, ⚫→🟢 within ≤10 s. SETs are still refused outright
+  while down. Phase 2 may now gate VFO polling on connection state safely.
+- **Client observation (unresolved, client-side).** During that stall the
+  phone's Chase tab issued no `frequency`/`mode` GETs for 35 s after its
+  initial fetch, although `connectionStatus` kept polling every 5 s. Not
+  reproduced on demand; worth a look at `startGlobalVfoPolling` /
+  `openTab`'s `pollingPaused` race if it recurs.
 - **Client-side phase (Phase 2).** `docs/superpowers/plans/...-client.md`
   describes a second phase — enable client-only buttons synchronously from
   `localStorage`, gate VFO polling on `connectionState` — not executed on this

@@ -56,6 +56,15 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
     RadioSnapshotData snap = radio_snapshot::get();
     int64_t           now  = esp_timer_get_time();
 
+    // Link down: reply ⚫ at once, but ARM A RECOVERY PROBE. This poll runs
+    // on every tab, every 5 s, so recovery must not depend on whether some
+    // other client happens to be issuing stale frequency/mode GETs (hardware
+    // test 2026-08-17: Run tab, radio off→on, glyph stayed ⚫ for 35 s until
+    // a tab switch fetched frequency). The worker throttles link-down probes
+    // to one per LINK_DOWN_PROBE_INTERVAL_US, so this costs one CAT per 10 s.
+    if (!radio_service_link_up() && !Ft8RadioExclusive)
+        radio_service_request_refresh (RadioCmdType::REFRESH_XMIT);
+
     // Only the xmit-state branch depends on the snapshot; the ⚫/⚪/keyer-🔴
     // cases are decided from live flags and never need a refresh.
     if (radio_service_link_up() && !Ft8RadioExclusive && !kxRadio.is_keyer_active() &&
