@@ -190,9 +190,13 @@ class MockRadio:
     # -- GET side ----------------------------------------------------------
     def get_value(self, key):
         """Return the current value for `key` after a bounded wait for a
-        refresh (like a parked GET). Never blocks past RADIO_GET_WAIT_MS."""
-        if self.state.get("ft8") or not self.link_up:
+        refresh (like a parked GET). Never blocks past RADIO_GET_WAIT_MS.
+        Returns None when the link is down (handler replies 503; the probe
+        is still armed)."""
+        if not self.link_up:
             self._start_refresh()
+            return None
+        if self.state.get("ft8"):
             return self.state[key]  # stale, instantly
         done = self._start_refresh()
         if done is not None:
@@ -312,6 +316,8 @@ class MockSOTAcatServer:
                             mimetype="application/json")
 
         def text_reply(value):
+            if value is None:
+                return radio_reply(503, "radio link down")
             return Response(str(value), status=200, mimetype="text/plain",
                             headers={"Cache-Control": "no-store"})
 

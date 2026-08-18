@@ -124,8 +124,8 @@ class ContractTest:
                 for _ in range(10):
                     r, dt = self.get(ep)
                     worst = max(worst, dt)
-                    if ep == "frequency" and r.status_code == 500:
-                        continue  # nothing cached yet (radio absent) is legal
+                    if ep in ("frequency", "mode") and r.status_code in (500, 503):
+                        continue  # 500: nothing cached yet; 503: link down — both legal
                     self.expect(r.status_code == 200, f"HTTP {r.status_code}")
                     body = r.text.strip()
                     self.expect(valid(body), f"unexpected payload {body!r}")
@@ -272,8 +272,16 @@ class ContractTest:
         def status():
             r, _ = self.get("connectionStatus")
             self.expect(r.text.strip() in ("⚫", "⚪"), f"dead radio should show ⚫/⚪, got {r.text!r}")
+
+        def gets():
+            # Once the link is down, value GETs say so (503) instead of
+            # serving a stale value as live — SOTAmat polls only these.
+            r, dt = self.get("frequency")
+            self.expect(r.status_code in (503, 200), f"GET frequency: {r.status_code}")
+            self.expect(dt <= GET_BOUND_S, f"GET frequency took {dt*1000:.0f} ms")
         self.check("PUT frequency (radio dead) -> 503/202, bounded", freq)
         self.check("connectionStatus (radio dead) -> ⚫", status)
+        self.check("GET frequency (radio dead) -> 503 once link-down, bounded", gets)
 
     # -- SOTAmat app emulation -------------------------------------------
     def test_sotamat_sequences(self):
@@ -389,6 +397,9 @@ class ContractTest:
                     time.sleep(0.1)
                 r, _ = self.get("connectionStatus")
                 self.expect(r.text.strip() == "⚫", f"expected ⚫ after link-down, got {r.text!r}")
+                r, dt = self.get("frequency")
+                self.expect(r.status_code == 503, f"GET frequency with link down: expected 503, got {r.status_code}")
+                self.expect(dt < 0.5, "503 should be immediate")
                 r, dt = self.put("frequency?frequency=14074000")
                 self.expect(r.status_code == 503, f"expected 503 with link down, got {r.status_code}")
                 self.expect(dt < 0.5, "503 should be immediate")

@@ -220,7 +220,8 @@ can no longer pick a sideband from a frequency the client just replaced.
 | Case | `main` | branch today | this design |
 |------|--------|--------------|-------------|
 | GET, radio healthy | live value | value from previous poll | value ≤~300 ms old (live) |
-| GET, radio dead / FT8 | 500 after ≤6 s block / cached | stale, instant | stale, ≤300 ms, server never blocks |
+| GET, FT8 | cached | stale, instant | stale, instant |
+| GET, radio link down | 500 after ≤6 s block | stale 200, instant | 503, instant *(decided after the SOTAmat review — see overview §6)* |
 | PUT applied | 204 | 202 | **204** |
 | PUT refused by radio | 500 | 202 (silent) | **500** |
 | PUT slower than bound | 500 after timeout | 202 | 202 |

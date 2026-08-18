@@ -56,16 +56,19 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
     // work while Ft8RadioExclusive is set, so the slot would only churn (and
     // a parked request would just time out); matches handler_status.cpp.
     if (!Ft8RadioExclusive) {
-        radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);
-        // Only worth waiting when the link is up; when down the refresh is
-        // a throttled recovery probe and the stale value is the answer.
-        if (radio_service_link_up() &&
-            radio_park_request (req, RadioParkKind::GET_FREQUENCY, 0, RADIO_PARK_GET_WAIT_MS,
+        radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);  // also the recovery probe when down
+        // Link known-down: say so. API clients without the ⚫ cue (SOTAmat
+        // polls only frequency/mode) must not be fed a stale value as live;
+        // `main` gave them a 5xx here too. The web UI treats non-OK as
+        // "no update" and shows ⚫ in the header.
+        if (!radio_service_link_up())
+            REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
+        if (radio_park_request (req, RadioParkKind::GET_FREQUENCY, 0, RADIO_PARK_GET_WAIT_MS,
                                 frequency_get_complete))
             return ESP_OK;  // reply sent later by frequency_get_complete
     }
 
-    send_frequency (req, snap);  // last known, or 500 if nothing cached yet
+    send_frequency (req, snap);  // FT8 / no room: last known, or 500 if nothing cached yet
     return snap.has_frequency() ? ESP_OK : ESP_FAIL;
 }
 

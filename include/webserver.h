@@ -167,6 +167,17 @@ static inline void http_send_service_unavailable (httpd_req_t * req, const char 
     } while (0)
 
 /**
+ * Log an error and send 503 Service Unavailable with a JSON error body, then
+ * exit the handler with ESP_FAIL. Used when the radio link is known-down.
+ */
+#define REPLY_WITH_SERVICE_UNAVAILABLE(req, message)   \
+    do {                                               \
+        ESP_LOGE (TAG8, "%s", message);                \
+        http_send_service_unavailable (req, message);  \
+        return ESP_FAIL;                               \
+    } while (0)
+
+/**
  * Logs a success message, sets the HTTP status to "204 No Content", sends an empty response,
  * and exits the current function with `ESP_OK`.
  */

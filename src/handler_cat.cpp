@@ -99,8 +99,9 @@ esp_err_t handler_power_get (httpd_req_t * req) {
     // is up; otherwise answer from the snapshot.
     if (!Ft8RadioExclusive) {
         radio_service_request_refresh (RadioCmdType::REFRESH_POWER);
-        if (radio_service_link_up() &&
-            radio_park_request (req, RadioParkKind::GET_POWER, 0, RADIO_PARK_GET_WAIT_MS, power_get_complete))
+        if (!radio_service_link_up())
+            REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");  // see handler_frequency_get
+        if (radio_park_request (req, RadioParkKind::GET_POWER, 0, RADIO_PARK_GET_WAIT_MS, power_get_complete))
             return ESP_OK;
     }
     send_power (req, snap);

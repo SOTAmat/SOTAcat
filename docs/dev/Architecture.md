@@ -48,7 +48,8 @@ Radio endpoint contract (`frequency`, `mode`, `connectionStatus`, `volume`, `atu
 | Case | Response |
 |------|----------|
 | GET, radio healthy | bare-text value ≤~300 ms old (parks up to 300 ms for a refresh) |
-| GET, radio dead / FT8 | last-known value, instantly; `500` / `UNKNOWN` only if nothing was ever read |
+| GET during FT8 | last-known value, instantly |
+| GET, radio link down | `503` "radio link down" (instant; the header's `connectionStatus` shows ⚫). API clients that poll only `frequency`/`mode` (SOTAmat) get an honest signal instead of a stale value |
 | PUT applied | `204 No Content` |
 | PUT refused by radio | `500` |
 | PUT confirmation slower than 1.5 s | `202 Accepted` — confirm via a later GET |

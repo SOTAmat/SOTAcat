@@ -82,13 +82,14 @@ esp_err_t handler_mode_get (httpd_req_t * req) {
 
     // See handler_frequency_get for the FT8 / link-up reasoning.
     if (!Ft8RadioExclusive) {
-        radio_service_request_refresh (RadioCmdType::REFRESH_MODE);
-        if (radio_service_link_up() &&
-            radio_park_request (req, RadioParkKind::GET_MODE, 0, RADIO_PARK_GET_WAIT_MS, mode_get_complete))
+        radio_service_request_refresh (RadioCmdType::REFRESH_MODE);  // also the recovery probe when down
+        if (!radio_service_link_up())
+            REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");  // see handler_frequency_get
+        if (radio_park_request (req, RadioParkKind::GET_MODE, 0, RADIO_PARK_GET_WAIT_MS, mode_get_complete))
             return ESP_OK;  // reply sent later by mode_get_complete
     }
 
-    send_mode (req, snap);  // last known, or "UNKNOWN"
+    send_mode (req, snap);  // FT8 / no room: last known, or "UNKNOWN"
     return ESP_OK;
 }
 

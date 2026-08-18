@@ -50,8 +50,9 @@ esp_err_t handler_volume_get (httpd_req_t * req) {
     }
     if (!Ft8RadioExclusive) {
         radio_service_request_refresh (RadioCmdType::REFRESH_VOLUME);
-        if (radio_service_link_up() &&
-            radio_park_request (req, RadioParkKind::GET_VOLUME, 0, RADIO_PARK_GET_WAIT_MS, volume_get_complete))
+        if (!radio_service_link_up())
+            REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");  // see handler_frequency_get
+        if (radio_park_request (req, RadioParkKind::GET_VOLUME, 0, RADIO_PARK_GET_WAIT_MS, volume_get_complete))
             return ESP_OK;
     }
     send_volume (req, snap);

@@ -209,7 +209,8 @@ intermediate frequencies, and the HTTP server is never starved.
 | Case | `main` | this branch |
 |------|--------|-------------|
 | `GET /frequency`, `/mode`, `/connectionStatus` — radio healthy | live CAT read (≤6 s block if radio dies mid-read) | value ≤~300 ms old; **payload byte-identical**; server task never blocks |
-| `GET` — radio dead / FT8 | 500 after up to 6 s / cached | last-known value, instantly (≤300 ms) |
+| `GET` — FT8 in progress | cached | last-known value, instantly |
+| `GET` — radio link down | 500 after up to 6 s | **503 "radio link down"**, instant — SOTAmat polls only `frequency`/`mode` and must not be fed a stale value as live; the web UI treats non-OK as "no update" and shows ⚫ |
 | `PUT` (frequency / mode / volume / ATU) — applied | `204` after the radio confirmed | **`204`** after the radio confirmed |
 | `PUT` — radio refused | `500` | **`500`** |
 | `PUT` — confirmation slower than 1.5 s | `500` after lock timeout | `202 Accepted` — applies asynchronously; confirm via a later GET |
