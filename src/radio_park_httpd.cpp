@@ -133,6 +133,17 @@ bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, ui
         return false;
     }
 
+#ifdef SOTACAT_SOAK_DIAG
+    {
+        static int64_t last_diag = 0;
+        int64_t        t         = esp_timer_get_time();
+        if (t - last_diag > 60'000'000) {
+            last_diag = t;
+            ESP_LOGI (TAG8, "DIAG httpd stack min-free=%u B; parked=%d",
+                      (unsigned) uxTaskGetStackHighWaterMark (NULL) * sizeof (StackType_t), s_table.count());
+        }
+    }
+#endif
     int64_t deadline   = esp_timer_get_time() + (int64_t) wait_ms * 1000;
     void *  superseded = nullptr;
     // Cannot fail: capacity was checked above and kind/handle are valid.

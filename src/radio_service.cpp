@@ -11,6 +11,9 @@
 #include <atomic>
 #include <esp_log.h>
 #include <esp_task_wdt.h>
+#ifdef SOTACAT_SOAK_DIAG
+#include <esp_heap_caps.h>
+#endif
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -317,6 +320,22 @@ static void radio_service_task (void *) {
         // number of producer notifications collapse into one wake — we
         // drain every slot below regardless.
         ulTaskNotifyTake (pdTRUE, pdMS_TO_TICKS (1000));
+
+#ifdef SOTACAT_SOAK_DIAG
+        // Soak diagnostics (build with -DSOTACAT_SOAK_DIAG): every 60 s.
+        {
+            static int64_t last_diag = 0;
+            int64_t        t         = esp_timer_get_time();
+            if (t - last_diag > 60'000'000) {
+                last_diag = t;
+                ESP_LOGI (TAG8, "DIAG worker stack min-free=%u B; heap free=%u largest=%u min-ever=%u",
+                          (unsigned) uxTaskGetStackHighWaterMark (NULL) * sizeof (StackType_t),
+                          (unsigned) heap_caps_get_free_size (MALLOC_CAP_8BIT),
+                          (unsigned) heap_caps_get_largest_free_block (MALLOC_CAP_8BIT),
+                          (unsigned) heap_caps_get_minimum_free_size (MALLOC_CAP_8BIT));
+            }
+        }
+#endif
 
         // FT8 owns the radio for the whole transmission (handler_ft8.cpp
         // holds the radio mutex continuously, ~27 s including the window

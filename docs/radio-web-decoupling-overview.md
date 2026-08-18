@@ -329,7 +329,17 @@ those two set the status line directly.
     114,688 B **identical** idle / during 40-way bursts / after (no
     fragmentation from park copies); heap min-ever 82 KB during bursts
     (httpd sockets + lwIP, recovers fully); parked occupancy ≤1 in 30 s
-    samples. Nothing to tune; the DIAG lines were not kept.
+    samples. Nothing to tune. The DIAG lines are kept behind
+    `-DSOTACAT_SOAK_DIAG` (off by default; build with
+    `PLATFORMIO_BUILD_FLAGS=-DSOTACAT_SOAK_DIAG`).
+  - **2 h mixed soak (2026-08-17, DIAG build):** two header pollers (2 s), two
+    VFO pollers (3 s), a SOTAmat-style 1 s poller, asset reloads, a tune
+    round-trip every 20 s and a mode toggle every 3 min — 33,499 requests,
+    **0 errors**, all PUTs 204, latencies flat, largest free heap block
+    unchanged at every sample, no WDT/accept/complete errors, no reboot.
+    Adversarial socket tests (300 abort-while-parked, 40-wide same-kind GET and
+    PUT storms, slow reader) left every socket free; the existing performance
+    baseline, 60 s mutex stress and 71 Playwright UI tests all pass.
 
 ---
 
