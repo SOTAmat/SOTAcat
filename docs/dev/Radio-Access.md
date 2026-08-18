@@ -420,10 +420,16 @@ copies), parked occupancy typically 0–1.
   requests, 0 errors, all PUTs 204, latencies flat, largest free heap block 114,688 B
   at every sample, worker stack min-free 2076 B flat, no reboot. Diagnostics stay
   behind `-DSOTACAT_SOAK_DIAG` (`PLATFORMIO_BUILD_FLAGS=-DSOTACAT_SOAK_DIAG`).
-- **Not on hardware yet**: boot with the radio absent (server up, radio endpoints
-  gated "not connected", connect on power-up) and CW-keyer overlap (worker's bounded
-  lock, parked timeouts, 5 s SET deadline) — both reasoned from code and covered by
-  the mock; worth one manual pass.
+- **Boot with the radio absent** (2026-08-18): web server up while `connect()`
+  searched; `/version` 14–28 ms, header ⚫, every radio endpoint refused instantly
+  with the pre-existing gate's `500 "radio not connected"` (the service starts only
+  after connect), all tabs usable; radio on → 🟢 within one 2 s poll and the first
+  PUT after connect a 204 (health seeded from `connect()`).
+- **CW-keyer overlap** (2026-08-18): four keyer messages (~30 s of keying) with two
+  clients writing: header 🔴 throughout; GETs 200 last-known in 300–400 ms (worker's
+  3 s lock acquire fails, slot re-arms); PUTs 202 while keying (timeout, or
+  "superseded" by the other client's PUT) and 204 in the gaps and afterwards; no
+  watchdog.
 
 ## 11. Known limitations and future work
 
