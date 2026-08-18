@@ -141,14 +141,15 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
     if (!lock.acquired())
         return false;
     int64_t now = esp_timer_get_time();
-    s_last_cat_attempt_us.store (now, std::memory_order_release);
-    if (expires_at_us != 0 && esp_timer_get_time() > expires_at_us) {
+    if (expires_at_us != 0 && now > expires_at_us) {
+        // Expiry says nothing about the radio — no CAT was attempted, so it
+        // is neither a link failure nor a probe. (Counting it as a failure
+        // flipped the link down after ordinary SETs queued behind FT8.)
         ESP_LOGW (TAG8, "SET expired before mutex acquired (>%lld ms past deadline); skipping",
-                  (long long) ((esp_timer_get_time() - expires_at_us) / 1000));
-        s_health.record_failure();
-        publish_health();
+                  (long long) ((now - expires_at_us) / 1000));
         return true;
     }
+    s_last_cat_attempt_us.store (now, std::memory_order_release);
     bool ok = false;
     switch (type) {
     case RadioCmdType::SET_FREQUENCY:
