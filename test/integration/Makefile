@@ -7,11 +7,12 @@ HOST ?= sotacat.local
 ITERATIONS ?= 10
 STRESS_DURATION ?= 60
 STRESS_CLIENTS ?= 7
+EXPECT_RADIO ?= healthy
 
 # Detect if venv exists
 VENV_EXISTS := $(shell [ -f $(PYTHON) ] && echo 1 || echo 0)
 
-.PHONY: help setup test test-performance test-mutex test-ui clean
+.PHONY: help setup test test-performance test-mutex test-ui test-contract test-contract-mock clean
 
 help:
 	@echo "SOTAcat Integration Tests"
@@ -22,6 +23,8 @@ help:
 	@echo "  test-performance - Run web server performance test only"
 	@echo "  test-mutex       - Run multi-client mutex stress test only"
 	@echo "  test-ui          - Run Playwright UI tests"
+	@echo "  test-contract    - Radio GET/SET HTTP contract test against HOST"
+	@echo "  test-contract-mock - Same, against the mock server (healthy + dead radio; no hardware)"
 	@echo "  clean            - Remove test results and cache files"
 	@echo ""
 	@echo "Variables:"
@@ -69,6 +72,24 @@ test-mutex: check-venv
 test-ui: check-venv
 	@echo "Running UI tests with Playwright..."
 	@$(PYTHON) test_ui.py --base-url http://$(HOST)
+
+test-contract: check-venv
+	@echo "Running radio HTTP contract test against $(HOST)..."
+	@$(PYTHON) test_radio_contract.py --host $(HOST) --expect-radio $(EXPECT_RADIO)
+
+# Spawns two mock servers (healthy, and dead radio with slow CAT), runs the
+# contract test against each, and tears them down. Needs flask in the venv
+# (pip install flask flask-cors) — see test/mock_server/README.md.
+test-contract-mock: check-venv
+	@echo "Running radio HTTP contract test against the mock server..."
+	@cd ../mock_server && $(PYTHON) server.py --port 8099 > /dev/null 2>&1 & echo $$! > .mock_healthy.pid
+	@cd ../mock_server && $(PYTHON) server.py --port 8098 --radio-dead --radio-latency 2000 > /dev/null 2>&1 & echo $$! > .mock_dead.pid
+	@sleep 3
+	@rc=0; \
+	$(PYTHON) test_radio_contract.py --host localhost:8099 --expect-radio healthy || rc=1; \
+	$(PYTHON) test_radio_contract.py --host localhost:8098 --expect-radio dead || rc=1; \
+	kill $$(cat .mock_healthy.pid .mock_dead.pid) 2>/dev/null; rm -f .mock_healthy.pid .mock_dead.pid; \
+	exit $$rc
 
 clean:
 	@echo "Cleaning test results..."
