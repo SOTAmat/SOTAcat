@@ -243,7 +243,7 @@ those two set the status line directly.
 | `test/host/test_radio_park.cpp` | Red-green tests for the park table. |
 | `test/integration/test_radio_contract.py` | Radio HTTP contract test — runs against the mock or hardware. |
 | `test/host/Makefile`, `test/host/test_radio_link_health.cpp`, `test/host/test_radio_snapshot.cpp` | Host-compiled (`g++ -std=c++17`) red-green unit tests for the two pure-logic units. |
-| `docs/superpowers/specs/...-design.md`, `docs/superpowers/plans/...-server.md`, `...-client.md` | Design spec and the server / client implementation plans. |
+| `docs/superpowers/specs/2026-05-15-radio-decoupling-design.md`, `docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md` | Design specs for the server phase and the async-handler phase. (The step-by-step implementation plans were deleted after landing — they described code that no longer exists that way; the rationale lives in the specs, the outcome here.) |
 
 ### Modified files
 
@@ -340,11 +340,15 @@ those two set the status line directly.
   initial fetch, although `connectionStatus` kept polling every 5 s. Not
   reproduced on demand; worth a look at `startGlobalVfoPolling` /
   `openTab`'s `pollingPaused` race if it recurs.
-- **Client-side phase (Phase 2).** `docs/superpowers/plans/...-client.md`
-  describes a second phase — enable client-only buttons synchronously from
-  `localStorage`, gate VFO polling on `connectionState` — not executed on this
-  branch. The server phase alone already restores the reported behavior
-  (responsive UI + usable QRT SMS button with the radio off).
+- **Client-side phase (Phase 2) — optional, not planned.** The original
+  design (`2026-05-15-radio-decoupling-design.md` §Client-side) sketched a
+  second phase: enable client-only buttons (QRT/Spot SMS, Polo, SOTAmāt)
+  synchronously from `localStorage` instead of behind backend awaits, and
+  gate VFO polling on connection state. Its goal — a usable QRT SMS button
+  with the radio off — is already met by the server phase (hardware-confirmed
+  2026-08-17), and the recovery-probe fix above removed the hazard that made
+  polling-gating risky. Its implementation plan was deleted as unmaintained;
+  the design spec still describes the idea if it is ever wanted.
 
 ---
 
@@ -377,7 +381,9 @@ the radio mutex (fixed by the FT8-aware yield, `8d101e3`).
 | Plumbing | `413af53` park shim (async httpd) · `87b174e` worker reports completion + slot gen |
 | Review fixes | `1abd5db` SET expiry is not a link failure · `22641fe` seed link health from boot connect · `ff88e56` resolve SSB sideband at apply time |
 | Handler conversion | `0471603` GET handlers park on stale snapshot · `0a10a79` PUT handlers park; honest 204/500 |
-| Tests | `8979f10` mock radio modes + HTTP contract test |
+| Tests | `8979f10` mock radio modes + HTTP contract test · `6967ce3` contract test hardware fixes |
+| Docs | `3f92c03` async-handler contract; prune 202/503 macros |
+| Post-hardware fixes (same day) | `ab9834c` connectionStatus arms link recovery probe · `8ae0fec` fast link-down detect and recovery · `0eb42aa` header status poll every 2 s |
 
 This phase reverses the pure-async trade: the review found it cost read
 latency (one poll behind), read-your-write for external clients (SOTAmat can
