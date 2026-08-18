@@ -191,7 +191,10 @@ restores parity with `handler_status.cpp` and avoids needless slot churn.
   3. After FT8 completes, confirm `/api/v1/frequency` and `/api/v1/mode`
      refresh normally (snapshot updates resume).
   4. Issue a `PUT /api/v1/frequency` *during* an FT8 transmission; confirm it
-     is dropped/expired, not applied late, and FT8 is undisturbed.
-- **Integration:** `test/integration/test_mutex_stress.py` already asserts
-  non-radio endpoint responsiveness; it does not exercise FT8. Consider adding
-  an FT8-overlap scenario to the mock server if practical.
+     is refused synchronously with `503 "radio busy (FT8)"` (async-handler
+     phase — it is not even enqueued), nothing is applied late, and FT8 is
+     undisturbed.
+- **Integration:** `test/integration/test_mutex_stress.py` asserts non-radio
+  endpoint responsiveness; `test/integration/test_radio_contract.py` exercises
+  the FT8 case against the mock server (`ft8: true` via `_debug/state` → PUT
+  503, GET instant, ⚪).

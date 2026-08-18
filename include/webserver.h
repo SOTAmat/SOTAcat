@@ -151,52 +151,6 @@ static inline void http_send_service_unavailable (httpd_req_t * req, const char 
     } while (0)
 
 /**
- * Send a 503 Service Unavailable response with a JSON error payload.
- *
- * ESP-IDF's `httpd_err_code_t` enum does not include 503, so we cannot use
- * `REPLY_WITH_FAILURE` here. Instead, set the raw status line directly via
- * `httpd_resp_set_status` (which accepts arbitrary status strings) and send
- * the JSON body via `httpd_resp_send`. Used by radio SET handlers when the
- * radio link is down (no point retrying — fail fast so the client can show
- * a meaningful state).
- *
- * @param req     The HTTP request handler (type: `httpd_req_t *`).
- * @param message The error message (type: `const char *`) logged and included
- *                in the JSON response body.
- */
-#define REPLY_WITH_SERVICE_UNAVAILABLE(req, message)   \
-    do {                                               \
-        ESP_LOGE (TAG8, "%s", message);                \
-        http_send_service_unavailable (req, message);  \
-        return ESP_FAIL;                               \
-    } while (0)
-
-/**
- * Send a 202 Accepted response with a JSON message payload.
- *
- * Used by radio SET handlers when the command was enqueued to the radio
- * service but no ack arrived within the bounded ack-wait. The command is
- * NOT a failure — it will apply asynchronously in the radio service task;
- * the client confirms the new state via a subsequent GET (e.g. its VFO
- * poll). 202 is a success-class status, so the browser treats it as `.ok`
- * and the client proceeds with no client-side change.
- *
- * ESP-IDF's `httpd_err_code_t` enum does not include 202, so we set the
- * raw status line directly via `httpd_resp_set_status` and send the JSON
- * body via `httpd_resp_send`. Logged at INFO level — 202 is not an error.
- *
- * @param req     The HTTP request handler (type: `httpd_req_t *`).
- * @param message The message (type: `const char *`) logged and included in
- *                the JSON response body.
- */
-#define REPLY_WITH_ACCEPTED(req, message)     \
-    do {                                      \
-        ESP_LOGI (TAG8, "%s", message);       \
-        http_send_accepted (req, message);    \
-        return ESP_OK;                        \
-    } while (0)
-
-/**
  * Logs a success message, sets the HTTP status to "204 No Content", sends an empty response,
  * and exits the current function with `ESP_OK`.
  */

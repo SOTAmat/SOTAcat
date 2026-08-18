@@ -1,12 +1,15 @@
 # Radio / Web Decoupling — Branch Overview
 
-**Branch:** `radio-web-decoupling` · **Base:** `main` · **22 commits**
-**Status:** server-side phase complete; hardware-validated (radio-off, rapid
-tuning, SMS-QRT, FT8 overlap).
+**Branch:** `feature/radio-web-decoupling` · **Base:** `main`
+**Status:** server-side phase and async-handler phase both complete and
+**hardware-validated** (2026-08-17, K5EM_1 + KX2: radio-on contract, VFO
+knob, radio-off/on, FT8 ×3 with two clients polling — see §8).
 
 This document explains, end to end, what this branch changes relative to
 `main` and why. For the original design rationale see
 `docs/superpowers/specs/2026-05-15-radio-decoupling-design.md`; for the
+async-handler phase (honest 204/500 SETs, read-your-write GETs) see
+`docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md`; for the
 FT8 contention fix see
 `docs/for-AI-agents/radio-service-ft8-mutex-contention.md`.
 
@@ -102,40 +105,53 @@ The radio service task is started once at boot, after `kxRadio.connect()`
 
 ## 4. How a request flows now
 
-### 4.1 GET — read the snapshot, never block
+### 4.1 GET — read the snapshot; park briefly if stale, never block
 
 ```
  browser ─GET /api/v1/frequency─▶ handler_frequency_get
                                     │  snap = radio_snapshot::get()   (take small lock, copy, release)
                                     │  fresh?  ──yes──▶ reply snap.frequency_hz        (~20 µs)
-                                    │          ──no───▶ arm refresh slot, reply anyway (stale value)
+                                    │          ──no───▶ arm refresh slot; link up? ─▶ PARK (≤300 ms)
+                                    │                                    link down / FT8 / no room
+                                    │                                        ─▶ reply stale value now
                                     ▼
-                          radio service task later refreshes the snapshot from the radio
+                    radio service task refreshes the snapshot ─▶ posts "done" to the server task
+                                                              ─▶ parked GET replies with the fresh value
+                    (or the 100 ms park tick expires it ─▶ replies with the last-known value)
 ```
 
 - The GET response payload is **byte-identical to `main`** (bare value text).
-  Existing consumers need no change.
-- A stale snapshot still returns its last-known value immediately and arms a
-  background refresh — it never waits on the radio.
-- Cold start with nothing cached → fast failure (`HTTP 500` / `MODE_UNKNOWN`),
-  never a hang.
+- "Park" = `httpd_req_async_handler_begin()`: the request is detached from
+  the single server task, which immediately goes on serving other sockets.
+  Nothing ever waits *on* the server task; a parked request only ties up its
+  own socket for ≤300 ms. Result: reads are effectively live again (a
+  front-panel VFO turn shows on the next poll, not the one after) and
+  `PUT` → immediate `GET` reads the new value.
+- Cold start with nothing cached → parks for the first refresh; `HTTP 500` /
+  `UNKNOWN` only if that also fails. Never a hang.
 
-### 4.2 SET — pure fire-and-forget, HTTP 202
+### 4.2 SET — enqueue, park, reply honestly
 
 ```
- browser ─PUT /api/v1/frequency?frequency=─▶ handler_frequency_put
-                                    │  link known-down? ──yes──▶ HTTP 503  (synchronous, ~µs)
-                                    │  else: write SET slot, notify worker
-                                    └────────────────────────▶ HTTP 202 Accepted  (~17 ms)
-                                                                     │
-                          radio service task drains the slot, runs the CAT tune,
-                          updates the snapshot on success — client sees it on its next GET
+ browser ─PUT /api/v1/frequency?frequency=─▶ handler_frequency_put ─▶ radio_set_via_http()
+                                    │  FT8 active?     ──yes──▶ HTTP 503 "radio busy (FT8)"  (sync)
+                                    │  link known-down? ─yes──▶ HTTP 503 "radio link down"   (sync)
+                                    │  else: write SET slot (gen N), notify worker, PARK (≤1.5 s)
+                                    ▼
+                    worker drains the slot, runs the CAT tune, updates the snapshot,
+                    posts "done(gen N, ok)" ─▶ parked PUT replies 204 (ok) / 500 (radio refused)
+                    park tick expires it first ─▶ 202 "accepted, applying"
+                    newer same-kind PUT arrives ─▶ the older one replies 202 "superseded"
 ```
 
-A SET handler **never blocks the HTTP server task**. It returns 202 ("accepted,
-applying") in ~17 ms regardless of how long the radio takes. The client
-confirms the outcome through its normal VFO poll (the snapshot updates only on
-a confirmed CAT success).
+A SET handler **never blocks the HTTP server task**, yet the client gets the
+same honest answer `main` gave: 204 once the radio confirmed, 500 if it
+refused. 202 is now the exception (confirmation genuinely outran 1.5 s — e.g.
+a KX2 band change queued behind another op), not the rule.
+
+`mode=SSB` is resolved to LSB/USB **by the worker at apply time**, i.e. after
+any frequency SET queued ahead of it — the handler-side snapshot lookup picked
+the wrong sideband when a tune was still pending.
 
 ### 4.3 The request-slot model — coalescing
 
@@ -189,22 +205,24 @@ intermediate frequencies, and the HTTP server is never starved.
 
 ## 6. HTTP contract: what changed for clients
 
-| Endpoint kind | `main` | this branch |
-|---------------|--------|-------------|
-| `GET /api/v1/frequency`, `/mode`, `/connectionStatus` | value from a live CAT read (or short cache) | value from the snapshot; **payload byte-identical** |
-| `PUT` (frequency / mode / volume / ATU) — success | `HTTP 200` after the radio confirmed | `HTTP 202 Accepted` — applied asynchronously, confirmed via a later GET |
-| `PUT` — radio link down | (would block, then fail) | `HTTP 503 Service Unavailable` — synchronous, sub-millisecond |
-| `PUT` — bad parameter (invalid freq/mode, volume unsupported) | `HTTP 404` / `500` | unchanged (`404` / `500`, pre-validation) |
+| Case | `main` | this branch |
+|------|--------|-------------|
+| `GET /frequency`, `/mode`, `/connectionStatus` — radio healthy | live CAT read (≤6 s block if radio dies mid-read) | value ≤~300 ms old; **payload byte-identical**; server task never blocks |
+| `GET` — radio dead / FT8 | 500 after up to 6 s / cached | last-known value, instantly (≤300 ms) |
+| `PUT` (frequency / mode / volume / ATU) — applied | `204` after the radio confirmed | **`204`** after the radio confirmed |
+| `PUT` — radio refused | `500` | **`500`** |
+| `PUT` — confirmation slower than 1.5 s | `500` after lock timeout | `202 Accepted` — applies asynchronously; confirm via a later GET |
+| `PUT` — superseded by a newer same-kind PUT | n/a (serialized) | `202` "superseded" |
+| `PUT` — radio link down | (would block, then fail) | `503 Service Unavailable`, synchronous |
+| `PUT` — FT8 transmission in progress | 5xx "radio busy" | `503` "radio busy (FT8)", synchronous |
+| `PUT` then immediate `GET` | new value | new value |
+| `PUT` — bad parameter (invalid freq/mode, volume unsupported) | `404` / `500` | unchanged (`404` / `500`, pre-validation) |
 
-Two new response helpers were added (`include/webserver.h`):
-`REPLY_WITH_SERVICE_UNAVAILABLE` (503) and `REPLY_WITH_ACCEPTED` (202) —
-ESP-IDF's `httpd_err_code_t` enum has no 503, so they set the status line
-directly.
-
-The `main`-era synchronous "confirmed 200 / confirmed 500" for SETs is gone:
-with pure-async SETs, confirmation is observational (the client's VFO poll
-shows whether the radio moved). This is the design trade that keeps the single
-HTTP task from ever being starved.
+Non-returning send helpers in `include/webserver.h` (`http_send_string`,
+`http_send_no_content`, `http_send_error_json`, `http_send_accepted`,
+`http_send_service_unavailable`) back both the `REPLY_WITH_*` macros and the
+async completers; ESP-IDF's `httpd_err_code_t` has neither 202 nor 503, so
+those two set the status line directly.
 
 ---
 
@@ -217,7 +235,12 @@ HTTP task from ever being starved.
 | `include/radio_link_health.h` | Pure, header-only link-health state machine. Host-unit-testable. |
 | `include/radio_snapshot.h` | `RadioSnapshotData` POD + skew-safe freshness predicates + the `radio_snapshot::` accessor API. |
 | `src/radio_snapshot.cpp` | Mutex-guarded singleton wrapping `RadioSnapshotData`. |
-| `src/radio_service.h` / `src/radio_service.cpp` | The radio service task, request slots, and the producer API (`radio_service_request_refresh`, `radio_service_set`, `radio_service_link_up`, `radio_service_start`). |
+| `src/radio_service.h` / `src/radio_service.cpp` | The radio service task, request slots (with per-type generations), and the producer API (`radio_service_request_refresh`, `radio_service_set`, `radio_service_link_up`, `radio_service_start`). Posts `radio_park_notify_done()` after every op. |
+| `include/radio_park.h` | Pure, host-tested park table: one parked request per kind, newcomer supersedes, SETs generation-gated, deadline expiry. |
+| `src/radio_park_httpd.h` / `.cpp` | IDF shim: `httpd_req_async_handler_begin/complete`, completions posted to the server task via `httpd_queue_work`, 100 ms deadline tick while anything is parked. All table mutation and all sends happen on the server task. |
+| `src/radio_set_http.h` / `.cpp` | Shared PUT flow: FT8/link-down 503, enqueue, park, per-kind completer replying 204/500/202. |
+| `test/host/test_radio_park.cpp` | Red-green tests for the park table. |
+| `test/integration/test_radio_contract.py` | Radio HTTP contract test — runs against the mock or hardware. |
 | `test/host/Makefile`, `test/host/test_radio_link_health.cpp`, `test/host/test_radio_snapshot.cpp` | Host-compiled (`g++ -std=c++17`) red-green unit tests for the two pure-logic units. |
 | `docs/superpowers/specs/...-design.md`, `docs/superpowers/plans/...-server.md`, `...-client.md` | Design spec and the server / client implementation plans. |
 
@@ -225,10 +248,12 @@ HTTP task from ever being starved.
 
 | File | Change |
 |------|--------|
-| `src/handler_frequency.cpp` | GET reads the snapshot; PUT is pure-async (202/503). Old 200 ms frequency cache removed. |
-| `src/handler_mode.cpp` | `get_radio_mode` reads the snapshot; `handler_mode_put` pure-async; SSB resolves LSB/USB from the snapshot. Old mode cache removed. |
-| `src/handler_status.cpp` | `connectionStatus` reads `radio_service_link_up()` (live) instead of the never-cleared `is_connected()`, and reads xmit-state from the snapshot. |
-| `src/handler_volume.cpp`, `src/handler_atu.cpp` | PUT is pure-async (202/503). |
+| `src/handler_frequency.cpp` | GET reads the snapshot, parks ≤300 ms if stale; PUT via `radio_set_via_http`. Old 200 ms frequency cache removed. |
+| `src/handler_mode.cpp` | GET as above; PUT via `radio_set_via_http`; `SSB` passed through as `RADIO_MODE_SSB_AUTO` (worker resolves at apply time). Old mode cache removed. |
+| `src/handler_status.cpp` | `connectionStatus` reads `radio_service_link_up()` (live) instead of the never-cleared `is_connected()`; xmit-state from the snapshot, parking ≤300 ms if stale. |
+| `src/handler_volume.cpp`, `src/handler_atu.cpp` | PUT via `radio_set_via_http`. |
+| `src/webserver.cpp` | Calls `radio_park_init(server)` after the URI handlers register. |
+| `test/mock_server/server.py` | Radio endpoints now emulate the firmware contract (`MockRadio`): bare-text GETs, 204/500/202/503 PUTs, `--radio-latency`, `--radio-dead`, live `ft8`/`radio_dead`/`radio_latency_ms` via `_debug/state`. |
 | `src/setup.cpp` | Starts the radio service task after radio connect. |
 | `include/webserver.h` | `REPLY_WITH_SERVICE_UNAVAILABLE` (503) and `REPLY_WITH_ACCEPTED` (202) macros. |
 | `platformio.ini` | Adds `src/web/spots.jsgz` to `board_build.embed_files` — fixes a pre-existing build break (`spots.jsgz` was in the CMake embed list and the webserver asset map but not in the PlatformIO embed list). |
@@ -244,17 +269,47 @@ HTTP task from ever being starved.
 ## 8. Testing
 
 - **Host unit tests** (`test/host/`, `make test`): `RadioLinkHealth`
-  (failure→down at threshold, success→up, anti-flap) and `RadioSnapshot`
-  (freshness boundary, clock-skew canary) — pure logic, compiled with `g++`,
-  no hardware.
+  (failure→down at threshold, success→up, anti-flap), `RadioSnapshot`
+  (freshness boundary, clock-skew canary) and `RadioParkTable` (supersede,
+  generation gate incl. wraparound, expiry, cap) — pure logic, `g++`, no
+  hardware.
+- **Contract test** (`test/integration/test_radio_contract.py`,
+  `make -C test/integration test-contract[-mock]`): payload shapes and ≤600 ms
+  GET bound, 404s, read-your-write for frequency/mode (204 ⇒ immediate GET
+  matches), SSB resolved against the just-tuned frequency, 30-way parallel
+  burst with no socket errors and `/version` p95 < 1 s; against the mock
+  additionally radio-dead (⚫, 503, recovery), FT8 (503, ⚪) and slow-CAT
+  (202 then applied). **Passes 12/12 healthy, 11/11 dead on the mock.**
 - **Integration** (`test/integration/test_mutex_stress.py`): a cold-probe
   asserts `/version`, `/frequency`, `/connectionStatus` each return < 200 ms
   single-client; an under-load probe asserts `/version` p95 < 2 s while radio
   endpoints are hammered.
-- **Hardware-validated:** radio-off responsiveness (~20 ms vs multi-second
-  hangs), 12-PUT rapid-tune burst (all 202 in 15–27 ms, no VFO aborts),
+- **Hardware-validated (server phase, pre-async):** radio-off responsiveness
+  (~20 ms vs multi-second hangs), 12-PUT rapid-tune burst (no VFO aborts),
   band-switch tunes, the QRT SMS button usable with the radio off, and an FT8
   transmission overlapping VFO polls with no `radio_service` watchdog warning.
+- **Hardware pass (async phase, 2026-08-17, K5EM_1 debug build, KX2):**
+  - `test-contract` against the device, radio on: **9/9** (GETs 15–40 ms,
+    PUT frequency 204 in ~55 ms, PUT mode 204 in 375–680 ms, immediate GET
+    after PUT reads the new value, SSB-after-tune correct).
+  - VFO knob turned on the radio → the very next GET read the new frequency
+    (42 ms). Read latency is back to "next poll", not "the one after".
+  - Radio powered off: during the ~13 s detection window GETs answered in
+    ~315 ms (park bound, last-known value), PUTs 202 in ~1.5 s, `/version`
+    15 ms throughout; after ⚫ (~14 s) everything ~15 ms and PUTs 503.
+    Console: CAT timeouts only — no watchdog, no park warnings.
+  - Radio powered on: ⚫ → 🟢 in ~2 s; next PUT 204.
+  - FT8 ×3 back-to-back via SOTAmat with the Run page polling on a phone
+    *and* a desktop, plus a 1 Hz probe issuing PUTs: every PUT 503
+    "radio busy (FT8)" in ~14 ms (never enqueued), GETs ~15 ms ⚪,
+    `/version` 13 ms; `ft8 transmission time: 12480 ms` on all three
+    (timing undisturbed); no `radio_service` watchdog warning.
+  - 30-way parallel-connect bursts show +1 s/+3 s SYN-retransmit steps on
+    `/version` and radio endpoints alike (ESP accept-backlog trait, present
+    on `main`); the radio burst was no slower than the control.
+  - Not measured: `radio_service` stack high-water and largest free heap
+    block (nothing exposes them; add a debug log line if fragmentation is
+    ever suspected).
 
 ---
 
@@ -265,6 +320,11 @@ HTTP task from ever being starved.
   take the radio mutex directly. The radio service worker's FT8-yield and
   bounded lock-acquire make this safe (no watchdog trip, no deadlock).
   Converting them fully is possible follow-up work.
+- **Recovery probing.** While the link is down, only stale `frequency`/`mode`
+  GETs arm the (throttled) recovery probe; `connectionStatus` alone never
+  does, and a SET is refused outright. Fine while the VFO poll runs on every
+  tab — but Phase 2's "gate VFO polling on connection state" would starve
+  recovery. Make `connectionStatus` arm a probe when down before doing that.
 - **Client-side phase (Phase 2).** `docs/superpowers/plans/...-client.md`
   describes a second phase — enable client-only buttons synchronously from
   `localStorage`, gate VFO polling on `connectionState` — not executed on this
@@ -273,7 +333,7 @@ HTTP task from ever being starved.
 
 ---
 
-## 10. Commit map (22 commits)
+## 10. Commit map
 
 | Group | Commits |
 |-------|---------|
@@ -289,6 +349,22 @@ HTTP task from ever being starved.
 
 The "Hardening" row reflects defects found only by running the firmware on
 real hardware — most importantly that a SET handler waiting for an ack still
-blocked the single HTTP task (fixed by going pure-async, `7efe9fa`→`aa51055`)
-and that the radio service worker contended with FT8 for the radio mutex
-(fixed by the FT8-aware yield, `8d101e3`).
+blocked the single HTTP task (fixed at the time by going pure-async,
+`7efe9fa`→`aa51055`) and that the radio service worker contended with FT8 for
+the radio mutex (fixed by the FT8-aware yield, `8d101e3`).
+
+### Async-handler phase (after rebase onto `main`, 2026-08-17)
+
+| Group | Commits |
+|-------|---------|
+| Design | `450823a` async-handler design spec |
+| Pure logic (host-tested) | `9abb370` ParkTable |
+| Plumbing | `413af53` park shim (async httpd) · `87b174e` worker reports completion + slot gen |
+| Review fixes | `1abd5db` SET expiry is not a link failure · `22641fe` seed link health from boot connect · `ff88e56` resolve SSB sideband at apply time |
+| Handler conversion | `0471603` GET handlers park on stale snapshot · `0a10a79` PUT handlers park; honest 204/500 |
+| Tests | `8979f10` mock radio modes + HTTP contract test |
+
+This phase reverses the pure-async trade: the review found it cost read
+latency (one poll behind), read-your-write for external clients (SOTAmat can
+read/set frequency & mode), and honest SET failure. `httpd_req_async_handler_begin`
+gives the same non-blocking property with `main`'s semantics.

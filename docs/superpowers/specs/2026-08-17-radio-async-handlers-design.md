@@ -1,6 +1,6 @@
 # Async HTTP Handlers for Radio GET/SET — Design
 
-**Status:** Draft for review
+**Status:** Implemented on `feature/radio-web-decoupling` (commits `450823a`…`8979f10`); mock- and hardware-validated 2026-08-17
 **Date:** 2026-08-17
 **Builds on:** `feature/radio-web-decoupling` (radio service task, snapshot,
 link health, request slots) — see `docs/radio-web-decoupling-overview.md`.
