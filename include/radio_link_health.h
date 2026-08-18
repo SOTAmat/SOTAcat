@@ -2,7 +2,7 @@
 // Pure, header-only radio link-health state machine.
 // No ESP-IDF / FreeRTOS dependencies so it is host-unit-testable.
 //
-// Semantics (see 2026-05-15-radio-decoupling-design.md):
+// Semantics (see docs/dev/Radio-Access.md, link-health state machine):
 //   * Starts "down" — the link is not considered up until a CAT
 //     exchange has actually succeeded.
 //   * record_failure(): N consecutive failures (LINK_DOWN_FAIL_THRESHOLD)

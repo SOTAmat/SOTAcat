@@ -3,8 +3,9 @@
 // and a few unconverted handlers still take the radio mutex directly).
 // Handlers never call kxRadio.* — they enqueue work here and either reply
 // at once or park the request (radio_park_httpd.h) until the worker
-// reports completion. See 2026-05-15-radio-decoupling-design.md and
-// 2026-08-17-radio-async-handlers-design.md.
+// reports completion. See docs/dev/Radio-Access.md (design rationale in
+// docs/superpowers/specs/2026-05-15-radio-decoupling-design.md and
+// docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md).
 #include "radio_park.h"
 
 #include <cstdint>

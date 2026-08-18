@@ -8,7 +8,7 @@
 // This table only tracks opaque handles + bookkeeping; sending the reply
 // and freeing the request is the IDF shim's job.
 //
-// Rules (see 2026-08-17-radio-async-handlers-design.md):
+// Rules (see docs/dev/Radio-Access.md):
 //   * At most ONE parked request per kind. A newcomer on an occupied kind
 //     supersedes the occupant, which the caller must complete immediately
 //     with its timeout answer (the client's own newer request made it moot;

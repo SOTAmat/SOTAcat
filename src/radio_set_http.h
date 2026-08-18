@@ -1,7 +1,7 @@
 #pragma once
 // HTTP glue for radio SET handlers: enqueue the op on the radio service,
 // park the request, and reply with the honest outcome — without ever
-// blocking the HTTP server task. See 2026-08-17-radio-async-handlers-design.md.
+// blocking the HTTP server task. See docs/dev/Radio-Access.md.
 //
 //   FT8 active                 → 503 "radio busy (FT8)"        (sync; not enqueued)
 //   link down / service absent → 503 "radio link down"         (sync)

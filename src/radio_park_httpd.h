@@ -2,7 +2,8 @@
 // ESP-IDF shim around RadioParkTable: detaches an httpd request from the
 // server task (httpd_req_async_handler_begin), parks it, and completes it
 // later — when the radio service finishes the matching op, or when its
-// deadline passes. See 2026-08-17-radio-async-handlers-design.md.
+// deadline passes. See docs/dev/Radio-Access.md (design rationale:
+// docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md).
 //
 // Threading contract:
 //   * radio_park_init / radio_park_request / radio_park_set_completer run on
