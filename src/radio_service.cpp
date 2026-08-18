@@ -123,6 +123,7 @@ static bool probe_link() {
     TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc probe");
     if (!lock.acquired())
         return false;
+    esp_task_wdt_reset();
     int64_t now = esp_timer_get_time();
     s_last_cat_attempt_us.store (now, std::memory_order_release);
     long st = -1;
@@ -150,6 +151,9 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
     TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc refresh");
     if (!lock.acquired())
         return false;
+    // WDT budget starts now, not before the (up to 3 s) lock wait: a dead-
+    // radio FA;/MD; refresh alone can take ~4-8 s, a SET ~18 s.
+    esp_task_wdt_reset();
     int64_t now = esp_timer_get_time();
     s_last_cat_attempt_us.store (now, std::memory_order_release);
     bool ok = false;
@@ -198,6 +202,11 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
     TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc set");
     if (!lock.acquired())
         return false;
+    // WDT budget starts after the lock wait (see do_refresh). A dead-radio
+    // set_frequency/set_mode/set_power costs ~18 s (3 attempts x two 2 s
+    // "long command" reads + gaps) — measured 2026-08-17 — so the 3 s lock
+    // wait must not be inside the same 20 s budget.
+    esp_task_wdt_reset();
     int64_t now = esp_timer_get_time();
     if (expires_at_us != 0 && now > expires_at_us) {
         // Expiry says nothing about the radio — no CAT was attempted, so it
@@ -208,6 +217,23 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         return true;
     }
     s_last_cat_attempt_us.store (now, std::memory_order_release);
+    // Suspicious (last op failed, link not yet down): pre-flight a 0.2 s TQ;
+    // ping rather than spend up to ~18 s discovering the radio is gone. No
+    // answer -> this SET fails fast and honestly (parked PUT -> 500) and the
+    // pings drive the link down; an answer resets the counter (transient).
+    if (s_health.consecutive_failures() > 0) {
+        long st = -1;
+        if (kxRadio.get_xmit_state (st)) {
+            radio_snapshot::set_xmit_state (st, now);
+            s_health.record_success();
+        } else {
+            ESP_LOGW (TAG8, "SET skipped: radio not answering pre-flight ping");
+            s_health.record_failure();
+            fast_confirm_link (now);
+            publish_health();
+            return true;  // ok_out stays false
+        }
+    }
     bool ok = false;
     switch (type) {
     case RadioCmdType::SET_FREQUENCY:

@@ -36,6 +36,19 @@ int main() {
     h.record_failure();
     assert(h.is_up());                 // counter was reset by success
 
+    // consecutive_failures(): 0 after success, counts up, clamps at threshold.
+    {
+        RadioLinkHealth h;
+        h.record_success();
+        assert(h.consecutive_failures() == 0);
+        h.record_failure();
+        assert(h.consecutive_failures() == 1 && h.is_up());
+        for (int i = 0; i < 10; ++i) h.record_failure();
+        assert(h.consecutive_failures() == RadioLinkHealth::LINK_DOWN_FAIL_THRESHOLD && !h.is_up());
+        h.record_success();
+        assert(h.consecutive_failures() == 0 && h.is_up());
+    }
+
     printf("test_radio_link_health: OK\n");
     return 0;
 }

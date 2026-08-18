@@ -189,7 +189,8 @@ intermediate frequencies, and the HTTP server is never starved.
 | **Link-down probe** | While link is down, one cheap `TQ;` ping (~0.2 s) per 5 s is the recovery probe — armed by any stale GET including `connectionStatus`; other refreshes are dropped until the ping succeeds. Recovery ≤5 s after power-on; a dead radio costs 0.2 s of CAT per 5 s. | `radio_service.cpp` `probe_link` |
 | **SET apply-deadline** | A queued SET older than 5 s is skipped rather than applied late (don't retune long after the user's click). | `radio_service.cpp` |
 | **FT8-aware yield** | FT8 transmission holds the radio mutex continuously (~27 s). The worker skips **all** CAT work while `Ft8RadioExclusive` is set, and bounds its lock-acquire to 3 s with slot re-arm as a TOCTOU safety net — so it never trips the 20 s task watchdog and never disturbs FT8 timing. | `radio_service.cpp` |
-| **Watchdog discipline** | The worker resets the task watchdog before each drained CAT op. | `radio_service.cpp` |
+| **Watchdog discipline** | The worker resets the task watchdog before each drained CAT op **and again after acquiring the radio lock** (so the ≤3 s lock wait is outside the budget), and `put_to_kx`'s retry loop feeds it (no-op for unsubscribed tasks). Measured worst case: a dead-radio `set_frequency`/`set_mode`/`set_power` is ~18 s (3 attempts × two 2 s reads + gaps) — under the 20 s WDT only because the lock wait is excluded. | `radio_service.cpp`, `kx_radio.cpp` |
+| **Pre-flight ping** | If the previous op failed (link not yet down), a SET first pings `TQ;` (0.2 s); no answer → the SET fails fast and honestly (parked PUT → 500) instead of spending ~18 s, and the pings drive the link down. Caveat: if a SET is the *first* op to hit a freshly-dead radio it still costs its full ~18 s before detection — a rare ordering, since the polls' GETs usually fail first (0.5–4.5 s). | `radio_service.cpp` `do_set` |
 
 ### FT8 yield timeline
 

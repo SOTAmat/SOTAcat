@@ -30,6 +30,9 @@ class RadioLinkHealth {
     }
 
     bool is_up() const { return m_up; }
+    // Failures since the last success (clamped at the threshold). >0 means
+    // "suspicious": callers may pre-flight a cheap ping before a slow op.
+    int  consecutive_failures() const { return m_consecutive_failures; }
 
   private:
     int  m_consecutive_failures = LINK_DOWN_FAIL_THRESHOLD;  // start "down"
