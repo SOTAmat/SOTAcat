@@ -81,14 +81,17 @@ class RadioParkTable {
     }
 
     // Remove every entry whose deadline has passed (deadline <= now). Writes
-    // up to `max_out` handles into `out`; returns the number written. Callers
-    // size `out` at RADIO_PARK_KINDS to never truncate.
-    int expire (int64_t now_us, void ** out, int max_out) {
+    // up to `max_out` handles into `out` (and their kinds into `out_kinds`
+    // if non-null); returns the number written. Callers size the arrays at
+    // RADIO_PARK_KINDS to never truncate.
+    int expire (int64_t now_us, void ** out, int max_out, RadioParkKind * out_kinds = nullptr) {
         int n = 0;
         for (int i = 0; i < RADIO_PARK_KINDS && n < max_out; ++i) {
             Slot & s = m_slots[i];
-            if (s.occupied && s.deadline_us <= now_us)
+            if (s.occupied && s.deadline_us <= now_us) {
+                if (out_kinds) out_kinds[n] = (RadioParkKind) i;
                 out[n++] = take (s);
+            }
         }
         return n;
     }
@@ -104,11 +107,13 @@ class RadioParkTable {
 
     // Remove everything (e.g. before stopping the server). Same out/return
     // contract as expire().
-    int drain_all (void ** out, int max_out) {
+    int drain_all (void ** out, int max_out, RadioParkKind * out_kinds = nullptr) {
         int n = 0;
         for (int i = 0; i < RADIO_PARK_KINDS && n < max_out; ++i)
-            if (m_slots[i].occupied)
+            if (m_slots[i].occupied) {
+                if (out_kinds) out_kinds[n] = (RadioParkKind) i;
                 out[n++] = take (m_slots[i]);
+            }
         return n;
     }
 

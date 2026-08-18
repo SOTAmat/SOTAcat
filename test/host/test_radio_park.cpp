@@ -71,9 +71,11 @@ static void test_expire() {
     // Deadline is inclusive: at exactly 1000, `a` expires.
     assert (t.expire (1000, out, RADIO_PARK_KINDS) == 1 && out[0] == H (a));
     assert (t.count() == 2 && t.next_deadline() == 2000);
-    // At 5000 both remaining expire; order is by kind index.
-    assert (t.expire (5000, out, RADIO_PARK_KINDS) == 2);
+    // At 5000 both remaining expire; order is by kind index; kinds reported.
+    RadioParkKind kinds[RADIO_PARK_KINDS];
+    assert (t.expire (5000, out, RADIO_PARK_KINDS, kinds) == 2);
     assert (out[0] == H (b) && out[1] == H (c));
+    assert (kinds[0] == RadioParkKind::GET_MODE && kinds[1] == RadioParkKind::SET_ATU);
     assert (t.empty() && t.next_deadline() == INT64_MAX);
     // max_out truncation is respected and leaves the rest parked.
     assert (t.park (RadioParkKind::GET_FREQUENCY, H (a), 0, 10));
@@ -113,9 +115,11 @@ static void test_invalid_and_drain() {
     assert (t.empty());
     assert (t.park (RadioParkKind::GET_XMIT, H (a), 0, 1));
     assert (t.park (RadioParkKind::SET_VOLUME, H (b), 3, 1));
-    void * out[RADIO_PARK_KINDS];
-    assert (t.drain_all (out, RADIO_PARK_KINDS) == 2);
+    void *        out[RADIO_PARK_KINDS];
+    RadioParkKind kinds[RADIO_PARK_KINDS];
+    assert (t.drain_all (out, RADIO_PARK_KINDS, kinds) == 2);
     assert (out[0] == H (a) && out[1] == H (b));
+    assert (kinds[0] == RadioParkKind::GET_XMIT && kinds[1] == RadioParkKind::SET_VOLUME);
     assert (t.empty());
 }
 
