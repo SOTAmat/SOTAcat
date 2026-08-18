@@ -11,7 +11,7 @@
 const INITIAL_VERSION_CHECK_DELAY_MS = 1000;
 const UTC_CLOCK_UPDATE_INTERVAL_MS = 10000;
 const BATTERY_INFO_UPDATE_INTERVAL_MS = 60000;
-const CONNECTION_STATUS_UPDATE_INTERVAL_MS = 5000;
+const CONNECTION_STATUS_UPDATE_INTERVAL_MS = 2000; // header glyph; server detects link-down in ~0.5 s and recovers in <=5 s, so this bounds what the user sees
 const VFO_POLLING_INTERVAL_MS = 3000;
 
 // ============================================================================
@@ -23,7 +23,7 @@ const RECONNECT_RETRY_MS = 3000;       // retry interval when disconnected
 const GIVE_UP_THRESHOLD_MS = 30000;    // show "find device" after this
 
 // Fetch timeouts (must be less than their polling intervals)
-const CONNECTION_STATUS_TIMEOUT_MS = 3000;  // < 5 sec polling interval
+const CONNECTION_STATUS_TIMEOUT_MS = 3000;  // may exceed the 2 s poll; a poll is skipped while one is in flight
 const BATTERY_INFO_TIMEOUT_MS = 30000;      // < 60 sec polling interval
 const VFO_TIMEOUT_MS = 2000;                // < 3 sec polling interval
 
@@ -1360,7 +1360,7 @@ setInterval(updateConnectionStatus, CONNECTION_STATUS_UPDATE_INTERVAL_MS);
 // ============================================================================
 // Mobile browsers throttle/freeze background tabs: setInterval ticks stop and
 // in-flight fetches get aborted. When the user returns to SOTAcat (e.g. after
-// switching to Polo and back), don't wait up to 5s for the next polling tick;
+// switching to Polo and back), don't wait for the next polling tick;
 // refresh status immediately so a stale "disconnected" overlay clears and the
 // VFO display snaps back to live.
 
