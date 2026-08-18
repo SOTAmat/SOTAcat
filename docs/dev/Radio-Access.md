@@ -11,11 +11,13 @@ UI. This document describes the model that replaced it and — because the desig
 entirely about *who waits on whom* — shows it as timelines. Timings are the ones
 measured on a KX2 (2026-08-17), not idealized.
 
-Related: [Architecture](Architecture.md) · design specs
-`docs/superpowers/specs/2026-05-15-radio-decoupling-design.md`,
-`docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md` · the FT8
-constraint `docs/for-AI-agents/radio-service-ft8-mutex-contention.md` · branch
-history and hardware results `docs/radio-web-decoupling-overview.md`.
+Related documents:
+
+- [Architecture](Architecture.md) — where this fits in the system
+- `docs/superpowers/specs/2026-05-15-radio-decoupling-design.md` and
+  `docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md` — design rationale
+- `docs/for-AI-agents/radio-service-ft8-mutex-contention.md` — the FT8 constraint
+- `docs/radio-web-decoupling-overview.md` — branch history and hardware results
 
 ---
 
@@ -139,12 +141,16 @@ sequenceDiagram
     H-->>C: 200 "14300000"  ← snapshot already updated
 ```
 
-Outcomes a parked PUT can receive: **204** applied · **500** radio refused
-(`ok == false`) · **202** confirmation outran 1.5 s (e.g. a KX2 mode change is
-375–680 ms; a band change ~1.5 s) — apply continues asynchronously · **202
-"superseded"** a newer same-kind PUT arrived. `mode=SSB` is resolved to LSB/USB by the
-worker **at apply time**, after any frequency SET queued ahead of it, so a
-tune-then-SSB sequence lands on the right sideband.
+Outcomes a parked PUT can receive:
+
+- **204** — applied; the radio confirmed the readback
+- **500** — the radio refused (`ok == false`)
+- **202** "accepted, applying" — confirmation outran the 1.5 s bound (a KX2 mode
+  change is 375–680 ms, a band change about 1.5 s); the apply continues asynchronously
+- **202** "superseded" — a newer same-kind PUT arrived first
+
+`mode=SSB` is resolved to LSB/USB by the worker **at apply time**, after any frequency
+SET queued ahead of it, so a tune-then-SSB sequence lands on the right sideband.
 
 ---
 

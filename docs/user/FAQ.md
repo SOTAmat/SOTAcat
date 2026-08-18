@@ -33,15 +33,21 @@ Android's mDNS support varies by device and OS version. Use `http://192.168.4.1`
 
 The Firmware card in Settings checks [SOTAcat's GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases) directly. That's the only authoritative source. Don't trust mirrors or side-channel binaries.
 
-## What do the header circles mean, and why did it go grey? {#link-indicator}
+## What does the colored circle in the header mean?
 
-🟢 the radio is connected and receiving · 🔴 transmitting (CW keyer, TX button, or the
-radio's own PTT) · ⚪ the radio is busy with an FT8 transmission or its state isn't
-known yet · ⚫ the radio isn't answering — usually powered off, auto-powered-off, or a
-loose CAT cable. Grey appears within about 2 seconds of the radio going quiet and
-clears within a few seconds of it answering again. With the radio off you can still
-use CHASE, Settings and the QRT / Spot SMS buttons; only tuning and mode changes wait
-for the radio.
+It shows whether SOTAcat can talk to the radio right now.
+
+| Circle | Meaning |
+|---|---|
+| 🟢 green | Radio connected and receiving |
+| 🔴 red | Radio transmitting (CW keyer, TX button, or the radio's own PTT) |
+| ⚪ white | Radio busy with an FT8 transmission, or its state isn't known yet |
+| ⚫ black | Radio not answering: powered off, auto-powered-off, or a loose CAT cable |
+
+The circle turns ⚫ within a couple of seconds of the radio going quiet, and back
+to 🟢 within a few seconds of it answering again. With the radio off you can
+still browse CHASE, use Settings, and send QRT or Spot SMS; only tuning and mode
+changes need the radio.
 
 ## Why is my CHASE list missing VHF/UHF (or other) spots?
 
