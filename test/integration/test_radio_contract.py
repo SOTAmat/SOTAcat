@@ -275,6 +275,62 @@ class ContractTest:
         self.check("PUT frequency (radio dead) -> 503/202, bounded", freq)
         self.check("connectionStatus (radio dead) -> ⚫", status)
 
+    # -- SOTAmat app emulation -------------------------------------------
+    def test_sotamat_sequences(self):
+        """Replays what the SOTAmat app actually does against SOTAcat
+        (SotamatApp/Utilities/Max3Bradio.cs, Services/RadioSyncService.cs):
+        a 1 s sequential GET frequency -> GET mode poll loop (8 s timeouts,
+        5 consecutive failures = 'problematic'), and writes as PUT frequency
+        then PUT mode with SOTAmat's normalized mode strings ('SSB', 'DATA',
+        'CW', ...), success = any 2xx, re-polled ~100 ms later and compared."""
+        if self.expect_radio == "dead":
+            return
+
+        def poll_loop():
+            fails = 0
+            worst = 0.0
+            for _ in range(8):
+                rf, df = self.get("frequency", timeout=8.0)
+                rm, dm = self.get("mode", timeout=8.0)
+                worst = max(worst, df, dm)
+                ok = rf.status_code == 200 and rf.text.strip().isdigit() and int(rf.text) > 0 \
+                    and rm.status_code == 200 and rm.text.strip() != ""
+                fails = 0 if ok else fails + 1
+                self.expect(fails < 5, "SOTAmat would flag the radio 'problematic'")
+                time.sleep(1.0)
+            self.expect(worst <= GET_BOUND_S, f"a poll GET took {worst*1000:.0f} ms")
+
+        def write_then_poll():
+            r, _ = self.get("frequency"); orig_f = int(r.text.strip())
+            r, _ = self.get("mode"); orig_m = r.text.strip()
+            try:
+                # SOTAmat writes 'SSB' literally and expects the radio to land
+                # on the right sideband for the NEW frequency.
+                for hz, want in ((7_200_000, "LSB"), (14_200_000, "USB")):
+                    r1, _ = self.put(f"frequency?frequency={hz}")
+                    r2, _ = self.put("mode?mode=SSB")
+                    self.expect(200 <= r1.status_code < 300, f"PUT frequency -> {r1.status_code} (SOTAmat treats non-2xx as failure)")
+                    self.expect(200 <= r2.status_code < 300, f"PUT mode=SSB -> {r2.status_code}")
+                    time.sleep(0.1)  # SOTAmat re-polls ~100 ms after the write
+                    f = self.wait_get("frequency", str(hz), 3.0)
+                    m = self.wait_get("mode", want, 3.0)
+                    self.expect(f == str(hz), f"re-poll read frequency {f!r}, want {hz}")
+                    self.expect(m == want, f"re-poll read mode {m!r} after tuning to {hz} + SSB, want {want}")
+                # SOTAmat's 'Data' -> uppercased 'DATA' (and the FT8 alias)
+                r, _ = self.put("mode?mode=DATA")
+                self.expect(200 <= r.status_code < 300, f"PUT mode=DATA -> {r.status_code}")
+                self.expect(self.wait_get("mode", "DATA", 3.0) == "DATA", "mode did not become DATA")
+                r, _ = self.put("mode?mode=FT8")
+                self.expect(200 <= r.status_code < 300, f"PUT mode=FT8 (alias) -> {r.status_code}")
+            finally:
+                self.put(f"frequency?frequency={orig_f}")
+                if orig_m in MODES and orig_m != "UNKNOWN":
+                    self.put(f"mode?mode={orig_m}")
+                self.wait_get("frequency", str(orig_f), 3.0)
+
+        self.check("SOTAmat: 1 s GET frequency/mode poll loop stays healthy", poll_loop)
+        self.check("SOTAmat: PUT freq + PUT mode=SSB/DATA -> 2xx, re-poll reads them back", write_then_poll)
+
     # -- concurrency ------------------------------------------------------
     def test_concurrency(self):
         """A parallel-connect burst. On the ESP32 the TCP accept backlog is
@@ -392,6 +448,7 @@ class ContractTest:
         self.test_get_shapes_and_bounds()
         self.test_bad_params()
         self.test_read_your_write()
+        self.test_sotamat_sequences()
         self.test_concurrency()
         self.test_mock_scenarios()
         print("-" * 60)
