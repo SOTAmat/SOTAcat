@@ -22,7 +22,9 @@ You should see the SOTAcat header with:
 - UTC time (updates every 10 seconds)
 - Battery percentage and icon
 - WiFi signal strength (dBm)
-- Green connection indicator
+- Radio link indicator: 🟢 radio connected and receiving · 🔴 transmitting ·
+  ⚪ radio busy (FT8) or state unknown · ⚫ radio not answering (off, unplugged,
+  or asleep). It updates within a couple of seconds either way.
 
 ![Header bar with status indicators](../images/header-status.png)
 

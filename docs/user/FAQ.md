@@ -33,6 +33,16 @@ Android's mDNS support varies by device and OS version. Use `http://192.168.4.1`
 
 The Firmware card in Settings checks [SOTAcat's GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases) directly. That's the only authoritative source. Don't trust mirrors or side-channel binaries.
 
+## What do the header circles mean, and why did it go grey? {#link-indicator}
+
+🟢 the radio is connected and receiving · 🔴 transmitting (CW keyer, TX button, or the
+radio's own PTT) · ⚪ the radio is busy with an FT8 transmission or its state isn't
+known yet · ⚫ the radio isn't answering — usually powered off, auto-powered-off, or a
+loose CAT cable. Grey appears within about 2 seconds of the radio going quiet and
+clears within a few seconds of it answering again. With the radio off you can still
+use CHASE, Settings and the QRT / Spot SMS buttons; only tuning and mode changes wait
+for the radio.
+
 ## Why is my CHASE list missing VHF/UHF (or other) spots?
 
 By default, CHASE filters to bands your KX2/KX3/KH1 natively supports. If you operate with a transverter, uncheck **"Show only bands my radio can access"** in Settings to see all spots.

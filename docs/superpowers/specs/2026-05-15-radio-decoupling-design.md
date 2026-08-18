@@ -1,6 +1,10 @@
 # Decoupling the Web UI from Radio Link State — Design
 
-**Status:** Approved for planning
+**Status:** Approved for planning — *superseded in part.* The SET-handler and
+cache-only-GET decisions below were replaced by parked async handlers (honest
+204/500 SETs, live GETs) in
+`2026-08-17-radio-async-handlers-design.md`; the mechanism as built is documented
+in `docs/dev/Radio-Access.md`. Kept unedited as the original rationale.
 **Date:** 2026-05-15
 
 ## Problem

@@ -29,10 +29,19 @@ See [Networking](Networking.md) for setup instructions.
 
 ## Radio Not Responding
 
-1. Check KX radio is powered on
-2. Verify SOTAcat is plugged into CAT port
+The header indicator turns ⚫ within a couple of seconds of the radio going quiet,
+and back to 🟢 within a few seconds of it answering again — on any tab, without a
+reload. While it is ⚫, the rest of SOTAcat keeps working: you can browse CHASE, use
+Settings, and send **QRT / Spot SMS** (they don't need the radio). Tune and mode
+buttons will report "radio link down" until it comes back.
+
+1. Check the radio is powered on (a KX2/KX3 that has auto-powered-off shows ⚫)
+2. Verify SOTAcat is plugged into the CAT port
 3. Try a different CAT cable
 4. Check baud rate matches (38400 default for KX2/KX3, 9600 baud for KH1)
+
+If a Tune reports **"radio busy (FT8)"**, SOTAmat is in the middle of an FT8
+transmission through SOTAcat — wait for it to finish; the indicator shows ⚪ meanwhile.
 
 ## Buttons Disabled or Missing Config
 

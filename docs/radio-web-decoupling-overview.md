@@ -73,6 +73,13 @@ after a successful connect.
 
 ---
 
+> **Durable reference:** the mechanism itself — components, request timelines
+> (simple, overlapped, radio-off, FT8, lock contention), the link-health state
+> machine and the budget table — now lives in
+> [`docs/dev/Radio-Access.md`](dev/Radio-Access.md). Sections 3–6 below are kept as
+> the record of what this branch changed and why; prefer Radio-Access.md for "how it
+> works today".
+
 ## 3. The architecture on this branch
 
 Four new components, all radio CAT I/O confined to one task.

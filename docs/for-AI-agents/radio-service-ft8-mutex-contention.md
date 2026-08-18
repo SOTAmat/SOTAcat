@@ -113,6 +113,26 @@ The FT8 tone cadence itself is safe and must stay that way:
 
 The fix must preserve all three properties.
 
+### The timeline today (post-fix, with parked async handlers)
+
+```
+t=0      xmit_ft8_task acquires radio mutex ─────────────────────────────┐ held ~27 s
+t=0.5    GET /frequency arrives — snapshot stale                          │ (window wait
+         handler: Ft8RadioExclusive → arm nothing, reply last-known 200   │  0–15 s
+         (no park, ~15 ms). GET /connectionStatus → ⚪.                     │  + 12.48 s
+         PUT /frequency → 503 "radio busy (FT8)" synchronously (~14 ms),  │  transmission)
+         nothing enqueued.                                                │
+t=1..27  worker wakes every 1 s: Ft8RadioExclusive → skip all CAT,        │
+         esp_task_wdt_reset() — WDT fed, no lock attempted                │
+t~27     xmit_ft8_task releases mutex; Ft8RadioExclusive = false ─────────┘
+t~27.5   next stale GET → arm refresh + park (≤300 ms) → worker CAT →
+         completer replies with the live value
+```
+
+Hardware, 2026-08-17: three back-to-back transmissions with two browsers polling
+and a 1 Hz PUT probe — every PUT 503 in ~14 ms, `ft8 transmission time: 12480 ms`
+on all three, no `radio_service` watchdog. Full model: `docs/dev/Radio-Access.md`.
+
 ## The solution
 
 Make the radio service **FT8-aware**, restoring `main`'s "leave the radio
