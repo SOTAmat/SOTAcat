@@ -277,6 +277,12 @@ void radio_service_start() {
         ESP_LOGE (TAG8, "failed to create radio service mutex");
         abort();
     }
+    // Called right after kxRadio.connect() succeeded — that handshake was a
+    // real CAT exchange, so the link starts UP. Without this the first
+    // seconds after boot showed ⚫ and 503'd every SET until a GET-driven
+    // probe happened to run.
+    s_health.record_success();
+    publish_health();
     TaskHandle_t worker = nullptr;
     xTaskCreate (&radio_service_task, "radio_service", 4096, NULL,
                  SC_TASK_PRIORITY_NORMAL, &worker);
