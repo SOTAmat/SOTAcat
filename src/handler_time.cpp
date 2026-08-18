@@ -55,7 +55,9 @@ esp_err_t handler_time_put (httpd_req_t * req) {
 
     STANDARD_DECODE_SOLE_PARAMETER (req, "time", param_value);
 
-    long     time_value = atoi (param_value);  // Convert the parameter to an integer
+    long time_value = 0;
+    if (!parse_long_param (param_value, time_value) || time_value < 0)
+        REPLY_WITH_FAILURE (req, HTTPD_400_BAD_REQUEST, "invalid time value");
     RadioTimeHms client_time;
     if (!convert_client_time (time_value, &client_time))
         REPLY_WITH_FAILURE (req, HTTPD_400_BAD_REQUEST, "invalid time value");

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <esp_http_server.h>
+#include <cerrno>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <strings.h>  // for size_t
 
@@ -85,6 +87,20 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
 #define STANDARD_DECODE_SOLE_PARAMETER(req, param_name, param_value) \
     STANDARD_DECODE_QUERY (req, unsafe_buf);                         \
     STANDARD_DECODE_PARAMETER (unsafe_buf, param_name, param_value);
+
+// Strict decimal parse for numeric query parameters. Unlike atoi(), which
+// silently turns "abc" into 0 (and once set a radio to 0 W from a test
+// probe), this accepts only an optional sign followed by digits, consuming
+// the whole string. Returns false on anything else, incl. empty / overflow.
+static inline bool parse_long_param (const char * s, long & out) {
+    if (!s || !*s) return false;
+    char * end = nullptr;
+    errno      = 0;
+    long v     = strtol (s, &end, 10);
+    if (end == s || *end != '\0' || errno == ERANGE) return false;
+    out = v;
+    return true;
+}
 
 // Non-returning send helpers. The REPLY_WITH_* macros wrap these and
 // `return`; async completers (radio_park_httpd.h) — which run outside the

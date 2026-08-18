@@ -76,7 +76,9 @@ esp_err_t handler_volume_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "delta", param_value);
     ESP_LOGI (TAG8, "adjusting volume by delta '%s'", param_value);
 
-    long delta = atoi (param_value);
+    long delta = 0;
+    if (!parse_long_param (param_value, delta))
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid delta");
 
     if (!kxRadio.supports_volume())
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "volume not supported on this radio");

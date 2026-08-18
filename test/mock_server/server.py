@@ -516,6 +516,8 @@ class MockSOTAcatServer:
             try:
                 time_val = int(request.args.get("time", ""))
             except ValueError:
+                time_val = -1
+            if time_val < 0:
                 return radio_reply(400, "invalid time value")
 
             def mutate():
@@ -534,7 +536,7 @@ class MockSOTAcatServer:
             try:
                 power = int(request.args.get("power", ""))
             except ValueError:
-                power = 0  # firmware uses atoi(): non-numeric == 0
+                power = -1
             if power < 0:
                 return radio_reply(404, "invalid power")
 
@@ -553,7 +555,10 @@ class MockSOTAcatServer:
         # Transmit control
         @self.app.route("/api/v1/xmit", methods=["PUT"])
         def set_xmit():
-            state_val = int(request.args.get("state", "0") or 0)
+            try:
+                state_val = int(request.args.get("state", ""))
+            except ValueError:
+                return radio_reply(404, "invalid state")
 
             def mutate():
                 self.state["xmit"] = 1 if state_val else 0
@@ -565,7 +570,12 @@ class MockSOTAcatServer:
         # CW message playback
         @self.app.route("/api/v1/msg", methods=["PUT"])
         def play_message():
-            bank = request.args.get("bank")
+            try:
+                bank = int(request.args.get("bank", ""))
+            except ValueError:
+                bank = 0
+            if bank <= 0:
+                return radio_reply(404, "invalid bank")
 
             def mutate():
                 print(f"[MOCK] Playing CW message bank {bank}")

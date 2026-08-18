@@ -144,8 +144,21 @@ class ContractTest:
         def mode():
             r, _ = self.put("mode?mode=XYZ")
             self.expect(r.status_code == 404, f"expected 404, got {r.status_code}")
+
+        def numeric():
+            # Strict numeric parsing (no atoi leniency): each of these must be
+            # refused BEFORE anything reaches the radio. "0 W", "-1", "12abc"
+            # and "" would previously have parsed as 0 / partial values.
+            for ep, want in (("power?power=abc", 404), ("power?power=12abc", 404),
+                             ("power?power=", 404), ("power?power=-1", 404),
+                             ("volume?delta=abc", 404), ("frequency?frequency=14e6", 404),
+                             ("frequency?frequency=-5", 404), ("time?time=abc", 400),
+                             ("time?time=-1", 400)):
+                r, _ = self.put(ep)
+                self.expect(r.status_code == want, f"{ep}: expected {want}, got {r.status_code}")
         self.check("PUT frequency (invalid) -> 404", freq)
         self.check("PUT mode (invalid) -> 404", mode)
+        self.check("PUT numeric params: junk/partial/negative rejected", numeric)
 
     def test_read_your_write(self):
         if self.expect_radio == "dead":

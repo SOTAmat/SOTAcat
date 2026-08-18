@@ -82,10 +82,10 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     STANDARD_DECODE_SOLE_PARAMETER (req, "frequency", param_value)
-    int freq = atoi (param_value);  // Convert the parameter to an integer
-    ESP_LOGI (TAG8, "frequency '%d'", freq);
-    if (freq <= 0)
+    long freq = 0;
+    if (!parse_long_param (param_value, freq) || freq <= 0)
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid frequency");
+    ESP_LOGI (TAG8, "frequency '%ld'", freq);
 
     return radio_set_via_http (req, RadioCmdType::SET_FREQUENCY, freq, "frequency change");
 }

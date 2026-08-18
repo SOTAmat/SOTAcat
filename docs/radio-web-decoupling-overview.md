@@ -329,9 +329,13 @@ those two set the status line directly.
   takes the radio mutex directly is FT8 (`handler_ft8.cpp`), the CW keyer's
   own background task (`handler_cat.cpp` `keyer_task`, already off the HTTP
   task), and boot-time `connect()`. Hardware: contract test 12/12 incl. power
-  read-your-write and time sync. Caveat carried over from `main`: numeric
-  params are parsed with `atoi()`, so `power=abc` means `power=0` — the
-  contract test deliberately does not probe that on a live radio.
+  read-your-write and time sync.
+- **Strict numeric params (2026-08-17).** The radio PUTs (`frequency`,
+  `volume`, `xmit`, `msg`, `power`, `time`) used `atoi()`, so `power=abc`
+  meant `power=0` — and a test probe did set a KX2 to 0 W. They now use
+  `parse_long_param()` (`webserver.h`: sign + digits, whole string, no
+  overflow) and reject junk/partial/negative values with 404 (400 for
+  `time`) before anything reaches the radio. Contract test covers it.
 - **Recovery probing (fixed 2026-08-17).** Originally only stale
   `frequency`/`mode` GETs armed the throttled recovery probe, so with no VFO
   poll running (observed on hardware: Chase tab on a phone, ⚫ for 35 s until

@@ -32,7 +32,9 @@ esp_err_t handler_xmit_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "state", param_value);
     ESP_LOGI (TAG8, "setting xmit to '%s'", param_value);
 
-    long xmit = atoi (param_value);  // Convert the parameter to an integer
+    long xmit = 0;
+    if (!parse_long_param (param_value, xmit))
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid state");
 
     return radio_set_via_http (req, RadioCmdType::SET_XMIT, xmit != 0 ? 1 : 0, "TX/RX toggle");
 }
@@ -51,7 +53,9 @@ esp_err_t handler_msg_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "bank", param_value);
     ESP_LOGI (TAG8, "playing message bank '%s'", param_value);
 
-    long bank = atoi (param_value);  // Convert the parameter to an integer
+    long bank = 0;
+    if (!parse_long_param (param_value, bank) || bank <= 0)
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid bank");
 
     return radio_set_via_http (req, RadioCmdType::SET_MSG, bank, "message play");
 }
@@ -121,8 +125,8 @@ esp_err_t handler_power_put (httpd_req_t * req) {
     STANDARD_DECODE_SOLE_PARAMETER (req, "power", param_value);
     ESP_LOGI (TAG8, "setting power to '%s'", param_value);
 
-    long desired_power = atoi (param_value);
-    if (desired_power < 0)
+    long desired_power = 0;
+    if (!parse_long_param (param_value, desired_power) || desired_power < 0)
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid power");
 
     return radio_set_via_http (req, RadioCmdType::SET_POWER, desired_power, "power change");
