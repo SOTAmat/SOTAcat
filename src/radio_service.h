@@ -1,9 +1,12 @@
 #pragma once
-// The radio service task is the SOLE owner of the radio mutex. HTTP
-// handlers never call kxRadio.* directly anymore — they enqueue work
-// here and return immediately: refreshes and SETs are both fire-and-
-// forget. A SET handler replies HTTP 202 and the client confirms the
-// outcome via a later GET. See 2026-05-15-radio-decoupling-design.md.
+// The radio service task owns radio CAT I/O for the HTTP handlers (FT8
+// and a few unconverted handlers still take the radio mutex directly).
+// Handlers never call kxRadio.* — they enqueue work here and either reply
+// at once or park the request (radio_park_httpd.h) until the worker
+// reports completion. See 2026-05-15-radio-decoupling-design.md and
+// 2026-08-17-radio-async-handlers-design.md.
+#include "radio_park.h"
+
 #include <cstdint>
 
 enum class RadioCmdType {
@@ -45,6 +48,10 @@ void radio_service_request_refresh(RadioCmdType which);
 // parked request can tell "my op finished" from "an older op finished".
 // Handlers that don't park may ignore it and confirm via a later GET.
 int radio_service_set(RadioCmdType type, long arg, uint32_t * gen_out = nullptr);
+
+// Map a service op to the park-table kind whose parked HTTP request it
+// satisfies. Returns false for ops no handler can park on (SET_POWER).
+bool radio_service_park_kind(RadioCmdType type, RadioParkKind & kind);
 
 // How long after enqueue a SET command remains valid for the worker to
 // apply. 5 s covers a few rapid back-to-back band-switch tunes (each

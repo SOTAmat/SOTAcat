@@ -59,9 +59,7 @@ struct PendingSet {
 static PendingSet s_set_pending[5];
 static uint32_t   s_set_gen[5] = { 0, 0, 0, 0, 0 };  // last armed generation per type
 
-// Map a worker op to the park-table kind whose parked request it satisfies.
-// Returns false for ops no handler can park on (SET_POWER today).
-static bool park_kind_of (RadioCmdType t, RadioParkKind & k) {
+bool radio_service_park_kind (RadioCmdType t, RadioParkKind & k) {
     switch (t) {
     case RadioCmdType::REFRESH_FREQUENCY: k = RadioParkKind::GET_FREQUENCY; return true;
     case RadioCmdType::REFRESH_MODE:      k = RadioParkKind::GET_MODE;      return true;
@@ -79,7 +77,7 @@ static bool park_kind_of (RadioCmdType t, RadioParkKind & k) {
 // httpd control-queue post can never extend a radio hold.
 static void notify_done (RadioCmdType t, uint32_t gen, bool ok) {
     RadioParkKind k;
-    if (park_kind_of (t, k))
+    if (radio_service_park_kind (t, k))
         radio_park_notify_done (k, gen, ok);
 }
 

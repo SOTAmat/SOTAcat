@@ -2,6 +2,7 @@
 #include "kx_radio.h"
 #include "radio_park_httpd.h"
 #include "radio_service.h"
+#include "radio_set_http.h"
 #include "radio_snapshot.h"
 #include "timed_lock.h"
 #include "webserver.h"
@@ -138,9 +139,5 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode");
 
     ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
-    int rc = radio_service_set (RadioCmdType::SET_MODE, (long)mode);
-    if (rc < 0)
-        REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
-
-    REPLY_WITH_ACCEPTED (req, "mode change accepted, applying");
+    return radio_set_via_http (req, RadioCmdType::SET_MODE, (long) mode, "mode change");
 }

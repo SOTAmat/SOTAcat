@@ -102,6 +102,29 @@ static inline void http_send_error_json (httpd_req_t * req, httpd_err_code_t cod
     httpd_resp_send_err (req, code, json_error);
 }
 
+static inline void http_send_no_content (httpd_req_t * req) {
+    httpd_resp_set_status (req, "204 No Content");
+    httpd_resp_set_hdr (req, "Connection", "close");
+    httpd_resp_set_hdr (req, "Cache-Control", "no-store");
+    httpd_resp_send (req, NULL, 0);
+}
+
+// ESP-IDF's httpd_err_code_t has neither 202 nor 503, so these set the raw
+// status line and send a small JSON body themselves.
+static inline void http_send_status_json (httpd_req_t * req, const char * status, const char * key, const char * message) {
+    char json[128];
+    snprintf (json, sizeof (json), "{\"%s\": \"%s\"}", key, message);
+    httpd_resp_set_status (req, status);
+    httpd_resp_set_type (req, "application/json");
+    httpd_resp_send (req, json, HTTPD_RESP_USE_STRLEN);
+}
+static inline void http_send_accepted (httpd_req_t * req, const char * message) {
+    http_send_status_json (req, "202 Accepted", "message", message);
+}
+static inline void http_send_service_unavailable (httpd_req_t * req, const char * message) {
+    http_send_status_json (req, "503 Service Unavailable", "error", message);
+}
+
 /**
  * Logs an error message, sends a JSON-formatted error response, and returns `ESP_FAIL`.
  *
@@ -141,16 +164,11 @@ static inline void http_send_error_json (httpd_req_t * req, httpd_err_code_t cod
  * @param message The error message (type: `const char *`) logged and included
  *                in the JSON response body.
  */
-#define REPLY_WITH_SERVICE_UNAVAILABLE(req, message)                              \
-    do {                                                                          \
-        ESP_LOGE (TAG8, "%s", message);                                           \
-        const char * json_error_template = "{\"error\": \"%s\"}";                 \
-        char         json_error[128];                                             \
-        snprintf (json_error, sizeof (json_error), json_error_template, message); \
-        httpd_resp_set_status (req, "503 Service Unavailable");                   \
-        httpd_resp_set_type (req, "application/json");                            \
-        httpd_resp_send (req, json_error, HTTPD_RESP_USE_STRLEN);                 \
-        return ESP_FAIL;                                                          \
+#define REPLY_WITH_SERVICE_UNAVAILABLE(req, message)   \
+    do {                                               \
+        ESP_LOGE (TAG8, "%s", message);                \
+        http_send_service_unavailable (req, message);  \
+        return ESP_FAIL;                               \
     } while (0)
 
 /**
@@ -171,30 +189,22 @@ static inline void http_send_error_json (httpd_req_t * req, httpd_err_code_t cod
  * @param message The message (type: `const char *`) logged and included in
  *                the JSON response body.
  */
-#define REPLY_WITH_ACCEPTED(req, message)                                         \
-    do {                                                                          \
-        ESP_LOGI (TAG8, "%s", message);                                           \
-        const char * json_msg_template = "{\"message\": \"%s\"}";                 \
-        char         json_msg[128];                                               \
-        snprintf (json_msg, sizeof (json_msg), json_msg_template, message);       \
-        httpd_resp_set_status (req, "202 Accepted");                              \
-        httpd_resp_set_type (req, "application/json");                            \
-        httpd_resp_send (req, json_msg, HTTPD_RESP_USE_STRLEN);                   \
-        return ESP_OK;                                                            \
+#define REPLY_WITH_ACCEPTED(req, message)     \
+    do {                                      \
+        ESP_LOGI (TAG8, "%s", message);       \
+        http_send_accepted (req, message);    \
+        return ESP_OK;                        \
     } while (0)
 
 /**
  * Logs a success message, sets the HTTP status to "204 No Content", sends an empty response,
  * and exits the current function with `ESP_OK`.
  */
-#define REPLY_WITH_SUCCESS()                                   \
-    do {                                                       \
-        ESP_LOGD (TAG8, "success");                            \
-        httpd_resp_set_status (req, "204 No Content");         \
-        httpd_resp_set_hdr (req, "Connection", "close");       \
-        httpd_resp_set_hdr (req, "Cache-Control", "no-store"); \
-        httpd_resp_send (req, NULL, 0);                        \
-        return ESP_OK;                                         \
+#define REPLY_WITH_SUCCESS()          \
+    do {                              \
+        ESP_LOGD (TAG8, "success");   \
+        http_send_no_content (req);   \
+        return ESP_OK;                \
     } while (0)
 
 

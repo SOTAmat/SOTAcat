@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "kx_radio.h"
 #include "radio_service.h"
+#include "radio_set_http.h"
 #include "timed_lock.h"
 #include "webserver.h"
 
@@ -22,9 +23,5 @@ esp_err_t handler_atu_put (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    int rc = radio_service_set (RadioCmdType::SET_ATU, 0);
-    if (rc < 0)
-        REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
-
-    REPLY_WITH_ACCEPTED (req, "ATU tune accepted, running");
+    return radio_set_via_http (req, RadioCmdType::SET_ATU, 0, "ATU tune");
 }

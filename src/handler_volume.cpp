@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "kx_radio.h"
 #include "radio_service.h"
+#include "radio_set_http.h"
 #include "timed_lock.h"
 #include "webserver.h"
 
@@ -59,9 +60,5 @@ esp_err_t handler_volume_put (httpd_req_t * req) {
     if (!kxRadio.supports_volume())
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "volume not supported on this radio");
 
-    int rc = radio_service_set (RadioCmdType::SET_VOLUME, delta);
-    if (rc < 0)
-        REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
-
-    REPLY_WITH_ACCEPTED (req, "volume change accepted, applying");
+    return radio_set_via_http (req, RadioCmdType::SET_VOLUME, delta, "volume change");
 }
