@@ -2,6 +2,16 @@
 
 **Status:** Implemented on `feature/radio-web-decoupling` (commits `450823a`…`8979f10`); mock- and hardware-validated 2026-08-17
 **Date:** 2026-08-17
+**As built (deviations from the text below, all deliberate):** the park table is
+header-only at `include/radio_park.h`; `RADIO_PARK_MAX` is 8 (kinds grew to 13
+when the remaining handlers were converted) and `max_open_sockets` stayed at 12
+(measured fine under a 2 h soak); value GETs return **503** while the link is
+down instead of a stale 200 (SOTAmat polls only frequency/mode); fast-confirm
+pings, a `TQ;` recovery probe every 5 s and a pre-flight ping on suspicious SETs
+were added after hardware testing; the header poll is 2 s. The open questions at
+the end were resolved: `SET_WAIT_MS` stays 1500, no keep-warm needed, `/power`
+(and volume GET, xmit, msg, time) converted. Current mechanism:
+`docs/dev/Radio-Access.md`.
 **Builds on:** `feature/radio-web-decoupling` (radio service task, snapshot,
 link health, request slots) — see `docs/dev/Radio-Access.md`.
 **Supersedes:** the "pure fire-and-forget SET (202)" and "GET returns stale,

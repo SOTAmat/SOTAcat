@@ -177,10 +177,11 @@ and hardens the worker against any other long-duration mutex holder.
 Delete/replace the "only this task ever takes the radio mutex, so it is never
 actually contended" comment — it is factually wrong and led to the defect.
 
-### Optional: restore the GET-handler guard
+### Optional: restore the GET-handler guard — *done*
 
-Re-add the `Ft8RadioExclusive` early-out to `handler_frequency_get` and
-`get_radio_mode()` so they do not even enqueue refreshes during FT8. With fix
+The `Ft8RadioExclusive` early-out is back in every value-GET handler
+(`handler_frequency_get`, `handler_mode_get`, power, volume): during FT8 they
+neither arm a refresh nor park, and reply with the last-known value. With fix
 #1 this is defense-in-depth (an armed-but-skipped slot is harmless), but it
 restores parity with `handler_status.cpp` and avoids needless slot churn.
 

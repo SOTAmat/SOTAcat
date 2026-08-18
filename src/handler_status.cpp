@@ -61,7 +61,7 @@ esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
     // other client happens to be issuing stale frequency/mode GETs (hardware
     // test 2026-08-17: Run tab, radio off→on, glyph stayed ⚫ for 35 s until
     // a tab switch fetched frequency). The worker throttles link-down probes
-    // to one per LINK_DOWN_PROBE_INTERVAL_US, so this costs one CAT per 10 s.
+    // to one TQ; ping per LINK_DOWN_PROBE_INTERVAL_US (5 s), ~0.2 s each.
     if (!radio_service_link_up() && !Ft8RadioExclusive)
         radio_service_request_refresh (RadioCmdType::REFRESH_XMIT);
 

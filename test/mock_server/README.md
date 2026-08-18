@@ -58,8 +58,8 @@ Then open http://localhost:8080 in your browser.
 | PUT | `/api/v1/volume?delta=X` | Adjust volume → 204 / 202 / 503 |
 
 The radio endpoints follow the firmware's async-handler contract
-(`docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md`): GETs
-answer within ~300 ms with a fresh or last-known value; PUTs return 204 once
+(`docs/dev/Radio-Access.md`): GETs answer within ~300 ms with a fresh or
+last-known value, or 503 while the radio link is down; PUTs return 204 once
 the (simulated) radio confirmed, 202 if confirmation outran 1.5 s or a newer
 same-kind PUT superseded it, 503 while the link is down or FT8 holds the
 radio. Tune the emulation with `--radio-latency MS` / `--radio-dead`, or live:
