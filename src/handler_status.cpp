@@ -3,7 +3,6 @@
 #include "radio_park_httpd.h"
 #include "radio_service.h"
 #include "radio_snapshot.h"
-#include "timed_lock.h"
 #include "webserver.h"
 
 #include <esp_log.h>
