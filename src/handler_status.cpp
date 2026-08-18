@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_park_httpd.h"
 #include "radio_service.h"
 #include "radio_snapshot.h"
 #include "timed_lock.h"
@@ -9,47 +10,61 @@
 #include <esp_timer.h>
 static const char * TAG8 = "sc:hdl_stat";
 
+// Compose the status glyph from live state + the snapshot's xmit state.
+// ⚫ link down · ⚪ FT8 / unknown · 🔴 transmitting (CW keyer or TX) · 🟢 idle
+static const char * status_symbol (const RadioSnapshotData & snap) {
+    if (!radio_service_link_up())
+        return "⚫";
+    if (Ft8RadioExclusive)
+        return "⚪";
+    if (kxRadio.is_keyer_active())
+        return "🔴";  // CW keyer holds the radio for the whole transmission
+    switch (snap.xmit_state) {
+    case 0:  return "🟢";
+    case 1:  return "🔴";
+    default: return "⚪";
+    }
+}
+
+static void send_status (httpd_req_t * req, const RadioSnapshotData & snap) {
+    const char * symbol = status_symbol (snap);
+    ESP_LOGI (TAG8, "returning connection status: %s", symbol);
+    http_send_string (req, symbol);
+}
+
+// Async completer: the xmit refresh finished (or the wait expired).
+static void status_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
+    send_status (req, radio_snapshot::get());
+}
+
 /**
  * Handles an HTTP GET request to check and return the current transmitting status of the radio.
- * It queries the radio for its transmitting status and returns an appropriate symbol:
- * 🟢 for not transmitting, 🔴 for transmitting, and ⚪ for an unknown or failure state.
+ * Returns 🟢 for not transmitting, 🔴 for transmitting, ⚪ for unknown/FT8, ⚫ for link down.
+ *
+ * Never touches the radio: reads the cached xmit state the service task
+ * maintains. If that is stale and the link is up, arms a refresh and parks
+ * the request (up to RADIO_PARK_GET_WAIT_MS) so the glyph reflects the
+ * refreshed state — the HTTP server task is never blocked.
  *
  * @param req Pointer to the HTTP request structure.
  * @return ESP_OK if the status is successfully retrieved and sent; otherwise, an error code.
  */
 esp_err_t handler_connectionStatus_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    const char * symbol;
+    RadioSnapshotData snap = radio_snapshot::get();
+    int64_t           now  = esp_timer_get_time();
 
-    if (!radio_service_link_up())
-        symbol = "⚫";
-    else if (Ft8RadioExclusive) {
-        symbol = "⚪";
-    }
-    else if (kxRadio.is_keyer_active()) {
-        // CW keyer holds the radio mutex for the full transmit duration; report
-        // transmitting directly instead of timing out trying to take the lock.
-        symbol = "🔴";
-    }
-    else {
-        // Never touch the radio here — read the cached xmit state the
-        // service task maintains. Stale/unknown -> ⚪, and request a
-        // refresh so the next poll is accurate.
-        RadioSnapshotData snap = radio_snapshot::get();
-        int64_t           now  = esp_timer_get_time();
-        if (!snap.has_xmit())
-            radio_service_request_refresh (RadioCmdType::REFRESH_XMIT);
-        else if (!snap.xmit_fresh (now))
-            radio_service_request_refresh (RadioCmdType::REFRESH_XMIT);
-        switch (snap.xmit_state) {
-        case 0:  symbol = "🟢"; break;
-        case 1:  symbol = "🔴"; break;
-        default: symbol = "⚪";
-        }
+    // Only the xmit-state branch depends on the snapshot; the ⚫/⚪/keyer-🔴
+    // cases are decided from live flags and never need a refresh.
+    if (radio_service_link_up() && !Ft8RadioExclusive && !kxRadio.is_keyer_active() &&
+        !snap.xmit_fresh (now)) {
+        radio_service_request_refresh (RadioCmdType::REFRESH_XMIT);
+        if (radio_park_request (req, RadioParkKind::GET_XMIT, 0, RADIO_PARK_GET_WAIT_MS, status_get_complete))
+            return ESP_OK;  // reply sent later by status_get_complete
     }
 
-    REPLY_WITH_STRING (req, symbol, "connection status");
+    send_status (req, snap);
+    return ESP_OK;
 }

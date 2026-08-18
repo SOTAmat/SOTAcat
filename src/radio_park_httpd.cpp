@@ -12,7 +12,7 @@ static const char * TAG8 = "sc:radiopark";
 
 static httpd_handle_t         s_server = nullptr;  // written once in init, read by any task
 static RadioParkTable         s_table (RADIO_PARK_MAX);
-static radio_park_completer_t s_completers[RADIO_PARK_KINDS] = {};
+static radio_park_completer_t s_completers[RADIO_PARK_KINDS] = {};  // per parked kind, set at park time
 static esp_timer_handle_t     s_tick         = nullptr;
 static bool                   s_tick_running = false;
 
@@ -37,8 +37,8 @@ static void complete (void * handle, RadioParkKind kind, RadioParkOutcome outcom
     if (fn)
         fn (req, outcome, ok);
     else {
-        // Should be unreachable: radio_park_request refuses kinds without a
-        // completer. Never leave a socket parked, though.
+        // Unreachable: radio_park_request requires a completer. Never leave
+        // a socket parked, though.
         ESP_LOGE (TAG8, "no completer for kind %d", (int) kind);
         httpd_resp_send_err (req, HTTPD_500_INTERNAL_SERVER_ERROR, "internal: no completer");
     }
@@ -117,14 +117,10 @@ void radio_park_init (httpd_handle_t server) {
               RADIO_PARK_MAX, (unsigned) RADIO_PARK_GET_WAIT_MS, (unsigned) RADIO_PARK_SET_WAIT_MS);
 }
 
-void radio_park_set_completer (RadioParkKind kind, radio_park_completer_t fn) {
-    if ((int) kind >= 0 && (int) kind < RADIO_PARK_KINDS)
-        s_completers[(int) kind] = fn;
-}
-
-bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, uint32_t wait_ms) {
-    if (!s_server || !req) return false;
-    if ((int) kind < 0 || (int) kind >= RADIO_PARK_KINDS || !s_completers[(int) kind]) return false;
+bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, uint32_t wait_ms,
+                         radio_park_completer_t completer) {
+    if (!s_server || !req || !completer) return false;
+    if ((int) kind < 0 || (int) kind >= RADIO_PARK_KINDS) return false;
     // Check capacity BEFORE async_begin so we never allocate a copy we then
     // have to unwind. Superseding an occupied kind never grows the table.
     if (!s_table.occupied (kind) && s_table.full())
@@ -142,7 +138,8 @@ bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, ui
     // Cannot fail: capacity was checked above and kind/handle are valid.
     s_table.park (kind, copy, gen, deadline, &superseded);
     if (superseded)
-        complete (superseded, kind, RadioParkOutcome::SUPERSEDED, false);
+        complete (superseded, kind, RadioParkOutcome::SUPERSEDED, false);  // with the OLD completer
+    s_completers[(int) kind] = completer;
     ensure_tick();
     return true;
 }

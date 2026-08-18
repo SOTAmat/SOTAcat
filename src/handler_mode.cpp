@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_park_httpd.h"
 #include "radio_service.h"
 #include "radio_snapshot.h"
 #include "timed_lock.h"
@@ -37,48 +38,57 @@ static const radio_mode_map_t radio_mode_map[] = {
     {"RTTY",    MODE_DATA   },
 };
 
-/**
- * Retrieves the current operating mode of the radio.
- * @return The current mode as a value from the radio_mode_t enumeration.
- */
-radio_mode_t get_radio_mode () {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-    RadioSnapshotData snap = radio_snapshot::get();
-    int64_t           now  = esp_timer_get_time();
-
-    if (!snap.has_mode()) {
-        // Skip the refresh-enqueue during FT8 — the radio service does no
-        // CAT work while Ft8RadioExclusive is set, so the slot would only
-        // churn; matches handler_status.cpp's FT8 guard.
-        if (!Ft8RadioExclusive)
-            radio_service_request_refresh (RadioCmdType::REFRESH_MODE);
-        return MODE_UNKNOWN;
+static void send_mode (httpd_req_t * req, const RadioSnapshotData & snap) {
+    long mode = snap.mode;  // 0 == MODE_UNKNOWN -> "UNKNOWN", as before
+    if (mode < MODE_UNKNOWN || mode > MODE_LAST) {
+        ESP_LOGE (TAG8, "unrecognized mode");
+        http_send_error_json (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unrecognized mode");
+        return;
     }
-    if (!snap.mode_fresh (now) && !Ft8RadioExclusive)
-        radio_service_request_refresh (RadioCmdType::REFRESH_MODE);
-
-    radio_mode_t mode = static_cast<radio_mode_t> (snap.mode);
     assert (radio_mode_map[mode].mode == mode);
-    return mode;
+    ESP_LOGI (TAG8, "returning mode: %s", radio_mode_map[mode].name);
+    http_send_string (req, radio_mode_map[mode].name);
+}
+
+// Async completer: the refresh finished (or the wait expired) — reply with
+// whatever the snapshot holds now. Payload byte-identical to the sync path.
+static void mode_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
+    send_mode (req, radio_snapshot::get());
 }
 
 /**
  * Handles an HTTP GET request to retrieve the current operating mode of the radio.
+ *
+ * Fresh snapshot: reply immediately. Stale/unknown: arm a background refresh
+ * and, if the link is up, park the request (up to RADIO_PARK_GET_WAIT_MS)
+ * so the reply reflects the refreshed value — the HTTP server task is never
+ * blocked. If parking isn't possible, reply with the last-known value.
+ *
  * @param req Pointer to the HTTP request structure.
  * @return ESP_OK if the mode is successfully retrieved and sent; otherwise, an error code.
  */
 esp_err_t handler_mode_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    radio_mode_t mode = get_radio_mode();
+    RadioSnapshotData snap = radio_snapshot::get();
+    int64_t           now  = esp_timer_get_time();
 
-    // Validate the mode and respond with an error if unrecognized
-    if (mode < MODE_UNKNOWN || mode > MODE_LAST)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unrecognized mode");
+    if (snap.mode_fresh (now)) {
+        send_mode (req, snap);
+        return ESP_OK;
+    }
 
-    REPLY_WITH_STRING (req, radio_mode_map[mode].name, "mode");
+    // See handler_frequency_get for the FT8 / link-up reasoning.
+    if (!Ft8RadioExclusive) {
+        radio_service_request_refresh (RadioCmdType::REFRESH_MODE);
+        if (radio_service_link_up() &&
+            radio_park_request (req, RadioParkKind::GET_MODE, 0, RADIO_PARK_GET_WAIT_MS, mode_get_complete))
+            return ESP_OK;  // reply sent later by mode_get_complete
+    }
+
+    send_mode (req, snap);  // last known, or "UNKNOWN"
+    return ESP_OK;
 }
 
 /**

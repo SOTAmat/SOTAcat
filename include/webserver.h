@@ -1,6 +1,7 @@
 #pragma once
 
 #include <esp_http_server.h>
+#include <cstdio>
 #include <memory>
 #include <strings.h>  // for size_t
 
@@ -85,6 +86,22 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
     STANDARD_DECODE_QUERY (req, unsafe_buf);                         \
     STANDARD_DECODE_PARAMETER (unsafe_buf, param_name, param_value);
 
+// Non-returning send helpers. The REPLY_WITH_* macros wrap these and
+// `return`; async completers (radio_park_httpd.h) — which run outside the
+// original handler and must not return early — call them directly.
+static inline void http_send_string (httpd_req_t * req, const char * payload) {
+    httpd_resp_set_hdr (req, "Connection", "close");
+    httpd_resp_set_hdr (req, "Cache-Control", "no-store");
+    httpd_resp_send (req, payload, HTTPD_RESP_USE_STRLEN);
+}
+
+static inline void http_send_error_json (httpd_req_t * req, httpd_err_code_t code, const char * message) {
+    char json_error[128];
+    snprintf (json_error, sizeof (json_error), "{\"error\": \"%s\"}", message);
+    httpd_resp_set_type (req, "application/json"); /* will get clobbered by httpd_resp_send_err */
+    httpd_resp_send_err (req, code, json_error);
+}
+
 /**
  * Logs an error message, sends a JSON-formatted error response, and returns `ESP_FAIL`.
  *
@@ -103,15 +120,11 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
  * https://github.com/espressif/esp-idf/blob/d7ca8b94c852052e3bc33292287ef4dd62c9eeb1/components/esp_http_server/src/httpd_txrx.c#L388
  *
  */
-#define REPLY_WITH_FAILURE(req, code, message)                                                         \
-    do {                                                                                               \
-        ESP_LOGE (TAG8, "%s", message);                                                                \
-        const char * json_error_template = "{\"error\": \"%s\"}";                                      \
-        char         json_error[128];                                                                  \
-        snprintf (json_error, sizeof (json_error), json_error_template, message);                      \
-        httpd_resp_set_type (req, "application/json"); /* will get clobbered by httpd_resp_send_err */ \
-        httpd_resp_send_err (req, code, json_error);                                                   \
-        return ESP_FAIL;                                                                               \
+#define REPLY_WITH_FAILURE(req, code, message)  \
+    do {                                        \
+        ESP_LOGE (TAG8, "%s", message);         \
+        http_send_error_json (req, code, message); \
+        return ESP_FAIL;                        \
     } while (0)
 
 /**
@@ -198,8 +211,6 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
 #define REPLY_WITH_STRING(req, payload, description)               \
     do {                                                           \
         ESP_LOGI (TAG8, "returning " description ": %s", payload); \
-        httpd_resp_set_hdr (req, "Connection", "close");           \
-        httpd_resp_set_hdr (req, "Cache-Control", "no-store");     \
-        httpd_resp_send (req, payload, HTTPD_RESP_USE_STRLEN);     \
+        http_send_string (req, payload);                           \
         return ESP_OK;                                             \
     } while (0)

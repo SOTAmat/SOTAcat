@@ -42,16 +42,14 @@ typedef void (*radio_park_completer_t) (httpd_req_t * req, RadioParkOutcome outc
 // Call once after httpd_start(), on the server task. Idempotent.
 void radio_park_init (httpd_handle_t server);
 
-// Register the completer for one kind (handlers do this at init).
-void radio_park_set_completer (RadioParkKind kind, radio_park_completer_t fn);
-
-// From a URI handler (server task): detach `req` and park it. On success
-// the handler MUST return ESP_OK without sending anything. Returns false
-// if parking is not possible (shim not initialised, no completer, table at
-// cap, async_begin failed) — the handler then replies synchronously as
-// before. `gen` is the slot generation returned by radio_service_set()
-// (0 for GET kinds).
-bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, uint32_t wait_ms);
+// From a URI handler (server task): detach `req` and park it; `completer`
+// will send its reply later. On success the handler MUST return ESP_OK
+// without sending anything. Returns false if parking is not possible (shim
+// not initialised, table at cap, async_begin failed) — the handler then
+// replies synchronously as before. `gen` is the slot generation returned
+// by radio_service_set() (0 for GET kinds).
+bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, uint32_t wait_ms,
+                         radio_park_completer_t completer);
 
 // From any task: an op of `kind` finished with generation `gen` and result
 // `ok`. Posts to the server task; never blocks on the network. If the post
