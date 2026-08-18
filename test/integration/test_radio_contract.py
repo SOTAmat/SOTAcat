@@ -310,7 +310,10 @@ class ContractTest:
             self.expect(not ctrl_err, f"{len(ctrl_err)} errors in control burst: {ctrl_err[:3]}")
             self.expect(not rad_err, f"{len(rad_err)} errors in radio burst (socket exhaustion?): {rad_err[:3]}")
             self.expect(rad_max < 8.0, f"radio burst request took {rad_max:.1f} s")
-            self.expect(rad_p95 <= ctrl_p95 + 1.0,
+            # +1.5 s: the ESP's SYN-retransmit steps quantize p95 in ~1 s jumps,
+            # so a +1.0 s margin flapped between runs; a real radio-path stall
+            # would still show as several seconds.
+            self.expect(rad_p95 <= ctrl_p95 + 1.5,
                         f"radio burst p95 {rad_p95*1000:.0f} ms vs control {ctrl_p95*1000:.0f} ms — radio path adds latency")
         self.check(f"{self.concurrency} parallel radio GETs: no errors, no slower than /version control", run)
 

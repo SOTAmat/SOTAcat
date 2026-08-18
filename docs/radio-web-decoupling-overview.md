@@ -314,9 +314,13 @@ those two set the status line directly.
   - 30-way parallel-connect bursts show +1 s/+3 s SYN-retransmit steps on
     `/version` and radio endpoints alike (ESP accept-backlog trait, present
     on `main`); the radio burst was no slower than the control.
-  - Not measured: `radio_service` stack high-water and largest free heap
-    block (nothing exposes them; add a debug log line if fragmentation is
-    ever suspected).
+  - Resource readings (temporary DIAG build, 2026-08-17): `radio_service`
+    stack min-free 2112 B of 4096 (peak use ≈2 KB, stable after first heavy
+    load); httpd task min-free 7548 B of 10240; heap largest free block
+    114,688 B **identical** idle / during 40-way bursts / after (no
+    fragmentation from park copies); heap min-ever 82 KB during bursts
+    (httpd sockets + lwIP, recovers fully); parked occupancy ≤1 in 30 s
+    samples. Nothing to tune; the DIAG lines were not kept.
 
 ---
 
