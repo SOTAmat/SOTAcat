@@ -184,8 +184,9 @@ intermediate frequencies, and the HTTP server is never starved.
 | Mechanism | What it does | Where |
 |-----------|--------------|-------|
 | **Link health** | 3 consecutive CAT failures → link-down; first success → up. `radio_service_link_up()` is the single source of truth; `connectionStatus` and SET fast-reject consult it. Closes the "never cleared" gap. | `radio_link_health.h` |
+| **Fast-confirm** | After any failed CAT op the worker fires up to 2 `TQ;` pings (~0.2 s each) while it still holds the radio: dead radio → link-down ~0.5 s after the first failure (not after two more ~4 s `FA;`/`MD;` timeouts); ping succeeds → the failure was transient or a *refused* command → counter reset (refusals don't count against the link). | `radio_service.cpp` `fast_confirm_link` |
 | **Snapshot freshness** | Each field carries a timestamp; `*_fresh(now)` is skew-safe (a clock before the stamp reads stale, never falsely fresh). | `radio_snapshot.h` |
-| **Link-down throttle** | While link is down, refresh CAT probes are throttled to one per 10 s — otherwise a dead radio + active polling spins ~6 s CAT timeouts back-to-back and saturates Wi-Fi/HTTP scheduling. | `radio_service.cpp` |
+| **Link-down probe** | While link is down, one cheap `TQ;` ping (~0.2 s) per 5 s is the recovery probe — armed by any stale GET including `connectionStatus`; other refreshes are dropped until the ping succeeds. Recovery ≤5 s after power-on; a dead radio costs 0.2 s of CAT per 5 s. | `radio_service.cpp` `probe_link` |
 | **SET apply-deadline** | A queued SET older than 5 s is skipped rather than applied late (don't retune long after the user's click). | `radio_service.cpp` |
 | **FT8-aware yield** | FT8 transmission holds the radio mutex continuously (~27 s). The worker skips **all** CAT work while `Ft8RadioExclusive` is set, and bounds its lock-acquire to 3 s with slot re-arm as a TOCTOU safety net — so it never trips the 20 s task watchdog and never disturbs FT8 timing. | `radio_service.cpp` |
 | **Watchdog discipline** | The worker resets the task watchdog before each drained CAT op. | `radio_service.cpp` |
@@ -301,6 +302,10 @@ those two set the status line directly.
   - Radio powered on: ⚫ → 🟢 in ~2 s; next PUT 204. With **no** VFO poll
     anywhere (status-only probe): ⚫ → 🟢 in ≤10 s via the `connectionStatus`
     probe (see §9).
+  - After fast-confirm + `TQ;` recovery probe (later the same day): link-down
+    0.5 s after the first failed CAT (was ~8 s), recovery ≤5 s after power-on
+    (was up to ~20 s). What the header shows is now bounded by the client's
+    5 s `connectionStatus` poll interval, not the server.
   - FT8 ×3 back-to-back via SOTAmat with the Run page polling on a phone
     *and* a desktop, plus a 1 Hz probe issuing PUTs: every PUT 503
     "radio busy (FT8)" in ~14 ms (never enqueued), GETs ~15 ms ⚪,

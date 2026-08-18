@@ -289,19 +289,18 @@ class ContractTest:
                 self.expect(dt < 0.5, "503 should be immediate")
             finally:
                 self.mock_state(radio_dead=False)
-            # Recovery: link-down probes are armed by stale frequency/mode
-            # GETs (the VFO poll), throttled to one per ~10 s while down —
-            # connectionStatus alone never probes. Poll like the client does.
+            # Recovery: any stale GET (connectionStatus included) arms a cheap
+            # TQ probe, throttled to one per ~5 s while down. Poll like the
+            # client's header does and expect recovery within ~10 s.
             got = None
-            deadline = time.time() + 15.0
+            deadline = time.time() + 10.0
             while time.time() < deadline:
-                self.get("frequency")
                 r, _ = self.get("connectionStatus")
                 got = r.text.strip()
                 if got in ("🟢", "🔴"):
                     break
                 time.sleep(0.5)
-            self.expect(got in ("🟢", "🔴"), f"link did not recover within 15 s (last {got!r})")
+            self.expect(got in ("🟢", "🔴"), f"link did not recover within 10 s (last {got!r})")
 
         def ft8():
             self.mock_state(ft8=True)

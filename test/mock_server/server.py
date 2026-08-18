@@ -97,7 +97,7 @@ DEFAULT_STATE = {
 RADIO_GET_WAIT_MS = 300     # GET waits at most this long for a refresh
 RADIO_SET_WAIT_MS = 1500    # PUT waits at most this long for confirmation
 RADIO_LINK_DOWN_FAILS = 3   # consecutive CAT failures -> link down
-RADIO_LINK_DOWN_PROBE_S = 10  # one recovery probe per this interval while down
+RADIO_LINK_DOWN_PROBE_S = 5   # one recovery probe (TQ ping, ~0.2 s) per this interval while down
 
 VALID_MODES = ["LSB", "USB", "CW", "FM", "AM", "DATA", "CW_R", "DATA_R"]
 MODE_ALIASES = {"FT8": "DATA", "JS8": "DATA", "PK31": "DATA", "FT4": "DATA", "RTTY": "DATA"}
@@ -142,10 +142,15 @@ class MockRadio:
         with self.lock:
             latency = max(0, int(self.state.get("radio_latency_ms", 50))) / 1000.0
             if self.state.get("radio_dead"):
-                time.sleep(min(latency, 2.0) or 0.05)
+                # Link already down -> this is a cheap TQ recovery ping.
+                time.sleep(0.2 if not self.link_up else (min(latency, 2.0) or 0.05))
                 self.consecutive_fails += 1
-                if self.consecutive_fails >= RADIO_LINK_DOWN_FAILS:
-                    self.link_up = False
+                # Firmware fast-confirm: after a failure, up to THRESHOLD-1
+                # quick TQ; pings (~0.2 s each) decide the link right away.
+                while self.consecutive_fails < RADIO_LINK_DOWN_FAILS:
+                    time.sleep(0.2)
+                    self.consecutive_fails += 1
+                self.link_up = False
                 return False
             time.sleep(latency)
             self.consecutive_fails = 0
@@ -195,6 +200,7 @@ class MockRadio:
 
     def status_symbol(self):
         if not self.link_up:
+            self._start_refresh()  # firmware: connectionStatus arms the recovery probe
             return "⚫"
         if self.state.get("ft8"):
             return "⚪"

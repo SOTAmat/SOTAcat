@@ -17,12 +17,12 @@
 
 static const char * TAG8 = "sc:radiosvc";
 
-// During link-down, refresh CAT probes are throttled to one per this
-// interval. Without it, every stale-snapshot GET sets the refresh slot,
-// the worker runs a ~6 s blocking CAT to a dead radio + ESP_LOGI spam,
-// and under client polling that saturates WiFi/HTTP scheduling and
-// degrades every endpoint. 10 s balances recovery latency against idle.
-static constexpr int64_t LINK_DOWN_PROBE_INTERVAL_US = 10'000'000;  // 10 s
+// During link-down, recovery probes are throttled to one per this interval.
+// Without it, every stale-snapshot GET would drive a CAT to a dead radio and
+// under client polling that saturates WiFi/HTTP scheduling. A probe is a
+// single TQ; ping (~0.2 s on a dead radio — see probe_link), so 5 s costs
+// nothing noticeable and bounds recovery latency at ~5 s after power-on.
+static constexpr int64_t LINK_DOWN_PROBE_INTERVAL_US = 5'000'000;  // 5 s
 
 // The worker is normally the radio mutex's only contender, but FT8 and
 // the unconverted handler_cat/handler_time paths take it directly. Bound
@@ -87,6 +87,48 @@ bool radio_service_link_up() { return s_link_up.load (std::memory_order_acquire)
 
 // --- the worker -----------------------------------------------------
 
+// Called with the radio mutex HELD, right after a CAT op failed and was
+// recorded. Confirm cheaply and immediately instead of waiting for the next
+// two slow ops: up to LINK_DOWN_FAIL_THRESHOLD-1 TQ; pings (~100 ms timeout
+// each). Dead radio -> link down ~0.5 s after the first failed op, not ~8 s
+// later (a failed FA;/MD; refresh costs ~4 s each). Ping succeeds -> the
+// failure was transient (radio busy, or it REFUSED a command — not a link
+// problem) -> reset the counter (anti-flap, and refusals no longer count
+// against the link).
+static void fast_confirm_link (int64_t now) {
+    for (int i = 1; i < RadioLinkHealth::LINK_DOWN_FAIL_THRESHOLD && s_health.is_up(); ++i) {
+        long st = -1;
+        if (kxRadio.get_xmit_state (st)) {
+            radio_snapshot::set_xmit_state (st, now);
+            s_health.record_success();
+            return;
+        }
+        s_health.record_failure();
+    }
+}
+
+// Link-down recovery probe: one cheap TQ; ping (~100 ms timeout x2) instead
+// of whatever refresh happens to be armed — a dead-radio FA;/MD; refresh
+// costs ~8-10 s, which made recovery take up to ~20 s after power-on.
+// Returns true if the radio answered (link is up again; caller proceeds
+// with the real refresh). Stamps s_last_cat_attempt_us either way.
+static bool probe_link() {
+    TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc probe");
+    if (!lock.acquired())
+        return false;
+    int64_t now = esp_timer_get_time();
+    s_last_cat_attempt_us.store (now, std::memory_order_release);
+    long st = -1;
+    bool ok = kxRadio.get_xmit_state (st);
+    if (ok) {
+        radio_snapshot::set_xmit_state (st, now);
+        s_health.record_success();
+    } else
+        s_health.record_failure();
+    publish_health();
+    return ok;
+}
+
 // Returns true if the radio mutex was acquired and a refresh was attempted
 // (*ok_out = CAT success); false if the lock could not be acquired (FT8 /
 // handler_cat held it) — the caller re-arms the slot for a later wake. A
@@ -118,7 +160,10 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
         if (ok) radio_snapshot::set_xmit_state (st, now);
     }
     if (ok) s_health.record_success();
-    else    s_health.record_failure();
+    else {
+        s_health.record_failure();
+        fast_confirm_link (now);
+    }
     publish_health();
     ok_out = ok;
     return true;
@@ -196,7 +241,10 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         break;
     }
     if (ok) s_health.record_success();
-    else    s_health.record_failure();
+    else {
+        s_health.record_failure();
+        fast_confirm_link (now);
+    }
     publish_health();
     ok_out = ok;
     return true;
@@ -264,16 +312,19 @@ static void radio_service_task (void *) {
             xSemaphoreGive (s_req_mutex);
             if (!pending)
                 continue;
-            // Throttle refresh CAT during link-down so a dead radio plus
-            // active client polling cannot saturate the system. One CAT
-            // probe per LINK_DOWN_PROBE_INTERVAL_US acts as the recovery
-            // probe; the rest are dropped (the next GET re-sets the slot).
-            int64_t now = esp_timer_get_time();
-            if (!s_link_up.load (std::memory_order_acquire) &&
-                (now - s_last_cat_attempt_us.load (std::memory_order_acquire))
-                < LINK_DOWN_PROBE_INTERVAL_US) {
-                ESP_LOGD (TAG8, "skipping refresh during link-down probe window");
-                continue;
+            // Link down: throttle to one cheap probe per interval (the rest
+            // of the stale-GET refreshes are dropped; the next GET re-arms).
+            // Only when the ping succeeds do we spend the full refresh.
+            if (!s_link_up.load (std::memory_order_acquire)) {
+                int64_t now = esp_timer_get_time();
+                if ((now - s_last_cat_attempt_us.load (std::memory_order_acquire))
+                    < LINK_DOWN_PROBE_INTERVAL_US) {
+                    ESP_LOGD (TAG8, "skipping refresh during link-down probe window");
+                    continue;
+                }
+                ESP_ERROR_CHECK (esp_task_wdt_reset());
+                if (!probe_link())
+                    continue;  // still down; probe again after the interval
             }
             // See the SET-drain note above: a refresh CAT op also blocks
             // several seconds on a dead radio, so reset the WDT per op.
