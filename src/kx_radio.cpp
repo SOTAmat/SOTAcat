@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <driver/uart.h>
+#include <esp_task_wdt.h>
 #include <esp_timer.h>
 
 /*
@@ -22,7 +23,6 @@
  */
 
 #include <esp_log.h>
-#include <esp_task_wdt.h>
 static const char * TAG8 = "sc:kx_radio";
 
 // Global static instance

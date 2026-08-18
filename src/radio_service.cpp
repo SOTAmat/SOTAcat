@@ -9,16 +9,16 @@
 #include "timed_lock.h"
 
 #include <atomic>
-#include <esp_log.h>
 #include <esp_task_wdt.h>
-#ifdef SOTACAT_SOAK_DIAG
-#include <esp_heap_caps.h>
-#endif
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <freertos/task.h>
+#ifdef SOTACAT_SOAK_DIAG
+#include <esp_heap_caps.h>
+#endif
 
+#include <esp_log.h>
 static const char * TAG8 = "sc:radiosvc";
 
 // During link-down, recovery probes are throttled to one per this interval.

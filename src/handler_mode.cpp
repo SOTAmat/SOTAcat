@@ -8,8 +8,9 @@
 
 #include <cassert>
 #include <cctype>
-#include <esp_log.h>
 #include <esp_timer.h>
+
+#include <esp_log.h>
 static const char * TAG8 = "sc:hdl_mode";
 
 // Struct to map radio mode names to their corresponding radio_mode_t enum values

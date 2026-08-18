@@ -5,8 +5,9 @@
 #include "radio_snapshot.h"
 #include "webserver.h"
 
-#include <esp_log.h>
 #include <esp_timer.h>
+
+#include <esp_log.h>
 static const char * TAG8 = "sc:hdl_freq";
 
 static void send_frequency (httpd_req_t * req, const RadioSnapshotData & snap) {
