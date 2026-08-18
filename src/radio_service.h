@@ -14,7 +14,7 @@ enum class RadioCmdType {
     REFRESH_MODE,
     REFRESH_XMIT,
     SET_FREQUENCY,
-    SET_MODE,        // arg = radio_mode_t value
+    SET_MODE,        // arg = radio_mode_t value, or RADIO_MODE_SSB_AUTO
     SET_VOLUME,      // arg = delta
     SET_POWER,       // arg = power
     SET_ATU,         // arg unused
@@ -48,6 +48,14 @@ void radio_service_request_refresh(RadioCmdType which);
 // parked request can tell "my op finished" from "an older op finished".
 // Handlers that don't park may ignore it and confirm via a later GET.
 int radio_service_set(RadioCmdType type, long arg, uint32_t * gen_out = nullptr);
+
+// SET_MODE arg meaning "SSB": the worker picks LSB/USB from the frequency
+// AT APPLY TIME (below RADIO_SSB_LSB_USB_BOUNDARY_HZ -> LSB), i.e. after any
+// frequency SET queued ahead of it has been applied. Resolving in the HTTP
+// handler from the snapshot picked the wrong sideband when a tune was still
+// pending (PUT freq 14.2 MHz, PUT mode SSB -> snapshot still 7.2 MHz -> LSB).
+static constexpr long    RADIO_MODE_SSB_AUTO             = -1;
+static constexpr long    RADIO_SSB_LSB_USB_BOUNDARY_HZ   = 10'000'000;
 
 // Map a service op to the park-table kind whose parked HTTP request it
 // satisfies. Returns false for ops no handler can park on (SET_POWER).

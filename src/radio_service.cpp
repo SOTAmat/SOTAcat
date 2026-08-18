@@ -154,10 +154,34 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         ok = kxRadio.set_frequency (arg, SC_KX_COMMUNICATION_RETRIES);
         if (ok) radio_snapshot::set_frequency (arg, now);
         break;
-    case RadioCmdType::SET_MODE:
-        ok = kxRadio.set_mode ((radio_mode_t)arg, SC_KX_COMMUNICATION_RETRIES);
-        if (ok) radio_snapshot::set_mode (arg, now);
+    case RadioCmdType::SET_MODE: {
+        radio_mode_t m = (radio_mode_t) arg;
+        if (arg == RADIO_MODE_SSB_AUTO) {
+            // Frequency slot drains before mode, so the snapshot already
+            // reflects a tune queued ahead of this SET (a failed tune left
+            // the radio — and the snapshot — on the old frequency, which is
+            // then the right basis too). Snapshot mutex is leaf-level, safe
+            // to take under the radio lock. Nothing cached: read it live.
+            long f = radio_snapshot::get().frequency_hz;
+            if (f <= 0) {
+                long hz = 0;
+                if (kxRadio.get_frequency (hz) && hz > 0) {
+                    f = hz;
+                    radio_snapshot::set_frequency (hz, now);
+                }
+            }
+            if (f <= 0) {
+                ESP_LOGE (TAG8, "SSB requested but frequency unknown; cannot pick sideband");
+                ok = false;
+                break;
+            }
+            m = (f < RADIO_SSB_LSB_USB_BOUNDARY_HZ) ? MODE_LSB : MODE_USB;
+            ESP_LOGI (TAG8, "SSB at %ld Hz -> %s", f, m == MODE_LSB ? "LSB" : "USB");
+        }
+        ok = kxRadio.set_mode (m, SC_KX_COMMUNICATION_RETRIES);
+        if (ok) radio_snapshot::set_mode ((long) m, now);
         break;
+    }
     case RadioCmdType::SET_VOLUME:
         ok = kxRadio.set_volume (arg);
         break;

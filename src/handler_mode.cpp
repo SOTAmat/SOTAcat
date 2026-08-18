@@ -111,28 +111,23 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
 
     ESP_LOGI (TAG8, "requesting mode = '%s'", mode_param);
 
-    radio_mode_t mode = MODE_UNKNOWN;
-
-    // Determine the radio mode based on the "mode" parameter
+    // "SSB" is resolved to LSB/USB by the radio service at apply time
+    // (RADIO_MODE_SSB_AUTO), after any frequency SET queued ahead of it.
     if (!strcmp (mode_param, "SSB")) {
-        // Read current frequency from snapshot; LSB below 10 MHz, USB at/above.
-        long f = radio_snapshot::get().frequency_hz;
-        if (f <= 0) {
-            radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);
-            REPLY_WITH_SERVICE_UNAVAILABLE (req, "frequency unknown, retry SSB after refresh");
-        }
-        mode = (f < 10000000) ? MODE_LSB : MODE_USB;
+        ESP_LOGI (TAG8, "mode = SSB (sideband chosen at apply time)");
+        return radio_set_via_http (req, RadioCmdType::SET_MODE, RADIO_MODE_SSB_AUTO, "mode change");
     }
-    else
+
+    radio_mode_t mode = MODE_UNKNOWN;
 #define COUNTOF(array) (sizeof (array) / sizeof (array[0]))
-        // Iterate through the radio_mode_map to find a matching mode
-        for (radio_mode_map_t const * mode_kv = &radio_mode_map[COUNTOF (radio_mode_map) - 1];
-             mode_kv >= &radio_mode_map[0];
-             --mode_kv)
-            if (!strcmp (mode_param, mode_kv->name)) {
-                mode = mode_kv->mode;
-                break;
-            }
+    // Iterate through the radio_mode_map to find a matching mode
+    for (radio_mode_map_t const * mode_kv = &radio_mode_map[COUNTOF (radio_mode_map) - 1];
+         mode_kv >= &radio_mode_map[0];
+         --mode_kv)
+        if (!strcmp (mode_param, mode_kv->name)) {
+            mode = mode_kv->mode;
+            break;
+        }
 
     // Respond with an error if the mode is not recognized
     if (mode == MODE_UNKNOWN)
