@@ -3,7 +3,7 @@
 **Status:** Implemented on `feature/radio-web-decoupling` (commits `450823a`…`8979f10`); mock- and hardware-validated 2026-08-17
 **Date:** 2026-08-17
 **Builds on:** `feature/radio-web-decoupling` (radio service task, snapshot,
-link health, request slots) — see `docs/radio-web-decoupling-overview.md`.
+link health, request slots) — see `docs/dev/Radio-Access.md`.
 **Supersedes:** the "pure fire-and-forget SET (202)" and "GET returns stale,
 never waits" decisions in `2026-05-15-radio-decoupling-design.md` §SET
 handlers / §Cache-only GET handlers.
@@ -221,7 +221,7 @@ can no longer pick a sideband from a frequency the client just replaced.
 |------|--------|--------------|-------------|
 | GET, radio healthy | live value | value from previous poll | value ≤~300 ms old (live) |
 | GET, FT8 | cached | stale, instant | stale, instant |
-| GET, radio link down | 500 after ≤6 s block | stale 200, instant | 503, instant *(decided after the SOTAmat review — see overview §6)* |
+| GET, radio link down | 500 after ≤6 s block | stale 200, instant | 503, instant *(decided after the SOTAmat review)* |
 | PUT applied | 204 | 202 | **204** |
 | PUT refused by radio | 500 | 202 (silent) | **500** |
 | PUT slower than bound | 500 after timeout | 202 | 202 |
@@ -305,7 +305,7 @@ table.
 5. `feat: PUT handlers park; restore 204/500; 503 during FT8`.
 6. `fix: resolve SSB sideband at apply time in the worker`.
 7. `test: mock-server radio-latency/dead modes + read-your-write assertions`.
-8. `docs: API contract table; update overview §4/§6`.
+8. `docs: API contract table; update the architecture docs`.
 
 Steps 1–3 are inert (nothing parks yet) and can land first for review.
 

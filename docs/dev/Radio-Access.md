@@ -17,7 +17,39 @@ Related documents:
 - `docs/superpowers/specs/2026-05-15-radio-decoupling-design.md` and
   `docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md` — design rationale
 - `docs/for-AI-agents/radio-service-ft8-mutex-contention.md` — the FT8 constraint
-- `docs/radio-web-decoupling-overview.md` — branch history and hardware results
+
+---
+
+## 0. Background — why this exists
+
+`esp_http_server` services **all** requests on one task. Originally
+`handler_frequency_get`, `get_radio_mode`, `handler_connectionStatus_get` and every
+SET handler took the radio mutex and did a synchronous CAT exchange on that task:
+
+```
+                ESP-IDF esp_http_server  —  ONE task, requests serialized
+                ┌──────────────────────────────────────────────────┐
+ GET /frequency ─▶│ handler_frequency_get                            │
+ GET /run.html  ─▶│   kxRadio.timed_lock()                           │──▶ UART ──▶ KX2
+ GET /settings  ─▶│   get_from_kx("FA")  ◀──── ~6 s ────┐            │   (radio OFF:
+ GET /mode      ─▶│   ▒▒▒▒▒▒▒▒▒▒ BLOCKED ▒▒▒▒▒▒▒▒▒▒     │            │    never replies)
+                │   every other request waits in line  │            │
+                └──────────────────────────────────────────────────┘
+        radio off  →  6 s block per poll  →  whole UI frozen, QRT button stuck
+```
+
+With the Run page polling `frequency` and `mode` every 3 s, a powered-off radio meant
+each poll blocked the one server task for ~6 s: tab navigation, Settings and the
+client-only QRT SMS button all stalled. A second gap: `kxRadio.is_connected()` was set
+once at boot and never cleared, so the header could not report a radio switched off
+later. The model below removes both: radio I/O lives on its own task, handlers never
+wait on it, and link health is explicit and live.
+
+Design history: the May 2026 spec introduced the service task, snapshot and slots
+with fire-and-forget SETs; the August 2026 spec added parked async handlers so SETs
+answer honestly (204/500) and GETs are live again, then hardware testing added
+fast-confirm/recovery probing, converted the remaining handlers, and made numeric
+parameters strict.
 
 ---
 
@@ -360,7 +392,66 @@ copies), parked occupancy typically 0–1.
 
 ---
 
-## 10. Adding an endpoint
+## 10. Validation record (2026-08-17, K5EM_1 + KX2)
+
+- **Host unit tests** (`test/host/`, `make test`): link health (threshold, anti-flap,
+  failure counter), snapshot freshness (boundary, clock skew), park table (supersede,
+  generation gate incl. wraparound, expiry, cap).
+- **Contract test** (`test/integration/test_radio_contract.py`; `make -C
+  test/integration test-contract[-mock]`): payload shapes and bounds, strict-param
+  404s, read-your-write for frequency/mode/power, SSB-after-tune, SOTAmat's exact
+  poll/write sequences, burst vs `/version` control; on the mock additionally
+  radio-dead (503, ⚫, recovery), FT8 (503, ⚪), slow-CAT (202 then applied). Mock
+  18/18 healthy and 13/13 dead; **hardware 15/15** on the release build.
+- **Existing suites**: performance baseline equal or better on every metric; 60 s
+  7-client mutex stress 99.89 % (remaining fails are 1 s client timeouts from SYN
+  retransmits); Playwright UI 71/71.
+- **Scenarios on hardware**: VFO knob → next poll; radio off → ⚫ in ~2 s, GETs 503,
+  PUTs 503, `/version` 15 ms throughout; radio on → 🟢 in ~3 s (≤5 s probe, 2 s poll);
+  FT8 ×3 with two browsers polling and a 1 Hz PUT probe — every PUT 503 in ~14 ms,
+  `ft8 transmission time: 12480 ms` on all three, no watchdog; PUT-through-detection:
+  in-flight SET takes its ~18 s (parked PUTs bounded 202), next SET fails fast on the
+  pre-flight ping, then 503s, no watchdog.
+- **Adversarial sockets**: 300 abort-while-parked connections, 40-wide same-kind GET
+  and PUT storms (superseded → 202, last-wins), a 1-byte/s slow reader — every socket
+  free afterwards, `/version` 13 ms; console shows only the expected `recv/send: 104`.
+- **2 h mixed soak** (two header pollers, two VFO pollers, SOTAmat-style 1 s poller,
+  asset reloads, tune round-trip every 20 s, mode toggle every 3 min): 33,499
+  requests, 0 errors, all PUTs 204, latencies flat, largest free heap block 114,688 B
+  at every sample, worker stack min-free 2076 B flat, no reboot. Diagnostics stay
+  behind `-DSOTACAT_SOAK_DIAG` (`PLATFORMIO_BUILD_FLAGS=-DSOTACAT_SOAK_DIAG`).
+- **Not on hardware yet**: boot with the radio absent (server up, radio endpoints
+  gated "not connected", connect on power-up) and CW-keyer overlap (worker's bounded
+  lock, parked timeouts, 5 s SET deadline) — both reasoned from code and covered by
+  the mock; worth one manual pass.
+
+## 11. Known limitations and future work
+
+- **A SET as the first op against a freshly-dead radio** costs its full ~18 s before
+  detection (the polls' GETs usually fail first, in 0.5–4.5 s). The pre-flight ping
+  bounds everything after it.
+- **Wide parallel-connect bursts** (>~12 simultaneous connections) show +1 s/+3 s
+  SYN-retransmit steps on every endpoint — the ESP accept backlog, not the radio
+  path; the contract test therefore compares against a `/version` control.
+- **Client-side observation, unresolved**: once, a phone's Chase tab issued no VFO
+  GETs for 35 s after its initial fetch while `connectionStatus` kept polling. The
+  server no longer depends on it (`connectionStatus` arms the recovery probe); if
+  Chase's row highlighting ever looks frozen, look at `startGlobalVfoPolling` /
+  `openTab`'s `pollingPaused` race.
+- **Phase-2 client work (optional)**: enable client-only buttons synchronously from
+  `localStorage`, and pause/back off VFO polling while ⚫ — now safe to do. Worth
+  pairing with collapsing `run.js`'s own VFO poller into `main.js`'s and deleting the
+  load-protection heuristics the non-blocking server made unnecessary.
+- **rigctld** (`feature/rigctld-server`) should become a client of this service (a
+  task-side wait for "my generation completed" is the one missing primitive) rather
+  than a third direct radio-mutex user; meters (S/SWR/ALC) and split would be snapshot
+  fields plus new command kinds.
+- **USB-host radios** (`rdarden/feat/esp32-s3-usb-otg`, QMX and IC-705): the model
+  applies unchanged; at merge, feed the task WDT from the transport read
+  (`KXRadio::cat_read_bytes`) because an IC-705 native ATU tune can run ~16–34 s in
+  one worker op.
+
+## 12. Adding an endpoint
 
 1. Add a `RadioCmdType` (in the contiguous REFRESH or SET block) and, for GETs, a
    snapshot field + freshness predicate; extend `radio_service_park_kind()`.

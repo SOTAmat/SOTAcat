@@ -59,10 +59,10 @@ Radio endpoint contract (`frequency`, `mode`, `connectionStatus`, `volume`, `atu
 | PUT bad parameter | `404` / `500` |
 | PUT then immediate GET | reads the new value |
 
-Timelines (simple, overlapped, radio-off, FT8, lock contention), the link-health
-state machine and the budget table: [Radio-Access.md](Radio-Access.md). Branch
-history and hardware results: `docs/radio-web-decoupling-overview.md`. Contract
-test: `test/integration/test_radio_contract.py` (runs against hardware or the mock).
+Background, timelines (simple, overlapped, radio-off, FT8, lock contention), the
+link-health state machine, budgets, validation record and known limitations:
+[Radio-Access.md](Radio-Access.md). Contract test:
+`test/integration/test_radio_contract.py` (runs against hardware or the mock).
 
 ### CAT Driver
 - Serial communication with Elecraft radio
