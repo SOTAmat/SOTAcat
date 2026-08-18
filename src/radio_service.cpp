@@ -3,6 +3,7 @@
 #include "globals.h"
 #include "kx_radio.h"
 #include "radio_link_health.h"
+#include "radio_park_httpd.h"
 #include "radio_snapshot.h"
 #include "timed_lock.h"
 
@@ -49,12 +50,38 @@ static SemaphoreHandle_t s_req_mutex = nullptr;
 static bool s_refresh_pending[3] = { false, false, false };
 
 struct PendingSet {
-    long    arg           = 0;
-    int64_t expires_at_us = 0;
-    bool    valid         = false;
+    long     arg           = 0;
+    int64_t  expires_at_us = 0;
+    uint32_t gen           = 0;      // bumped on every arm; reported on completion
+    bool     valid         = false;
 };
 // SET slots, indexed [type - SET_FREQUENCY], i.e. 0..4.
 static PendingSet s_set_pending[5];
+static uint32_t   s_set_gen[5] = { 0, 0, 0, 0, 0 };  // last armed generation per type
+
+// Map a worker op to the park-table kind whose parked request it satisfies.
+// Returns false for ops no handler can park on (SET_POWER today).
+static bool park_kind_of (RadioCmdType t, RadioParkKind & k) {
+    switch (t) {
+    case RadioCmdType::REFRESH_FREQUENCY: k = RadioParkKind::GET_FREQUENCY; return true;
+    case RadioCmdType::REFRESH_MODE:      k = RadioParkKind::GET_MODE;      return true;
+    case RadioCmdType::REFRESH_XMIT:      k = RadioParkKind::GET_XMIT;      return true;
+    case RadioCmdType::SET_FREQUENCY:     k = RadioParkKind::SET_FREQUENCY; return true;
+    case RadioCmdType::SET_MODE:          k = RadioParkKind::SET_MODE;      return true;
+    case RadioCmdType::SET_VOLUME:        k = RadioParkKind::SET_VOLUME;    return true;
+    case RadioCmdType::SET_ATU:           k = RadioParkKind::SET_ATU;       return true;
+    default:                              return false;
+    }
+}
+
+// Tell any parked HTTP request that its op finished. Called with the radio
+// mutex RELEASED (do_refresh/do_set scope their TimedLock), so a slow
+// httpd control-queue post can never extend a radio hold.
+static void notify_done (RadioCmdType t, uint32_t gen, bool ok) {
+    RadioParkKind k;
+    if (park_kind_of (t, k))
+        radio_park_notify_done (k, gen, ok);
+}
 
 static void publish_health() { s_link_up.store (s_health.is_up(), std::memory_order_release); }
 
@@ -62,11 +89,13 @@ bool radio_service_link_up() { return s_link_up.load (std::memory_order_acquire)
 
 // --- the worker -----------------------------------------------------
 
-// Returns true if the radio mutex was acquired and a refresh was attempted;
-// false if the lock could not be acquired (FT8 / handler_cat held it) — the
-// caller re-arms the slot for a later wake. A failed acquire never reaches
-// the radio, so it is not a CAT attempt and does not touch the snapshot.
-static bool do_refresh (RadioCmdType which) {
+// Returns true if the radio mutex was acquired and a refresh was attempted
+// (*ok_out = CAT success); false if the lock could not be acquired (FT8 /
+// handler_cat held it) — the caller re-arms the slot for a later wake. A
+// failed acquire never reaches the radio, so it is not a CAT attempt and
+// does not touch the snapshot.
+static bool do_refresh (RadioCmdType which, bool & ok_out) {
+    ok_out = false;
     // The lock is bounded by WORKER_LOCK_TIMEOUT_MS, not portMAX_DELAY:
     // FT8 and the unconverted handler_cat/handler_time paths also contend
     // for the radio mutex, so an unbounded wait could sit past the 20 s
@@ -93,6 +122,7 @@ static bool do_refresh (RadioCmdType which) {
     if (ok) s_health.record_success();
     else    s_health.record_failure();
     publish_health();
+    ok_out = ok;
     return true;
 }
 
@@ -102,10 +132,11 @@ static bool do_refresh (RadioCmdType which) {
 // long after the user's action — e.g. one that sat while the worker was
 // stuck behind a ~13 s FT8 transmission holding the radio mutex.
 // Returns true if the radio mutex was acquired — whether the SET was then
-// applied, expired-skipped, or CAT-failed; false if the lock could not be
-// acquired (FT8 / handler_cat held it), in which case the caller re-arms
-// the slot. The caller only needs "did we get the radio or not".
-static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us) {
+// applied (*ok_out = true), expired-skipped, or CAT-failed (*ok_out =
+// false); false if the lock could not be acquired (FT8 / handler_cat held
+// it), in which case the caller re-arms the slot.
+static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & ok_out) {
+    ok_out = false;
     TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc set");
     if (!lock.acquired())
         return false;
@@ -144,6 +175,7 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us) {
     if (ok) s_health.record_success();
     else    s_health.record_failure();
     publish_health();
+    ok_out = ok;
     return true;
 }
 
@@ -183,7 +215,10 @@ static void radio_service_task (void *) {
             if (ps.valid) {
                 ESP_ERROR_CHECK (esp_task_wdt_reset());
                 RadioCmdType st = (RadioCmdType) ((int) RadioCmdType::SET_FREQUENCY + i);
-                if (!do_set (st, ps.arg, ps.expires_at_us)) {
+                bool         ok = false;
+                if (do_set (st, ps.arg, ps.expires_at_us, ok)) {
+                    notify_done (st, ps.gen, ok);
+                } else {
                     // Couldn't get the radio (FT8 / handler_cat held it).
                     // Re-arm so a later wake retries — unless the command has
                     // expired, or a newer SET of this type already arrived.
@@ -221,7 +256,10 @@ static void radio_service_task (void *) {
             // several seconds on a dead radio, so reset the WDT per op.
             ESP_ERROR_CHECK (esp_task_wdt_reset());
             RadioCmdType rt = (RadioCmdType) ((int) RadioCmdType::REFRESH_FREQUENCY + i);
-            if (!do_refresh (rt)) {
+            bool         ok = false;
+            if (do_refresh (rt, ok)) {
+                notify_done (rt, 0, ok);
+            } else {
                 xSemaphoreTake (s_req_mutex, portMAX_DELAY);
                 s_refresh_pending[i] = true;   // re-arm; retried next wake
                 xSemaphoreGive (s_req_mutex);
@@ -260,7 +298,7 @@ void radio_service_request_refresh (RadioCmdType which) {
         xTaskNotifyGive (w);
 }
 
-int radio_service_set (RadioCmdType type, long arg) {
+int radio_service_set (RadioCmdType type, long arg, uint32_t * gen_out) {
     if (!radio_service_link_up())
         return -1;  // fast reject, sub-millisecond — link known-down
     if (!s_req_mutex)
@@ -275,8 +313,11 @@ int radio_service_set (RadioCmdType type, long arg) {
     else
         s_set_pending[idx].arg = arg;    // newest-wins
     s_set_pending[idx].expires_at_us = expires;
+    s_set_pending[idx].gen           = ++s_set_gen[idx];
     s_set_pending[idx].valid         = true;
+    uint32_t gen = s_set_pending[idx].gen;
     xSemaphoreGive (s_req_mutex);
+    if (gen_out) *gen_out = gen;
     TaskHandle_t w = s_worker.load (std::memory_order_acquire);
     if (w)
         xTaskNotifyGive (w);

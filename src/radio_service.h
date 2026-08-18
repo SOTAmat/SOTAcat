@@ -37,11 +37,14 @@ void radio_service_request_refresh(RadioCmdType which);
 // wins; volume deltas accumulate) and wakes the radio service task,
 // then returns immediately — it NEVER blocks the HTTP server task.
 // Returns:
-//    0 = accepted; will apply asynchronously (handler replies HTTP 202)
+//    0 = accepted; will apply asynchronously
 //   -1 = rejected: link known-down, or service not started (handler 503)
-// Success/failure of the actual radio op is observed by the client via
-// a subsequent GET (the snapshot updates only on confirmed CAT success).
-int radio_service_set(RadioCmdType type, long arg);
+// On accept, *gen_out (if non-null) receives the slot generation this
+// call armed. Every arm bumps the per-type generation; the worker reports
+// the drained generation in its completion (radio_park_notify_done), so a
+// parked request can tell "my op finished" from "an older op finished".
+// Handlers that don't park may ignore it and confirm via a later GET.
+int radio_service_set(RadioCmdType type, long arg, uint32_t * gen_out = nullptr);
 
 // How long after enqueue a SET command remains valid for the worker to
 // apply. 5 s covers a few rapid back-to-back band-switch tunes (each
