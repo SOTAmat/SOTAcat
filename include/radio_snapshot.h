@@ -27,27 +27,17 @@ struct RadioSnapshotData {
     bool has_power() const { return power >= 0; }
     bool has_volume() const { return volume >= 0; }
 
-    bool frequency_fresh(int64_t now_us) const {
-        // now_us < stamp (clock skew / unset clock) reads stale, never
-        // falsely fresh — a negative age is not "recent".
-        return has_frequency() && now_us >= frequency_stamp_us &&
-               (now_us - frequency_stamp_us) < RADIO_SNAPSHOT_FRESH_US;
-    }
-    bool mode_fresh(int64_t now_us) const {
-        return has_mode() && now_us >= mode_stamp_us &&
-               (now_us - mode_stamp_us) < RADIO_SNAPSHOT_FRESH_US;
-    }
-    bool xmit_fresh(int64_t now_us) const {
-        return has_xmit() && now_us >= xmit_stamp_us &&
-               (now_us - xmit_stamp_us) < RADIO_SNAPSHOT_FRESH_US;
-    }
-    bool power_fresh(int64_t now_us) const {
-        return has_power() && now_us >= power_stamp_us &&
-               (now_us - power_stamp_us) < RADIO_SNAPSHOT_FRESH_US;
-    }
-    bool volume_fresh(int64_t now_us) const {
-        return has_volume() && now_us >= volume_stamp_us &&
-               (now_us - volume_stamp_us) < RADIO_SNAPSHOT_FRESH_US;
+    bool frequency_fresh (int64_t now_us) const { return fresh (has_frequency(), frequency_stamp_us, now_us); }
+    bool mode_fresh      (int64_t now_us) const { return fresh (has_mode(),      mode_stamp_us,      now_us); }
+    bool xmit_fresh      (int64_t now_us) const { return fresh (has_xmit(),      xmit_stamp_us,      now_us); }
+    bool power_fresh     (int64_t now_us) const { return fresh (has_power(),     power_stamp_us,     now_us); }
+    bool volume_fresh    (int64_t now_us) const { return fresh (has_volume(),    volume_stamp_us,    now_us); }
+
+  private:
+    // now_us < stamp (clock skew / unset clock) reads stale, never falsely
+    // fresh — a negative age is not "recent".
+    static bool fresh (bool known, int64_t stamp_us, int64_t now_us) {
+        return known && now_us >= stamp_us && (now_us - stamp_us) < RADIO_SNAPSHOT_FRESH_US;
     }
 };
 
