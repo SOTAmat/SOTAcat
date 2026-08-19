@@ -46,6 +46,7 @@ DEFAULT_STATE = {
     "power": 15,
     "xmit": 0,  # 0 = RX, 1 = TX
     "volume": 120,  # AF gain 0-255
+    "smeter": 7,    # S-meter bar-graph units 0-15 (S7)
     "radio_type": "KX2",  # "KX2", "KX3", or "Unknown"
     # Radio-link emulation (see MockRadio). Settable live via _debug/state.
     "radio_latency_ms": 50,  # simulated CAT round-trip per operation
@@ -249,7 +250,8 @@ class MockRadio:
 
 class MockRigctld:
     """rigctld (Hamlib NET rigctl, port 4532) face of the mock, mirroring
-    src/rigctld_server.cpp: one client at a time; GETs answer from the
+    src/rigctld_server.cpp: up to MAX_CLIENTS concurrent sessions with
+    commands serialized (further connects wait in the backlog); GETs answer from the
     "snapshot" after a bounded refresh (stale during FT8, RPRT -6 when the
     link is down — with the recovery probe armed); SETs run through the same
     MockRadio queue as HTTP PUTs and reply RPRT 0 / -5 (timeout) / -6
@@ -275,13 +277,22 @@ class MockRigctld:
         "0 0 0 0 0 0 0\n"
         "500000 54000000 0x1ff 10 12000 0x40000003 0x3\n"
         "0 0 0 0 0 0 0\n"
-        "0 0\n0 0\n0\n0\n0\n0\n\n\n0x0\n0x0\n0x0\n0x0\n0x0\n0x0\ndone\n"
+        "0 0\n0 0\n0\n0\n0\n0\n\n\n"
+        "0x40000000\n"  # has_get_func: TUNER
+        "0x40000000\n"  # has_set_func: TUNER
+        "0x44001008\n"  # has_get_level: AF|RFPOWER|RAWSTR|STRENGTH
+        "0x1008\n"      # has_set_level: AF|RFPOWER
+        "0x0\n0x0\ndone\n"
     )
+
+    MAX_CLIENTS = 2  # mirrors the firmware's RIGCTLD_MAX_CLIENTS
 
     def __init__(self, radio: "MockRadio", state: dict, port: int):
         self.radio = radio
         self.state = state
         self.port = port
+        self.cmd_lock = threading.Lock()  # firmware: one task serializes all commands
+        self.slots = threading.Semaphore(self.MAX_CLIENTS)
 
     def start(self):
         import socket
@@ -292,15 +303,22 @@ class MockRigctld:
         srv.listen(1)  # firmware: one client at a time, next waits in backlog
         print(f"[MOCK] rigctld listening on port {self.port}")
 
+        def client_thread(client):
+            try:
+                self._serve(client)
+            except OSError:
+                pass
+            finally:
+                client.close()
+                self.slots.release()
+
         def accept_loop():
             while True:
+                # Full table: stop accepting so further connects wait in the
+                # TCP backlog — mirrors the firmware's select-set gating.
+                self.slots.acquire()
                 client, _ = srv.accept()
-                try:
-                    self._serve(client)
-                except OSError:
-                    pass
-                finally:
-                    client.close()
+                threading.Thread(target=client_thread, args=(client,), daemon=True).start()
 
         threading.Thread(target=accept_loop, daemon=True).start()
 
@@ -314,7 +332,9 @@ class MockRigctld:
             while b"\n" in buf:
                 line, buf = buf.split(b"\n", 1)
                 line = line.rstrip(b"\r").decode("utf-8", "replace")
-                if not self._handle(sock, line):
+                with self.cmd_lock:
+                    keep = self._handle(sock, line)
+                if not keep:
                     return
 
     # -- protocol ---------------------------------------------------------
@@ -357,7 +377,35 @@ class MockRigctld:
         if cmd in ("q", "Q", "quit"):
             self._rprt(sock, self.RIG_OK)
             return False
-        if cmd in ("\x8f", "dump_state"):
+        if cmd in ("\x88", "get_powerstat"):
+            sock.sendall(b"1\n" if self.radio.link_up else b"0\n")
+        elif cmd in ("V", "set_vfo"):
+            if not arg:
+                self._rprt(sock, self.RIG_EINVAL)
+            elif arg.strip().upper() in ("VFOA", "MAIN", "CURRVFO"):
+                self._rprt(sock, self.RIG_OK)
+            else:
+                self._rprt(sock, self.RIG_ENIMPL)
+        elif cmd in ("u", "get_func"):
+            name = (arg or "").split(" ")[0].upper()
+            if not name:
+                self._rprt(sock, self.RIG_EINVAL)
+            elif name == "TUNER":
+                sock.sendall(b"0\n")  # ATU tune is momentary, never latched
+            else:
+                self._rprt(sock, self.RIG_ENIMPL)
+        elif cmd in ("U", "set_func"):
+            name, _, val = (arg or "").partition(" ")
+            name = name.upper()
+            if not name or not val.strip():
+                self._rprt(sock, self.RIG_EINVAL)
+            elif name != "TUNER":
+                self._rprt(sock, self.RIG_ENIMPL)
+            elif val.strip() == "0":
+                self._rprt(sock, self.RIG_OK)  # nothing to disengage
+            else:
+                self._rprt(sock, self._apply("atu tune", lambda: True))
+        elif cmd in ("\x8f", "dump_state"):
             sock.sendall(self.DUMP_STATE.encode())
         elif cmd in ("\xf0", "chk_vfo"):
             sock.sendall(b"0\n")
@@ -436,6 +484,10 @@ class MockRigctld:
             v = self._fetch(sock, "volume")
             if v is not None:
                 sock.sendall(f"{min(max(v / self.AF_SCALE, 0.0), 1.0):.4f}\n".encode())
+        elif name in ("STRENGTH", "RAWSTR"):
+            v = self._fetch(sock, "smeter")
+            if v is not None:
+                sock.sendall(f"{v if name == 'RAWSTR' else (v - 9) * 6}\n".encode())
         else:
             self._rprt(sock, self.RIG_ENIMPL)
 

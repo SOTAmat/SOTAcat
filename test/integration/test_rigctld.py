@@ -11,12 +11,20 @@ hardware or the mock (test/mock_server/server.py --rigctld-port):
   * SETs: set_freq applies and reads back (via rigctld AND the HTTP API —
     the two faces must agree), then restores; same-value set_mode; AF set
     to the current value is a no-op RPRT 0.
+  * S-meter: RAWSTR in bar units 0..15, STRENGTH consistent dB-rel-S9
+    (RPRT -4 on radios without an S-meter).
+  * Protocol polish: get_powerstat 1/0, set_vfo VFOA no-op, TUNER
+    get/set_func, set_powerstat permanently unimplemented (-4).
   * Errors: unknown command/level RPRT -4, bad args RPRT -1.
-  * Sessions: sequential connections; a second client waits while the
-    first holds the (single-client) server, then gets served.
+  * Sessions: sequential connections; two clients are served CONCURRENTLY
+    (commands serialized server-side) and a third waits in the backlog
+    until a slot frees.
+  * Client gating: the real installed Hamlib `rigctl` binary accepts our
+    levels — proving the dump_state bitmasks, not just the raw wire.
   * (mock only, via HTTP _debug/state) radio-dead -> GET/SET RPRT -6;
     FT8 -> GET serves the stale snapshot, SET RPRT -9, morse RPRT -9;
-    PTT set/readback; morse RPRT 0. Never keys real hardware.
+    PTT set/readback; ATU tune via set_func TUNER; morse RPRT 0. Never
+    keys or tunes real hardware.
 
 Usage:
     python3 test_rigctld.py --host sotacat.local
@@ -24,7 +32,9 @@ Usage:
 """
 
 import argparse
+import shutil
 import socket
+import subprocess
 import sys
 import time
 
@@ -144,6 +154,8 @@ class RigctldTest:
                 self.expect(len(dump) < 60, "dump_state unterminated")
             self.expect(dump[0] == "1", f"protocol version {dump[0]!r} != 1")
             self.expect(dump[1] == "2", f"rig model {dump[1]!r} != 2 (netrigctl)")
+            self.expect("0x44001008" in dump, "has_get_level mask not advertised")
+            self.expect(c.cmd("\\get_powerstat") == ["1"], "get_powerstat != 1 with live radio")
         finally:
             c.close()
 
@@ -166,6 +178,12 @@ class RigctldTest:
             v = c.cmd("l AF")[0]
             if v != "RPRT -4":  # -4 is legitimate on radios without AF control (KH1)
                 self.expect(0.0 <= float(v) <= 1.0, f"AF {v!r} outside 0..1")
+            raw = c.cmd("l RAWSTR")[0]
+            if raw != "RPRT -4":  # -4 is legitimate on radios without an S-meter (KH1)
+                self.expect(0 <= int(raw) <= 15, f"RAWSTR {raw!r} outside 0..15")
+                db = int(c.cmd("l STRENGTH")[0])
+                self.expect(db == (int(raw) - 9) * 6 or -60 <= db <= 60,
+                            f"STRENGTH {db} inconsistent with RAWSTR {raw}")
         finally:
             c.close()
 
@@ -202,6 +220,19 @@ class RigctldTest:
         finally:
             c.close()
 
+    def t_protocol_polish(self):
+        c = Rigctl(self.host, self.port)
+        try:
+            self.expect(c.rprt("V VFOA") == 0, "set_vfo VFOA != 0")
+            self.expect(c.rprt("V VFOB") == -4, "set_vfo VFOB != -4 (no split yet)")
+            self.expect(c.cmd("u TUNER") == ["0"], "get_func TUNER != 0")
+            self.expect(c.rprt("u BOGUSFUNC") == -4, "unknown get_func != -4")
+            self.expect(c.rprt("U BOGUSFUNC 1") == -4, "unknown set_func != -4")
+            self.expect(c.rprt("U TUNER 0") == 0, "set_func TUNER 0 != 0 (no-op)")
+            self.expect(c.rprt("\\set_powerstat 0") == -4, "set_powerstat must stay unimplemented")
+        finally:
+            c.close()
+
     def t_errors(self):
         c = Rigctl(self.host, self.port)
         try:
@@ -229,33 +260,50 @@ class RigctldTest:
         self.expect(c.rprt("q") == 0, "quit RPRT != 0")
         c.close()
 
-    def t_second_client_waits(self):
-        holder = Rigctl(self.host, self.port)
+    def t_concurrent_clients(self):
+        # Two clients are served concurrently (commands serialized server-side).
+        a = Rigctl(self.host, self.port)
+        b = Rigctl(self.host, self.port)
         try:
-            self.expect(int(holder.cmd("f")[0]) > 0, "holder GET failed")
-            # Single-client server: the second connect completes (backlog)
-            # but gets no service while the first holds the session.
-            second = socket.create_connection((self.host, self.port), timeout=RESPONSE_TIMEOUT_S)
-            second.settimeout(1.5)
-            second.sendall(b"f\n")
+            for _ in range(3):
+                self.expect(int(a.cmd("f")[0]) > 0, "client A GET failed")
+                self.expect(int(b.cmd("f")[0]) > 0, "client B GET failed")
+            # A third connect completes (TCP backlog) but is not served until
+            # a slot frees.
+            third = socket.create_connection((self.host, self.port), timeout=RESPONSE_TIMEOUT_S)
+            third.settimeout(1.5)
+            third.sendall(b"f\n")
             try:
-                got = second.recv(64)
-                raise Failure(f"second client served while first connected: {got!r}")
+                got = third.recv(64)
+                raise Failure(f"third client served while both slots held: {got!r}")
             except socket.timeout:
-                pass  # expected: parked in backlog
-            holder.close()
-            # Released: the queued client is served now.
-            second.settimeout(RESPONSE_TIMEOUT_S)
+                pass  # expected: waiting for a slot
+            a.close()
+            third.settimeout(RESPONSE_TIMEOUT_S)
             reply = b""
             while b"\n" not in reply:
-                chunk = second.recv(64)
+                chunk = third.recv(64)
                 if not chunk:
-                    raise Failure("second client dropped instead of served")
+                    raise Failure("third client dropped instead of served")
                 reply += chunk
-            self.expect(int(reply.split(b"\n")[0]) > 0, f"queued client got {reply!r}")
-            second.close()
+            self.expect(int(reply.split(b"\n")[0]) > 0, f"queued third client got {reply!r}")
+            third.close()
         finally:
-            holder.close()
+            a.close()
+            b.close()
+
+    def t_hamlib_client_gating(self):
+        # The decisive dump_state-mask check: a REAL Hamlib client must now
+        # accept our levels instead of refusing them client-side.
+        rigctl = shutil.which("rigctl")
+        if rigctl is None:
+            raise Failure("rigctl binary not installed")
+        r = subprocess.run(
+            [rigctl, "-m", "2", "-r", f"{self.host}:{self.port}", "l", "RFPOWER"],
+            capture_output=True, text=True, timeout=30)
+        self.expect(r.returncode == 0, f"rigctl l RFPOWER failed: {r.stderr.strip()[:200]}")
+        self.expect(0.0 <= float(r.stdout.strip().splitlines()[-1]) <= 1.0,
+                    f"rigctl RFPOWER output {r.stdout!r}")
 
     # -- mock-only scenario checks ---------------------------------------
     def t_ptt_roundtrip(self):
@@ -266,6 +314,13 @@ class RigctldTest:
             self.expect("🔴" in self.http_get("connectionStatus").text, "HTTP status not 🔴 during TX")
             self.expect(c.rprt("T 0") == 0, "set_ptt 0 RPRT != 0")
             self.expect(c.cmd("t") == ["0"], "ptt readback != 0")
+        finally:
+            c.close()
+
+    def t_atu_tune(self):
+        c = Rigctl(self.host, self.port)
+        try:
+            self.expect(c.rprt("U TUNER 1") == 0, "set_func TUNER 1 RPRT != 0")
         finally:
             c.close()
 
@@ -348,17 +403,20 @@ class RigctldTest:
             self.check("set_freq round-trip, HTTP face agrees", self.t_set_freq_roundtrip)
             self.check("set_mode to current mode", self.t_set_mode_same)
             self.check("set AF to current value is a no-op", self.t_set_af_noop)
+            self.check("protocol polish (powerstat/vfo/func)", self.t_protocol_polish)
             self.check("error codes (-1 bad args, -4 unknown)", self.t_errors)
             self.check("sequential sessions and quit", self.t_sessions)
-            self.check("second client waits its turn", self.t_second_client_waits)
+            self.check("two concurrent clients, third waits", self.t_concurrent_clients)
+            self.check("real Hamlib client accepts our levels", self.t_hamlib_client_gating)
             if self.mock:
                 self.check("PTT set/readback, HTTP shows 🔴", self.t_ptt_roundtrip)
+                self.check("ATU tune via set_func TUNER", self.t_atu_tune)
                 self.check("morse accepted (mock only)", self.t_morse)
                 self.check("FT8: stale GETs, SETs -9", self.t_ft8_exclusive)
                 self.check("dead radio: -6, then recovery", self.t_link_down)
             else:
-                for name in ("PTT set/readback", "morse", "FT8 scenario", "dead-radio scenario"):
-                    self.skip(name, "never keys/kills real hardware; run against the mock")
+                for name in ("PTT set/readback", "ATU tune", "morse", "FT8 scenario", "dead-radio scenario"):
+                    self.skip(name, "never keys/tunes real hardware; run against the mock")
         else:  # dead: the radio is expected to be off/unreachable right now
             self.check("link down: GET and SET report -6", self.t_down_now)
 

@@ -76,9 +76,19 @@ static void test_parse_short_forms () {
     assert (rigctld_parse_line ("F", &arg) == RigctlCmd::SET_FREQ && arg == nullptr);
     assert (rigctld_parse_line ("F ", &arg) == RigctlCmd::SET_FREQ && arg == nullptr);
 
+    // Protocol-polish short forms.
+    assert (rigctld_parse_line ("V VFOA", &arg) == RigctlCmd::SET_VFO);
+    assert (arg && !strcmp (arg, "VFOA"));
+    assert (rigctld_parse_line ("u TUNER", &arg) == RigctlCmd::GET_FUNC);
+    assert (arg && !strcmp (arg, "TUNER"));
+    assert (rigctld_parse_line ("U TUNER 1", &arg) == RigctlCmd::SET_FUNC);
+    assert (arg && !strcmp (arg, "TUNER 1"));
+
     // Hamlib binary aliases.
     assert (rigctld_parse_line ("\x8f", &arg) == RigctlCmd::DUMP_STATE);
     assert (rigctld_parse_line ("\xf0", &arg) == RigctlCmd::CHK_VFO);
+    assert (rigctld_parse_line ("\x88", &arg) == RigctlCmd::GET_POWERSTAT);
+    assert (rigctld_parse_line ("\x87", &arg) == RigctlCmd::UNKNOWN);  // set_powerstat: never implement
 }
 
 static void test_parse_long_forms () {
@@ -107,11 +117,18 @@ static void test_parse_long_forms () {
     // Case-insensitive names.
     assert (rigctld_parse_line ("\\Get_Freq", &arg) == RigctlCmd::GET_FREQ);
     assert (rigctld_parse_line ("\\DUMP_STATE", &arg) == RigctlCmd::DUMP_STATE);
+    // Protocol-polish long forms.
+    assert (rigctld_parse_line ("\\get_powerstat", &arg) == RigctlCmd::GET_POWERSTAT);
+    assert (rigctld_parse_line ("\\set_vfo VFOA", &arg) == RigctlCmd::SET_VFO);
+    assert (arg && !strcmp (arg, "VFOA"));
+    assert (rigctld_parse_line ("\\get_func TUNER", &arg) == RigctlCmd::GET_FUNC);
+    assert (rigctld_parse_line ("\\set_func TUNER 1", &arg) == RigctlCmd::SET_FUNC);
+    assert (arg && !strcmp (arg, "TUNER 1"));
     // A name that merely PREFIXES a known command is unknown, not a match...
     assert (rigctld_parse_line ("\\get_freqx", &arg) == RigctlCmd::UNKNOWN);
-    // ...and get_split_vfo must not be eaten by a get_split prefix rule.
+    // ...and unknown or never-implemented commands stay unknown.
     assert (rigctld_parse_line ("\\bogus", &arg) == RigctlCmd::UNKNOWN);
-    assert (rigctld_parse_line ("\\get_powerstat", &arg) == RigctlCmd::UNKNOWN);
+    assert (rigctld_parse_line ("\\set_powerstat 0", &arg) == RigctlCmd::UNKNOWN);
 }
 
 static void test_parse_edges () {
@@ -202,6 +219,16 @@ static void test_af_step_delta () {
     assert (rigctld_af_step_delta (22, 30) == -2);
 }
 
+static void test_strength_from_bars () {
+    // One bar = one S-unit = 6 dB; S9 sits at 9 bars.
+    assert (rigctld_strength_db_from_bars (9) == 0);    // S9
+    assert (rigctld_strength_db_from_bars (0) == -54);  // S0
+    assert (rigctld_strength_db_from_bars (1) == -48);  // S1
+    assert (rigctld_strength_db_from_bars (7) == -12);  // S7
+    assert (rigctld_strength_db_from_bars (12) == 18);  // S9+18
+    assert (rigctld_strength_db_from_bars (15) == 36);  // S9+36 (meter max)
+}
+
 int main () {
     test_mode_to_hamlib();
     test_hamlib_to_mode();
@@ -212,6 +239,7 @@ int main () {
     test_rfpower_conversions();
     test_af_conversions();
     test_af_step_delta();
+    test_strength_from_bars();
     printf ("test_rigctld_proto: OK\n");
     return 0;
 }
