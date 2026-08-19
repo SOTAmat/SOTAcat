@@ -16,7 +16,7 @@ static const char * TAG8 = "sc:radioset";
 static const char * s_what[RADIO_PARK_KINDS] = {};
 
 static const char * what_of (RadioParkKind kind) {
-    const char * w = s_what[(int) kind];
+    const char * w = s_what[(int)kind];
     return w ? w : "radio command";
 }
 
@@ -32,7 +32,8 @@ static void set_complete_k (httpd_req_t * req, RadioParkOutcome outcome, bool ok
         if (ok) {
             ESP_LOGI (TAG8, "%s applied", what);
             http_send_no_content (req);
-        } else {
+        }
+        else {
             snprintf (msg, sizeof (msg), "%s failed", what);
             ESP_LOGE (TAG8, "%s", msg);
             http_send_error_json (req, HTTPD_500_INTERNAL_SERVER_ERROR, msg);
@@ -56,14 +57,14 @@ static void set_complete_k (httpd_req_t * req, RadioParkOutcome outcome, bool ok
 static radio_park_completer_t completer_for (RadioParkKind kind) {
     switch (kind) {
     case RadioParkKind::SET_FREQUENCY: return set_complete_k<RadioParkKind::SET_FREQUENCY>;
-    case RadioParkKind::SET_MODE:      return set_complete_k<RadioParkKind::SET_MODE>;
-    case RadioParkKind::SET_VOLUME:    return set_complete_k<RadioParkKind::SET_VOLUME>;
-    case RadioParkKind::SET_ATU:       return set_complete_k<RadioParkKind::SET_ATU>;
-    case RadioParkKind::SET_POWER:     return set_complete_k<RadioParkKind::SET_POWER>;
-    case RadioParkKind::SET_XMIT:      return set_complete_k<RadioParkKind::SET_XMIT>;
-    case RadioParkKind::SET_MSG:       return set_complete_k<RadioParkKind::SET_MSG>;
-    case RadioParkKind::SET_TIME:      return set_complete_k<RadioParkKind::SET_TIME>;
-    default:                           return nullptr;
+    case RadioParkKind::SET_MODE: return set_complete_k<RadioParkKind::SET_MODE>;
+    case RadioParkKind::SET_VOLUME: return set_complete_k<RadioParkKind::SET_VOLUME>;
+    case RadioParkKind::SET_ATU: return set_complete_k<RadioParkKind::SET_ATU>;
+    case RadioParkKind::SET_POWER: return set_complete_k<RadioParkKind::SET_POWER>;
+    case RadioParkKind::SET_XMIT: return set_complete_k<RadioParkKind::SET_XMIT>;
+    case RadioParkKind::SET_MSG: return set_complete_k<RadioParkKind::SET_MSG>;
+    case RadioParkKind::SET_TIME: return set_complete_k<RadioParkKind::SET_TIME>;
+    default: return nullptr;
     }
 }
 
@@ -89,8 +90,8 @@ esp_err_t radio_set_via_http (httpd_req_t * req, RadioCmdType type, long arg, co
     if (radio_service_park_kind (type, kind)) {
         radio_park_completer_t fn = completer_for (kind);
         if (fn && radio_park_request (req, kind, gen, RADIO_PARK_SET_WAIT_MS, fn)) {
-            s_what[(int) kind] = what;  // after park: the superseded occupant kept its own label
-            return ESP_OK;              // reply sent later by the completer
+            s_what[(int)kind] = what;  // after park: the superseded occupant kept its own label
+            return ESP_OK;             // reply sent later by the completer
         }
     }
 

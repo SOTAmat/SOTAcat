@@ -33,7 +33,7 @@ except ImportError:
     print("Install with: pip3 install requests")
     sys.exit(1)
 
-# Mirror src/radio_park_httpd.h; test bounds add network margin.
+# Mirror include/radio_park_httpd.h; test bounds add network margin.
 GET_WAIT_MS = 300
 SET_WAIT_MS = 1500
 NET_MARGIN_MS = 300

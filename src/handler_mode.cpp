@@ -135,5 +135,5 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode");
 
     ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
-    return radio_set_via_http (req, RadioCmdType::SET_MODE, (long) mode, "mode change");
+    return radio_set_via_http (req, RadioCmdType::SET_MODE, (long)mode, "mode change");
 }

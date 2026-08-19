@@ -15,7 +15,7 @@ static RadioSnapshotData s_data;
 // Function-local magic static — C++11 guarantees thread-safe one-time
 // initialization, eliminating the TOCTOU race a lazy "if (!s_mutex) create"
 // pattern would have. Mirrors KXRadio::getInstance() at src/kx_radio.cpp:129-132.
-static SemaphoreHandle_t get_mutex() {
+static SemaphoreHandle_t get_mutex () {
     static SemaphoreHandle_t s_mutex = [] {
         SemaphoreHandle_t m = xSemaphoreCreateMutex();
         if (!m) {
@@ -29,7 +29,7 @@ static SemaphoreHandle_t get_mutex() {
 
 namespace radio_snapshot {
 
-RadioSnapshotData get() {
+RadioSnapshotData get () {
     SemaphoreHandle_t mtx = get_mutex();
     xSemaphoreTake (mtx, portMAX_DELAY);
     RadioSnapshotData copy = s_data;

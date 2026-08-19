@@ -20,8 +20,8 @@ static const char * status_symbol (const RadioSnapshotData & snap) {
     if (kxRadio.is_keyer_active())
         return "🔴";  // CW keyer holds the radio for the whole transmission
     switch (snap.xmit_state) {
-    case 0:  return "🟢";
-    case 1:  return "🔴";
+    case 0: return "🟢";
+    case 1: return "🔴";
     default: return "⚪";
     }
 }

@@ -524,9 +524,9 @@ bool start_mdns_service () {
 
     // Add device-info service with proper properties
     mdns_txt_item_t device_txt[] = {
-        {"model",        "SOTAcat"                        },
+        {"model",        "SOTAcat"           },
         {"version",      get_version_string()},
-        {"manufacturer", HW_TYPE_STR                      }
+        {"manufacturer", HW_TYPE_STR         }
     };
     err = mdns_service_add (NULL, "_device-info", "_tcp", 9090, device_txt, sizeof (device_txt) / sizeof (device_txt[0]));
     if (err != ESP_OK) {

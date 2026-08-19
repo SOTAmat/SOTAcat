@@ -15,7 +15,7 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 #ifdef SOTACAT_SOAK_DIAG
-#include <esp_heap_caps.h>
+    #include <esp_heap_caps.h>
 #endif
 
 #include <esp_log.h>
@@ -36,11 +36,11 @@ static constexpr int64_t LINK_DOWN_PROBE_INTERVAL_US = 5'000'000;  // 5 s
 // use RADIO_LOCK_TIMEOUT_FT8_MS.
 static constexpr uint32_t WORKER_LOCK_TIMEOUT_MS = 3000;
 
-static RadioLinkHealth      s_health;
-static std::atomic<bool>    s_link_up { false };
-static std::atomic<bool>    s_started { false };
-static std::atomic<int64_t> s_last_cat_attempt_us { 0 };
-static std::atomic<TaskHandle_t> s_worker { nullptr };
+static RadioLinkHealth           s_health;
+static std::atomic<bool>         s_link_up{false};
+static std::atomic<bool>         s_started{false};
+static std::atomic<int64_t>      s_last_cat_attempt_us{0};
+static std::atomic<TaskHandle_t> s_worker{nullptr};
 
 // All pending work is held as per-type slots (not a FIFO queue), so a
 // burst of N requests of the same type collapses to one automatically:
@@ -56,9 +56,10 @@ static bool s_refresh_pending[RADIO_REFRESH_KINDS] = {};
 struct PendingSet {
     long     arg           = 0;
     int64_t  expires_at_us = 0;
-    uint32_t gen           = 0;      // bumped on every arm; reported on completion
+    uint32_t gen           = 0;  // bumped on every arm; reported on completion
     bool     valid         = false;
 };
+
 // SET slots, indexed [type - SET_FREQUENCY].
 static PendingSet s_set_pending[RADIO_SET_KINDS];
 static uint32_t   s_set_gen[RADIO_SET_KINDS] = {};  // last armed generation per type
@@ -66,19 +67,19 @@ static uint32_t   s_set_gen[RADIO_SET_KINDS] = {};  // last armed generation per
 bool radio_service_park_kind (RadioCmdType t, RadioParkKind & k) {
     switch (t) {
     case RadioCmdType::REFRESH_FREQUENCY: k = RadioParkKind::GET_FREQUENCY; return true;
-    case RadioCmdType::REFRESH_MODE:      k = RadioParkKind::GET_MODE;      return true;
-    case RadioCmdType::REFRESH_XMIT:      k = RadioParkKind::GET_XMIT;      return true;
-    case RadioCmdType::REFRESH_POWER:     k = RadioParkKind::GET_POWER;     return true;
-    case RadioCmdType::REFRESH_VOLUME:    k = RadioParkKind::GET_VOLUME;    return true;
-    case RadioCmdType::SET_FREQUENCY:     k = RadioParkKind::SET_FREQUENCY; return true;
-    case RadioCmdType::SET_MODE:          k = RadioParkKind::SET_MODE;      return true;
-    case RadioCmdType::SET_VOLUME:        k = RadioParkKind::SET_VOLUME;    return true;
-    case RadioCmdType::SET_POWER:         k = RadioParkKind::SET_POWER;     return true;
-    case RadioCmdType::SET_ATU:           k = RadioParkKind::SET_ATU;       return true;
-    case RadioCmdType::SET_XMIT:          k = RadioParkKind::SET_XMIT;      return true;
-    case RadioCmdType::SET_MSG:           k = RadioParkKind::SET_MSG;       return true;
-    case RadioCmdType::SET_TIME:          k = RadioParkKind::SET_TIME;      return true;
-    default:                              return false;
+    case RadioCmdType::REFRESH_MODE: k = RadioParkKind::GET_MODE; return true;
+    case RadioCmdType::REFRESH_XMIT: k = RadioParkKind::GET_XMIT; return true;
+    case RadioCmdType::REFRESH_POWER: k = RadioParkKind::GET_POWER; return true;
+    case RadioCmdType::REFRESH_VOLUME: k = RadioParkKind::GET_VOLUME; return true;
+    case RadioCmdType::SET_FREQUENCY: k = RadioParkKind::SET_FREQUENCY; return true;
+    case RadioCmdType::SET_MODE: k = RadioParkKind::SET_MODE; return true;
+    case RadioCmdType::SET_VOLUME: k = RadioParkKind::SET_VOLUME; return true;
+    case RadioCmdType::SET_POWER: k = RadioParkKind::SET_POWER; return true;
+    case RadioCmdType::SET_ATU: k = RadioParkKind::SET_ATU; return true;
+    case RadioCmdType::SET_XMIT: k = RadioParkKind::SET_XMIT; return true;
+    case RadioCmdType::SET_MSG: k = RadioParkKind::SET_MSG; return true;
+    case RadioCmdType::SET_TIME: k = RadioParkKind::SET_TIME; return true;
+    default: return false;
     }
 }
 
@@ -91,9 +92,9 @@ static void notify_done (RadioCmdType t, uint32_t gen, bool ok) {
         radio_park_notify_done (k, gen, ok);
 }
 
-static void publish_health() { s_link_up.store (s_health.is_up(), std::memory_order_release); }
+static void publish_health () { s_link_up.store (s_health.is_up(), std::memory_order_release); }
 
-bool radio_service_link_up() { return s_link_up.load (std::memory_order_acquire); }
+bool radio_service_link_up () { return s_link_up.load (std::memory_order_acquire); }
 
 // --- the worker -----------------------------------------------------
 
@@ -122,7 +123,7 @@ static void fast_confirm_link (int64_t now) {
 // costs ~8-10 s, which made recovery take up to ~20 s after power-on.
 // Returns true if the radio answered (link is up again; caller proceeds
 // with the real refresh). Stamps s_last_cat_attempt_us either way.
-static bool probe_link() {
+static bool probe_link () {
     TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc probe");
     if (!lock.acquired())
         return false;
@@ -134,7 +135,8 @@ static bool probe_link() {
     if (ok) {
         radio_snapshot::set_xmit_state (st, now);
         s_health.record_success();
-    } else
+    }
+    else
         s_health.record_failure();
     publish_health();
     return ok;
@@ -162,26 +164,36 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
     bool ok = false;
     if (which == RadioCmdType::REFRESH_FREQUENCY) {
         long hz = 0;
-        ok = kxRadio.get_frequency (hz) && hz > 0;
-        if (ok) radio_snapshot::set_frequency (hz, now);
-    } else if (which == RadioCmdType::REFRESH_MODE) {
-        radio_mode_t m = MODE_UNKNOWN;
-        ok = kxRadio.get_mode (m) && m > MODE_UNKNOWN;
-        if (ok) radio_snapshot::set_mode ((long)m, now);
-    } else if (which == RadioCmdType::REFRESH_XMIT) {
-        long st = -1;
-        ok = kxRadio.get_xmit_state (st);
-        if (ok) radio_snapshot::set_xmit_state (st, now);
-    } else if (which == RadioCmdType::REFRESH_POWER) {
-        long p = -1;
-        ok = kxRadio.get_power (p) && p >= 0;
-        if (ok) radio_snapshot::set_power (p, now);
-    } else if (which == RadioCmdType::REFRESH_VOLUME) {
-        long v = -1;
-        ok = kxRadio.get_volume (v) && v >= 0;
-        if (ok) radio_snapshot::set_volume (v, now);
+        ok      = kxRadio.get_frequency (hz) && hz > 0;
+        if (ok)
+            radio_snapshot::set_frequency (hz, now);
     }
-    if (ok) s_health.record_success();
+    else if (which == RadioCmdType::REFRESH_MODE) {
+        radio_mode_t m = MODE_UNKNOWN;
+        ok             = kxRadio.get_mode (m) && m > MODE_UNKNOWN;
+        if (ok)
+            radio_snapshot::set_mode ((long)m, now);
+    }
+    else if (which == RadioCmdType::REFRESH_XMIT) {
+        long st = -1;
+        ok      = kxRadio.get_xmit_state (st);
+        if (ok)
+            radio_snapshot::set_xmit_state (st, now);
+    }
+    else if (which == RadioCmdType::REFRESH_POWER) {
+        long p = -1;
+        ok     = kxRadio.get_power (p) && p >= 0;
+        if (ok)
+            radio_snapshot::set_power (p, now);
+    }
+    else if (which == RadioCmdType::REFRESH_VOLUME) {
+        long v = -1;
+        ok     = kxRadio.get_volume (v) && v >= 0;
+        if (ok)
+            radio_snapshot::set_volume (v, now);
+    }
+    if (ok)
+        s_health.record_success();
     else {
         s_health.record_failure();
         fast_confirm_link (now);
@@ -201,7 +213,7 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
 // false); false if the lock could not be acquired (FT8 / handler_cat held
 // it), in which case the caller re-arms the slot.
 static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & ok_out) {
-    ok_out = false;
+    ok_out         = false;
     TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc set");
     if (!lock.acquired())
         return false;
@@ -215,8 +227,7 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         // Expiry says nothing about the radio — no CAT was attempted, so it
         // is neither a link failure nor a probe. (Counting it as a failure
         // flipped the link down after ordinary SETs queued behind FT8.)
-        ESP_LOGW (TAG8, "SET expired before mutex acquired (>%lld ms past deadline); skipping",
-                  (long long) ((now - expires_at_us) / 1000));
+        ESP_LOGW (TAG8, "SET expired before mutex acquired (>%lld ms past deadline); skipping", (long long)((now - expires_at_us) / 1000));
         return true;
     }
     s_last_cat_attempt_us.store (now, std::memory_order_release);
@@ -229,7 +240,8 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         if (kxRadio.get_xmit_state (st)) {
             radio_snapshot::set_xmit_state (st, now);
             s_health.record_success();
-        } else {
+        }
+        else {
             ESP_LOGW (TAG8, "SET skipped: radio not answering pre-flight ping");
             s_health.record_failure();
             fast_confirm_link (now);
@@ -241,10 +253,11 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
     switch (type) {
     case RadioCmdType::SET_FREQUENCY:
         ok = kxRadio.set_frequency (arg, SC_KX_COMMUNICATION_RETRIES);
-        if (ok) radio_snapshot::set_frequency (arg, now);
+        if (ok)
+            radio_snapshot::set_frequency (arg, now);
         break;
     case RadioCmdType::SET_MODE: {
-        radio_mode_t m = (radio_mode_t) arg;
+        radio_mode_t m = (radio_mode_t)arg;
         if (arg == RADIO_MODE_SSB_AUTO) {
             // Frequency slot drains before mode, so the snapshot already
             // reflects a tune queued ahead of this SET (a failed tune left
@@ -268,7 +281,8 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
             ESP_LOGI (TAG8, "SSB at %ld Hz -> %s", f, m == MODE_LSB ? "LSB" : "USB");
         }
         ok = kxRadio.set_mode (m, SC_KX_COMMUNICATION_RETRIES);
-        if (ok) radio_snapshot::set_mode ((long) m, now);
+        if (ok)
+            radio_snapshot::set_mode ((long)m, now);
         break;
     }
     case RadioCmdType::SET_VOLUME:
@@ -277,23 +291,25 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         break;
     case RadioCmdType::SET_POWER:
         ok = kxRadio.set_power (arg);
-        if (ok) radio_snapshot::set_power (arg, now);
+        if (ok)
+            radio_snapshot::set_power (arg, now);
         break;
     case RadioCmdType::SET_ATU:
         ok = kxRadio.tune_atu();
         break;
     case RadioCmdType::SET_XMIT:
         ok = kxRadio.set_xmit_state (arg != 0);
-        if (ok) radio_snapshot::set_xmit_state (arg != 0 ? 1 : 0, now);
+        if (ok)
+            radio_snapshot::set_xmit_state (arg != 0 ? 1 : 0, now);
         break;
     case RadioCmdType::SET_MSG:
-        ok = kxRadio.play_message_bank ((int) arg);
+        ok = kxRadio.play_message_bank ((int)arg);
         break;
     case RadioCmdType::SET_TIME: {
         RadioTimeHms t;
-        t.hrs = (int) (arg / 3600);
-        t.min = (int) ((arg / 60) % 60);
-        t.sec = (int) (arg % 60);
+        t.hrs = (int)(arg / 3600);
+        t.min = (int)((arg / 60) % 60);
+        t.sec = (int)(arg % 60);
         ok    = kxRadio.sync_time (t);
         break;
     }
@@ -301,7 +317,8 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         ok = false;
         break;
     }
-    if (ok) s_health.record_success();
+    if (ok)
+        s_health.record_success();
     else {
         s_health.record_failure();
         fast_confirm_link (now);
@@ -328,11 +345,7 @@ static void radio_service_task (void *) {
             int64_t        t         = esp_timer_get_time();
             if (t - last_diag > 60'000'000) {
                 last_diag = t;
-                ESP_LOGI (TAG8, "DIAG worker stack min-free=%u B; heap free=%u largest=%u min-ever=%u",
-                          (unsigned) uxTaskGetStackHighWaterMark (NULL) * sizeof (StackType_t),
-                          (unsigned) heap_caps_get_free_size (MALLOC_CAP_8BIT),
-                          (unsigned) heap_caps_get_largest_free_block (MALLOC_CAP_8BIT),
-                          (unsigned) heap_caps_get_minimum_free_size (MALLOC_CAP_8BIT));
+                ESP_LOGI (TAG8, "DIAG worker stack min-free=%u B; heap free=%u largest=%u min-ever=%u", (unsigned)uxTaskGetStackHighWaterMark (NULL) * sizeof (StackType_t), (unsigned)heap_caps_get_free_size (MALLOC_CAP_8BIT), (unsigned)heap_caps_get_largest_free_block (MALLOC_CAP_8BIT), (unsigned)heap_caps_get_minimum_free_size (MALLOC_CAP_8BIT));
             }
         }
 #endif
@@ -362,11 +375,12 @@ static void radio_service_task (void *) {
             xSemaphoreGive (s_req_mutex);
             if (ps.valid) {
                 ESP_ERROR_CHECK (esp_task_wdt_reset());
-                RadioCmdType st = (RadioCmdType) ((int) RadioCmdType::SET_FREQUENCY + i);
+                RadioCmdType st = (RadioCmdType)((int)RadioCmdType::SET_FREQUENCY + i);
                 bool         ok = false;
                 if (do_set (st, ps.arg, ps.expires_at_us, ok)) {
                     notify_done (st, ps.gen, ok);
-                } else {
+                }
+                else {
                     // Couldn't get the radio (FT8 / handler_cat held it).
                     // Re-arm so a later wake retries — unless the command has
                     // expired, or a newer SET of this type already arrived.
@@ -394,8 +408,7 @@ static void radio_service_task (void *) {
             // Only when the ping succeeds do we spend the full refresh.
             if (!s_link_up.load (std::memory_order_acquire)) {
                 int64_t now = esp_timer_get_time();
-                if ((now - s_last_cat_attempt_us.load (std::memory_order_acquire))
-                    < LINK_DOWN_PROBE_INTERVAL_US) {
+                if ((now - s_last_cat_attempt_us.load (std::memory_order_acquire)) < LINK_DOWN_PROBE_INTERVAL_US) {
                     ESP_LOGD (TAG8, "skipping refresh during link-down probe window");
                     continue;
                 }
@@ -406,20 +419,21 @@ static void radio_service_task (void *) {
             // See the SET-drain note above: a refresh CAT op also blocks
             // several seconds on a dead radio, so reset the WDT per op.
             ESP_ERROR_CHECK (esp_task_wdt_reset());
-            RadioCmdType rt = (RadioCmdType) ((int) RadioCmdType::REFRESH_FREQUENCY + i);
+            RadioCmdType rt = (RadioCmdType)((int)RadioCmdType::REFRESH_FREQUENCY + i);
             bool         ok = false;
             if (do_refresh (rt, ok)) {
                 notify_done (rt, 0, ok);
-            } else {
+            }
+            else {
                 xSemaphoreTake (s_req_mutex, portMAX_DELAY);
-                s_refresh_pending[i] = true;   // re-arm; retried next wake
+                s_refresh_pending[i] = true;  // re-arm; retried next wake
                 xSemaphoreGive (s_req_mutex);
             }
         }
     }
 }
 
-void radio_service_start() {
+void radio_service_start () {
     if (s_started.load (std::memory_order_acquire))
         return;
     s_req_mutex = xSemaphoreCreateMutex();
@@ -434,8 +448,7 @@ void radio_service_start() {
     s_health.record_success();
     publish_health();
     TaskHandle_t worker = nullptr;
-    xTaskCreate (&radio_service_task, "radio_service", 4096, NULL,
-                 SC_TASK_PRIORITY_NORMAL, &worker);
+    xTaskCreate (&radio_service_task, "radio_service", 4096, NULL, SC_TASK_PRIORITY_NORMAL, &worker);
     s_worker.store (worker, std::memory_order_release);
     s_started.store (true, std::memory_order_release);
     ESP_LOGI (TAG8, "radio service task started");
@@ -444,7 +457,7 @@ void radio_service_start() {
 // --- producer API (called from HTTP handler tasks) ------------------
 
 void radio_service_request_refresh (RadioCmdType which) {
-    int idx = (int) which - (int) RadioCmdType::REFRESH_FREQUENCY;
+    int idx = (int)which - (int)RadioCmdType::REFRESH_FREQUENCY;
     if (idx < 0 || idx >= RADIO_REFRESH_KINDS || !s_req_mutex)
         return;
     xSemaphoreTake (s_req_mutex, portMAX_DELAY);
@@ -460,21 +473,22 @@ int radio_service_set (RadioCmdType type, long arg, uint32_t * gen_out) {
         return -1;  // fast reject, sub-millisecond — link known-down
     if (!s_req_mutex)
         return -1;  // service not started yet
-    int idx = (int) type - (int) RadioCmdType::SET_FREQUENCY;
+    int idx = (int)type - (int)RadioCmdType::SET_FREQUENCY;
     if (idx < 0 || idx >= RADIO_SET_KINDS)
         return -1;  // not a SET command type
-    int64_t expires = esp_timer_get_time() + (int64_t) SET_APPLY_DEADLINE_MS * 1000;
+    int64_t expires = esp_timer_get_time() + (int64_t)SET_APPLY_DEADLINE_MS * 1000;
     xSemaphoreTake (s_req_mutex, portMAX_DELAY);
     if (type == RadioCmdType::SET_VOLUME && s_set_pending[idx].valid)
-        s_set_pending[idx].arg += arg;   // volume is a delta — accumulate
+        s_set_pending[idx].arg += arg;  // volume is a delta — accumulate
     else
-        s_set_pending[idx].arg = arg;    // newest-wins
+        s_set_pending[idx].arg = arg;  // newest-wins
     s_set_pending[idx].expires_at_us = expires;
     s_set_pending[idx].gen           = ++s_set_gen[idx];
     s_set_pending[idx].valid         = true;
-    uint32_t gen = s_set_pending[idx].gen;
+    uint32_t gen                     = s_set_pending[idx].gen;
     xSemaphoreGive (s_req_mutex);
-    if (gen_out) *gen_out = gen;
+    if (gen_out)
+        *gen_out = gen;
     TaskHandle_t w = s_worker.load (std::memory_order_acquire);
     if (w)
         xTaskNotifyGive (w);

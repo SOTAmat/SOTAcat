@@ -51,8 +51,7 @@ void radio_park_init (httpd_handle_t server);
 // not initialised, table at cap, async_begin failed) — the handler then
 // replies synchronously as before. `gen` is the slot generation returned
 // by radio_service_set() (0 for GET kinds).
-bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, uint32_t wait_ms,
-                         radio_park_completer_t completer);
+bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, uint32_t wait_ms, radio_park_completer_t completer);
 
 // From any task: an op of `kind` finished with generation `gen` and result
 // `ok`. Posts to the server task; never blocks on the network. If the post
@@ -61,4 +60,4 @@ bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, ui
 void radio_park_notify_done (RadioParkKind kind, uint32_t gen, bool ok);
 
 // Number of currently parked requests (server task only; diagnostics).
-int radio_park_count();
+int radio_park_count ();

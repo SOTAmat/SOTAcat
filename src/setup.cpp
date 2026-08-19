@@ -12,19 +12,19 @@
 #include "webserver.h"
 #include "wifi.h"
 
+#include <ctime>
 #include <driver/gpio.h>
 #include <esp_task_wdt.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <ctime>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:setup...";
 
-time_t       LastUserActivityUnixTime;
-std::atomic<bool> CommandInProgress {false};
-TaskHandle_t xInactivityWatchdogHandle = NULL;
+time_t            LastUserActivityUnixTime;
+std::atomic<bool> CommandInProgress{false};
+TaskHandle_t      xInactivityWatchdogHandle = NULL;
 
 /**
  * Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds,

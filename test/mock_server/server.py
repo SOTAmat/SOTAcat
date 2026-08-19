@@ -92,8 +92,8 @@ DEFAULT_STATE = {
 }
 
 
-# Firmware-contract constants (mirror src/radio_park_httpd.h /
-# src/radio_service.h). Keep in sync; test_radio_contract.py asserts against
+# Firmware-contract constants (mirror include/radio_park_httpd.h /
+# include/radio_service.h). Keep in sync; test_radio_contract.py asserts against
 # these same bounds on real hardware.
 RADIO_GET_WAIT_MS = 300     # GET waits at most this long for a refresh
 RADIO_SET_WAIT_MS = 1500    # PUT waits at most this long for confirmation

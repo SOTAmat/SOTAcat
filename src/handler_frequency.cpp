@@ -62,8 +62,7 @@ esp_err_t handler_frequency_get (httpd_req_t * req) {
         // "no update" and shows ⚫ in the header.
         if (!radio_service_link_up())
             REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
-        if (radio_park_request (req, RadioParkKind::GET_FREQUENCY, 0, RADIO_PARK_GET_WAIT_MS,
-                                frequency_get_complete))
+        if (radio_park_request (req, RadioParkKind::GET_FREQUENCY, 0, RADIO_PARK_GET_WAIT_MS, frequency_get_complete))
             return ESP_OK;  // reply sent later by frequency_get_complete
     }
 
