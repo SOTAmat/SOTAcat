@@ -106,6 +106,8 @@ static long parse_response (const char * response, int num_digits) {
         return response[2] - '0';
     case 3:  // Handling nnn-type response
         return strtol (response + 2, NULL, 10);
+    case 4:  // Handling nnnn-type response (SM s-meter)
+        return strtol (response + 2, NULL, 10);
     case 11:  // Handling long-type response
         return strtol (response + 2, NULL, 10);
     default:
@@ -550,6 +552,7 @@ DELEGATE_BOOL (get_frequency,       (long & out_hz),                          ou
 DELEGATE_BOOL (get_mode,            (radio_mode_t & out_mode),                out_mode)
 DELEGATE_BOOL (get_power,           (long & out_power),                       out_power)
 DELEGATE_BOOL (get_radio_state,     (kx_state_t * in_state),                  in_state)
+DELEGATE_BOOL (get_smeter,          (long & out_bars),                        out_bars)
 DELEGATE_BOOL (get_volume,          (long & out_volume),                      out_volume)
 DELEGATE_BOOL (get_xmit_state,      (long & out_state),                       out_state)
 DELEGATE_BOOL (play_message_bank,   (int bank),                               bank)
@@ -565,6 +568,7 @@ DELEGATE_BOOL (tune_atu,            ())
 
 DELEGATE_BOOL_CONST (supports_keyer)
 DELEGATE_BOOL_CONST (supports_volume)
+DELEGATE_BOOL_CONST (supports_smeter)
 
 DELEGATE_VOID (ft8_set_tone, (long base_freq, long frequency), base_freq, frequency)
 DELEGATE_VOID (ft8_tone_off, ())

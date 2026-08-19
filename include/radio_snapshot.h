@@ -15,11 +15,13 @@ struct RadioSnapshotData {
     long    volume             = -1;  // -1 == unknown
     long    power              = -1;  // -1 == unknown
     long    xmit_state         = -1;  // -1 == unknown, 0 == RX, 1 == TX
+    long    smeter             = -1;  // -1 == unknown; KX bar-graph units 0-15
     int64_t frequency_stamp_us = 0;
     int64_t mode_stamp_us      = 0;
     int64_t volume_stamp_us    = 0;
     int64_t power_stamp_us     = 0;
     int64_t xmit_stamp_us      = 0;
+    int64_t smeter_stamp_us    = 0;
 
     bool has_frequency () const { return frequency_hz > 0; }
 
@@ -31,6 +33,8 @@ struct RadioSnapshotData {
 
     bool has_volume () const { return volume >= 0; }
 
+    bool has_smeter () const { return smeter >= 0; }
+
     bool frequency_fresh (int64_t now_us) const { return fresh (has_frequency(), frequency_stamp_us, now_us); }
 
     bool mode_fresh (int64_t now_us) const { return fresh (has_mode(), mode_stamp_us, now_us); }
@@ -40,6 +44,8 @@ struct RadioSnapshotData {
     bool power_fresh (int64_t now_us) const { return fresh (has_power(), power_stamp_us, now_us); }
 
     bool volume_fresh (int64_t now_us) const { return fresh (has_volume(), volume_stamp_us, now_us); }
+
+    bool smeter_fresh (int64_t now_us) const { return fresh (has_smeter(), smeter_stamp_us, now_us); }
 
   private:
     // now_us < stamp (clock skew / unset clock) reads stale, never falsely
@@ -62,4 +68,5 @@ void set_mode (long mode, int64_t now_us);
 void set_volume (long volume, int64_t now_us);
 void set_power (long power, int64_t now_us);
 void set_xmit_state (long state, int64_t now_us);
+void set_smeter (long bars, int64_t now_us);
 }  // namespace radio_snapshot

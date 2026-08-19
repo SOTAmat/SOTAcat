@@ -85,6 +85,7 @@ bool radio_service_park_kind (RadioCmdType t, RadioParkKind & k) {
     case RadioCmdType::REFRESH_XMIT: k = RadioParkKind::GET_XMIT; return true;
     case RadioCmdType::REFRESH_POWER: k = RadioParkKind::GET_POWER; return true;
     case RadioCmdType::REFRESH_VOLUME: k = RadioParkKind::GET_VOLUME; return true;
+    case RadioCmdType::REFRESH_SMETER: k = RadioParkKind::GET_SMETER; return true;
     case RadioCmdType::SET_FREQUENCY: k = RadioParkKind::SET_FREQUENCY; return true;
     case RadioCmdType::SET_MODE: k = RadioParkKind::SET_MODE; return true;
     case RadioCmdType::SET_VOLUME: k = RadioParkKind::SET_VOLUME; return true;
@@ -163,6 +164,10 @@ static bool probe_link () {
 // does not touch the snapshot.
 static bool do_refresh (RadioCmdType which, bool & ok_out) {
     ok_out = false;
+    // Capability gate BEFORE any CAT: "unsupported" is a final answer, not
+    // a link failure — it must never feed the health machine.
+    if (which == RadioCmdType::REFRESH_SMETER && !kxRadio.supports_smeter())
+        return true;  // drained; ok_out stays false
     // The lock is bounded by WORKER_LOCK_TIMEOUT_MS, not portMAX_DELAY:
     // FT8 and the unconverted handler_cat/handler_time paths also contend
     // for the radio mutex, so an unbounded wait could sit past the 20 s
@@ -205,6 +210,12 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
         ok     = kxRadio.get_volume (v) && v >= 0;
         if (ok)
             radio_snapshot::set_volume (v, now);
+    }
+    else if (which == RadioCmdType::REFRESH_SMETER) {
+        long bars = -1;
+        ok        = kxRadio.get_smeter (bars) && bars >= 0;
+        if (ok)
+            radio_snapshot::set_smeter (bars, now);
     }
     if (ok)
         s_health.record_success();
@@ -541,6 +552,7 @@ static bool snapshot_field_fresh (RadioCmdType which, int64_t now) {
     case RadioCmdType::REFRESH_XMIT: return s.xmit_fresh (now);
     case RadioCmdType::REFRESH_POWER: return s.power_fresh (now);
     case RadioCmdType::REFRESH_VOLUME: return s.volume_fresh (now);
+    case RadioCmdType::REFRESH_SMETER: return s.smeter_fresh (now);
     default: return false;
     }
 }

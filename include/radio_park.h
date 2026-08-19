@@ -31,6 +31,7 @@ enum class RadioParkKind : int {
     GET_XMIT,
     GET_POWER,
     GET_VOLUME,
+    GET_SMETER,
     SET_FREQUENCY,
     SET_MODE,
     SET_VOLUME,

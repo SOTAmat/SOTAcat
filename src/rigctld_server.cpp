@@ -24,10 +24,10 @@
 #include <esp_log.h>
 static const char * TAG8 = "sc:rigctld.";
 
-static constexpr int RIGCTLD_PORT         = 4532;
-static constexpr int RIGCTLD_MAX_LINE     = 256;
-static constexpr int RIGCTLD_RECV_TIMEOUT = 2;  // seconds
-static constexpr int RIGCTLD_STACK_SIZE   = 6144;
+static constexpr int RIGCTLD_PORT        = 4532;
+static constexpr int RIGCTLD_MAX_LINE    = 256;
+static constexpr int RIGCTLD_STACK_SIZE  = 6144;
+static constexpr int RIGCTLD_MAX_CLIENTS = 2;  // sized into CONFIG_LWIP_MAX_SOCKETS (sdkconfig.defaults)
 
 // The radio service task owns all CAT I/O (docs/dev/Radio-Access.md).
 // rigctld is a client of that service, never a radio-mutex user — GETs
@@ -64,31 +64,6 @@ static bool rigctld_send (int sock, const char * data) {
         return false;
     }
     return true;
-}
-
-static int rigctld_read_line (int sock, char * buf, int buf_size) {
-    int pos = 0;
-    while (pos < buf_size - 1) {
-        char c;
-        int  n = recv (sock, &c, 1, 0);
-        if (n < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-                return -1;  // timeout
-            return -2;      // error
-        }
-        if (n == 0)
-            return -2;  // connection closed
-        if (c == '\n') {
-            // Strip trailing \r if present
-            if (pos > 0 && buf[pos - 1] == '\r')
-                pos--;
-            buf[pos] = '\0';
-            return pos;
-        }
-        buf[pos++] = c;
-    }
-    buf[pos] = '\0';
-    return pos;
 }
 
 // ====================================================================================================
@@ -217,6 +192,60 @@ static void cmd_get_split_vfo (int sock) {
     rigctld_send (sock, "0\nVFOA\n");
 }
 
+// Hamlib probes power status at session start; the link state is the honest
+// answer (a dead link most often IS the radio powered off). set_powerstat is
+// deliberately unimplemented: PS0 would power the radio OFF.
+static void cmd_get_powerstat (int sock) {
+    rigctld_send (sock, radio_service_link_up() ? "1\n" : "0\n");
+}
+
+// Single-VFO server (until split lands): selecting VFOA is a no-op success,
+// anything else is unimplemented.
+static void cmd_set_vfo (int sock, const char * arg) {
+    if (!arg || !*arg) {
+        rigctld_rprt (sock, RIG_EINVAL);
+        return;
+    }
+    if (!strcasecmp (arg, "VFOA") || !strcasecmp (arg, "Main") || !strcasecmp (arg, "currVFO"))
+        rigctld_rprt (sock, RIG_OK);
+    else
+        rigctld_rprt (sock, RIG_ENIMPL);
+}
+
+// TUNER is the only func: the ATU tune is a momentary switch press, never
+// latched, so get always reads 0 and "set 0" has nothing to do.
+static void cmd_get_func (int sock, const char * arg) {
+    char func[16];
+    if (!rigctld_split_level (arg, func, sizeof (func), nullptr)) {
+        rigctld_rprt (sock, RIG_EINVAL);
+        return;
+    }
+    if (!strcmp (func, "TUNER"))
+        rigctld_send (sock, "0\n");
+    else
+        rigctld_rprt (sock, RIG_ENIMPL);
+}
+
+static void cmd_set_func (int sock, const char * arg) {
+    char         func[16];
+    const char * val_str = nullptr;
+    if (!rigctld_split_level (arg, func, sizeof (func), &val_str) || !val_str) {
+        rigctld_rprt (sock, RIG_EINVAL);
+        return;
+    }
+    if (strcmp (func, "TUNER") != 0) {
+        rigctld_rprt (sock, RIG_ENIMPL);
+        return;
+    }
+    if (atol (val_str) == 0) {
+        rigctld_rprt (sock, RIG_OK);  // nothing to disengage
+        return;
+    }
+    // RPRT 0 means "tune started": the KX ATU tune is fire-and-forget at the
+    // CAT level (a switch press with no completion readback).
+    rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_ATU, 0));
+}
+
 static void cmd_get_level (int sock, const char * arg) {
     char level[16];
     if (!rigctld_split_level (arg, level, sizeof (level), nullptr)) {
@@ -245,6 +274,22 @@ static void cmd_get_level (int sock, const char * arg) {
         if (rc == RIG_OK && s.has_volume()) {
             char resp[32];
             snprintf (resp, sizeof (resp), "%.4f\n", rigctld_af_from_volume (s.volume));
+            rigctld_send (sock, resp);
+        }
+        else
+            rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
+    }
+    else if (!strcmp (level, "STRENGTH") || !strcmp (level, "RAWSTR")) {
+        if (!kxRadio.supports_smeter()) {
+            rigctld_rprt (sock, RIG_ENIMPL);
+            return;
+        }
+        RadioSnapshotData s;
+        int               rc = rigctld_fetch (RadioCmdType::REFRESH_SMETER, s);
+        if (rc == RIG_OK && s.has_smeter()) {
+            char resp[32];
+            // RAWSTR: the raw KX bar count. STRENGTH: calibrated dB rel S9.
+            snprintf (resp, sizeof (resp), "%ld\n", level[0] == 'R' ? s.smeter : rigctld_strength_db_from_bars (s.smeter));
             rigctld_send (sock, resp);
         }
         else
@@ -349,12 +394,15 @@ static void cmd_dump_state (int sock) {
         "0\n"                                              // announces
         "\n"                                               // preamp
         "\n"                                               // attenuator
-        "0x0\n"                                            // has_get_func
-        "0x0\n"                                            // has_set_func
-        "0x0\n"                                            // has_get_level
-        "0x0\n"                                            // has_set_level
-        "0x0\n"                                            // has_get_parm
-        "0x0\n"                                            // has_set_parm
+        // Bit values from Hamlib 4.5.5 rig.h. Hamlib clients refuse any
+        // level/func not advertised here, so these masks are load-bearing.
+        // A radio lacking one at runtime (KH1: AF, SM) still answers -4.
+        "0x40000000\n"  // has_get_func: TUNER
+        "0x40000000\n"  // has_set_func: TUNER
+        "0x44001008\n"  // has_get_level: AF|RFPOWER|RAWSTR|STRENGTH
+        "0x1008\n"      // has_set_level: AF|RFPOWER
+        "0x0\n"         // has_get_parm
+        "0x0\n"         // has_set_parm
         "done\n";
 
     rigctld_send (sock, dump);
@@ -388,6 +436,10 @@ static bool rigctld_handle_command (int sock, const char * line) {
     case RigctlCmd::GET_INFO: cmd_get_info (sock); break;
     case RigctlCmd::DUMP_STATE: cmd_dump_state (sock); break;
     case RigctlCmd::CHK_VFO: cmd_chk_vfo (sock); break;
+    case RigctlCmd::GET_POWERSTAT: cmd_get_powerstat (sock); break;
+    case RigctlCmd::SET_VFO: cmd_set_vfo (sock, arg); break;
+    case RigctlCmd::GET_FUNC: cmd_get_func (sock, arg); break;
+    case RigctlCmd::SET_FUNC: cmd_set_func (sock, arg); break;
     case RigctlCmd::QUIT:
         rigctld_send (sock, "RPRT 0\n");
         return false;  // close the connection
@@ -402,6 +454,54 @@ static bool rigctld_handle_command (int sock, const char * line) {
 // ====================================================================================================
 // TCP server task
 // ====================================================================================================
+
+// Up to RIGCTLD_MAX_CLIENTS concurrent sessions (e.g. WSJT-X + a logger),
+// multiplexed with select() on this one task. Commands from all clients
+// are SERIALIZED: while one client's SET waits on the worker (<= 5 s) or
+// a morse transmission keys (~15 s), the others' input simply queues in
+// their sockets — same latency bound one client always had. When every
+// slot is taken, the listen socket is left OUT of the select set, so a
+// further connect waits in the TCP backlog until a slot frees (the
+// pre-multi-client behavior).
+struct RigctldClient {
+    int  sock = -1;
+    char line[RIGCTLD_MAX_LINE];
+    int  len = 0;
+};
+
+static void rigctld_close_client (RigctldClient & c) {
+    close (c.sock);
+    c.sock = -1;
+    c.len  = 0;
+    ESP_LOGI (TAG8, "rigctld client disconnected");
+}
+
+// Drain what recv() returned, handling every complete line. Returns false
+// when the connection should close (peer gone, error, or quit).
+static bool rigctld_client_input (RigctldClient & c) {
+    char buf[128];
+    int  n = recv (c.sock, buf, sizeof (buf), 0);
+    if (n <= 0)
+        return false;  // closed or error
+    for (int i = 0; i < n; ++i) {
+        char ch = buf[i];
+        if (ch == '\n') {
+            // Strip trailing \r if present
+            if (c.len > 0 && c.line[c.len - 1] == '\r')
+                c.len--;
+            c.line[c.len] = '\0';
+            c.len         = 0;
+            showActivity();
+            if (!rigctld_handle_command (c.sock, c.line))
+                return false;
+        }
+        else if (c.len < RIGCTLD_MAX_LINE - 1)
+            c.line[c.len++] = ch;
+        // Overlong line: excess bytes are dropped; the truncated line is
+        // handled at the newline (matches the old reader's behavior).
+    }
+    return true;
+}
 
 static void rigctld_server_task (void *) {
     ESP_ERROR_CHECK (esp_task_wdt_add (NULL));
@@ -438,59 +538,68 @@ static void rigctld_server_task (void *) {
         return;
     }
 
-    ESP_LOGI (TAG8, "rigctld server listening on port %d", RIGCTLD_PORT);
+    ESP_LOGI (TAG8, "rigctld server listening on port %d (max %d clients)", RIGCTLD_PORT, RIGCTLD_MAX_CLIENTS);
+
+    static RigctldClient clients[RIGCTLD_MAX_CLIENTS];
 
     while (true) {
         esp_task_wdt_reset();
 
-        // Use a timeout on accept so we can feed the watchdog
-        struct timeval accept_tv;
-        accept_tv.tv_sec  = 5;
-        accept_tv.tv_usec = 0;
-        setsockopt (listen_sock, SOL_SOCKET, SO_RCVTIMEO, &accept_tv, sizeof (accept_tv));
+        fd_set rfds;
+        FD_ZERO (&rfds);
+        int  maxfd     = -1;
+        bool have_slot = false;
+        for (auto & c : clients)
+            if (c.sock < 0)
+                have_slot = true;
+        if (have_slot) {  // full table: leave connects in the backlog
+            FD_SET (listen_sock, &rfds);
+            maxfd = listen_sock;
+        }
+        for (auto & c : clients)
+            if (c.sock >= 0) {
+                FD_SET (c.sock, &rfds);
+                if (c.sock > maxfd)
+                    maxfd = c.sock;
+            }
 
-        struct sockaddr_in client_addr;
-        socklen_t          client_len  = sizeof (client_addr);
-        int                client_sock = accept (listen_sock, (struct sockaddr *)&client_addr, &client_len);
-
-        if (client_sock < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-                continue;  // timeout, loop back to feed watchdog
-            ESP_LOGW (TAG8, "accept failed: errno %d", errno);
+        // 1 s bound keeps the task watchdog fed while idle.
+        struct timeval tv = {.tv_sec = 1, .tv_usec = 0};
+        int            n  = select (maxfd + 1, &rfds, NULL, NULL, &tv);
+        if (n < 0) {
+            ESP_LOGW (TAG8, "select failed: errno %d", errno);
             vTaskDelay (pdMS_TO_TICKS (1000));
             continue;
         }
+        if (n == 0)
+            continue;  // timeout: loop back to feed the watchdog
 
-        ESP_LOGI (TAG8, "rigctld client connected from %s", inet_ntoa (client_addr.sin_addr));
-
-        // Set receive timeout on client socket
-        struct timeval recv_tv;
-        recv_tv.tv_sec  = RIGCTLD_RECV_TIMEOUT;
-        recv_tv.tv_usec = 0;
-        setsockopt (client_sock, SOL_SOCKET, SO_RCVTIMEO, &recv_tv, sizeof (recv_tv));
-
-        // Disable Nagle's algorithm for responsive command/response
-        int nodelay = 1;
-        setsockopt (client_sock, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof (nodelay));
-
-        // Handle commands from this client
-        char line[RIGCTLD_MAX_LINE];
-        bool keep_going = true;
-        while (keep_going) {
-            esp_task_wdt_reset();
-
-            int len = rigctld_read_line (client_sock, line, sizeof (line));
-            if (len == -1)
-                continue;  // timeout, keep waiting
-            if (len == -2)
-                break;  // connection closed or error
-
-            showActivity();
-            keep_going = rigctld_handle_command (client_sock, line);
+        if (have_slot && FD_ISSET (listen_sock, &rfds)) {
+            struct sockaddr_in client_addr;
+            socklen_t          client_len  = sizeof (client_addr);
+            int                client_sock = accept (listen_sock, (struct sockaddr *)&client_addr, &client_len);
+            if (client_sock >= 0) {
+                int nodelay = 1;  // responsive command/response
+                setsockopt (client_sock, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof (nodelay));
+                for (auto & c : clients)
+                    if (c.sock < 0) {
+                        c.sock = client_sock;
+                        c.len  = 0;
+                        ESP_LOGI (TAG8, "rigctld client connected from %s", inet_ntoa (client_addr.sin_addr));
+                        client_sock = -1;
+                        break;
+                    }
+                if (client_sock >= 0)
+                    close (client_sock);  // unreachable: have_slot was checked
+            }
         }
 
-        close (client_sock);
-        ESP_LOGI (TAG8, "rigctld client disconnected");
+        for (auto & c : clients)
+            if (c.sock >= 0 && FD_ISSET (c.sock, &rfds)) {
+                esp_task_wdt_reset();  // a command can run for seconds
+                if (!rigctld_client_input (c))
+                    rigctld_close_client (c);
+            }
     }
 }
 

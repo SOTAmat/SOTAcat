@@ -61,6 +61,14 @@ void set_volume (long volume, int64_t now_us) {
     xSemaphoreGive (mtx);
 }
 
+void set_smeter (long bars, int64_t now_us) {
+    SemaphoreHandle_t mtx = get_mutex();
+    xSemaphoreTake (mtx, portMAX_DELAY);
+    s_data.smeter          = bars;
+    s_data.smeter_stamp_us = now_us;
+    xSemaphoreGive (mtx);
+}
+
 void set_power (long power, int64_t now_us) {
     SemaphoreHandle_t mtx = get_mutex();
     xSemaphoreTake (mtx, portMAX_DELAY);

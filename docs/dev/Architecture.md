@@ -64,6 +64,17 @@ link-health state machine, budgets, validation record and known limitations:
 [Radio-Access.md](Radio-Access.md). Contract test:
 `test/integration/test_radio_contract.py` (runs against hardware or the mock).
 
+### rigctld server (Hamlib NET rigctl)
+A second protocol face on TCP port 4532 (`src/rigctld_server.cpp`): Hamlib
+NET-rigctl clients can read and set frequency/mode/PTT, read the S-meter and
+power/volume levels, key CW and trigger the ATU. Verified with Hamlib 4.5.5
+`rigctl -m 2` against hardware; no other client has been tested with SOTAcat,
+and none is claimed compatible until it is. It is a client of the same radio service — never a
+radio-mutex user — so the web UI and rigctld always agree on state. Up to two
+concurrent sessions (commands serialized). Pure protocol logic lives in
+`include/rigctld_proto.h` (host-tested); contract test:
+`test/integration/test_rigctld.py` (hardware or mock).
+
 ### CAT Driver
 - Serial communication with Elecraft radio
 - 38400 baud default (KX2 / KX3)

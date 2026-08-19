@@ -28,6 +28,10 @@ enum class RigctlCmd {
     GET_INFO,
     DUMP_STATE,
     CHK_VFO,
+    GET_POWERSTAT,
+    SET_VFO,
+    GET_FUNC,
+    SET_FUNC,
     QUIT,
     UNKNOWN,
 };
@@ -142,6 +146,14 @@ inline RigctlCmd rigctld_parse_line (const char * line, const char ** arg_out) {
             return RigctlCmd::SEND_MORSE;
         if (cmd_is (cmd, "get_info"))
             return RigctlCmd::GET_INFO;
+        if (cmd_is (cmd, "get_powerstat"))
+            return RigctlCmd::GET_POWERSTAT;
+        if (cmd_is (cmd, "set_vfo"))
+            return RigctlCmd::SET_VFO;
+        if (cmd_is (cmd, "get_func"))
+            return RigctlCmd::GET_FUNC;
+        if (cmd_is (cmd, "set_func"))
+            return RigctlCmd::SET_FUNC;
         if (cmd_is (cmd, "quit"))
             return RigctlCmd::QUIT;
         return RigctlCmd::UNKNOWN;
@@ -162,10 +174,14 @@ inline RigctlCmd rigctld_parse_line (const char * line, const char ** arg_out) {
     case 'L': return RigctlCmd::SET_LEVEL;
     case 'b': return RigctlCmd::SEND_MORSE;
     case '_': return RigctlCmd::GET_INFO;
+    case 'V': return RigctlCmd::SET_VFO;
+    case 'u': return RigctlCmd::GET_FUNC;
+    case 'U': return RigctlCmd::SET_FUNC;
     case 'q':
     case 'Q': return RigctlCmd::QUIT;
-    case 0x8f: return RigctlCmd::DUMP_STATE;  // hamlib binary alias
-    case 0xf0: return RigctlCmd::CHK_VFO;     // hamlib binary alias
+    case 0x8f: return RigctlCmd::DUMP_STATE;     // hamlib binary alias
+    case 0xf0: return RigctlCmd::CHK_VFO;        // hamlib binary alias
+    case 0x88: return RigctlCmd::GET_POWERSTAT;  // hamlib binary alias (0x87 set_powerstat stays UNKNOWN)
     default: return RigctlCmd::UNKNOWN;
     }
 }
@@ -225,4 +241,12 @@ inline long rigctld_af_step_delta (long target, long current) {
     long diff = target - current;
     long half = RIGCTLD_AF_STEP / 2;
     return (diff + (diff >= 0 ? half : -half)) / RIGCTLD_AF_STEP;
+}
+
+// Hamlib STRENGTH is calibrated dB relative to S9; the KX S-meter reads in
+// bar-graph units 0-15 where one bar is one S-unit (6 dB) and S9 sits at
+// 9 bars. Bars above S9 keep the same 6 dB/bar slope (nominal "+10/+20"
+// legends notwithstanding — honest within the meter's resolution).
+inline long rigctld_strength_db_from_bars (long bars) {
+    return (bars - 9) * 6;
 }

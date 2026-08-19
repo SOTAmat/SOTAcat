@@ -67,8 +67,8 @@ flowchart TB
         PT -- "completer replies<br/>async_complete" --> H
     end
 
-    SN[("RadioSnapshot<br/>freq · mode · xmit · power · volume<br/>per-field stamps · leaf mutex")]
-    SL["Request slots<br/>refresh ×5 · SET ×8<br/>newest-wins · generation"]
+    SN[("RadioSnapshot<br/>freq · mode · xmit · power · volume · smeter<br/>per-field stamps · leaf mutex")]
+    SL["Request slots<br/>refresh ×6 · SET ×8<br/>newest-wins · generation"]
 
     subgraph SVC["radio service task"]
         direction LR
@@ -384,6 +384,9 @@ stateDiagram-v2
 | link-down threshold | 3 | `radio_link_health.h` | anti-flap |
 | link-down probe | `TQ;` every 5 s | `radio_service.cpp` | 0.2 s per probe on a dead radio |
 | worst single CAT op | ~18 s (dead-radio FA/MD/PC set) | measured | WDT reset *after* lock; `put_to_kx` feeds WDT |
+| rigctld GET wait | 3 s | `rigctld_server.cpp` | refresh can queue behind a ~1.5 s tune |
+| rigctld SET wait | 5 s (= apply deadline) | `rigctld_server.cpp` | the op is dropped past this anyway |
+| rigctld clients | 2 concurrent | `rigctld_server.cpp` | sized into `CONFIG_LWIP_MAX_SOCKETS` 18 (httpd worst case 14 + listen + 2 + spare) |
 | header poll | 2 s | `main.js` | bounds what the user sees |
 
 Resource readings under a 40-way burst and a 2 h soak: worker stack peak ≈2 KB of 4 KB,
@@ -451,8 +454,16 @@ copies), parked occupancy typically 0–1.
 - **rigctld** (`feature/rigctld-server`) is a client of this service: GETs use
   `radio_service_refresh_wait` + the snapshot, SETs `radio_service_set` +
   `radio_service_set_wait` (blocking is fine on its own task; only `send_morse`
-  takes the mutex directly, via the sanctioned keyer claim). Future richness —
-  meters (S/SWR/ALC) and split — would be snapshot fields plus new command kinds.
+  takes the mutex directly, via the sanctioned keyer claim). It serves up to
+  `RIGCTLD_MAX_CLIENTS` (2) concurrent TCP sessions on one task via `select()`
+  — commands are serialized, so a slow SET/morse briefly stalls the other
+  client; further connects wait in the TCP backlog. `dump_state` advertises
+  RFPOWER/AF/STRENGTH/RAWSTR levels and the TUNER func (Hamlib clients gate on
+  those masks); the S-meter is a snapshot field (`REFRESH_SMETER`, KX only —
+  gated by `supports_smeter()` so a KH1 poll never feeds the health machine).
+  Deferred rigctld work: keyer speed (KS), split/VFO B (FB/FT/FR), RIT/XIT,
+  real passband (BW), SWR (no confirmed KX CAT read), and `set_powerstat`
+  (never: PS0 powers the radio off).
 - **USB-host radios** (`rdarden/feat/esp32-s3-usb-otg`, QMX and IC-705): the model
   applies unchanged; at merge, feed the task WDT from the transport read
   (`KXRadio::cat_read_bytes`) because an IC-705 native ATU tune can run ~16–34 s in

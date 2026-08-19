@@ -131,6 +131,14 @@ bool KH1RadioDriver::supports_volume() const {
     return true;
 }
 
+bool KH1RadioDriver::supports_smeter() const {
+    return false;  // display-scrape driver: no numeric S-meter CAT
+}
+
+bool KH1RadioDriver::get_smeter (KXRadio &, long &) {
+    return false;  // see supports_smeter
+}
+
 bool KH1RadioDriver::get_frequency (KXRadio & radio, long & out_hz) {
     return get_kh1_display_frequency (radio, out_hz);
 }
