@@ -1,6 +1,7 @@
 #pragma once
 
 #include "smbus.h"
+
 #include <cstdint>
 
 #define MAX_1726x_ADDR (0x36)

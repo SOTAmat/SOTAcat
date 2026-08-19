@@ -1,4 +1,5 @@
 #pragma once
+
 // Pure, header-only radio link-health state machine.
 // No ESP-IDF / FreeRTOS dependencies so it is host-unit-testable.
 //
@@ -15,12 +16,12 @@ class RadioLinkHealth {
   public:
     static constexpr int LINK_DOWN_FAIL_THRESHOLD = 3;
 
-    void record_success() {
+    void record_success () {
         m_consecutive_failures = 0;
         m_up                   = true;
     }
 
-    void record_failure() {
+    void record_failure () {
         if (m_consecutive_failures < LINK_DOWN_FAIL_THRESHOLD)
             ++m_consecutive_failures;  // clamp: avoids overflow on long outages
         // Separate (not else-if): must re-test AFTER the possible
@@ -29,10 +30,11 @@ class RadioLinkHealth {
             m_up = false;
     }
 
-    bool is_up() const { return m_up; }
+    bool is_up () const { return m_up; }
+
     // Failures since the last success (clamped at the threshold). >0 means
     // "suspicious": callers may pre-flight a cheap ping before a slow op.
-    int  consecutive_failures() const { return m_consecutive_failures; }
+    int consecutive_failures () const { return m_consecutive_failures; }
 
   private:
     int  m_consecutive_failures = LINK_DOWN_FAIL_THRESHOLD;  // start "down"

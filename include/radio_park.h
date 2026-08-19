@@ -42,7 +42,7 @@ enum class RadioParkKind : int {
     COUNT
 };
 
-static constexpr int RADIO_PARK_KINDS = (int) RadioParkKind::COUNT;
+static constexpr int RADIO_PARK_KINDS = (int)RadioParkKind::COUNT;
 
 class RadioParkTable {
   public:
@@ -51,24 +51,32 @@ class RadioParkTable {
     explicit RadioParkTable (int max_parked = RADIO_PARK_KINDS)
         : m_max (max_parked < 1 ? 1 : (max_parked > RADIO_PARK_KINDS ? RADIO_PARK_KINDS : max_parked)) {}
 
-    static bool is_set_kind (RadioParkKind k) { return (int) k >= (int) RadioParkKind::SET_FREQUENCY; }
+    static bool is_set_kind (RadioParkKind k) { return (int)k >= (int)RadioParkKind::SET_FREQUENCY; }
 
-    int  count() const { return m_count; }
-    bool empty() const { return m_count == 0; }
-    bool full() const { return m_count >= m_max; }
-    bool occupied (RadioParkKind k) const { return valid (k) && m_slots[(int) k].occupied; }
+    int count () const { return m_count; }
+
+    bool empty () const { return m_count == 0; }
+
+    bool full () const { return m_count >= m_max; }
+
+    bool occupied (RadioParkKind k) const { return valid (k) && m_slots[(int)k].occupied; }
 
     // Park `handle`. Returns false (and parks nothing) if the kind is invalid
     // or the table is at its cap and this kind is unoccupied — the caller
     // then falls back to a synchronous reply. On success, *superseded (if
     // non-null) receives the handle this park displaced, or nullptr.
     bool park (RadioParkKind k, void * handle, uint32_t gen, int64_t deadline_us, void ** superseded = nullptr) {
-        if (superseded) *superseded = nullptr;
-        if (!valid (k) || !handle) return false;
-        Slot & s = m_slots[(int) k];
-        if (!s.occupied && m_count >= m_max) return false;
-        if (s.occupied && superseded) *superseded = s.handle;
-        if (!s.occupied) ++m_count;
+        if (superseded)
+            *superseded = nullptr;
+        if (!valid (k) || !handle)
+            return false;
+        Slot & s = m_slots[(int)k];
+        if (!s.occupied && m_count >= m_max)
+            return false;
+        if (s.occupied && superseded)
+            *superseded = s.handle;
+        if (!s.occupied)
+            ++m_count;
         s.occupied    = true;
         s.handle      = handle;
         s.gen         = gen;
@@ -80,10 +88,13 @@ class RadioParkTable {
     // worker drained; ignored for GET kinds). Returns the handle to complete,
     // or nullptr if nothing parked / not yet satisfied. Removes the entry.
     void * on_done (RadioParkKind k, uint32_t gen_applied) {
-        if (!valid (k)) return nullptr;
-        Slot & s = m_slots[(int) k];
-        if (!s.occupied) return nullptr;
-        if (is_set_kind (k) && (int32_t) (gen_applied - s.gen) < 0) return nullptr;  // older op
+        if (!valid (k))
+            return nullptr;
+        Slot & s = m_slots[(int)k];
+        if (!s.occupied)
+            return nullptr;
+        if (is_set_kind (k) && (int32_t)(gen_applied - s.gen) < 0)
+            return nullptr;  // older op
         return take (s);
     }
 
@@ -96,7 +107,8 @@ class RadioParkTable {
         for (int i = 0; i < RADIO_PARK_KINDS && n < max_out; ++i) {
             Slot & s = m_slots[i];
             if (s.occupied && s.deadline_us <= now_us) {
-                if (out_kinds) out_kinds[n] = (RadioParkKind) i;
+                if (out_kinds)
+                    out_kinds[n] = (RadioParkKind)i;
                 out[n++] = take (s);
             }
         }
@@ -105,10 +117,11 @@ class RadioParkTable {
 
     // Earliest pending deadline, or INT64_MAX if empty. Lets a shim arm a
     // one-shot timer instead of ticking, if it prefers.
-    int64_t next_deadline() const {
+    int64_t next_deadline () const {
         int64_t d = INT64_MAX;
         for (int i = 0; i < RADIO_PARK_KINDS; ++i)
-            if (m_slots[i].occupied && m_slots[i].deadline_us < d) d = m_slots[i].deadline_us;
+            if (m_slots[i].occupied && m_slots[i].deadline_us < d)
+                d = m_slots[i].deadline_us;
         return d;
     }
 
@@ -118,7 +131,8 @@ class RadioParkTable {
         int n = 0;
         for (int i = 0; i < RADIO_PARK_KINDS && n < max_out; ++i)
             if (m_slots[i].occupied) {
-                if (out_kinds) out_kinds[n] = (RadioParkKind) i;
+                if (out_kinds)
+                    out_kinds[n] = (RadioParkKind)i;
                 out[n++] = take (m_slots[i]);
             }
         return n;
@@ -132,7 +146,7 @@ class RadioParkTable {
         bool     occupied    = false;
     };
 
-    static bool valid (RadioParkKind k) { return (int) k >= 0 && (int) k < RADIO_PARK_KINDS; }
+    static bool valid (RadioParkKind k) { return (int)k >= 0 && (int)k < RADIO_PARK_KINDS; }
 
     void * take (Slot & s) {
         void * h   = s.handle;

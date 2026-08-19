@@ -21,17 +21,25 @@ struct RadioSnapshotData {
     int64_t power_stamp_us     = 0;
     int64_t xmit_stamp_us      = 0;
 
-    bool has_frequency() const { return frequency_hz > 0; }
-    bool has_mode() const { return mode > 0; }
-    bool has_xmit() const { return xmit_state >= 0; }
-    bool has_power() const { return power >= 0; }
-    bool has_volume() const { return volume >= 0; }
+    bool has_frequency () const { return frequency_hz > 0; }
+
+    bool has_mode () const { return mode > 0; }
+
+    bool has_xmit () const { return xmit_state >= 0; }
+
+    bool has_power () const { return power >= 0; }
+
+    bool has_volume () const { return volume >= 0; }
 
     bool frequency_fresh (int64_t now_us) const { return fresh (has_frequency(), frequency_stamp_us, now_us); }
-    bool mode_fresh      (int64_t now_us) const { return fresh (has_mode(),      mode_stamp_us,      now_us); }
-    bool xmit_fresh      (int64_t now_us) const { return fresh (has_xmit(),      xmit_stamp_us,      now_us); }
-    bool power_fresh     (int64_t now_us) const { return fresh (has_power(),     power_stamp_us,     now_us); }
-    bool volume_fresh    (int64_t now_us) const { return fresh (has_volume(),    volume_stamp_us,    now_us); }
+
+    bool mode_fresh (int64_t now_us) const { return fresh (has_mode(), mode_stamp_us, now_us); }
+
+    bool xmit_fresh (int64_t now_us) const { return fresh (has_xmit(), xmit_stamp_us, now_us); }
+
+    bool power_fresh (int64_t now_us) const { return fresh (has_power(), power_stamp_us, now_us); }
+
+    bool volume_fresh (int64_t now_us) const { return fresh (has_volume(), volume_stamp_us, now_us); }
 
   private:
     // now_us < stamp (clock skew / unset clock) reads stale, never falsely
@@ -46,12 +54,12 @@ struct RadioSnapshotData {
 // mutex — readers (HTTP handlers) never contend on UART.
 namespace radio_snapshot {
 // Copy the whole snapshot out under the lock.
-RadioSnapshotData get();
+RadioSnapshotData get ();
 // Merge-update individual fields under the lock; pass the esp_timer
 // "now" once so all touched stamps share it.
-void set_frequency(long hz, int64_t now_us);
-void set_mode(long mode, int64_t now_us);
-void set_volume(long volume, int64_t now_us);
-void set_power(long power, int64_t now_us);
-void set_xmit_state(long state, int64_t now_us);
+void set_frequency (long hz, int64_t now_us);
+void set_mode (long mode, int64_t now_us);
+void set_volume (long volume, int64_t now_us);
+void set_power (long power, int64_t now_us);
+void set_xmit_state (long state, int64_t now_us);
 }  // namespace radio_snapshot

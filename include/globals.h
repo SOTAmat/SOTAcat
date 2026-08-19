@@ -1,11 +1,11 @@
 #pragma once
 
-#include <esp_adc/adc_oneshot.h>
 #include <atomic>
+#include <esp_adc/adc_oneshot.h>
 
 extern std::atomic<bool> CommandInProgress;
-extern bool Ft8RadioExclusive;
-extern void showActivity ();
+extern bool              Ft8RadioExclusive;
+extern void              showActivity ();
 
 extern adc_oneshot_unit_handle_t   Global_adc1_handle;
 extern adc_oneshot_unit_init_cfg_t Global_init_config1;

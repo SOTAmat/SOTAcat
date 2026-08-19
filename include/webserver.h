@@ -1,9 +1,9 @@
 #pragma once
 
-#include <esp_http_server.h>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <esp_http_server.h>
 #include <memory>
 #include <strings.h>  // for size_t
 
@@ -93,11 +93,13 @@ extern esp_err_t handler_atu_put (httpd_req_t * req);
 // probe), this accepts only an optional sign followed by digits, consuming
 // the whole string. Returns false on anything else, incl. empty / overflow.
 static inline bool parse_long_param (const char * s, long & out) {
-    if (!s || !*s) return false;
+    if (!s || !*s)
+        return false;
     char * end = nullptr;
     errno      = 0;
     long v     = strtol (s, &end, 10);
-    if (end == s || *end != '\0' || errno == ERANGE) return false;
+    if (end == s || *end != '\0' || errno == ERANGE)
+        return false;
     out = v;
     return true;
 }
@@ -134,9 +136,11 @@ static inline void http_send_status_json (httpd_req_t * req, const char * status
     httpd_resp_set_type (req, "application/json");
     httpd_resp_send (req, json, HTTPD_RESP_USE_STRLEN);
 }
+
 static inline void http_send_accepted (httpd_req_t * req, const char * message) {
     http_send_status_json (req, "202 Accepted", "message", message);
 }
+
 static inline void http_send_service_unavailable (httpd_req_t * req, const char * message) {
     http_send_status_json (req, "503 Service Unavailable", "error", message);
 }
@@ -159,33 +163,33 @@ static inline void http_send_service_unavailable (httpd_req_t * req, const char 
  * https://github.com/espressif/esp-idf/blob/d7ca8b94c852052e3bc33292287ef4dd62c9eeb1/components/esp_http_server/src/httpd_txrx.c#L388
  *
  */
-#define REPLY_WITH_FAILURE(req, code, message)  \
-    do {                                        \
-        ESP_LOGE (TAG8, "%s", message);         \
+#define REPLY_WITH_FAILURE(req, code, message)     \
+    do {                                           \
+        ESP_LOGE (TAG8, "%s", message);            \
         http_send_error_json (req, code, message); \
-        return ESP_FAIL;                        \
+        return ESP_FAIL;                           \
     } while (0)
 
 /**
  * Log an error and send 503 Service Unavailable with a JSON error body, then
  * exit the handler with ESP_FAIL. Used when the radio link is known-down.
  */
-#define REPLY_WITH_SERVICE_UNAVAILABLE(req, message)   \
-    do {                                               \
-        ESP_LOGE (TAG8, "%s", message);                \
-        http_send_service_unavailable (req, message);  \
-        return ESP_FAIL;                               \
+#define REPLY_WITH_SERVICE_UNAVAILABLE(req, message)  \
+    do {                                              \
+        ESP_LOGE (TAG8, "%s", message);               \
+        http_send_service_unavailable (req, message); \
+        return ESP_FAIL;                              \
     } while (0)
 
 /**
  * Logs a success message, sets the HTTP status to "204 No Content", sends an empty response,
  * and exits the current function with `ESP_OK`.
  */
-#define REPLY_WITH_SUCCESS()          \
-    do {                              \
-        ESP_LOGD (TAG8, "success");   \
-        http_send_no_content (req);   \
-        return ESP_OK;                \
+#define REPLY_WITH_SUCCESS()        \
+    do {                            \
+        ESP_LOGD (TAG8, "success"); \
+        http_send_no_content (req); \
+        return ESP_OK;              \
     } while (0)
 
 
