@@ -448,10 +448,11 @@ copies), parked occupancy typically 0–1.
   `localStorage`, and pause/back off VFO polling while ⚫ — now safe to do. Worth
   pairing with collapsing `run.js`'s own VFO poller into `main.js`'s and deleting the
   load-protection heuristics the non-blocking server made unnecessary.
-- **rigctld** (`feature/rigctld-server`) should become a client of this service (a
-  task-side wait for "my generation completed" is the one missing primitive) rather
-  than a third direct radio-mutex user; meters (S/SWR/ALC) and split would be snapshot
-  fields plus new command kinds.
+- **rigctld** (`feature/rigctld-server`) is a client of this service: GETs use
+  `radio_service_refresh_wait` + the snapshot, SETs `radio_service_set` +
+  `radio_service_set_wait` (blocking is fine on its own task; only `send_morse`
+  takes the mutex directly, via the sanctioned keyer claim). Future richness —
+  meters (S/SWR/ALC) and split — would be snapshot fields plus new command kinds.
 - **USB-host radios** (`rdarden/feat/esp32-s3-usb-otg`, QMX and IC-705): the model
   applies unchanged; at merge, feed the task WDT from the transport read
   (`KXRadio::cat_read_bytes`) because an IC-705 native ATU tune can run ~16–34 s in
@@ -469,3 +470,7 @@ copies), parked occupancy typically 0–1.
    (`test/integration/test_radio_contract.py`): mirror the contract; never probe a
    live radio with a value that could change the operator's setting.
 5. Check the op's dead-radio worst case against the 20 s WDT (see §9).
+6. If the op is reachable over rigctld: pure protocol logic goes in
+   `include/rigctld_proto.h` (host-tested by `test/host/test_rigctld_proto.cpp`);
+   mirror the wire behavior in the mock's `MockRigctld` and assert it in
+   `test/integration/test_rigctld.py` (`make test-rigctld[-mock]`).

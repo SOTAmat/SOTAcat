@@ -7,12 +7,16 @@
 #include "rigctld_server.h"
 #include "globals.h"
 #include "kx_radio.h"
+#include "radio_service.h"
+#include "radio_snapshot.h"
+#include "rigctld_proto.h"
 #include "timed_lock.h"
 
 #include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <esp_task_wdt.h>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <lwip/sockets.h>
@@ -25,68 +29,28 @@ static constexpr int RIGCTLD_MAX_LINE     = 256;
 static constexpr int RIGCTLD_RECV_TIMEOUT = 2;  // seconds
 static constexpr int RIGCTLD_STACK_SIZE   = 6144;
 
+// The radio service task owns all CAT I/O (docs/dev/Radio-Access.md).
+// rigctld is a client of that service, never a radio-mutex user — GETs
+// read the snapshot (refreshing it when stale), SETs enqueue and wait for
+// the worker. rigctld runs on its own task, so blocking here is fine; the
+// sole exception is send_morse, which uses the sanctioned direct-lock
+// keyer path (same claim as handler_cat.cpp's keyer_task).
+static constexpr uint32_t RIGCTLD_GET_WAIT_MS = 3000;                   // refresh can queue behind a ~1.5 s tune
+static constexpr uint32_t RIGCTLD_SET_WAIT_MS = SET_APPLY_DEADLINE_MS;  // the op is dropped past this anyway
+
 // Hamlib error codes
 static constexpr int RIG_OK       = 0;
 static constexpr int RIG_EINVAL   = -1;
 static constexpr int RIG_ENIMPL   = -4;
 static constexpr int RIG_ETIMEOUT = -5;
 static constexpr int RIG_EIO      = -6;
+static constexpr int RIG_ERJCTED  = -9;  // rejected: FT8 owns the radio, or keyer busy
 
-// Forward declarations
-extern radio_mode_t get_radio_mode ();
-
-// ====================================================================================================
-// Mode string mapping between Hamlib and SOTAcat
-// ====================================================================================================
-
-static const char * mode_to_hamlib_string (radio_mode_t mode) {
-    switch (mode) {
-    case MODE_LSB: return "LSB";
-    case MODE_USB: return "USB";
-    case MODE_CW: return "CW";
-    case MODE_FM: return "FM";
-    case MODE_AM: return "AM";
-    case MODE_DATA: return "PKTUSB";
-    case MODE_CW_R: return "CWR";
-    case MODE_DATA_R: return "PKTLSB";
-    default: return "USB";
-    }
-}
-
-static radio_mode_t hamlib_string_to_mode (const char * s) {
-    if (!s || !*s)
-        return MODE_UNKNOWN;
-
-    // Normalize to uppercase for comparison
-    char buf[16];
-    int  i = 0;
-    for (; s[i] && i < (int)sizeof (buf) - 1; i++)
-        buf[i] = (char)toupper ((unsigned char)s[i]);
-    buf[i] = '\0';
-
-    if (!strcmp (buf, "USB"))
-        return MODE_USB;
-    if (!strcmp (buf, "LSB"))
-        return MODE_LSB;
-    if (!strcmp (buf, "CW"))
-        return MODE_CW;
-    if (!strcmp (buf, "CWR"))
-        return MODE_CW_R;
-    if (!strcmp (buf, "AM"))
-        return MODE_AM;
-    if (!strcmp (buf, "FM"))
-        return MODE_FM;
-    if (!strcmp (buf, "PKTUSB"))
-        return MODE_DATA;
-    if (!strcmp (buf, "PKTLSB"))
-        return MODE_DATA_R;
-    if (!strcmp (buf, "RTTY"))
-        return MODE_DATA;
-    if (!strcmp (buf, "DATA"))
-        return MODE_DATA;
-
-    return MODE_UNKNOWN;
-}
+// Mode values cross rigctld_proto.h as `long`; pin them to radio_mode_t.
+static_assert ((long)MODE_UNKNOWN == RIGCTLD_MODE_UNKNOWN);
+static_assert ((long)MODE_LSB == 1 && (long)MODE_USB == 2 && (long)MODE_CW == 3);
+static_assert ((long)MODE_FM == 4 && (long)MODE_AM == 5 && (long)MODE_DATA == 6);
+static_assert ((long)MODE_CW_R == 7 && (long)MODE_DATA_R == 9);
 
 // ====================================================================================================
 // Socket helpers
@@ -131,169 +95,118 @@ static int rigctld_read_line (int sock, char * buf, int buf_size) {
 // Command handlers
 // ====================================================================================================
 
-static void cmd_get_freq (int sock) {
-    long freq = 0;
-    {
-        TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "rigctld get_freq");
-        if (lock.acquired()) {
-            if (kxRadio.get_frequency (freq)) {
-                char resp[32];
-                snprintf (resp, sizeof (resp), "%ld\n", freq);
-                rigctld_send (sock, resp);
-                return;
-            }
-        }
-        else {
-            char resp[16];
-            snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-            rigctld_send (sock, resp);
-            return;
-        }
-    }
+static void rigctld_rprt (int sock, int code) {
     char resp[16];
-    snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
+    snprintf (resp, sizeof (resp), "RPRT %d\n", code);
     rigctld_send (sock, resp);
+}
+
+// Fetch a fresh snapshot for `which`'s field, blocking briefly while the
+// service refreshes it. During FT8 the service does no CAT work, so serve
+// the (possibly stale) snapshot instead of blocking out the transmission —
+// same contract as the web GETs. Returns RIG_OK with *out filled (the
+// caller still checks the field's has_*()), or a negative Hamlib error.
+static int rigctld_fetch (RadioCmdType which, RadioSnapshotData & out) {
+    if (!Ft8RadioExclusive && !radio_service_refresh_wait (which, RIGCTLD_GET_WAIT_MS))
+        return radio_service_link_up() ? RIG_ETIMEOUT : RIG_EIO;
+    out = radio_snapshot::get();
+    return RIG_OK;
+}
+
+// Enqueue a SET on the radio service and wait for the worker to drain it.
+static int rigctld_apply (RadioCmdType type, long arg) {
+    if (Ft8RadioExclusive)
+        return RIG_ERJCTED;
+    uint32_t gen = 0;
+    if (radio_service_set (type, arg, &gen) < 0)
+        return RIG_EIO;  // link down, or service not started
+    switch (radio_service_set_wait (type, gen, RIGCTLD_SET_WAIT_MS)) {
+    case 1: return RIG_OK;
+    case 0: return RIG_EIO;  // CAT failed, or expired-skipped
+    default: return RIG_ETIMEOUT;
+    }
+}
+
+static void cmd_get_freq (int sock) {
+    RadioSnapshotData s;
+    int               rc = rigctld_fetch (RadioCmdType::REFRESH_FREQUENCY, s);
+    if (rc == RIG_OK && s.has_frequency()) {
+        char resp[32];
+        snprintf (resp, sizeof (resp), "%ld\n", s.frequency_hz);
+        rigctld_send (sock, resp);
+    }
+    else
+        rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
 }
 
 static void cmd_set_freq (int sock, const char * arg) {
-    if (!arg || !*arg) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EINVAL);
-        rigctld_send (sock, resp);
-        return;
-    }
-
-    long freq = atol (arg);
+    // Hamlib sends frequency as a float ("14074000.000000"); atol takes
+    // the integer prefix.
+    long freq = arg ? atol (arg) : 0;
     if (freq <= 0) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EINVAL);
-        rigctld_send (sock, resp);
+        rigctld_rprt (sock, RIG_EINVAL);
         return;
     }
-
-    {
-        TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "rigctld set_freq");
-        if (lock.acquired()) {
-            if (kxRadio.set_frequency (freq, SC_KX_COMMUNICATION_RETRIES)) {
-                rigctld_send (sock, "RPRT 0\n");
-                return;
-            }
-        }
-        else {
-            char resp[16];
-            snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-            rigctld_send (sock, resp);
-            return;
-        }
-    }
-    char resp[16];
-    snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
-    rigctld_send (sock, resp);
+    rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_FREQUENCY, freq));
 }
 
 static void cmd_get_mode (int sock) {
-    radio_mode_t mode     = get_radio_mode();
-    const char * mode_str = mode_to_hamlib_string (mode);
-    char         resp[32];
-    snprintf (resp, sizeof (resp), "%s\n0\n", mode_str);
-    rigctld_send (sock, resp);
+    RadioSnapshotData s;
+    int               rc = rigctld_fetch (RadioCmdType::REFRESH_MODE, s);
+    if (rc == RIG_OK && s.has_mode()) {
+        char resp[32];
+        snprintf (resp, sizeof (resp), "%s\n0\n", rigctld_mode_to_hamlib (s.mode));
+        rigctld_send (sock, resp);
+    }
+    else
+        rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
 }
 
 static void cmd_set_mode (int sock, const char * arg) {
     if (!arg || !*arg) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EINVAL);
-        rigctld_send (sock, resp);
+        rigctld_rprt (sock, RIG_EINVAL);
         return;
     }
 
-    // Parse mode name (ignore passband argument after space)
+    // Only the mode name; any passband argument after the space is ignored.
     char mode_name[16];
     int  i = 0;
     for (; arg[i] && arg[i] != ' ' && i < (int)sizeof (mode_name) - 1; i++)
         mode_name[i] = arg[i];
     mode_name[i] = '\0';
 
-    radio_mode_t mode = hamlib_string_to_mode (mode_name);
-    if (mode == MODE_UNKNOWN) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EINVAL);
-        rigctld_send (sock, resp);
+    long mode = rigctld_hamlib_to_mode (mode_name);
+    if (mode == RIGCTLD_MODE_UNKNOWN) {
+        rigctld_rprt (sock, RIG_EINVAL);
         return;
     }
-
-    {
-        TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "rigctld set_mode");
-        if (lock.acquired()) {
-            if (kxRadio.set_mode (mode, SC_KX_COMMUNICATION_RETRIES)) {
-                rigctld_send (sock, "RPRT 0\n");
-                return;
-            }
-        }
-        else {
-            char resp[16];
-            snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-            rigctld_send (sock, resp);
-            return;
-        }
-    }
-    char resp[16];
-    snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
-    rigctld_send (sock, resp);
+    rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_MODE, mode));
 }
 
 static void cmd_get_ptt (int sock) {
-    long state = 0;
-    {
-        TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "rigctld get_ptt");
-        if (lock.acquired()) {
-            if (kxRadio.get_xmit_state (state)) {
-                char resp[16];
-                snprintf (resp, sizeof (resp), "%ld\n", state);
-                rigctld_send (sock, resp);
-                return;
-            }
-        }
-        else {
-            char resp[16];
-            snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-            rigctld_send (sock, resp);
-            return;
-        }
+    // The CW keyer holds the radio outside the service (sanctioned direct
+    // path), so the snapshot can't see that TX; the claim flag can.
+    if (kxRadio.is_keyer_active()) {
+        rigctld_send (sock, "1\n");
+        return;
     }
-    char resp[16];
-    snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
-    rigctld_send (sock, resp);
+    RadioSnapshotData s;
+    int               rc = rigctld_fetch (RadioCmdType::REFRESH_XMIT, s);
+    if (rc == RIG_OK && s.has_xmit()) {
+        char resp[16];
+        snprintf (resp, sizeof (resp), "%ld\n", s.xmit_state);
+        rigctld_send (sock, resp);
+    }
+    else
+        rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
 }
 
 static void cmd_set_ptt (int sock, const char * arg) {
     if (!arg || !*arg) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EINVAL);
-        rigctld_send (sock, resp);
+        rigctld_rprt (sock, RIG_EINVAL);
         return;
     }
-
-    long ptt = atol (arg);
-
-    {
-        TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "rigctld set_ptt");
-        if (lock.acquired()) {
-            if (kxRadio.set_xmit_state (ptt != 0)) {
-                rigctld_send (sock, "RPRT 0\n");
-                return;
-            }
-        }
-        else {
-            char resp[16];
-            snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-            rigctld_send (sock, resp);
-            return;
-        }
-    }
-    char resp[16];
-    snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
-    rigctld_send (sock, resp);
+    rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_XMIT, atol (arg)));
 }
 
 static void cmd_get_vfo (int sock) {
@@ -305,192 +218,111 @@ static void cmd_get_split_vfo (int sock) {
 }
 
 static void cmd_get_level (int sock, const char * arg) {
-    if (!arg || !*arg) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EINVAL);
-        rigctld_send (sock, resp);
+    char level[16];
+    if (!rigctld_split_level (arg, level, sizeof (level), nullptr)) {
+        rigctld_rprt (sock, RIG_EINVAL);
         return;
     }
 
-    // Normalize level name to uppercase
-    char level[16];
-    int  i = 0;
-    for (; arg[i] && i < (int)sizeof (level) - 1; i++)
-        level[i] = (char)toupper ((unsigned char)arg[i]);
-    level[i] = '\0';
-
     if (!strcmp (level, "RFPOWER")) {
-        long power = -1;
-        {
-            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "rigctld get_power");
-            if (lock.acquired()) {
-                if (kxRadio.get_power (power)) {
-                    // Hamlib RFPOWER is 0.0..1.0; KX power is 0..12 watts
-                    // Normalize: power/12.0 (KX2 max 12W, KX3 max 15W but 12 is close enough)
-                    float normalized = (float)power / 12.0f;
-                    if (normalized > 1.0f)
-                        normalized = 1.0f;
-                    char resp[32];
-                    snprintf (resp, sizeof (resp), "%.4f\n", normalized);
-                    rigctld_send (sock, resp);
-                    return;
-                }
-            }
-            else {
-                char resp[16];
-                snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-                rigctld_send (sock, resp);
-                return;
-            }
+        RadioSnapshotData s;
+        int               rc = rigctld_fetch (RadioCmdType::REFRESH_POWER, s);
+        if (rc == RIG_OK && s.has_power()) {
+            char resp[32];
+            snprintf (resp, sizeof (resp), "%.4f\n", rigctld_rfpower_from_watts (s.power));
+            rigctld_send (sock, resp);
         }
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
-        rigctld_send (sock, resp);
+        else
+            rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
     }
     else if (!strcmp (level, "AF")) {
-        long volume = -1;
-        {
-            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "rigctld get_volume");
-            if (lock.acquired()) {
-                if (kxRadio.supports_volume() && kxRadio.get_volume (volume)) {
-                    // Hamlib AF is 0.0..1.0; KX volume is 0..255
-                    float normalized = (float)volume / 255.0f;
-                    char  resp[32];
-                    snprintf (resp, sizeof (resp), "%.4f\n", normalized);
-                    rigctld_send (sock, resp);
-                    return;
-                }
-            }
-            else {
-                char resp[16];
-                snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-                rigctld_send (sock, resp);
-                return;
-            }
+        if (!kxRadio.supports_volume()) {
+            rigctld_rprt (sock, RIG_ENIMPL);
+            return;
         }
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
-        rigctld_send (sock, resp);
+        RadioSnapshotData s;
+        int               rc = rigctld_fetch (RadioCmdType::REFRESH_VOLUME, s);
+        if (rc == RIG_OK && s.has_volume()) {
+            char resp[32];
+            snprintf (resp, sizeof (resp), "%.4f\n", rigctld_af_from_volume (s.volume));
+            rigctld_send (sock, resp);
+        }
+        else
+            rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
     }
-    else {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ENIMPL);
-        rigctld_send (sock, resp);
-    }
+    else
+        rigctld_rprt (sock, RIG_ENIMPL);
 }
 
 static void cmd_set_level (int sock, const char * arg) {
-    if (!arg || !*arg) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EINVAL);
-        rigctld_send (sock, resp);
-        return;
-    }
-
-    // Parse "LEVEL value"
-    char level[16];
-    int  i = 0;
-    for (; arg[i] && arg[i] != ' ' && i < (int)sizeof (level) - 1; i++)
-        level[i] = (char)toupper ((unsigned char)arg[i]);
-    level[i] = '\0';
-
-    const char * val_str = (arg[i] == ' ') ? &arg[i + 1] : nullptr;
-    if (!val_str || !*val_str) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EINVAL);
-        rigctld_send (sock, resp);
+    char         level[16];
+    const char * val_str = nullptr;
+    if (!rigctld_split_level (arg, level, sizeof (level), &val_str) || !val_str) {
+        rigctld_rprt (sock, RIG_EINVAL);
         return;
     }
 
     float val = strtof (val_str, nullptr);
 
     if (!strcmp (level, "RFPOWER")) {
-        // Hamlib RFPOWER is 0.0..1.0 → KX power in watts
-        long power = (long)(val * 12.0f + 0.5f);
-        if (power < 0)
-            power = 0;
-        if (power > 12)
-            power = 12;
-
-        {
-            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "rigctld set_power");
-            if (lock.acquired()) {
-                if (kxRadio.set_power (power)) {
-                    rigctld_send (sock, "RPRT 0\n");
-                    return;
-                }
-            }
-            else {
-                char resp[16];
-                snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-                rigctld_send (sock, resp);
-                return;
-            }
-        }
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
-        rigctld_send (sock, resp);
+        rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_POWER, rigctld_watts_from_rfpower (val)));
     }
     else if (!strcmp (level, "AF")) {
-        // Hamlib AF is 0.0..1.0 → KX volume 0..255
-        long volume = (long)(val * 255.0f + 0.5f);
-        if (volume < 0)
-            volume = 0;
-        if (volume > 255)
-            volume = 255;
-
-        {
-            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "rigctld set_volume");
-            if (lock.acquired()) {
-                if (kxRadio.supports_volume() && kxRadio.set_volume (volume)) {
-                    rigctld_send (sock, "RPRT 0\n");
-                    return;
-                }
-            }
-            else {
-                char resp[16];
-                snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-                rigctld_send (sock, resp);
-                return;
-            }
+        if (!kxRadio.supports_volume()) {
+            rigctld_rprt (sock, RIG_ENIMPL);
+            return;
         }
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
-        rigctld_send (sock, resp);
+        // Hamlib AF is absolute, but SET_VOLUME's arg is a delta in web-UI
+        // steps: read the current volume and step toward the target.
+        RadioSnapshotData s;
+        int               rc = rigctld_fetch (RadioCmdType::REFRESH_VOLUME, s);
+        if (rc != RIG_OK || !s.has_volume()) {
+            rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
+            return;
+        }
+        long delta = rigctld_af_step_delta (rigctld_af_target (val), s.volume);
+        if (delta == 0) {
+            rigctld_rprt (sock, RIG_OK);  // nearest step is where we already are
+            return;
+        }
+        rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_VOLUME, delta));
     }
-    else {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ENIMPL);
-        rigctld_send (sock, resp);
-    }
+    else
+        rigctld_rprt (sock, RIG_ENIMPL);
 }
 
 static void cmd_send_morse (int sock, const char * arg) {
     if (!arg || !*arg) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EINVAL);
-        rigctld_send (sock, resp);
+        rigctld_rprt (sock, RIG_EINVAL);
         return;
     }
-
+    if (!kxRadio.supports_keyer()) {
+        rigctld_rprt (sock, RIG_ENIMPL);
+        return;
+    }
+    if (Ft8RadioExclusive) {
+        rigctld_rprt (sock, RIG_ERJCTED);
+        return;
+    }
+    // Keying takes the radio mutex directly — the sanctioned keyer path
+    // (see handler_cat.cpp keyer_task): claim the keyer so the web UI
+    // shows TX and the two keyer entry points exclude each other, then
+    // hold the mutex for the whole transmission. rigctld has its own
+    // task, so unlike the HTTP handler no helper task is needed.
+    if (!kxRadio.try_begin_keyer_operation()) {
+        rigctld_rprt (sock, RIG_ERJCTED);  // keyer busy
+        return;
+    }
+    bool ok = false;
     {
         TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_CRITICAL_MS, "rigctld morse");
         if (lock.acquired()) {
-            if (kxRadio.supports_keyer() && kxRadio.send_keyer_message (arg)) {
-                rigctld_send (sock, "RPRT 0\n");
-                return;
-            }
-        }
-        else {
-            char resp[16];
-            snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ETIMEOUT);
-            rigctld_send (sock, resp);
-            return;
+            esp_task_wdt_reset();  // budget the ~15 s keying after the lock wait, not with it
+            ok = kxRadio.send_keyer_message (arg);
         }
     }
-    char resp[16];
-    snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_EIO);
-    rigctld_send (sock, resp);
+    kxRadio.end_keyer_operation();
+    rigctld_rprt (sock, ok ? RIG_OK : RIG_EIO);
 }
 
 static void cmd_get_info (int sock) {
@@ -539,138 +371,31 @@ static void cmd_chk_vfo (int sock) {
 static bool rigctld_handle_command (int sock, const char * line) {
     ESP_LOGI (TAG8, "rigctld cmd: '%s'", line);
 
-    // Skip leading whitespace
-    while (*line == ' ' || *line == '\t')
-        line++;
-
-    if (!*line)
-        return true;  // empty line, keep connection
-
-    // Long-form commands (backslash prefix)
-    if (line[0] == '\\') {
-        const char * cmd = line + 1;
-        if (!strcasecmp (cmd, "dump_state")) {
-            cmd_dump_state (sock);
-            return true;
-        }
-        if (!strcasecmp (cmd, "chk_vfo")) {
-            cmd_chk_vfo (sock);
-            return true;
-        }
-        if (!strcasecmp (cmd, "get_freq")) {
-            cmd_get_freq (sock);
-            return true;
-        }
-        if (!strcasecmp (cmd, "get_mode")) {
-            cmd_get_mode (sock);
-            return true;
-        }
-        if (!strcasecmp (cmd, "get_vfo")) {
-            cmd_get_vfo (sock);
-            return true;
-        }
-        if (!strcasecmp (cmd, "get_ptt")) {
-            cmd_get_ptt (sock);
-            return true;
-        }
-        if (!strcasecmp (cmd, "get_split_vfo")) {
-            cmd_get_split_vfo (sock);
-            return true;
-        }
-        if (!strcasecmp (cmd, "get_info")) {
-            cmd_get_info (sock);
-            return true;
-        }
-
-        // Commands with arguments: "\cmd arg"
-        const char * space = strchr (cmd, ' ');
-        const char * arg   = space ? space + 1 : nullptr;
-        char         cmd_name[32];
-        if (space) {
-            int len = space - cmd;
-            if (len > (int)sizeof (cmd_name) - 1)
-                len = sizeof (cmd_name) - 1;
-            memcpy (cmd_name, cmd, len);
-            cmd_name[len] = '\0';
-        }
-        else {
-            strncpy (cmd_name, cmd, sizeof (cmd_name) - 1);
-            cmd_name[sizeof (cmd_name) - 1] = '\0';
-        }
-
-        if (!strcasecmp (cmd_name, "set_freq")) {
-            cmd_set_freq (sock, arg);
-            return true;
-        }
-        if (!strcasecmp (cmd_name, "set_mode")) {
-            cmd_set_mode (sock, arg);
-            return true;
-        }
-        if (!strcasecmp (cmd_name, "set_ptt")) {
-            cmd_set_ptt (sock, arg);
-            return true;
-        }
-        if (!strcasecmp (cmd_name, "get_level")) {
-            cmd_get_level (sock, arg);
-            return true;
-        }
-        if (!strcasecmp (cmd_name, "set_level")) {
-            cmd_set_level (sock, arg);
-            return true;
-        }
-        if (!strcasecmp (cmd_name, "send_morse")) {
-            cmd_send_morse (sock, arg);
-            return true;
-        }
-        if (!strcasecmp (cmd_name, "quit")) {
-            rigctld_send (sock, "RPRT 0\n");
-            return false;
-        }
-
-        // Unknown long-form command
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ENIMPL);
-        rigctld_send (sock, resp);
-        return true;
-    }
-
-    // Short-form commands
-    char         cmd_char = line[0];
-    const char * arg      = (line[1] == ' ') ? &line[2] : (line[1] ? &line[1] : nullptr);
-
-    switch (cmd_char) {
-    case 'f': cmd_get_freq (sock); break;
-    case 'F': cmd_set_freq (sock, arg); break;
-    case 'm': cmd_get_mode (sock); break;
-    case 'M': cmd_set_mode (sock, arg); break;
-    case 't': cmd_get_ptt (sock); break;
-    case 'T': cmd_set_ptt (sock, arg); break;
-    case 'v': cmd_get_vfo (sock); break;
-    case 's': cmd_get_split_vfo (sock); break;
-    case 'l': cmd_get_level (sock, arg); break;
-    case 'L': cmd_set_level (sock, arg); break;
-    case 'b': cmd_send_morse (sock, arg); break;
-    case '_': cmd_get_info (sock); break;
-    case 'q':
-    case 'Q':
+    const char * arg = nullptr;
+    switch (rigctld_parse_line (line, &arg)) {
+    case RigctlCmd::NONE: break;  // empty line, keep connection
+    case RigctlCmd::GET_FREQ: cmd_get_freq (sock); break;
+    case RigctlCmd::SET_FREQ: cmd_set_freq (sock, arg); break;
+    case RigctlCmd::GET_MODE: cmd_get_mode (sock); break;
+    case RigctlCmd::SET_MODE: cmd_set_mode (sock, arg); break;
+    case RigctlCmd::GET_PTT: cmd_get_ptt (sock); break;
+    case RigctlCmd::SET_PTT: cmd_set_ptt (sock, arg); break;
+    case RigctlCmd::GET_VFO: cmd_get_vfo (sock); break;
+    case RigctlCmd::GET_SPLIT_VFO: cmd_get_split_vfo (sock); break;
+    case RigctlCmd::GET_LEVEL: cmd_get_level (sock, arg); break;
+    case RigctlCmd::SET_LEVEL: cmd_set_level (sock, arg); break;
+    case RigctlCmd::SEND_MORSE: cmd_send_morse (sock, arg); break;
+    case RigctlCmd::GET_INFO: cmd_get_info (sock); break;
+    case RigctlCmd::DUMP_STATE: cmd_dump_state (sock); break;
+    case RigctlCmd::CHK_VFO: cmd_chk_vfo (sock); break;
+    case RigctlCmd::QUIT:
         rigctld_send (sock, "RPRT 0\n");
-        return false;
-
-    case (char)0x8f:
-        cmd_dump_state (sock);
-        break;
-    case (char)0xf0:
-        cmd_chk_vfo (sock);
-        break;
-
-    default: {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "RPRT %d\n", RIG_ENIMPL);
-        rigctld_send (sock, resp);
+        return false;  // close the connection
+    case RigctlCmd::UNKNOWN:
+    default:
+        rigctld_rprt (sock, RIG_ENIMPL);
         break;
     }
-    }
-
     return true;
 }
 
