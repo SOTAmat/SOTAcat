@@ -73,6 +73,13 @@ curl -X POST http://localhost:8080/api/v1/_debug/state \
 `test/integration/test_radio_contract.py` asserts this contract against
 either the mock or real hardware (`make -C test/integration test-contract-mock`).
 
+The mock also serves the firmware's rigctld face (Hamlib NET rigctl,
+`src/rigctld_server.cpp`) on TCP `--rigctld-port` (default 4532; 0 disables):
+one client at a time, GETs from the same simulated radio state, SETs through
+the same queue as HTTP PUTs, `RPRT -6` while the link is down and `-9` during
+FT8. `test/integration/test_rigctld.py` asserts that contract against the
+mock or hardware (`make -C test/integration test-rigctld-mock`).
+
 ### Settings
 | Method | Endpoint | Description |
 |--------|----------|-------------|

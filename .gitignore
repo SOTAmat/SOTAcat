@@ -118,4 +118,8 @@ src/web/*.*gz
 test/host/test_radio_link_health
 test/host/test_radio_snapshot
 test/host/test_radio_park
+test/host/test_rigctld_proto
+
+# Mock-server pid files left by aborted test-*-mock runs
+test/mock_server/.mock_*.pid
 

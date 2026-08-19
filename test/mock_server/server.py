@@ -247,6 +247,239 @@ class MockRadio:
         return 500, f"{kind} failed"
 
 
+class MockRigctld:
+    """rigctld (Hamlib NET rigctl, port 4532) face of the mock, mirroring
+    src/rigctld_server.cpp: one client at a time; GETs answer from the
+    "snapshot" after a bounded refresh (stale during FT8, RPRT -6 when the
+    link is down — with the recovery probe armed); SETs run through the same
+    MockRadio queue as HTTP PUTs and reply RPRT 0 / -5 (timeout) / -6
+    (failed / link down) / -9 (FT8). Unknown commands RPRT -4.
+
+    Volume math mirrors the firmware driver: AF is the AG knob's 0-60 scale
+    (issue #87) and a volume SET is a delta in 5-count steps. (The mock's
+    HTTP volume PUT predates this and still clamps 0-255; AF tests should
+    seed `volume` <= 60 via _debug/state.)
+    """
+
+    RIG_OK, RIG_EINVAL, RIG_ENIMPL, RIG_ETIMEOUT, RIG_EIO, RIG_ERJCTED = 0, -1, -4, -5, -6, -9
+    AF_SCALE, AF_STEP, MAX_WATTS = 60, 5, 12
+
+    # SOTAcat mode name <-> Hamlib mode name (differing entries only).
+    TO_HAMLIB = {"DATA": "PKTUSB", "CW_R": "CWR", "DATA_R": "PKTLSB"}
+    FROM_HAMLIB = {"PKTUSB": "DATA", "CWR": "CW_R", "PKTLSB": "DATA_R", "RTTY": "DATA", "DATA": "DATA"}
+    HAMLIB_MODES = {"USB", "LSB", "CW", "CWR", "AM", "FM", "PKTUSB", "PKTLSB", "RTTY", "DATA"}
+
+    DUMP_STATE = (
+        "1\n2\n0\n"
+        "500000 54000000 0x1ff -1 -1 0x40000003 0x3\n"
+        "0 0 0 0 0 0 0\n"
+        "500000 54000000 0x1ff 10 12000 0x40000003 0x3\n"
+        "0 0 0 0 0 0 0\n"
+        "0 0\n0 0\n0\n0\n0\n0\n\n\n0x0\n0x0\n0x0\n0x0\n0x0\n0x0\ndone\n"
+    )
+
+    def __init__(self, radio: "MockRadio", state: dict, port: int):
+        self.radio = radio
+        self.state = state
+        self.port = port
+
+    def start(self):
+        import socket
+
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind(("0.0.0.0", self.port))
+        srv.listen(1)  # firmware: one client at a time, next waits in backlog
+        print(f"[MOCK] rigctld listening on port {self.port}")
+
+        def accept_loop():
+            while True:
+                client, _ = srv.accept()
+                try:
+                    self._serve(client)
+                except OSError:
+                    pass
+                finally:
+                    client.close()
+
+        threading.Thread(target=accept_loop, daemon=True).start()
+
+    def _serve(self, sock):
+        buf = b""
+        while True:
+            chunk = sock.recv(256)
+            if not chunk:
+                return
+            buf += chunk
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                line = line.rstrip(b"\r").decode("utf-8", "replace")
+                if not self._handle(sock, line):
+                    return
+
+    # -- protocol ---------------------------------------------------------
+    def _rprt(self, sock, code):
+        sock.sendall(f"RPRT {code}\n".encode())
+
+    def _fetch(self, sock, key):
+        """Firmware rigctld_fetch: None -> an RPRT error was sent."""
+        if not self.radio.link_up:
+            self.radio._start_refresh()  # probe stays armed, like the firmware
+            self._rprt(sock, self.RIG_EIO)
+            return None
+        value = self.radio.get_value(key)  # stale during FT8, like the firmware
+        if value is None:
+            self._rprt(sock, self.RIG_EIO)
+            return None
+        return value
+
+    def _apply(self, kind, mutate):
+        """Firmware rigctld_apply: mock 204/500/202 -> RPRT code."""
+        if self.state.get("ft8"):
+            return self.RIG_ERJCTED
+        status, message = self.radio.apply(kind, mutate)
+        if status == 204 or "superseded" in message:  # superseded: settled by the newer op
+            return self.RIG_OK
+        if status == 202:
+            return self.RIG_ETIMEOUT
+        return self.RIG_EIO  # 500 (refused) or 503 (link down)
+
+    def _handle(self, sock, line):
+        line = line.lstrip(" \t")
+        if not line:
+            return True
+        if line[0] == "\\":
+            word, _, rest = line[1:].partition(" ")
+            cmd, arg = word.lower(), (rest or None)
+        else:
+            cmd, arg = line[0], (line[1:].lstrip(" ") or None)
+
+        if cmd in ("q", "Q", "quit"):
+            self._rprt(sock, self.RIG_OK)
+            return False
+        if cmd in ("\x8f", "dump_state"):
+            sock.sendall(self.DUMP_STATE.encode())
+        elif cmd in ("\xf0", "chk_vfo"):
+            sock.sendall(b"0\n")
+        elif cmd in ("f", "get_freq"):
+            v = self._fetch(sock, "frequency")
+            if v is not None:
+                sock.sendall(f"{v}\n".encode())
+        elif cmd in ("F", "set_freq"):
+            try:
+                freq = int(float(arg))
+            except (TypeError, ValueError):
+                freq = 0
+            if freq <= 0:
+                self._rprt(sock, self.RIG_EINVAL)
+            else:
+                def mutate():
+                    self.state["frequency"] = freq
+                    return True
+                self._rprt(sock, self._apply("frequency change", mutate))
+        elif cmd in ("m", "get_mode"):
+            v = self._fetch(sock, "mode")
+            if v is not None:
+                sock.sendall(f"{self.TO_HAMLIB.get(v, v)}\n0\n".encode())
+        elif cmd in ("M", "set_mode"):
+            name = (arg or "").split(" ")[0].upper()
+            if name not in self.HAMLIB_MODES:
+                self._rprt(sock, self.RIG_EINVAL)
+            else:
+                def mutate():
+                    self.state["mode"] = self.FROM_HAMLIB.get(name, name)
+                    return True
+                self._rprt(sock, self._apply("mode change", mutate))
+        elif cmd in ("t", "get_ptt"):
+            v = self._fetch(sock, "xmit")
+            if v is not None:
+                sock.sendall(f"{v}\n".encode())
+        elif cmd in ("T", "set_ptt"):
+            try:
+                ptt = 1 if int(arg) else 0
+            except (TypeError, ValueError):
+                self._rprt(sock, self.RIG_EINVAL)
+            else:
+                def mutate():
+                    self.state["xmit"] = ptt
+                    return True
+                self._rprt(sock, self._apply("xmit change", mutate))
+        elif cmd in ("v", "get_vfo"):
+            sock.sendall(b"VFOA\n")
+        elif cmd in ("s", "get_split_vfo"):
+            sock.sendall(b"0\nVFOA\n")
+        elif cmd in ("l", "get_level"):
+            self._get_level(sock, arg)
+        elif cmd in ("L", "set_level"):
+            self._set_level(sock, arg)
+        elif cmd in ("b", "send_morse"):
+            if not arg:
+                self._rprt(sock, self.RIG_EINVAL)
+            elif self.state.get("ft8"):
+                self._rprt(sock, self.RIG_ERJCTED)
+            else:  # sanctioned direct path: one CAT for the whole keying
+                self._rprt(sock, self.RIG_OK if self.radio._cat() else self.RIG_EIO)
+        elif cmd in ("_", "get_info"):
+            sock.sendall(f"SOTAcat {self.state.get('radio_type', 'Unknown')}\n".encode())
+        else:
+            self._rprt(sock, self.RIG_ENIMPL)
+        return True
+
+    def _get_level(self, sock, arg):
+        name, _, _ = (arg or "").partition(" ")
+        name = name.upper()
+        if name == "RFPOWER":
+            v = self._fetch(sock, "power")
+            if v is not None:
+                sock.sendall(f"{min(max(v / self.MAX_WATTS, 0.0), 1.0):.4f}\n".encode())
+        elif name == "AF":
+            v = self._fetch(sock, "volume")
+            if v is not None:
+                sock.sendall(f"{min(max(v / self.AF_SCALE, 0.0), 1.0):.4f}\n".encode())
+        else:
+            self._rprt(sock, self.RIG_ENIMPL)
+
+    def _set_level(self, sock, arg):
+        name, _, val_str = (arg or "").partition(" ")
+        name = name.upper()
+        if not name or not val_str.strip():
+            self._rprt(sock, self.RIG_EINVAL)
+            return
+        try:
+            val = float(val_str)
+        except ValueError:
+            val = 0.0
+        if name == "RFPOWER":
+            watts = min(max(int(val * self.MAX_WATTS + 0.5), 0), self.MAX_WATTS)
+
+            def mutate():
+                self.state["power"] = watts
+                return True
+            self._rprt(sock, self._apply("power change", mutate))
+        elif name == "AF":
+            if not self.radio.link_up:
+                self._rprt(sock, self.RIG_EIO)
+                return
+            current = self.radio.get_value("volume")
+            if current is None:
+                self._rprt(sock, self.RIG_EIO)
+                return
+            target = min(max(int(val * self.AF_SCALE + 0.5), 0), self.AF_SCALE)
+            diff = target - current
+            half = self.AF_STEP // 2
+            delta = int((diff + (half if diff >= 0 else -half)) / self.AF_STEP)  # trunc toward 0, like the firmware
+            if delta == 0:
+                self._rprt(sock, self.RIG_OK)
+                return
+
+            def mutate():
+                self.state["volume"] = min(max(self.state.get("volume", 0) + delta * self.AF_STEP, 0), self.AF_SCALE)
+                return True
+            self._rprt(sock, self._apply("volume change", mutate))
+        else:
+            self._rprt(sock, self.RIG_ENIMPL)
+
+
 class MockSOTAcatServer:
     def __init__(self, web_dir: str):
         self.app = Flask(__name__, static_folder=None)
@@ -639,7 +872,10 @@ class MockSOTAcatServer:
         print(f"Debug:      http://localhost:{port}/api/v1/_debug/state")
         print(f"Web Dir:    {self.web_dir}")
         print(f"{'='*60}\n")
-        self.app.run(host=host, port=port, debug=debug)
+        # No reloader: it re-executes this script in a child process, which
+        # would crash re-binding the (already bound) rigctld TCP port. Web
+        # assets are read from disk per request, so UI edits need no reload.
+        self.app.run(host=host, port=port, debug=debug, use_reloader=False)
 
 
 def main():
@@ -660,6 +896,10 @@ def main():
         "--radio-latency", type=int, default=50, metavar="MS",
         help="Simulated CAT round-trip per radio operation in ms (default: 50). "
              "Values above the GET/SET wait bounds exercise the stale/202 paths.",
+    )
+    parser.add_argument(
+        "--rigctld-port", type=int, default=4532, metavar="PORT",
+        help="TCP port for the mock rigctld server (default: 4532; 0 disables)",
     )
     parser.add_argument(
         "--radio-dead", action="store_true",
@@ -683,6 +923,8 @@ def main():
     server = MockSOTAcatServer(str(web_dir))
     server.state["radio_latency_ms"] = args.radio_latency
     server.state["radio_dead"] = args.radio_dead
+    if args.rigctld_port:
+        MockRigctld(server.radio, server.state, args.rigctld_port).start()
     server.run(host=args.host, port=args.port)
 
 

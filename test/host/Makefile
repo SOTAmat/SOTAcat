@@ -2,10 +2,11 @@ CXX ?= g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -Werror -O0 -g
 
 .PHONY: test
-test: test_radio_link_health test_radio_snapshot test_radio_park
+test: test_radio_link_health test_radio_snapshot test_radio_park test_rigctld_proto
 	./test_radio_link_health
 	./test_radio_snapshot
 	./test_radio_park
+	./test_rigctld_proto
 
 test_radio_link_health: test_radio_link_health.cpp ../../include/radio_link_health.h
 	$(CXX) $(CXXFLAGS) test_radio_link_health.cpp -o test_radio_link_health
@@ -16,6 +17,9 @@ test_radio_snapshot: test_radio_snapshot.cpp ../../include/radio_snapshot.h
 test_radio_park: test_radio_park.cpp ../../include/radio_park.h
 	$(CXX) $(CXXFLAGS) test_radio_park.cpp -o test_radio_park
 
+test_rigctld_proto: test_rigctld_proto.cpp ../../include/rigctld_proto.h
+	$(CXX) $(CXXFLAGS) test_rigctld_proto.cpp -o test_rigctld_proto
+
 .PHONY: clean
 clean:
-	rm -f test_radio_link_health test_radio_snapshot test_radio_park
+	rm -f test_radio_link_health test_radio_snapshot test_radio_park test_rigctld_proto
