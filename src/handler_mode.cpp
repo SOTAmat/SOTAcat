@@ -1,19 +1,17 @@
 #include "globals.h"
 #include "kx_radio.h"
-#include "timed_lock.h"
+#include "radio_park_httpd.h"
+#include "radio_service.h"
+#include "radio_set_http.h"
+#include "radio_snapshot.h"
 #include "webserver.h"
 
+#include <cassert>
 #include <cctype>
-
 #include <esp_timer.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:hdl_mode";
-
-// Mode cache to reduce radio contention under heavy load
-static radio_mode_t  cached_mode      = MODE_UNKNOWN;
-static int64_t       cached_mode_time = 0;
-static const int64_t MODE_CACHE_US    = 200000;  // 200ms cache
 
 // Struct to map radio mode names to their corresponding radio_mode_t enum values
 typedef struct {
@@ -41,91 +39,58 @@ static const radio_mode_map_t radio_mode_map[] = {
     {"RTTY",    MODE_DATA   },
 };
 
-/**
- * Retrieves the current operating mode of the radio.
- * @return The current mode as a value from the radio_mode_t enumeration.
- */
-radio_mode_t get_radio_mode () {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    int64_t now = esp_timer_get_time();
-    long    mode;
-
-    if (Ft8RadioExclusive) {
-        if (cached_mode != MODE_UNKNOWN) {
-            mode = cached_mode;
-            ESP_LOGW (TAG8, "ft8 active - returning cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
-        }
-        else {
-            ESP_LOGW (TAG8, "ft8 active - no cached mode available");
-            mode = MODE_UNKNOWN;
-        }
+static void send_mode (httpd_req_t * req, const RadioSnapshotData & snap) {
+    long mode = snap.mode;  // 0 == MODE_UNKNOWN -> "UNKNOWN", as before
+    if (mode < MODE_UNKNOWN || mode > MODE_LAST) {
+        ESP_LOGE (TAG8, "unrecognized mode");
+        http_send_error_json (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unrecognized mode");
+        return;
     }
-    // Check cache first to reduce radio mutex contention
-    else if (cached_mode != MODE_UNKNOWN && (now - cached_mode_time) < MODE_CACHE_US) {
-        mode = cached_mode;
-        ESP_LOGV (TAG8, "returning cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
-    }
-    else {
-        // Cache miss or expired - query radio with timeout
-        // Tier 1: Fast timeout for GET operations
-        {
-            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "mode GET");
-            if (lock.acquired()) {
-                radio_mode_t current_mode = MODE_UNKNOWN;
-                if (!kxRadio.get_mode (current_mode))
-                    mode = MODE_UNKNOWN;
-                else
-                    mode = current_mode;
-
-                if (mode > MODE_UNKNOWN && mode <= MODE_LAST) {
-                    // Update cache
-                    cached_mode      = static_cast<radio_mode_t> (mode);
-                    cached_mode_time = now;
-                    ESP_LOGD (TAG8, "cached new mode: %ld (%s)", mode, radio_mode_map[mode].name);
-                }
-                else {
-                    ESP_LOGI (TAG8, "mode = %ld (%s)", mode, radio_mode_map[mode].name);
-                }
-            }
-            else {
-                // Mutex timeout - return stale cache if available
-                if (cached_mode != MODE_UNKNOWN) {
-                    mode = cached_mode;
-                    ESP_LOGW (TAG8, "radio busy - returning stale cached mode: %ld (%s)", mode, radio_mode_map[mode].name);
-                }
-                else {
-                    ESP_LOGW (TAG8, "radio busy - no cached mode available");
-                    mode = MODE_UNKNOWN;
-                }
-            }
-        }  // TimedLock destructor runs here, after radio access is complete
-    }
-
-    // Ensure the mode is valid - this is really a double-check that our array
-    // of modes is properly formed, moreso than a potential runtime error.
     assert (radio_mode_map[mode].mode == mode);
+    ESP_LOGI (TAG8, "returning mode: %s", radio_mode_map[mode].name);
+    http_send_string (req, radio_mode_map[mode].name);
+}
 
-    return static_cast<radio_mode_t> (mode);
+// Async completer: the refresh finished (or the wait expired) — reply with
+// whatever the snapshot holds now. Payload byte-identical to the sync path.
+static void mode_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
+    send_mode (req, radio_snapshot::get());
 }
 
 /**
  * Handles an HTTP GET request to retrieve the current operating mode of the radio.
+ *
+ * Fresh snapshot: reply immediately. Stale/unknown: arm a background refresh
+ * and, if the link is up, park the request (up to RADIO_PARK_GET_WAIT_MS)
+ * so the reply reflects the refreshed value — the HTTP server task is never
+ * blocked. If parking isn't possible, reply with the last-known value.
+ *
  * @param req Pointer to the HTTP request structure.
  * @return ESP_OK if the mode is successfully retrieved and sent; otherwise, an error code.
  */
 esp_err_t handler_mode_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    radio_mode_t mode = get_radio_mode();
+    RadioSnapshotData snap = radio_snapshot::get();
+    int64_t           now  = esp_timer_get_time();
 
-    // Validate the mode and respond with an error if unrecognized
-    if (mode < MODE_UNKNOWN || mode > MODE_LAST)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unrecognized mode");
+    if (snap.mode_fresh (now)) {
+        send_mode (req, snap);
+        return ESP_OK;
+    }
 
-    REPLY_WITH_STRING (req, radio_mode_map[mode].name, "mode");
+    // See handler_frequency_get for the FT8 / link-up reasoning.
+    if (!Ft8RadioExclusive) {
+        radio_service_request_refresh (RadioCmdType::REFRESH_MODE);  // also the recovery probe when down
+        if (!radio_service_link_up())
+            REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");  // see handler_frequency_get
+        if (radio_park_request (req, RadioParkKind::GET_MODE, 0, RADIO_PARK_GET_WAIT_MS, mode_get_complete))
+            return ESP_OK;  // reply sent later by mode_get_complete
+    }
+
+    send_mode (req, snap);  // FT8 / no room: last known, or "UNKNOWN"
+    return ESP_OK;
 }
 
 /**
@@ -147,44 +112,28 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
 
     ESP_LOGI (TAG8, "requesting mode = '%s'", mode_param);
 
-    radio_mode_t mode = MODE_UNKNOWN;
-
-    // Tier 2: Moderate timeout for SET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "mode SET")) {
-        // Determine the radio mode based on the "mode" parameter
-        if (!strcmp (mode_param, "SSB")) {
-            // Get the current frequency and set the mode to LSB or USB based on the frequency
-            long frequency = 0;
-            if (!kxRadio.get_frequency (frequency))
-                frequency = 0;
-            if (frequency > 0)
-                mode = (frequency < 10000000) ? MODE_LSB : MODE_USB;
-        }
-        else
-#define COUNTOF(array) (sizeof (array) / sizeof (array[0]))
-            // Iterate through the radio_mode_map to find a matching mode
-            for (radio_mode_map_t const * mode_kv = &radio_mode_map[COUNTOF (radio_mode_map) - 1];
-                 mode_kv >= &radio_mode_map[0];
-                 --mode_kv)
-                if (!strcmp (mode_param, mode_kv->name)) {
-                    mode = mode_kv->mode;
-                    break;
-                }
-
-        // Respond with an error if the mode is not recognized
-        if (mode == MODE_UNKNOWN)
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode");
-
-        // Set the radio mode
-        ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
-        if (!kxRadio.set_mode (mode, SC_KX_COMMUNICATION_RETRIES))
-            REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode for radio");
-
-        // Update cache after setting new mode
-        cached_mode      = mode;
-        cached_mode_time = esp_timer_get_time();
-        ESP_LOGD (TAG8, "cache updated with new mode: %s", radio_mode_map[mode].name);
+    // "SSB" is resolved to LSB/USB by the radio service at apply time
+    // (RADIO_MODE_SSB_AUTO), after any frequency SET queued ahead of it.
+    if (!strcmp (mode_param, "SSB")) {
+        ESP_LOGI (TAG8, "mode = SSB (sideband chosen at apply time)");
+        return radio_set_via_http (req, RadioCmdType::SET_MODE, RADIO_MODE_SSB_AUTO, "mode change");
     }
 
-    REPLY_WITH_SUCCESS();
+    radio_mode_t mode = MODE_UNKNOWN;
+#define COUNTOF(array) (sizeof (array) / sizeof (array[0]))
+    // Iterate through the radio_mode_map to find a matching mode
+    for (radio_mode_map_t const * mode_kv = &radio_mode_map[COUNTOF (radio_mode_map) - 1];
+         mode_kv >= &radio_mode_map[0];
+         --mode_kv)
+        if (!strcmp (mode_param, mode_kv->name)) {
+            mode = mode_kv->mode;
+            break;
+        }
+
+    // Respond with an error if the mode is not recognized
+    if (mode == MODE_UNKNOWN)
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode");
+
+    ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
+    return radio_set_via_http (req, RadioCmdType::SET_MODE, (long)mode, "mode change");
 }

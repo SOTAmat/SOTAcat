@@ -5,25 +5,26 @@
 #include "hardware_specific.h"
 #include "idle_status_task.h"
 #include "kx_radio.h"
+#include "radio_service.h"
 #include "settings.h"
 #include "setup_adc.h"
 #include "timed_lock.h"
 #include "webserver.h"
 #include "wifi.h"
 
+#include <ctime>
 #include <driver/gpio.h>
 #include <esp_task_wdt.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <ctime>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:setup...";
 
-time_t       LastUserActivityUnixTime;
-std::atomic<bool> CommandInProgress {false};
-TaskHandle_t xInactivityWatchdogHandle = NULL;
+time_t            LastUserActivityUnixTime;
+std::atomic<bool> CommandInProgress{false};
+TaskHandle_t      xInactivityWatchdogHandle = NULL;
 
 /**
  * Start a watchdog timer to shut the unit down if we aren't able to fully initialize within 60 seconds,
@@ -157,6 +158,11 @@ void setup () {
     // Wait for radio connection
     xTaskNotifyWait (0, 0, &notification_value, portMAX_DELAY);
     ESP_LOGI (TAG8, "radio connection established.");
+
+    // The radio is connected; hand all further CAT I/O to the radio
+    // service task so HTTP handlers never block on the radio.
+    radio_service_start();
+    ESP_LOGI (TAG8, "radio service task started.");
 
     //  We exit with the LED off.
     gpio_set_level (LED_BLUE, LED_OFF);

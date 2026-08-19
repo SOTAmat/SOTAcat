@@ -24,6 +24,8 @@ import argparse
 import json
 import os
 import sys
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -43,7 +45,12 @@ DEFAULT_STATE = {
     "mode": "USB",
     "power": 15,
     "xmit": 0,  # 0 = RX, 1 = TX
+    "volume": 120,  # AF gain 0-255
     "radio_type": "KX2",  # "KX2", "KX3", or "Unknown"
+    # Radio-link emulation (see MockRadio). Settable live via _debug/state.
+    "radio_latency_ms": 50,  # simulated CAT round-trip per operation
+    "radio_dead": False,     # radio off / unplugged: CAT never answers
+    "ft8": False,            # FT8 transmission in progress (radio exclusive)
     # Device info (format: {HW}_{VER}:{YYMMDD}:{HHMM}-{R|D})
     "version": "TEST_1:260101:0101-D",
     "rssi": -62,
@@ -85,12 +92,168 @@ DEFAULT_STATE = {
 }
 
 
+# Firmware-contract constants (mirror include/radio_park_httpd.h /
+# include/radio_service.h). Keep in sync; test_radio_contract.py asserts against
+# these same bounds on real hardware.
+RADIO_GET_WAIT_MS = 300     # GET waits at most this long for a refresh
+RADIO_SET_WAIT_MS = 1500    # PUT waits at most this long for confirmation
+RADIO_LINK_DOWN_FAILS = 3   # consecutive CAT failures -> link down
+RADIO_LINK_DOWN_PROBE_S = 5   # one recovery probe (TQ ping, ~0.2 s) per this interval while down
+
+VALID_MODES = ["LSB", "USB", "CW", "FM", "AM", "DATA", "CW_R", "DATA_R"]
+MODE_ALIASES = {"FT8": "DATA", "JS8": "DATA", "PK31": "DATA", "FT4": "DATA", "RTTY": "DATA"}
+
+
+class MockRadio:
+    """Emulates the firmware's radio-service + async-handler contract
+    (docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md):
+
+      GET frequency/mode/connectionStatus  -> bare text; waits <= RADIO_GET_WAIT_MS
+                                              for a fresh value, else last-known.
+      PUT frequency/mode/volume/atu        -> 204 applied | 500 refused |
+                                              202 (confirmation outran RADIO_SET_WAIT_MS,
+                                              or superseded by a newer same-kind PUT) |
+                                              503 (link down, or FT8 active).
+      Link health: RADIO_LINK_DOWN_FAILS consecutive failed CAT ops -> down
+      (⚫, PUT 503, one probe per RADIO_LINK_DOWN_PROBE_S); first success -> up.
+
+    `state` is the shared mock state dict: reads radio_latency_ms / radio_dead
+    / ft8 live, so tests can flip them through /api/v1/_debug/state.
+    """
+
+    def __init__(self, state: dict):
+        self.state = state
+        self.lock = threading.Lock()   # serializes "CAT" like the radio mutex
+        self.consecutive_fails = 0
+        self.link_up = True            # boot: connect() succeeded
+        self.last_probe = 0.0
+        self.set_gen = {}              # kind -> latest generation (supersede)
+        # Firmware coalesces refresh requests into ONE pending slot per kind
+        # and drains SET slots before refreshes; model both so a slow radio
+        # under GET polling cannot starve a SET (as it cannot on the device).
+        self.refresh_lock = threading.Lock()
+        self.refresh_inflight = False
+        self.pending_sets = 0
+
+    # -- emulated CAT exchange -------------------------------------------
+    def _cat(self):
+        """One serialized CAT op. Returns True on success. A dead radio costs
+        the full latency (bounded, like the firmware's UART timeout) and
+        fails; a live one costs latency and succeeds."""
+        with self.lock:
+            latency = max(0, int(self.state.get("radio_latency_ms", 50))) / 1000.0
+            if self.state.get("radio_dead"):
+                # Link already down -> this is a cheap TQ recovery ping.
+                time.sleep(0.2 if not self.link_up else (min(latency, 2.0) or 0.05))
+                self.consecutive_fails += 1
+                # Firmware fast-confirm: after a failure, up to THRESHOLD-1
+                # quick TQ; pings (~0.2 s each) decide the link right away.
+                while self.consecutive_fails < RADIO_LINK_DOWN_FAILS:
+                    time.sleep(0.2)
+                    self.consecutive_fails += 1
+                self.link_up = False
+                return False
+            time.sleep(latency)
+            self.consecutive_fails = 0
+            self.link_up = True
+            return True
+
+    def _start_refresh(self, on_done=None):
+        """Arm ONE refresh (coalesced: a refresh already in flight serves this
+        request too). While link-down, throttle to one probe per interval.
+        Returns the Event that fires when the (shared) refresh completes."""
+        with self.refresh_lock:
+            if self.refresh_inflight:
+                return self.refresh_done
+            now = time.time()
+            if not self.link_up and now - self.last_probe < RADIO_LINK_DOWN_PROBE_S:
+                return None
+            self.last_probe = now
+            self.refresh_inflight = True
+            self.refresh_done = threading.Event()
+            done = self.refresh_done
+
+        def worker():
+            # SET slots drain first: yield while any SET is queued.
+            while self.pending_sets > 0:
+                time.sleep(0.01)
+            try:
+                self._cat()
+            finally:
+                with self.refresh_lock:
+                    self.refresh_inflight = False
+                done.set()
+
+        threading.Thread(target=worker, daemon=True).start()
+        return done
+
+    # -- GET side ----------------------------------------------------------
+    def get_value(self, key):
+        """Return the current value for `key` after a bounded wait for a
+        refresh (like a parked GET). Never blocks past RADIO_GET_WAIT_MS.
+        Returns None when the link is down (handler replies 503; the probe
+        is still armed)."""
+        if not self.link_up:
+            self._start_refresh()
+            return None
+        if self.state.get("ft8"):
+            return self.state[key]  # stale, instantly
+        done = self._start_refresh()
+        if done is not None:
+            done.wait(RADIO_GET_WAIT_MS / 1000.0)
+        return self.state[key]  # fresh if the refresh finished, else last-known
+
+    def status_symbol(self):
+        if not self.link_up:
+            self._start_refresh()  # firmware: connectionStatus arms the recovery probe
+            return "⚫"
+        if self.state.get("ft8"):
+            return "⚪"
+        self.get_value("xmit")
+        return "🔴" if self.state.get("xmit") else "🟢"
+
+    # -- SET side ----------------------------------------------------------
+    def apply(self, kind, mutate):
+        """Enqueue a SET; `mutate()` applies it to state and returns True/False
+        (radio accepted / refused). Returns (status, message)."""
+        if self.state.get("ft8"):
+            return 503, "radio busy (FT8)"
+        if not self.link_up:
+            return 503, "radio link down"
+        gen = self.set_gen.get(kind, 0) + 1
+        self.set_gen[kind] = gen
+        done = threading.Event()
+        result = {}
+        self.pending_sets += 1
+
+        def worker():
+            try:
+                ok = self._cat()
+                if ok:
+                    ok = bool(mutate())
+                result["ok"] = ok
+            finally:
+                self.pending_sets -= 1
+                done.set()
+
+        threading.Thread(target=worker, daemon=True).start()
+        finished = done.wait(RADIO_SET_WAIT_MS / 1000.0)
+        if self.set_gen.get(kind) != gen:
+            return 202, f"{kind} superseded"
+        if not finished:
+            return 202, f"{kind} accepted, applying"
+        if result.get("ok"):
+            return 204, ""
+        return 500, f"{kind} failed"
+
+
 class MockSOTAcatServer:
     def __init__(self, web_dir: str):
         self.app = Flask(__name__, static_folder=None)
         CORS(self.app)  # Allow cross-origin for development
         self.web_dir = Path(web_dir).resolve()
         self.state = dict(DEFAULT_STATE)
+        self.radio = MockRadio(self.state)  # shares the dict: reset must update in place
         self._setup_routes()
 
     def _setup_routes(self):
@@ -143,31 +306,79 @@ class MockSOTAcatServer:
         def get_version():
             return self.state["version"]
 
+        # --- Radio endpoints: firmware-contract-faithful (bare text GETs,
+        # 204/500/202/503 PUTs, bounded waits) — see MockRadio.
+        def radio_reply(status, message):
+            if status == 204:
+                return Response("", status=204, headers={"Cache-Control": "no-store"})
+            key = "message" if status == 202 else "error"
+            return Response(json.dumps({key: message}), status=status,
+                            mimetype="application/json")
+
+        def text_reply(value):
+            if value is None:
+                return radio_reply(503, "radio link down")
+            return Response(str(value), status=200, mimetype="text/plain",
+                            headers={"Cache-Control": "no-store"})
+
         # Frequency
         @self.app.route("/api/v1/frequency", methods=["GET"])
         def get_frequency():
-            return jsonify({"frequency": self.state["frequency"]})
+            return text_reply(self.radio.get_value("frequency"))
 
         @self.app.route("/api/v1/frequency", methods=["PUT"])
         def set_frequency():
-            freq = request.args.get("frequency")
-            if freq:
-                self.state["frequency"] = int(freq)
-                print(f"[MOCK] Frequency set to {self.state['frequency']} Hz")
-            return "", 200
+            try:
+                freq = int(request.args.get("frequency", ""))
+            except ValueError:
+                freq = 0
+            if freq <= 0:
+                return radio_reply(404, "invalid frequency")
+
+            def mutate():
+                self.state["frequency"] = freq
+                print(f"[MOCK] Frequency set to {freq} Hz")
+                return True
+
+            return radio_reply(*self.radio.apply("frequency change", mutate))
 
         # Mode
         @self.app.route("/api/v1/mode", methods=["GET"])
         def get_mode():
-            return jsonify({"mode": self.state["mode"]})
+            return text_reply(self.radio.get_value("mode"))
 
         @self.app.route("/api/v1/mode", methods=["PUT"])
         def set_mode():
-            mode = request.args.get("mode")
-            if mode:
-                self.state["mode"] = mode
-                print(f"[MOCK] Mode set to {self.state['mode']}")
-            return "", 200
+            mode = request.args.get("mode", "").upper()
+            mode = MODE_ALIASES.get(mode, mode)
+            if mode != "SSB" and mode not in VALID_MODES:
+                return radio_reply(404, "invalid mode")
+
+            def mutate():
+                # "SSB" resolves at apply time from the then-current frequency
+                m = mode
+                if m == "SSB":
+                    m = "LSB" if self.state["frequency"] < 10_000_000 else "USB"
+                self.state["mode"] = m
+                print(f"[MOCK] Mode set to {m}")
+                return True
+
+            return radio_reply(*self.radio.apply("mode change", mutate))
+
+        # Volume (delta)
+        @self.app.route("/api/v1/volume", methods=["PUT"])
+        def set_volume():
+            try:
+                delta = int(request.args.get("delta", ""))
+            except ValueError:
+                return radio_reply(404, "invalid delta")
+
+            def mutate():
+                self.state["volume"] = max(0, min(255, self.state.get("volume", 0) + delta))
+                print(f"[MOCK] Volume adjusted by {delta} -> {self.state['volume']}")
+                return True
+
+            return radio_reply(*self.radio.apply("volume change", mutate))
 
         # Callsign
         @self.app.route("/api/v1/callsign", methods=["GET"])
@@ -295,7 +506,9 @@ class MockSOTAcatServer:
 
         @self.app.route("/api/v1/connectionStatus", methods=["GET"])
         def get_connection_status():
-            return jsonify({"connected": self.state["connected"]})
+            # Bare glyph, like the firmware: ⚫ link down · ⚪ FT8/unknown ·
+            # 🔴 transmitting · 🟢 idle
+            return text_reply(self.radio.status_symbol())
 
         # Radio type
         @self.app.route("/api/v1/radioType", methods=["GET"])
@@ -306,36 +519,75 @@ class MockSOTAcatServer:
         # Time sync
         @self.app.route("/api/v1/time", methods=["PUT"])
         def set_time():
-            time_val = request.args.get("time")
-            if time_val:
+            try:
+                time_val = int(request.args.get("time", ""))
+            except ValueError:
+                time_val = -1
+            if time_val < 0:
+                return radio_reply(400, "invalid time value")
+
+            def mutate():
                 print(f"[MOCK] Time sync received: {time_val}")
-            return "", 200
+                return True
+
+            return radio_reply(*self.radio.apply("time sync", mutate))
 
         # Power control
+        @self.app.route("/api/v1/power", methods=["GET"])
+        def get_power():
+            return text_reply(self.radio.get_value("power"))
+
         @self.app.route("/api/v1/power", methods=["PUT"])
         def set_power():
-            power = request.args.get("power")
-            if power:
-                self.state["power"] = int(power)
-                print(f"[MOCK] Power set to {self.state['power']}W")
-            return "", 200
+            try:
+                power = int(request.args.get("power", ""))
+            except ValueError:
+                power = -1
+            if power < 0:
+                return radio_reply(404, "invalid power")
+
+            def mutate():
+                self.state["power"] = power
+                print(f"[MOCK] Power set to {power}W")
+                return True
+
+            return radio_reply(*self.radio.apply("power change", mutate))
+
+        # Volume (absolute read)
+        @self.app.route("/api/v1/volume", methods=["GET"])
+        def get_volume():
+            return text_reply(self.radio.get_value("volume"))
 
         # Transmit control
         @self.app.route("/api/v1/xmit", methods=["PUT"])
         def set_xmit():
-            state_val = request.args.get("state")
-            if state_val:
-                self.state["xmit"] = int(state_val)
-                status = "TX" if self.state["xmit"] else "RX"
-                print(f"[MOCK] Transmit state: {status}")
-            return "", 200
+            try:
+                state_val = int(request.args.get("state", ""))
+            except ValueError:
+                return radio_reply(404, "invalid state")
+
+            def mutate():
+                self.state["xmit"] = 1 if state_val else 0
+                print(f"[MOCK] Transmit state: {'TX' if state_val else 'RX'}")
+                return True
+
+            return radio_reply(*self.radio.apply("TX/RX toggle", mutate))
 
         # CW message playback
         @self.app.route("/api/v1/msg", methods=["PUT"])
         def play_message():
-            bank = request.args.get("bank")
-            print(f"[MOCK] Playing CW message bank {bank}")
-            return "", 200
+            try:
+                bank = int(request.args.get("bank", ""))
+            except ValueError:
+                bank = 0
+            if bank <= 0:
+                return radio_reply(404, "invalid bank")
+
+            def mutate():
+                print(f"[MOCK] Playing CW message bank {bank}")
+                return True
+
+            return radio_reply(*self.radio.apply("message play", mutate))
 
         # CW keyer
         @self.app.route("/api/v1/keyer", methods=["PUT"])
@@ -347,8 +599,11 @@ class MockSOTAcatServer:
         # ATU tune
         @self.app.route("/api/v1/atu", methods=["PUT"])
         def tune_atu():
-            print(f"[MOCK] ATU tune initiated")
-            return "", 200
+            def mutate():
+                print(f"[MOCK] ATU tune initiated")
+                return True
+
+            return radio_reply(*self.radio.apply("ATU tune", mutate))
 
         # OTA update (just acknowledge, don't do anything)
         @self.app.route("/api/v1/ota", methods=["POST"])
@@ -370,7 +625,8 @@ class MockSOTAcatServer:
 
         @self.app.route("/api/v1/_debug/reset", methods=["POST"])
         def debug_reset_state():
-            self.state = dict(DEFAULT_STATE)
+            self.state.clear()
+            self.state.update(DEFAULT_STATE)  # in place: MockRadio holds this dict
             print(f"[MOCK] State reset to defaults")
             return jsonify(self.state)
 
@@ -400,6 +656,16 @@ def main():
     parser.add_argument(
         "--host", type=str, default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)"
     )
+    parser.add_argument(
+        "--radio-latency", type=int, default=50, metavar="MS",
+        help="Simulated CAT round-trip per radio operation in ms (default: 50). "
+             "Values above the GET/SET wait bounds exercise the stale/202 paths.",
+    )
+    parser.add_argument(
+        "--radio-dead", action="store_true",
+        help="Start with the radio unreachable (CAT never answers): link goes "
+             "down after a few failures; GETs stay fast, PUTs 503.",
+    )
     args = parser.parse_args()
 
     # Resolve web directory relative to script location
@@ -415,6 +681,8 @@ def main():
         sys.exit(1)
 
     server = MockSOTAcatServer(str(web_dir))
+    server.state["radio_latency_ms"] = args.radio_latency
+    server.state["radio_dead"] = args.radio_dead
     server.run(host=args.host, port=args.port)
 
 

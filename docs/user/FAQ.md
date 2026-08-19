@@ -33,6 +33,22 @@ Android's mDNS support varies by device and OS version. Use `http://192.168.4.1`
 
 The Firmware card in Settings checks [SOTAcat's GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases) directly. That's the only authoritative source. Don't trust mirrors or side-channel binaries.
 
+## What does the colored circle in the header mean?
+
+It shows whether SOTAcat can talk to the radio right now.
+
+| Circle | Meaning |
+|---|---|
+| 🟢 green | Radio connected and receiving |
+| 🔴 red | Radio transmitting (CW keyer, TX button, or the radio's own PTT) |
+| ⚪ white | Radio busy with an FT8 transmission, or its state isn't known yet |
+| ⚫ black | Radio not answering: powered off, auto-powered-off, or a loose CAT cable |
+
+The circle turns ⚫ within a couple of seconds of the radio going quiet, and back
+to 🟢 within a few seconds of it answering again. With the radio off you can
+still browse CHASE, use Settings, and send QRT or Spot SMS; only tuning and mode
+changes need the radio.
+
 ## Why is my CHASE list missing VHF/UHF (or other) spots?
 
 By default, CHASE filters to bands your KX2/KX3/KH1 natively supports. If you operate with a transverter, uncheck **"Show only bands my radio can access"** in Settings to see all spots.

@@ -114,3 +114,8 @@ src/web/*.*gz
 # Claude Code git worktrees (local tooling, not project content)
 .claude/worktrees/
 
+# Host unit test binaries (built by test/host/Makefile)
+test/host/test_radio_link_health
+test/host/test_radio_snapshot
+test/host/test_radio_park
+

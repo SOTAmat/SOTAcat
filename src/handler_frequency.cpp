@@ -1,84 +1,73 @@
 #include "globals.h"
-#include "kx_radio.h"
-#include "timed_lock.h"
+#include "radio_park_httpd.h"
+#include "radio_service.h"
+#include "radio_set_http.h"
+#include "radio_snapshot.h"
 #include "webserver.h"
 
-#include <esp_log.h>
 #include <esp_timer.h>
+
+#include <esp_log.h>
 static const char * TAG8 = "sc:hdl_freq";
 
-// Frequency cache to reduce radio contention under heavy load
-static long          cached_frequency      = 0;
-static int64_t       cached_frequency_time = 0;
-static const int64_t FREQUENCY_CACHE_US    = 200000;  // 200ms cache
+static void send_frequency (httpd_req_t * req, const RadioSnapshotData & snap) {
+    if (!snap.has_frequency()) {
+        ESP_LOGE (TAG8, "frequency unavailable");
+        http_send_error_json (req, HTTPD_500_INTERNAL_SERVER_ERROR, "frequency unavailable");
+        return;
+    }
+    char buf[16];
+    snprintf (buf, sizeof (buf), "%ld", snap.frequency_hz);
+    ESP_LOGI (TAG8, "returning frequency: %s", buf);
+    http_send_string (req, buf);
+}
+
+// Async completer: the refresh finished (or the wait expired) — reply with
+// whatever the snapshot holds now. Payload byte-identical to the sync path.
+static void frequency_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
+    send_frequency (req, radio_snapshot::get());
+}
 
 /**
  * Handles a HTTP GET request to retrieve the current frequency from the radio.
+ *
+ * Fresh snapshot: reply immediately. Stale/unknown: arm a background refresh
+ * and, if the link is up, park the request (up to RADIO_PARK_GET_WAIT_MS)
+ * so the reply reflects the refreshed value — the HTTP server task is never
+ * blocked. If parking isn't possible, reply with the last-known value.
  *
  * @param req Pointer to the HTTP request structure.
  * @return ESP_OK on successful frequency retrieval and transmission, appropriate error code otherwise.
  */
 esp_err_t handler_frequency_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    long    frequency;
-    int64_t now = esp_timer_get_time();
+    RadioSnapshotData snap = radio_snapshot::get();
+    int64_t           now  = esp_timer_get_time();
 
-    if (Ft8RadioExclusive) {
-        if (cached_frequency > 0) {
-            frequency = cached_frequency;
-            ESP_LOGW (TAG8, "ft8 active - returning cached frequency: %ld", frequency);
-        }
-        else {
-            ESP_LOGW (TAG8, "ft8 active - no cached frequency available");
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
-        }
-    }
-    // Check cache first to reduce radio mutex contention
-    else if (cached_frequency > 0 && (now - cached_frequency_time) < FREQUENCY_CACHE_US) {
-        frequency = cached_frequency;
-        ESP_LOGV (TAG8, "returning cached frequency: %ld", frequency);
-    }
-    else {
-        // Cache miss or expired - query radio with timeout
-        // Tier 1: Fast timeout for GET operations
-        {
-            TimedLock lock = kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_FAST_MS, "frequency GET");
-            if (lock.acquired()) {
-                if (!kxRadio.get_frequency (frequency))
-                    frequency = -1;
-
-                if (frequency > 0) {
-                    // Update cache
-                    cached_frequency      = frequency;
-                    cached_frequency_time = now;
-                    ESP_LOGD (TAG8, "cached new frequency: %ld", frequency);
-                }
-            }
-            else {
-                // Mutex timeout - return stale cache if available
-                if (cached_frequency > 0) {
-                    frequency = cached_frequency;
-                    ESP_LOGW (TAG8, "radio busy - returning stale cached frequency: %ld", frequency);
-                }
-                else {
-                    ESP_LOGW (TAG8, "radio busy - no cached frequency available");
-                    REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "radio busy");
-                }
-            }
-        }  // TimedLock destructor runs here, after radio access is complete
+    if (snap.frequency_fresh (now)) {
+        send_frequency (req, snap);
+        return ESP_OK;
     }
 
-    if (frequency <= 0)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "invalid frequency from radio");
+    // Skip the refresh-enqueue during FT8 — the radio service does no CAT
+    // work while Ft8RadioExclusive is set, so the slot would only churn (and
+    // a parked request would just time out); matches handler_status.cpp.
+    if (!Ft8RadioExclusive) {
+        radio_service_request_refresh (RadioCmdType::REFRESH_FREQUENCY);  // also the recovery probe when down
+        // Link known-down: say so. API clients without the ⚫ cue (SOTAmat
+        // polls only frequency/mode) must not be fed a stale value as live;
+        // `main` gave them a 5xx here too. The web UI treats non-OK as
+        // "no update" and shows ⚫ in the header.
+        if (!radio_service_link_up())
+            REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
+        if (radio_park_request (req, RadioParkKind::GET_FREQUENCY, 0, RADIO_PARK_GET_WAIT_MS, frequency_get_complete))
+            return ESP_OK;  // reply sent later by frequency_get_complete
+    }
 
-    // Frequency is valid, send response back to phone
-    char buf[16];
-    snprintf (buf, sizeof (buf), "%ld", frequency);
-
-    REPLY_WITH_STRING (req, buf, "frequency");
+    send_frequency (req, snap);  // FT8 / no room: last known, or 500 if nothing cached yet
+    return snap.has_frequency() ? ESP_OK : ESP_FAIL;
 }
 
 /**
@@ -94,23 +83,10 @@ esp_err_t handler_frequency_put (httpd_req_t * req) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     STANDARD_DECODE_SOLE_PARAMETER (req, "frequency", param_value)
-    int freq = atoi (param_value);  // Convert the parameter to an integer
-    ESP_LOGI (TAG8, "frequency '%d'", freq);
-    if (freq <= 0)
+    long freq = 0;
+    if (!parse_long_param (param_value, freq) || freq <= 0)
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid frequency");
+    ESP_LOGI (TAG8, "frequency '%ld'", freq);
 
-    // Tier 2: Moderate timeout for SET operations
-    TIMED_LOCK_OR_FAIL (req, kxRadio.timed_lock (RADIO_LOCK_TIMEOUT_MODERATE_MS, "frequency SET")) {
-        bool success = kxRadio.set_frequency (freq, SC_KX_COMMUNICATION_RETRIES);
-
-        if (!success)
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed to set frequency");
-
-        // Invalidate cache after setting new frequency
-        cached_frequency      = freq;
-        cached_frequency_time = esp_timer_get_time();
-        ESP_LOGD (TAG8, "cache updated with new frequency: %d", freq);
-    }
-
-    REPLY_WITH_SUCCESS();
+    return radio_set_via_http (req, RadioCmdType::SET_FREQUENCY, freq, "frequency change");
 }

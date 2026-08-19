@@ -8,9 +8,11 @@
 #include "timed_lock.h"
 #include "webserver.h"
 
-#include <cmath>
 #include <atomic>
+#include <cmath>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <esp_task_wdt.h>
@@ -18,8 +20,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
-#include <cstdint>
-#include <cstring>
 #include <sys/time.h>
 
 // Thank-you to KI6SYD for providing key information about the Elecraft KX radios and for initial testing. - AB6D
@@ -32,14 +32,14 @@ static const char * TAG8 = "sc:hdl_ft8.";
  * if the system time surpasses this timestamp without any new FT8 activity, the system will automatically exit
  * FT8 mode and revert the radio to its previous state. The value is in microseconds since the Unix epoch.
  */
-static std::atomic<int64_t> CancelRadioFT8ModeTime {0};
+static std::atomic<int64_t> CancelRadioFT8ModeTime{0};
 
 /**
  * Indicates whether an FT8 transmission task is currently in progress. This boolean flag helps prevent the
  * initiation of multiple concurrent FT8 transmission tasks, ensuring that only one FT8 task operates at any
  * given time, thus avoiding conflicts or resource contention in radio usage.
  */
-static std::atomic<bool> ft8TaskInProgress {false};
+static std::atomic<bool> ft8TaskInProgress{false};
 
 static inline int64_t ft8_get_cancel_deadline_us () {
     return CancelRadioFT8ModeTime.load (std::memory_order_acquire);
@@ -99,7 +99,7 @@ typedef struct
     kx_state_t * kx_state;
 } ft8_task_pack_t;
 
-static std::atomic<ft8_task_pack_t *> ft8ConfigInfo {nullptr};
+static std::atomic<ft8_task_pack_t *> ft8ConfigInfo{nullptr};
 bool                                  Ft8RadioExclusive = false;
 
 static inline ft8_task_pack_t * ft8_get_config_info () {
@@ -110,11 +110,11 @@ static inline void ft8_set_config_info (ft8_task_pack_t * config) {
     ft8ConfigInfo.store (config, std::memory_order_release);
 }
 
-static std::atomic<long>     ft8PreparedRfFreq {0};
-static std::atomic<int>      ft8PreparedAudioFreq {0};
-static std::atomic<uint32_t> ft8PreparedMessageHash {0};
-static std::atomic<uint32_t> ft8PreparedRequestTokenHash {0};
-static std::atomic<uint32_t> ft8LastAcceptedSequence {0};
+static std::atomic<long>     ft8PreparedRfFreq{0};
+static std::atomic<int>      ft8PreparedAudioFreq{0};
+static std::atomic<uint32_t> ft8PreparedMessageHash{0};
+static std::atomic<uint32_t> ft8PreparedRequestTokenHash{0};
+static std::atomic<uint32_t> ft8LastAcceptedSequence{0};
 
 static inline uint32_t ft8_get_last_accepted_sequence () {
     return ft8LastAcceptedSequence.load (std::memory_order_acquire);
@@ -148,7 +148,7 @@ static uint32_t ft8_hash_optional_string (const char * text) {
 
 static void ft8_clear_prepare_identity ();
 
-constexpr size_t         FT8_QUEUE_MAX = 4;
+constexpr size_t         FT8_QUEUE_MAX             = 4;
 constexpr int64_t        FT8_QUEUE_WAIT_TIMEOUT_US = 2000LL * 1000LL;
 static long              ft8_queue[FT8_QUEUE_MAX];
 static size_t            ft8_queue_head  = 0;
@@ -183,7 +183,7 @@ static void ft8_tone_timer_cb (void * arg) {
     else {
         // If we can't keep up with tone scheduling, abort the transmission
         ft8_request_cancel();
-        ft8_tone_index         = FT8_NN;
+        ft8_tone_index = FT8_NN;
     }
 }
 
@@ -352,9 +352,9 @@ static void waitForFT8Window () {
  */
 static void xmit_ft8_task (void * pvParameter) {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
-    bool wdt_registered = false;
-    bool timer_started  = false;
-    ft8_task_pack_t * info = (ft8_task_pack_t *)pvParameter;
+    bool              wdt_registered = false;
+    bool              timer_started  = false;
+    ft8_task_pack_t * info           = (ft8_task_pack_t *)pvParameter;
 
     if (info == NULL) {
         ESP_LOGE (TAG8, "%s called with pvParameter == NULL", __func__);
@@ -652,8 +652,7 @@ static bool ft8_parse_sequence_number_from_query (const char * unsafe_buf, uint3
     return true;
 }
 
-enum class ft8_sequence_decision_t
-{
+enum class ft8_sequence_decision_t {
     accept,
     duplicate,
     stale,
@@ -689,10 +688,10 @@ static bool ft8_parse_prepare_request_from_query (const char * unsafe_buf, ft8_p
     char   audioFreq_str[16];
     char * timeStringEndChar = NULL;
 
-    out.nowTimeUTCms = 0;
-    out.rfFreq       = 0;
-    out.audioFreq    = 0;
-    out.messageText[0] = '\0';
+    out.nowTimeUTCms    = 0;
+    out.rfFreq          = 0;
+    out.audioFreq       = 0;
+    out.messageText[0]  = '\0';
     out.requestToken[0] = '\0';
 
     if (httpd_query_key_value (unsafe_buf, "requestToken", out.requestToken, sizeof (out.requestToken)) == ESP_OK) {
@@ -794,8 +793,8 @@ static bool ft8_prepare_internal (const ft8_prepare_request_t & request, const c
         configInfo->rfFreq           = request.rfFreq;
         configInfo->audioFreq        = request.audioFreq;
         strlcpy (configInfo->messageText, request.messageText, sizeof (configInfo->messageText));
-        configInfo->tones            = tones;
-        configInfo->kx_state         = kx_state;  // will be deleted later in cleanup
+        configInfo->tones    = tones;
+        configInfo->kx_state = kx_state;  // will be deleted later in cleanup
         ft8_set_config_info (configInfo);
         ft8_record_prepare_identity (request);
         Ft8RadioExclusive = true;
@@ -839,17 +838,21 @@ esp_err_t handler_prepareft8_post (httpd_req_t * req) {
     }
 
     struct CommandInProgressResetGuard {
-        explicit CommandInProgressResetGuard (std::atomic<bool> * flag) : flag_ (flag) {}
-        ~CommandInProgressResetGuard () {
+        explicit CommandInProgressResetGuard (std::atomic<bool> * flag)
+            : flag_ (flag) {}
+
+        ~CommandInProgressResetGuard() {
             if (flag_) {
                 flag_->store (false, std::memory_order_release);
             }
         }
+
         void dismiss () { flag_ = nullptr; }
 
       private:
         std::atomic<bool> * flag_;
     } commandGuard (&CommandInProgress);
+
     // Keep CommandInProgress from getting stuck true on any early return from
     // this handler, including REPLY_WITH_FAILURE paths inside STANDARD_DECODE_QUERY.
 
@@ -929,13 +932,13 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
     }
 
-    long baseFreq = rfFreq + audioFreq;
+    long     baseFreq           = rfFreq + audioFreq;
     uint32_t request_token_hash = ft8_parse_request_token_hash_from_query (unsafe_buf);
     if (request_token_hash == 0) {
         CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "missing or invalid requestToken");
     }
-    uint32_t sequence_number    = 0;
+    uint32_t sequence_number = 0;
     if (!ft8_parse_sequence_number_from_query (unsafe_buf, sequence_number)) {
         CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "missing or invalid sequenceNumber");
@@ -949,12 +952,15 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
         }
 
         struct CommandInProgressResetGuard {
-            explicit CommandInProgressResetGuard (std::atomic<bool> * flag) : flag_ (flag) {}
-            ~CommandInProgressResetGuard () {
+            explicit CommandInProgressResetGuard (std::atomic<bool> * flag)
+                : flag_ (flag) {}
+
+            ~CommandInProgressResetGuard() {
                 if (flag_) {
                     flag_->store (false, std::memory_order_release);
                 }
             }
+
             void dismiss () { flag_ = nullptr; }
 
           private:

@@ -39,13 +39,13 @@ Then open http://localhost:8080 in your browser.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/version` | Firmware version string |
-| GET | `/api/v1/frequency` | Current VFO frequency |
-| PUT | `/api/v1/frequency?frequency=X` | Set frequency (Hz) |
-| GET | `/api/v1/mode` | Current mode |
-| PUT | `/api/v1/mode?mode=X` | Set mode (CW, USB, LSB, etc.) |
+| GET | `/api/v1/frequency` | Current VFO frequency (bare text, Hz) |
+| PUT | `/api/v1/frequency?frequency=X` | Set frequency (Hz) → 204 / 202 / 500 / 503 / 404 |
+| GET | `/api/v1/mode` | Current mode (bare text) |
+| PUT | `/api/v1/mode?mode=X` | Set mode (CW, USB, LSB, SSB=auto sideband, …) |
 | GET | `/api/v1/batteryInfo` | Battery information (JSON) |
 | GET | `/api/v1/rssi` | WiFi signal strength |
-| GET | `/api/v1/connectionStatus` | WiFi connection status |
+| GET | `/api/v1/connectionStatus` | Radio link glyph: ⚫ down · ⚪ FT8/unknown · 🔴 TX · 🟢 idle |
 
 ### Radio Control
 | Method | Endpoint | Description |
@@ -54,7 +54,24 @@ Then open http://localhost:8080 in your browser.
 | PUT | `/api/v1/xmit?state=X` | TX toggle (0=RX, 1=TX) |
 | PUT | `/api/v1/msg?bank=X` | Play CW message (1, 2, or 3) |
 | PUT | `/api/v1/keyer?message=X` | Send CW text |
-| PUT | `/api/v1/atu` | Trigger ATU tune |
+| PUT | `/api/v1/atu` | Trigger ATU tune → 204 / 202 / 503 |
+| PUT | `/api/v1/volume?delta=X` | Adjust volume → 204 / 202 / 503 |
+
+The radio endpoints follow the firmware's async-handler contract
+(`docs/dev/Radio-Access.md`): GETs answer within ~300 ms with a fresh or
+last-known value, or 503 while the radio link is down; PUTs return 204 once
+the (simulated) radio confirmed, 202 if confirmation outran 1.5 s or a newer
+same-kind PUT superseded it, 503 while the link is down or FT8 holds the
+radio. Tune the emulation with `--radio-latency MS` / `--radio-dead`, or live:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/_debug/state \
+  -H "Content-Type: application/json" \
+  -d '{"radio_dead": true}'          # or {"radio_latency_ms": 2000} / {"ft8": true}
+```
+
+`test/integration/test_radio_contract.py` asserts this contract against
+either the mock or real hardware (`make -C test/integration test-contract-mock`).
 
 ### Settings
 | Method | Endpoint | Description |

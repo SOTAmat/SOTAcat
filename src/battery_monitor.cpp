@@ -78,12 +78,12 @@ float get_analog_battery_percentage (float voltage) {
 #define BATTERY_POLL_TIME_MS (5000)  // Approximate rate at which to poll the battery info
 
 static max17260_saved_params_t params;
-static bool                    max17260_detected      = false;
-static float                   vbat_analog            = 0;
-static float                   vpct_analog            = 0;
-static float                   vbat_digital           = 0;
-static float                   vpct_digital           = 0;
-static i2c_master_bus_handle_t i2c_bus_handle         = NULL;
+static bool                    max17260_detected = false;
+static float                   vbat_analog       = 0;
+static float                   vpct_analog       = 0;
+static float                   vbat_digital      = 0;
+static float                   vpct_digital      = 0;
+static i2c_master_bus_handle_t i2c_bus_handle    = NULL;
 
 static max17260_info_t   bat_info;  // Smart Battery info struct
 static SemaphoreHandle_t bat_info_mutex;
@@ -224,8 +224,8 @@ void battery_monitor_task (void * _pvParameter) {
 
             // Reset watchdog again after I2C operations
             ESP_ERROR_CHECK (esp_task_wdt_reset());
-            vbat_digital           = bat_info.voltage_average;
-            vpct_digital           = bat_info.reported_state_of_charge;
+            vbat_digital = bat_info.voltage_average;
+            vpct_digital = bat_info.reported_state_of_charge;
             if (!(cnt % REPORTING_TIME_SEC))
                 ESP_LOGI (TAG8, "battery: %4.2fV %4.1f%% %5.1fmA %s", vbat_digital, vpct_digital, bat_info.current_average, (bat_info.charging ? "charging" : "discharging"));
         }

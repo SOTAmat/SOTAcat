@@ -2,12 +2,12 @@
 #include "globals.h"
 #include "hardware_specific.h"  // get_version_string()
 #include "kx_radio.h"
+#include "radio_park_httpd.h"
 #include "settings.h"
 
 #include <ctype.h>
-#include <memory>
-
 #include <esp_timer.h>
+#include <memory>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:webserve";
@@ -347,6 +347,10 @@ void start_webserver () {
         httpd_register_uri_handler (server, &uri_api);
         uri_api.method = HTTP_POST;
         httpd_register_uri_handler (server, &uri_api);
+
+        // Async radio GET/SET completion (parked requests) — inert until a
+        // handler registers a completer and calls radio_park_request().
+        radio_park_init (server);
 
         ESP_LOGI (TAG8, "defined webserver callbacks.");
     }

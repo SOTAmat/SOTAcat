@@ -32,6 +32,38 @@
 - `PUT /api/v1/xmit` — Toggle TX
 - See `src/` for full endpoint list
 
+### Radio service and async handlers
+`esp_http_server` runs every request on **one task**, so radio CAT I/O never
+happens in a handler. A dedicated **radio service task** (`src/radio_service.cpp`)
+owns CAT I/O for the HTTP layer: handlers read a mutex-guarded **snapshot** or
+drop a command in a per-type **slot** (newest-wins; volume deltas accumulate),
+and — when they need the radio's answer — **park** the request
+(`httpd_req_async_handler_begin`, `src/radio_park_httpd.cpp`) so the server
+task carries on while the worker completes it. Link health (3 consecutive CAT
+failures → down, first success → up) drives ⚫ and the 503 fast-path. FT8
+transmission holds the radio mutex directly and the worker yields to it.
+
+Radio endpoint contract (`frequency`, `mode`, `connectionStatus`, `volume`, `atu`):
+
+| Case | Response |
+|------|----------|
+| GET, radio healthy | bare-text value ≤~300 ms old (parks up to 300 ms for a refresh) |
+| GET during FT8 | last-known value, instantly |
+| GET, radio link down | `503` "radio link down" (instant; the header's `connectionStatus` shows ⚫). API clients that poll only `frequency`/`mode` (SOTAmat) get an honest signal instead of a stale value |
+| PUT applied | `204 No Content` |
+| PUT refused by radio | `500` |
+| PUT confirmation slower than 1.5 s | `202 Accepted` — confirm via a later GET |
+| PUT superseded by a newer same-kind PUT | `202` "superseded" |
+| PUT, radio link down | `503` "radio link down" (synchronous) |
+| PUT during FT8 | `503` "radio busy (FT8)" (synchronous) |
+| PUT bad parameter | `404` / `500` |
+| PUT then immediate GET | reads the new value |
+
+Background, timelines (simple, overlapped, radio-off, FT8, lock contention), the
+link-health state machine, budgets, validation record and known limitations:
+[Radio-Access.md](Radio-Access.md). Contract test:
+`test/integration/test_radio_contract.py` (runs against hardware or the mock).
+
 ### CAT Driver
 - Serial communication with Elecraft radio
 - 38400 baud default (KX2 / KX3)

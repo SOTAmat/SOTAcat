@@ -179,6 +179,110 @@ class ControlClient(StressTestClient):
             time.sleep(3 + random() * 4)
 
 
+def responsiveness_probe(host, stop_event, results):
+    """While radio endpoints are hammered, /version (no radio) must
+    stay fast. With the server decoupled from radio I/O this holds
+    even if the radio is physically off."""
+    latencies = []
+    while not stop_event.is_set():
+        t0 = time.time()
+        try:
+            r = requests.get(f"http://{host}/api/v1/version", timeout=3)
+            if r.status_code == 200:
+                latencies.append(time.time() - t0)
+        except requests.RequestException:
+            latencies.append(99.0)
+        time.sleep(0.25)
+    results["probe_max_latency"] = max(latencies) if latencies else 99.0
+    results["probe_p95"] = (
+        sorted(latencies)[int(len(latencies) * 0.95)] if latencies else 99.0
+    )
+
+
+def cold_probe_decoupling(host: str) -> None:
+    """Single-client unloaded latency check — proves no handler blocks
+    on radio I/O regardless of radio state. Runs before the stress test.
+
+    Each endpoint is probed N times serially. Every request must return
+    (with any HTTP status) within COLD_PROBE_MAX_MS. This is the test
+    the user's experience actually depends on: their phone is ONE client;
+    if these endpoints stay fast, the Run tab stays usable when the
+    radio is off — which is exactly the reported bug
+    (radio-decoupling-design.md, lines 6–13).
+    """
+    import socket
+    import subprocess
+    # Cold-probe uses `subprocess.run(curl)` instead of Python `requests`.
+    # Empirical: across six investigation rounds, curl showed zero ~1 s
+    # spikes while requests-based probes (even with fresh Session() per
+    # call, IP pinning, and warmup) flaked ~1-in-3 with spikes matching
+    # lwIP TCP SYN retransmit RTO. The cause is some interaction between
+    # Python's transport stack and ESP-IDF's httpd/lwIP/WiFi state —
+    # unrelated to radio I/O (manual curls + radio-decoupling code reviews
+    # both confirm the decoupling is intact). Subprocess curl bypasses the
+    # interaction and matches the empirical baseline.
+    #
+    # Pin hostname to IP up-front. mDNS lookup of sotacat.local can
+    # occasionally stall ~1 s on cache miss; doing the resolution ONCE
+    # isolates that variance from the per-handler latency measurement.
+    # curl benefits from the explicit IP too (skips its own resolver).
+    try:
+        pinned_ip = socket.gethostbyname(host)
+    except socket.gaierror as e:
+        print(f"  Could not resolve {host}: {e}")
+        raise
+
+    print(f"  Resolved {host} -> {pinned_ip}")
+
+    COLD_PROBE_MAX_MS = 200
+    PROBES_PER_ENDPOINT = 10
+    endpoints = ["version", "frequency", "connectionStatus"]
+
+    # One-shot warmup (cheap, harmless): absorbs any first-request
+    # transient before the timed measurement loop.
+    for ep in endpoints:
+        subprocess.run(
+            ["curl", "-sS", "-o", "/dev/null",
+             "--max-time", "4",
+             f"http://{pinned_ip}/api/v1/{ep}"],
+            capture_output=True, timeout=5,
+        )
+
+    print()
+    print("Cold-probe (single-client decoupling check)")
+    print("-" * 60)
+    failures = []
+    for ep in endpoints:
+        latencies_ms = []
+        for _ in range(PROBES_PER_ENDPOINT):
+            result = subprocess.run(
+                ["curl", "-sS", "-o", "/dev/null",
+                 "-w", "%{time_total}",
+                 "--max-time", "4",
+                 f"http://{pinned_ip}/api/v1/{ep}"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode != 0:
+                latencies_ms.append(99000.0)  # curl error: treat as hang
+                continue
+            try:
+                secs = float(result.stdout.strip())
+                latencies_ms.append(secs * 1000)
+            except ValueError:
+                latencies_ms.append(99000.0)
+        worst = max(latencies_ms)
+        p95 = sorted(latencies_ms)[int(len(latencies_ms) * 0.95)]
+        status = "OK" if worst < COLD_PROBE_MAX_MS else "FAIL"
+        print(f"  {ep:20s}  p95={p95:7.1f} ms  max={worst:7.1f} ms  [{status}]")
+        if worst >= COLD_PROBE_MAX_MS:
+            failures.append((ep, worst))
+    assert not failures, (
+        f"Cold-probe FAILED: endpoints exceeded {COLD_PROBE_MAX_MS} ms: "
+        + ", ".join(f"{ep}={ms:.0f}ms" for ep, ms in failures)
+    )
+    print(f"  All endpoints < {COLD_PROBE_MAX_MS} ms — decoupling intact.")
+
+
 class MutexStressTest:
     """Orchestrates multi-client stress testing"""
 
@@ -189,6 +293,9 @@ class MutexStressTest:
         self.clients: List[StressTestClient] = []
         self.threads: List[threading.Thread] = []
         self.all_stats: List[ClientStats] = []
+        self.probe_results: Dict = {}
+        self.probe_stop_event = threading.Event()
+        self.probe_thread: threading.Thread = None
 
     def verify_host_reachable(self) -> bool:
         """Check if host is accessible"""
@@ -256,6 +363,13 @@ class MutexStressTest:
         print("✓ Host is reachable")
         print()
 
+        # Cold-probe: single-client unloaded latency check. Proves the
+        # decoupling property the user actually experiences (their phone
+        # is one client). Runs BEFORE the stress test so a regression
+        # here aborts fast, before the noisier stress phase.
+        cold_probe_decoupling(self.host)
+        print()
+
         # Start all client threads
         print("Starting multi-client stress test...")
         print()
@@ -266,6 +380,17 @@ class MutexStressTest:
             thread.start()
             self.threads.append(thread)
             time.sleep(0.1)  # Stagger startup
+
+        # Start the responsiveness probe alongside the stress clients.
+        # Probes /api/v1/version (no radio I/O) so we can assert that
+        # non-radio endpoints stay fast even while the radio endpoints
+        # are hammered (and even if the radio is physically off).
+        self.probe_thread = threading.Thread(
+            target=responsiveness_probe,
+            args=(self.host, self.probe_stop_event, self.probe_results),
+            daemon=True,
+        )
+        self.probe_thread.start()
 
         print(f"✓ Launched {len(self.clients)} concurrent clients")
         print()
@@ -288,6 +413,30 @@ class MutexStressTest:
             thread.join(timeout=5)
         print("✓ All clients completed")
         print()
+
+        # Stop and join the responsiveness probe
+        self.probe_stop_event.set()
+        if self.probe_thread is not None:
+            self.probe_thread.join(timeout=5)
+
+        results = self.probe_results
+        print(
+            f"Responsiveness probe: /version p95="
+            f"{results.get('probe_p95', 99.0):.3f}s, "
+            f"max={results.get('probe_max_latency', 99.0):.3f}s"
+        )
+        print()
+        # Stress-test threshold: single-tasked esp_http_server has a measured
+        # saturation floor around 1.0–1.5 s under 7-client load on this hardware,
+        # regardless of radio state (verified by /version-only stress). Set the
+        # threshold above that floor but well below the pre-decoupling 6-s
+        # blocking-on-radio failure mode. The single-client cold probe (run
+        # before this stress test) is what actually proves the decoupling.
+        assert results["probe_p95"] < 2.0, (
+            f"/version p95 {results['probe_p95']:.2f}s — exceeds 2.0 s; "
+            f"server is stalling on radio I/O OR the HTTP server saturation "
+            f"floor regressed."
+        )
 
         # Collect and display results
         return self.generate_report()

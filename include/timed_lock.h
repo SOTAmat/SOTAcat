@@ -89,7 +89,7 @@ class TimedLock {
     /**
      * Automatically unlock on destruction (RAII)
      */
-    ~TimedLock () {
+    ~TimedLock() {
         if (m_acquired) {
             xSemaphoreGive (m_mutex);
         }
