@@ -351,7 +351,14 @@ a {
     transition: border-color 0.2s ease;
 }
 
-/* Main frequency + mode row */
+/* Main frequency + mode row.
+
+   The row is centered, so the frequency's position depends on the width of
+   everything beside it. Two rules keep it still while the frequency is being
+   edited (issue #111): the badges and the mode are hidden with `.invisible`
+   rather than `.hidden`, so their boxes stay in the flow, and both
+   .frequency-display elements carry the same fixed width, so swapping the
+   div for the input changes nothing. */
 .vfo-main {
     display: flex;
     align-items: center;
@@ -608,6 +615,13 @@ a {
     margin: 0;
     border: none;
     line-height: 1.2;
+    /* Fixed box, shared by the display div and the edit input, so neither
+       the swap between them nor a change in digit count reflows the row.
+       Sized for 11 characters ("144.100.000") plus the 2px of letter
+       spacing each one carries; shorter values simply center inside it, and
+       longer ones overflow symmetrically. Without this the input falls back
+       to its default ~20-character width. */
+    width: calc(11ch + 22px);
 }
 
 /* Input for editing frequency - shares same styling as display */
@@ -2108,6 +2122,8 @@ button.password-visibility-toggle svg {
     .frequency-display {
         font-size: 24px;
         letter-spacing: 1px;
+        /* ch tracks font-size on its own; the letter-spacing term does not. */
+        width: calc(11ch + 11px);
     }
 
     input.frequency-display {
@@ -2416,6 +2432,12 @@ button.password-visibility-toggle svg {
 /* =========================== Utility Classes */
 .hidden {
     display: none !important;
+}
+
+/* Hide without reflowing: the element keeps its box. Used where removing an
+   element would move its neighbors (see .vfo-main). */
+.invisible {
+    visibility: hidden !important;
 }
 
 .collapsed {

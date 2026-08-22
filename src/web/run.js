@@ -770,6 +770,7 @@ function enableFrequencyEditing() {
     const display = document.getElementById("current-frequency");
     const input = document.getElementById("frequency-input");
     const modeDisplay = document.getElementById("current-mode");
+    const badges = document.getElementById("license-badges");
     if (!display || !input) return;
 
     // Store original value for restoration on cancel
@@ -778,10 +779,14 @@ function enableFrequencyEditing() {
     // Flag to prevent double-processing (when both Enter and blur fire)
     let isProcessing = false;
 
-    // Switch from display to input and hide mode display
+    // Switch from display to input, and hide the mode and license badges so
+    // the field being edited stands alone. They go invisible rather than
+    // display:none: their boxes have to stay in the flow, or the centered row
+    // re-centers and the frequency jumps (issue #111).
     display.classList.add("hidden");
     input.classList.remove("hidden");
-    if (modeDisplay) modeDisplay.classList.add("hidden");
+    if (modeDisplay) modeDisplay.classList.add("invisible");
+    if (badges) badges.classList.add("invisible");
     input.value = display.textContent;
 
     // Handle input confirmation
@@ -827,7 +832,8 @@ function enableFrequencyEditing() {
     const exitEditMode = () => {
         input.classList.add("hidden");
         display.classList.remove("hidden");
-        if (modeDisplay) modeDisplay.classList.remove("hidden");
+        if (modeDisplay) modeDisplay.classList.remove("invisible");
+        if (badges) badges.classList.remove("invisible");
         display.textContent = formatFrequency(AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ);
 
         // Remove event listeners
