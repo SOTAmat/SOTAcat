@@ -769,8 +769,7 @@ function updateButtonPrivileges() {
 function enableFrequencyEditing() {
     const display = document.getElementById("current-frequency");
     const input = document.getElementById("frequency-input");
-    const modeDisplay = document.getElementById("current-mode");
-    const badges = document.getElementById("license-badges");
+    const vfoDisplay = document.getElementById("vfo-display");
     if (!display || !input) return;
 
     // Store original value for restoration on cancel
@@ -779,14 +778,12 @@ function enableFrequencyEditing() {
     // Flag to prevent double-processing (when both Enter and blur fire)
     let isProcessing = false;
 
-    // Switch from display to input, and hide the mode and license badges so
-    // the field being edited stands alone. They go invisible rather than
-    // display:none: their boxes have to stay in the flow, or the centered row
-    // re-centers and the frequency jumps (issue #111).
+    // Switch from display to input and put the VFO in its editing state, which
+    // dims the badges and the privilege warning. Nothing leaves the flow, so
+    // the frequency does not move under the click (issue #111).
     display.classList.add("hidden");
     input.classList.remove("hidden");
-    if (modeDisplay) modeDisplay.classList.add("invisible");
-    if (badges) badges.classList.add("invisible");
+    if (vfoDisplay) vfoDisplay.classList.add("editing");
     input.value = display.textContent;
 
     // Handle input confirmation
@@ -832,8 +829,7 @@ function enableFrequencyEditing() {
     const exitEditMode = () => {
         input.classList.add("hidden");
         display.classList.remove("hidden");
-        if (modeDisplay) modeDisplay.classList.remove("invisible");
-        if (badges) badges.classList.remove("invisible");
+        if (vfoDisplay) vfoDisplay.classList.remove("editing");
         display.textContent = formatFrequency(AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ);
 
         // Remove event listeners

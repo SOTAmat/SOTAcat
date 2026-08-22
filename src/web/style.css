@@ -354,11 +354,10 @@ a {
 /* Main frequency + mode row.
 
    The row is centered, so the frequency's position depends on the width of
-   everything beside it. Two rules keep it still while the frequency is being
-   edited (issue #111): the badges and the mode are hidden with `.invisible`
-   rather than `.hidden`, so their boxes stay in the flow, and both
-   .frequency-display elements carry the same fixed width, so swapping the
-   div for the input changes nothing. */
+   everything beside it. Nothing here is ever removed from the flow while a
+   frequency is being entered — the badges dim instead (see the editing state
+   below) — and both .frequency-display elements carry the same fixed width,
+   so swapping the div for the input changes nothing either. Issue #111. */
 .vfo-main {
     display: flex;
     align-items: center;
@@ -371,6 +370,7 @@ a {
     display: flex;
     gap: var(--space-xs);
     margin-left: var(--space-md);
+    transition: opacity 0.12s ease;
 }
 
 .license-badge {
@@ -594,6 +594,7 @@ a {
     font-size: var(--text-xs);
     color: var(--warning);
     min-height: 1em;
+    transition: opacity 0.12s ease;
 }
 
 .vfo-warning:empty {
@@ -602,6 +603,19 @@ a {
 
 .vfo-display.warning-privilege .vfo-warning {
     color: var(--danger);
+}
+
+/* Frequency entry state.
+
+   The badges and the warning both describe the frequency being replaced, so
+   they stand down while a new one is typed rather than asserting privileges
+   the user is in the middle of leaving. Dimmed, not removed: the row keeps
+   its identity, nothing blinks out of the display, and nothing reflows. The
+   mode is left fully lit — alone among the three, it stays true while typing.
+   Issue #111. */
+.vfo-display.editing .license-badges,
+.vfo-display.editing .vfo-warning {
+    opacity: 0.3;
 }
 
 .frequency-display {
@@ -2432,12 +2446,6 @@ button.password-visibility-toggle svg {
 /* =========================== Utility Classes */
 .hidden {
     display: none !important;
-}
-
-/* Hide without reflowing: the element keeps its box. Used where removing an
-   element would move its neighbors (see .vfo-main). */
-.invisible {
-    visibility: hidden !important;
 }
 
 .collapsed {
