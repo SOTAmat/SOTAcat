@@ -2,9 +2,9 @@
 
 **Status:** Design approved 2026-08-21. Not implemented.
 **Date:** 2026-08-21
-**Scope:** New page under `website/flash/`, a change to `_write_manifest_file()`
-in `pio-pre-build-script.py`, additions to `.github/workflows/pages.yml`, and
-docs wiring. No firmware changes.
+**Scope:** New page under `website/flash/`, a new `docs/user/USB-Flashing.md`,
+a change to `_write_manifest_file()` in `pio-pre-build-script.py`, additions to
+`.github/workflows/pages.yml`, and docs wiring. No firmware changes.
 
 ## Problem
 
@@ -40,12 +40,16 @@ A first-party, always-current USB flashing page hosted on infrastructure we
 control, which cannot silently rot the way the WordPress mirror did, and which
 `docs/user/` links to as the canonical USB path.
 
+Paired with it, a written CLI procedure covering what the page structurally
+cannot: browsers without Web Serial, mobile, and rollback. The page is the easy
+path; the doc is the one that always works.
+
 ## Non-goals
 
 - **Not a firmware hub.** OTA remains documented in Getting-Started and on the
   device's own Settings page. This page does one thing: install over USB.
-- **No version picker.** Latest release only. Rolling back is a developer task
-  served by `esptool` directly.
+- **No version picker.** Latest release only. Rolling back means the CLI, which
+  `docs/user/USB-Flashing.md` covers.
 - **No replacement for `make github-release`.** The release process is unchanged
   except for one added assertion.
 - **Not a fix for sotamat.com.** That page is outside this repo. Once this ships
@@ -130,6 +134,14 @@ existing `upload-pages-artifact` path untouched. Content, in order:
    <esp-web-install-button manifest="manifest.json">
    ```
 
+   The `unsupported` slot links to `USB-Flashing.md` — a user who has just
+   learned their browser cannot do this needs the alternative in the same
+   breath, not a search. Because Pages does not publish `docs/` (verified
+   above), that link must be an absolute
+   `https://github.com/SOTAmat/SOTAcat/blob/main/docs/user/USB-Flashing.md`.
+   It is the one hand-maintained cross-repo link in the design; the acceptance
+   test checks it resolves.
+
 4. **The two gotchas that actually defeat people** — charge-only USB cables, and
    the 60-second idle sleep window.
 5. **Where to go next** — link to Getting-Started for reconnecting to the
@@ -202,6 +214,44 @@ Existing `permissions: contents: read` already covers `gh release download`, and
 the existing `concurrency: pages` group with `cancel-in-progress: false` queues a
 release and a push racing each other.
 
+### 4. CLI fallback (`docs/user/USB-Flashing.md`)
+
+A new user doc, not a developer one — `dev/BUILD.md` covers building from
+source, which is a different audience with a different goal. This covers
+flashing a *published* binary from the command line.
+
+It exists because the page cannot serve everyone. Web Serial is desktop
+Chrome/Edge/Opera only: Firefox, Safari, iOS, and Android users have no
+browser path at all, and today they have nowhere to go. It is also the only
+route for rollback.
+
+The content is the knowledge that currently lives in support conversations and
+nowhere else:
+
+- **Which binary, and at which offset.** `esp32c3.bin` is the merged image
+  (bootloader `0x0`, partitions `0x8000`, app `0x10000`) and flashes at `0x0`.
+  `SOTACAT-ESP32C3-OTA.bin` is the app image and is for the Settings page only.
+  Confusing the two is the most likely user error and the question that
+  prompted this whole design.
+- **Erase first, and why.** `write-flash 0x0` alone is the intuitive move and is
+  wrong for pre-OTA devices. The partition layout changed on 2024-08-22
+  (`ota_1` `0x170000` → `0x190000`, slots `0x160000` → `0x180000`, `eeprom` and
+  `spiffs` dropped), so a stale `nvs` at `0x9000` and `otadata` at `0xe000`
+  survive the write and reference a layout that no longer exists. `erase-flash`
+  first. This is also why the doc must state plainly that flashing over USB is
+  a factory reset — same warning the page carries.
+- **esptool 5.x renamed its commands.** `erase-flash` and `write-flash`;
+  the underscore forms still run but emit a deprecation warning. The doc names
+  the version it was written against and shows the current spelling, so its
+  rot is visible rather than silent.
+- **Ports are auto-detected.** `--port` is only needed when several serial
+  devices are present; the doc shows the bare command first.
+- **Rollback**, using the `esp32c3.bin` from any older release.
+
+Explicitly not covered: building from source, `pio run -t upload`, and
+per-platform driver installation beyond a pointer. Scope creep here turns a
+recovery card into a development guide.
+
 ## Rollout sequencing
 
 The build-script change only affects the **next** release. `v260804.2114`'s
@@ -230,6 +280,7 @@ eliminate.
 | Deployed bytes differ from the release | Post-deploy sha256 check fails | Guards against a mangled artifact upload |
 | Pages propagation lag | Bounded retry, then fail | No indefinite wait, no false pass |
 | unpkg down or package yanked | Page loads, button never upgrades | Accepted; see Open Questions |
+| Visitor's browser lacks Web Serial | `unsupported` slot renders and links to `USB-Flashing.md` | The one failure the page cannot fix, so it must hand off rather than dead-end |
 | `api.github.com` version fetch fails | Page still installs, version not shown | Progressive enhancement only |
 | No release exists (fresh fork) | `gh release view` fails, deploy fails | Acceptable; a fork without releases has nothing to flash |
 
@@ -246,14 +297,20 @@ Web Serial cannot be unit-tested, so coverage is layered:
    The only test that proves the whole chain end to end; it is the launch gate.
    Ideally on a genuinely old (pre-OTA) device, though a current one still
    exercises the path.
+4. **Acceptance, CLI** — run the commands in `USB-Flashing.md` verbatim against
+   real hardware, on the esptool version the doc names. A recovery procedure
+   nobody has executed is a guess. This also settles Open Question 3.
 
 ## Docs wiring
 
+- **`docs/user/USB-Flashing.md`** — new; see Architecture §4. Also add it to
+  the *For Users* index in `docs/README.md`.
 - **`docs/user/Troubleshooting.md`** — new era-diagnosis section. No firmware
   section on Settings = pre-2024-08-22, USB only; "Upload Firmware" = manual OTA
   (fetch the `.bin` from Releases yourself); "Check Updates" wizard = modern.
-  Links to the flasher for the first case. Routing lives here because the page
-  itself is USB-only.
+  Links to the flasher for the first case, and to `USB-Flashing.md` for anyone
+  whose browser the flasher rejects. Routing lives here because the page itself
+  is USB-only.
 - **`docs/user/Getting-Started.md`** — the *Updating Firmware* section gains a
   pointer to the flasher for first-time and recovery flashing.
 - **`website/README.md`** — its charter ("This directory contains code, not
@@ -275,7 +332,13 @@ Web Serial cannot be unit-tested, so coverage is layered:
    non-prerelease, so publishing a prerelease leaves the flasher on the last
    stable build. Believed correct, but it is a silent policy worth confirming
    rather than discovering.
-3. **sotamat.com coordination.** Once this ships, that page should link here or
+3. **`CONFIG_ESPTOOLPY_NO_STUB=y`.** `sdkconfig.defaults:35` disables the
+   esptool stub loader with the comment "slower, but sometimes more reliable".
+   Whether that reflects a known stub problem on this board — and so whether
+   `USB-Flashing.md` should tell users to pass `--no-stub` — is unverified.
+   Settled by the CLI acceptance test, before the doc asserts a bare
+   `esptool write-flash` is reliable.
+4. **sotamat.com coordination.** Once this ships, that page should link here or
    point its button at `https://sotamat.github.io/SOTAcat/flash/manifest.json`
    (viable — Pages sends `access-control-allow-origin: *`). Outside this repo;
    needs a conversation with its owner.
