@@ -36,20 +36,22 @@ You should see the SOTAcat header with:
 
 In Settings, configure:
 
-1. **Callsign** — Your amateur radio callsign
-2. **License class** — For band privilege indicators
-3. **WiFi networks** — See [Networking](Networking.md) for WiFi mode options
+1. **Callsign** - Your amateur radio callsign
+2. **License class** - For band privilege indicators
+3. **WiFi networks** - See [Networking](Networking.md) for WiFi mode options
 
 ## Updating Firmware
 
-New firmware is published exclusively to [SOTAcat's GitHub Releases page](https://github.com/SOTAmat/SOTAcat/releases). Any other source (mirror, Slack drop, side-channel) is not authoritative — the OTA flow on the Firmware settings card checks GitHub Releases directly.
+**Update from the Settings page.** The Firmware section there performs an OTA (over-the-air) update: the SOTAcat downloads and installs new firmware itself, over WiFi, with no cables, no computer, and all your settings (WiFi networks, callsign) are preserved. This is the way to update.
 
-For first-time installs, recovery, or firmware too old to update itself, flash over USB instead: the [browser flasher](https://sotamat.github.io/SOTAcat/flash/) (desktop Chrome, Edge, or Opera), or the [command line](USB-Flashing.md) for everything else. Note that USB flashing is a factory reset; OTA preserves your settings.
+New firmware is published exclusively to [SOTAcat's GitHub Releases page](https://github.com/SOTAmat/SOTAcat/releases). Don't rely on other sources. The OTA flow checks GitHub Releases directly.
+
+USB flashing is the exception path, only for first-time installs, recovery, or firmware so old it has no Firmware section at all: use the [browser flasher](https://sotamat.github.io/SOTAcat/flash/) (desktop Chrome, Edge, or Opera), or the [command line](USB-Flashing.md) for everything else. Unlike OTA, USB flashing is a full factory reset.
 
 ## Next Steps
 
-1. [UI Tour](UI-Tour.md) — learn what each tab does
-2. [Set up an activation](UI-Tour.md#qrx--setup--preparation) — clock, location, reference
+1. [UI Tour](UI-Tour.md) - learn what each tab does
+2. [Set up an activation](UI-Tour.md#qrx--setup--preparation) - clock, location, reference
 
 ---
 

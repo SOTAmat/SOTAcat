@@ -6,7 +6,7 @@
 
 1. Verify phone is connected to `SOTACAT_xxxx` WiFi
 2. Try `http://192.168.4.1` (not https)
-3. Check SOTAcat has power (LED on device — see [LED Patterns](LED-Patterns.md))
+3. Check SOTAcat has power (LED on device - see [LED Patterns](LED-Patterns.md))
 
 ## .local Not Resolving
 
@@ -59,9 +59,9 @@ CHASE filters spots to bands your radio can natively cover (KX2/KX3/KH1 native b
 
 What the Settings page shows tells you which era of firmware you're on, and which update path you have:
 
-- **No firmware section at all** — pre-August-2024 firmware with no OTA support. The only route to current firmware is USB: use the [browser flasher](https://sotamat.github.io/SOTAcat/flash/) (desktop Chrome, Edge, or Opera). Note this is a factory reset.
-- **An "Upload Firmware" button** — manual OTA. Download `SOTACAT-ESP32C3-OTA.bin` from the [latest release](https://github.com/SOTAmat/SOTAcat/releases/latest) yourself and upload it there; settings are preserved.
-- **A "Check Updates" wizard** — modern firmware. Let it fetch and install the update for you.
+- **No firmware section at all** - pre-August-2024 firmware with no OTA support. The only route to current firmware is USB: use the [browser flasher](https://sotamat.github.io/SOTAcat/flash/) (desktop Chrome, Edge, or Opera). Note this is a factory reset.
+- **An "Upload Firmware" button** - manual OTA. Download `SOTACAT-ESP32C3-OTA.bin` from the [latest release](https://github.com/SOTAmat/SOTAcat/releases/latest) yourself and upload it there; settings are preserved.
+- **A "Check Updates" wizard** - modern firmware. Let it fetch and install the update for you.
 
 If the browser flasher rejects your browser (Firefox, Safari, phones), flash from the [command line](USB-Flashing.md) instead.
 
@@ -77,7 +77,7 @@ Fix it by forcing a fresh load:
 
 ## Still Stuck?
 
-- **Bug?** [GitHub Issues](https://github.com/SOTAmat/SOTAcat/issues) — include firmware version, device type, steps to reproduce
+- **Bug?** [GitHub Issues](https://github.com/SOTAmat/SOTAcat/issues) - include firmware version, device type, steps to reproduce
 - **Help?** #sotacat-sotamat on [SOTA-NA Slack](https://sota-na.slack.com)
 
 ---

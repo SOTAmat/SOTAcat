@@ -1,34 +1,34 @@
 # USB Flashing from the Command Line
 
 The easy path is the browser flasher at
-**<https://sotamat.github.io/SOTAcat/flash/>** — one button, always the latest
+**<https://sotamat.github.io/SOTAcat/flash/>** - one button, always the latest
 release. Use this page instead when the flasher can't help you:
 
 - Your browser has no Web Serial support (Firefox, Safari, anything on iOS or
-  Android — for phones you'll still need a computer, but any OS with Python works)
+  Android - for phones you'll still need a computer, but any OS with Python works)
 - You need to install an **older** release (rollback)
 - You just prefer the command line
 
-> **⚠️ USB flashing is a factory reset.** It erases every setting on the device —
+> **⚠️ USB flashing is a factory reset.** It erases every setting on the device -
 > WiFi networks, callsign, all of it. If your SOTAcat already works and its
 > Settings page has a Firmware section, update over the air instead and keep your
 > settings: see [Getting Started](Getting-Started.md#updating-firmware).
 
 ## What you need
 
-- **esptool** — `pip install esptool`. This page was written and verified
+- **esptool** - `pip install esptool`. This page was written and verified
   against esptool **v5.3.1**; v5 renamed the commands (`erase-flash`,
-  `write-flash` — the old underscore spellings still work but warn).
+  `write-flash` - the old underscore spellings still work but warn).
 - **A USB data cable.** Charge-only cables are the most common failure: if no
   serial port ever appears, try another cable.
 - If the device never enumerates on any cable, you may be missing a USB serial
-  driver — see [Espressif's driver notes](https://docs.espressif.com/projects/esptool/en/latest/esp32c3/troubleshooting.html).
+  driver - see [Espressif's driver notes](https://docs.espressif.com/projects/esptool/en/latest/esp32c3/troubleshooting.html).
 
 ## Which file to download
 
 From the [latest release](https://github.com/SOTAmat/SOTAcat/releases/latest),
-download **`esp32c3.bin`**. This is the *merged* image — bootloader, partition
-table, and application in one file — and it flashes at address `0x0`.
+download **`esp32c3.bin`**. This is the *merged* image - bootloader, partition
+table, and application in one file - and it flashes at address `0x0`.
 
 Do **not** use `SOTACAT-ESP32C3-OTA.bin` here. That is the application image
 alone, consumed only by the device's own Settings → Firmware upload. Flashed
@@ -57,10 +57,10 @@ several serial devices attached and it picks the wrong one.
 the partition layout changed on 2024-08-22, and on devices running older
 firmware the write leaves stale NVS and OTA-selection data behind that
 references partitions which no longer exist. Erasing first is also *why* this
-procedure is a factory reset — the two facts are the same fact.
+procedure is a factory reset - the two facts are the same fact.
 
 When the write finishes, unplug and replug the device. It boots as a fresh
-SOTAcat broadcasting a `SOTAcat-XXXX` hotspot — continue with
+SOTAcat broadcasting a `SOTAcat-XXXX` hotspot - continue with
 [Getting Started](Getting-Started.md).
 
 ## Rolling back

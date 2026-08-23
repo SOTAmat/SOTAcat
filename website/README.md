@@ -1,10 +1,10 @@
-# website/ — GitHub Pages Site
+# website/ - GitHub Pages Site
 
 This directory is published to <https://sotamat.github.io/SOTAcat/> by
 `.github/workflows/pages.yml`. It holds two things, both of which exist because
 they need an **HTTPS origin** that the HTTP-only embedded device cannot provide.
 
-## geolocation/ — Geolocation Bridge
+## geolocation/ - Geolocation Bridge
 
 Powers the "Locate me" feature in the QRX page.
 
@@ -17,7 +17,7 @@ serves pages over HTTP (no TLS on the embedded device), it can't call
 2. The page requests geolocation permission and gets coordinates
 3. Coordinates are passed back to SOTAcat via URL parameters or postMessage
 
-## flash/ — USB Web Serial Flasher
+## flash/ - USB Web Serial Flasher
 
 A one-button firmware installer at `/flash/`, built on
 [esp-web-tools](https://esphome.github.io/esp-web-tools/). Web Serial also
@@ -33,6 +33,6 @@ touching `website/`.
 
 ## For Documentation
 
-See [docs/](../docs/) for user and developer guides — including
+See [docs/](../docs/) for user and developer guides - including
 [USB-Flashing.md](../docs/user/USB-Flashing.md), the command-line counterpart
 to the flasher page.

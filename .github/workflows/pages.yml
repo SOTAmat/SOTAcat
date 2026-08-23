@@ -31,8 +31,8 @@ jobs:
       # The flasher at /flash/ serves the latest release's firmware from this
       # origin (release assets send no CORS headers, so the browser cannot fetch
       # them directly). Manifest and binary are staged side by side; hard
-      # assertions kill the deploy rather than publish a flasher that fails in a
-      # user's browser.
+      # assertions kill the deploy rather than publish a flasher that later fails
+      # in a user's browser.
       - name: Stage firmware for the flasher
         env:
           GH_TOKEN: ${{ github.token }}
