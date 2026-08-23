@@ -118,21 +118,21 @@ sudo usermod -aG dialout $USER
 
 ## Creating a Release
 
-**GitHub Releases is the sole source of truth for SOTACAT firmware.** Both the firmware's automatic version-check (which queries the GitHub Releases API) and the ESP Web Tools flasher read exclusively from [GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases). `make github-release` is the only sanctioned publish path.
+**GitHub Releases is the sole source of truth for SOTACAT firmware.** The firmware's automatic version-check queries the GitHub Releases API directly, and the [Pages flasher](https://sotamat.github.io/SOTAcat/flash/) is a CI-verified copy of the latest release's assets (see [below](#the-release-redeploys-the-docs-site)). `make github-release` is the only sanctioned publish path.
 
 **Prerequisites:** The [GitHub CLI](https://cli.github.com/) (`gh`) must be installed and authenticated, and a device must be available for pre-publish testing.
 
 ### What must hold, or deployed devices break
 
-A release is not just a tarball — every SOTACAT in the field polls it daily. Violating any
+A release is not just a tarball - every SOTACAT in the field polls it daily. Violating any
 of these silently breaks the update path for *all* users, not just new ones:
 
 | Invariant | Enforced by | Failure mode |
 |-----------|-------------|--------------|
-| Tag is exactly `vYYMMDD.HHMM` — no suffix, no semver | `normalizeVersion` in `src/web/main.js` | "Invalid version format in release tag"; update check dead |
+| Tag is exactly `vYYMMDD.HHMM` - no suffix, no semver | `normalizeVersion` in `src/web/main.js` | "Invalid version format in release tag"; update check dead |
 | Assets named exactly `SOTACAT-ESP32C3-OTA.bin`, `esp32c3.bin`, `manifest.json` | exact-name asset lookup in `src/web/main.js`; fallback URL in `src/web/settings.js` | Update prompt appears, download 404s |
 | Release is **not** a draft and **not** a prerelease | GitHub's `/releases/latest` skips both | Release invisible to every consumer |
-| `manifest.json`'s embedded download URL carries the release tag | `_write_manifest_file()` bakes an absolute URL *before* the release exists | ESP Web Tools flasher 404s for new users |
+| `manifest.json`'s parts path is the **relative** `esp32c3.bin` | asserted by `make github-release` before `gh release create`, and again by the Pages deploy | Pages flasher can't fetch the binary (release assets send no CORS headers); deploy fails at the assertion |
 | `include/build_info.h` in the **tagged commit** equals the tag | `src/hardware_specific.cpp` builds the device version string from it | Device version never matches the tag → perpetual update prompt, or permanent false "up to date" |
 
 The three assets, all built into `firmware/webtools/` by the `package_webtools` target:
@@ -152,14 +152,14 @@ build has stamped the version. Release is therefore a two-pass process.
 
 `build_info.h` is re-stamped only when a source file's **mtime** is newer than the
 header's (`_should_update_build_info()` in `pio-pre-build-script.py`). That heuristic is
-not trustworthy — a `git checkout`, a stash, or a file-sync client can advance the header's
+not trustworthy - a `git checkout`, a stash, or a file-sync client can advance the header's
 mtime while restoring older content, after which no build will ever re-stamp it. Force the
 stamp rather than trusting it.
 
 ### Procedure
 
 ```bash
-# 1. Start clean and in sync — `gh release create` passes no --target, so it tags
+# 1. Start clean and in sync - `gh release create` passes no --target, so it tags
 #    whatever origin/main points at, not your local HEAD.
 git status --porcelain          # must be empty
 git rev-parse HEAD origin/main  # must be identical
@@ -174,7 +174,8 @@ STAMP=$(sed -n 's/.*BUILD_DATE_TIME "\([^"]*\)".*/\1/p' include/build_info.h)
 sha256sum firmware/webtools/* | tee /tmp/release-digests.txt
 
 # 3. Verify the artifacts before they touch hardware.
-jq -r '.version, .builds[0].parts[0].path' firmware/webtools/manifest.json   # both carry $TAG
+jq -r '.version' firmware/webtools/manifest.json                 # carries $TAG
+jq -r '.builds[0].parts[0].path' firmware/webtools/manifest.json # literal "esp32c3.bin", no URL
 strings firmware/webtools/SOTACAT-ESP32C3-OTA.bin | grep -F "$STAMP"        # binary carries $STAMP
 
 # 4. Test the exact candidate on a real device.
@@ -196,23 +197,52 @@ curl -s https://api.github.com/repos/SOTAmat/SOTAcat/releases/latest \
   | jq '{tag_name, draft, prerelease, assets: [.assets[].name]}'
 ```
 
-Finally, on the device — still running `$TAG` — trigger "check for updates" in Settings. It
+Finally, on the device - still running `$TAG` - trigger "check for updates" in Settings. It
 must report **up to date** and must not prompt. A prompt here means the tag and the device
 version disagree.
 
-**Release notes:** `RELEASE_NOTES_<TAG>.md` is required — `make github-release` aborts
+**Release notes:** `RELEASE_NOTES_<TAG>.md` is required - `make github-release` aborts
 without it. It is gitignored (transient input, published to the release body), so there are
 no examples in the repo; retrieve the form from a published release with
 `gh release view <previous-tag> --json body -q .body`. Draft it from
 `git log --oneline <previous-tag>..HEAD`. Notes can be edited afterward on the Releases page.
 
-### Mirroring a release to sotamat.com (optional, not recommended)
+### The release redeploys the docs site
 
-Hosting a copy of the firmware on sotamat.com is **optional and not recommended**. If a mirror is published, it must be a byte-identical copy of the `SOTACAT-ESP32C3-OTA.bin` asset from an already-published GitHub Release — never a fresh local rebuild. A rebuild re-stamps `BUILD_DATE_TIME` in `include/build_info.h` (see [above](#the-tag-is-discovered-not-chosen)), producing a phantom version that no update check can ever see: devices flashed with it will report "up to date" against an older GitHub tag. See issue [#100](https://github.com/SOTAmat/SOTAcat/issues/100) for the incident that motivated this rule.
+Publishing a release triggers `.github/workflows/pages.yml`, which stages the
+release's `manifest.json` and `esp32c3.bin` into `website/flash/` and redeploys
+GitHub Pages - that is how the [browser flasher](https://sotamat.github.io/SOTAcat/flash/)
+stays current. The deploy asserts the manifest's parts path is the relative
+`esp32c3.bin`, that its `version` matches the tag, and (post-deploy) that the
+live site serves the exact bytes of the release. A release missing `esp32c3.bin`
+therefore blocks **all** Pages deploys until fixed - deliberate coupling: a
+release without its assets is broken and should shout.
+
+### Do not mirror releases elsewhere
+
+Hosting a copy of the firmware anywhere else (e.g. sotamat.com) is
+**discouraged - link to the Pages flasher or to GitHub Releases instead**. A
+mirror of the kind previously hosted on WordPress drifted onto a phantom local
+rebuild (a rebuild re-stamps `BUILD_DATE_TIME` in `include/build_info.h`, see
+[above](#the-tag-is-discovered-not-chosen), producing a version no update check
+can ever see; issue [#100](https://github.com/SOTAmat/SOTAcat/issues/100)), and
+nothing checked it. The Pages flasher exists precisely so there is a
+first-party, CI-verified alternative to mirroring. An external page that wants
+its own install button can point esp-web-tools at
+`https://sotamat.github.io/SOTAcat/flash/manifest.json` - Pages sends
+`access-control-allow-origin: *`.
 
 ## End Users
 
-For pre-built firmware with one-button install, see [sotamat.com/sotacat](https://sotamat.com/sotacat#InstallingFirmware). When present, the firmware hosted there mirrors the latest GitHub Release; the authoritative download is always [GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases).
+The preferred way to update firmware is the built-in OTA updater on the
+device's Settings page - it fetches the latest release automatically and
+preserves all settings. Manual flashing via the
+[SOTAcat USB flasher](https://sotamat.github.io/SOTAcat/flash/) (desktop Chrome,
+Edge, or Opera) or the command-line procedure in
+[USB-Flashing.md](../user/USB-Flashing.md) should be undertaken only when a
+full factory reset is required - or when the firmware predates OTA support.
+The authoritative download is always
+[GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases).
 
 ---
 

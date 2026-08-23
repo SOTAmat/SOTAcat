@@ -3,22 +3,23 @@
 <img src="images/chase-spots.png" alt="SOTAcat CHASE page" width="300">
 
 ## For Users
-- [Getting Started](user/Getting-Started.md) — 60-second setup
-- [UI Tour](user/UI-Tour.md) — What each tab does
-- [LED Patterns](user/LED-Patterns.md) — Reading the blue and red lights
-- [Networking](user/Networking.md) — WiFi modes and troubleshooting
-- [Tune Targets](user/Tune-Targets.md) — WebSDR/KiwiSDR URL templates
-- [Troubleshooting](user/Troubleshooting.md) — Common issues
-- [FAQ](user/FAQ.md) — Slack invitation, common questions
+- [Getting Started](user/Getting-Started.md) - 60-second setup
+- [UI Tour](user/UI-Tour.md) - What each tab does
+- [LED Patterns](user/LED-Patterns.md) - Reading the blue and red lights
+- [Networking](user/Networking.md) - WiFi modes and troubleshooting
+- [USB Flashing](user/USB-Flashing.md) - Command-line install and rollback
+- [Tune Targets](user/Tune-Targets.md) - WebSDR/KiwiSDR URL templates
+- [Troubleshooting](user/Troubleshooting.md) - Common issues
+- [FAQ](user/FAQ.md) - Slack invitation, common questions
 
 ## For Developers
-- [Build](dev/BUILD.md) — Compile and flash firmware
-- [Architecture](dev/Architecture.md) — System overview
-- [Web UI](dev/Web-UI.md) — Asset pipeline and API mapping
-- [superpowers/](superpowers/) — In-progress feature specs and implementation plans
+- [Build](dev/BUILD.md) - Compile and flash firmware
+- [Architecture](dev/Architecture.md) - System overview
+- [Web UI](dev/Web-UI.md) - Asset pipeline and API mapping
+- [superpowers/](superpowers/) - In-progress feature specs and implementation plans
 
 ## Hardware
-- [Hardware Guide](Hardware.md) — Purchase and build options
+- [Hardware Guide](Hardware.md) - Purchase and build options
 
 ---
 
