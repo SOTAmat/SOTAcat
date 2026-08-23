@@ -2,9 +2,13 @@
 
 **Status:** Design approved 2026-08-21. Implemented on this branch 2026-08-22.
 Tested 2026-08-22: localhost smoke test, then a real flash of a connected
-SOTAcat from the localhost-served page — successful. Pending: release-asset
-patch (rollout sequencing), post-deploy flash from the live Pages URL, CLI
-acceptance run of USB-Flashing.md, sotamat.com coordination.
+SOTAcat from the localhost-served page — successful. Tested 2026-08-23: CLI
+acceptance — USB-Flashing.md commands run verbatim (esptool v5.3.1, Linux,
+auto-detected port among 34 candidates incl. an unrelated FTDI adapter); erase
++ write via the stub flasher, hash verified, device booted to AP mode. Open
+Question 3 settled: stub is reliable, no `--no-stub` needed. Pending:
+release-asset patch (rollout sequencing), post-deploy flash from the live
+Pages URL, sotamat.com coordination.
 **Date:** 2026-08-21
 **Scope:** New page under `website/flash/`, a new `docs/user/USB-Flashing.md`,
 a change to `_write_manifest_file()` in `pio-pre-build-script.py`, additions to
@@ -336,12 +340,14 @@ Web Serial cannot be unit-tested, so coverage is layered:
    non-prerelease, so publishing a prerelease leaves the flasher on the last
    stable build. Believed correct, but it is a silent policy worth confirming
    rather than discovering.
-3. **`CONFIG_ESPTOOLPY_NO_STUB=y`.** `sdkconfig.defaults:35` disables the
+3. **`CONFIG_ESPTOOLPY_NO_STUB=y`.** ~~`sdkconfig.defaults:35` disables the
    esptool stub loader with the comment "slower, but sometimes more reliable".
    Whether that reflects a known stub problem on this board — and so whether
-   `USB-Flashing.md` should tell users to pass `--no-stub` — is unverified.
-   Settled by the CLI acceptance test, before the doc asserts a bare
-   `esptool write-flash` is reliable.
+   `USB-Flashing.md` should tell users to pass `--no-stub` — is unverified.~~
+   **Settled 2026-08-23** by the CLI acceptance test: erase-flash and
+   write-flash both ran via the stub on real hardware (esptool v5.3.1,
+   USB-Serial/JTAG), write hash verified, device booted. The doc's bare
+   commands stand; no `--no-stub` advice needed.
 4. **sotamat.com coordination.** Once this ships, that page should link here or
    point its button at `https://sotamat.github.io/SOTAcat/flash/manifest.json`
    (viable — Pages sends `access-control-allow-origin: *`). Outside this repo;

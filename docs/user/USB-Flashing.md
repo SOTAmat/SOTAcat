@@ -16,9 +16,9 @@ release. Use this page instead when the flasher can't help you:
 
 ## What you need
 
-- **esptool** — `pip install esptool`. This page is written against esptool
-  **v5.3.1**; v5 renamed the commands (`erase-flash`, `write-flash` — the old
-  underscore spellings still work but warn).
+- **esptool** — `pip install esptool`. This page was written and verified
+  against esptool **v5.3.1**; v5 renamed the commands (`erase-flash`,
+  `write-flash` — the old underscore spellings still work but warn).
 - **A USB data cable.** Charge-only cables are the most common failure: if no
   serial port ever appears, try another cable.
 - If the device never enumerates on any cable, you may be missing a USB serial
