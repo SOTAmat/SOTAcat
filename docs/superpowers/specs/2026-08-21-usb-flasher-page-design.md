@@ -9,8 +9,11 @@ auto-detected port among 34 candidates incl. an unrelated FTDI adapter); erase
 Question 3 settled: stub is reliable, no `--no-stub` needed. 2026-08-23:
 v260804.2114 manifest asset patched to the relative path per Rollout
 sequencing and re-verified from a fresh download (binary untouched, all
-deploy assertions pass). Pending: post-deploy flash from the live Pages URL,
-sotamat.com coordination.
+deploy assertions pass). Merged to main 2026-08-23 (6e40057); first deploy
+passed all assertions and the post-deploy sha256 check; a real SOTAcat was
+then flashed from the live Pages URL successfully — launch gate met. Sole
+remaining item, sotamat.com coordination (Open Question 4), filed as
+[SOTAmatApp#11](https://github.com/SOTAmat/SOTAmatApp/issues/11).
 **Date:** 2026-08-21
 **Scope:** New page under `website/flash/`, a new `docs/user/USB-Flashing.md`,
 a change to `_write_manifest_file()` in `pio-pre-build-script.py`, additions to
