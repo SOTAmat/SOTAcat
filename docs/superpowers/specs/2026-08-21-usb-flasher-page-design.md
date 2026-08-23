@@ -6,9 +6,11 @@ SOTAcat from the localhost-served page — successful. Tested 2026-08-23: CLI
 acceptance — USB-Flashing.md commands run verbatim (esptool v5.3.1, Linux,
 auto-detected port among 34 candidates incl. an unrelated FTDI adapter); erase
 + write via the stub flasher, hash verified, device booted to AP mode. Open
-Question 3 settled: stub is reliable, no `--no-stub` needed. Pending:
-release-asset patch (rollout sequencing), post-deploy flash from the live
-Pages URL, sotamat.com coordination.
+Question 3 settled: stub is reliable, no `--no-stub` needed. 2026-08-23:
+v260804.2114 manifest asset patched to the relative path per Rollout
+sequencing and re-verified from a fresh download (binary untouched, all
+deploy assertions pass). Pending: post-deploy flash from the live Pages URL,
+sotamat.com coordination.
 **Date:** 2026-08-21
 **Scope:** New page under `website/flash/`, a new `docs/user/USB-Flashing.md`,
 a change to `_write_manifest_file()` in `pio-pre-build-script.py`, additions to
