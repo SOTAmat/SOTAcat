@@ -7,6 +7,7 @@
 - [UI Tour](user/UI-Tour.md) — What each tab does
 - [LED Patterns](user/LED-Patterns.md) — Reading the blue and red lights
 - [Networking](user/Networking.md) — WiFi modes and troubleshooting
+- [USB Flashing](user/USB-Flashing.md) — Command-line install and rollback
 - [Tune Targets](user/Tune-Targets.md) — WebSDR/KiwiSDR URL templates
 - [Troubleshooting](user/Troubleshooting.md) — Common issues
 - [FAQ](user/FAQ.md) — Slack invitation, common questions

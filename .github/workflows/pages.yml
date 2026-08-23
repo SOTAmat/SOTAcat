@@ -6,6 +6,8 @@ on:
     paths:
       - 'website/**'
       - '.github/workflows/pages.yml'
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -26,8 +28,32 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/configure-pages@v6
+      # The flasher at /flash/ serves the latest release's firmware from this
+      # origin (release assets send no CORS headers, so the browser cannot fetch
+      # them directly). Manifest and binary are staged side by side; hard
+      # assertions kill the deploy rather than publish a flasher that fails in a
+      # user's browser.
+      - name: Stage firmware for the flasher
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'esp32c3.bin' --pattern 'manifest.json' --dir website/flash
+          test -s website/flash/esp32c3.bin
+          [ "$(jq -r '.builds[0].parts[0].path' website/flash/manifest.json)" = "esp32c3.bin" ]
+          [ "$(jq -r '.version' website/flash/manifest.json)" = "$TAG" ]
       - uses: actions/upload-pages-artifact@v5
         with:
           path: ./website
       - id: deployment
         uses: actions/deploy-pages@v5
+      - name: Verify deployed firmware matches the release
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do
+            curl -fsSL "${{ steps.deployment.outputs.page_url }}flash/esp32c3.bin" \
+              -o deployed.bin && break || sleep 10
+          done
+          [ "$(sha256sum < deployed.bin)" = "$(sha256sum < website/flash/esp32c3.bin)" ]

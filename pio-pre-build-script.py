@@ -377,10 +377,10 @@ def _write_manifest_file():
         {
             "chipFamily": "ESP32-C3",
             "parts": [
-                {
-                    "path": f"https://github.com/SOTAmat/SOTAcat/releases/download/{tag}/esp32c3.bin",
-                    "offset": 0,
-                }
+                # Relative path: the Pages deploy stages manifest and binary side by
+                # side on one origin (GitHub release assets no longer send CORS
+                # headers, so an absolute cross-origin URL cannot work in a browser).
+                {"path": "esp32c3.bin", "offset": 0}
             ],
         }
     ]

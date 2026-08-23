@@ -133,6 +133,16 @@ github-release:
 	@echo "Building release firmware and webtools assets..."
 	pio run -e seeed_xiao_esp32c3_release -t package_webtools
 	@TAG=$$(sed -n 's/.*BUILD_DATE_TIME "\([0-9]*\):\([0-9]*\)".*/v\1.\2/p' include/build_info.h); \
+	PART=$$(jq -r '.builds[0].parts[0].path' $(FIRMWARE_DIR)/manifest.json); \
+	if [ "$$PART" != "esp32c3.bin" ]; then \
+		echo "ERROR: manifest parts path is '$$PART', expected relative 'esp32c3.bin'." >&2; \
+		echo "  The Pages flasher requires a relative path (see docs/dev/BUILD.md)." >&2; \
+		exit 1; \
+	fi; \
+	if [ "$$(jq -r '.version' $(FIRMWARE_DIR)/manifest.json)" != "$$TAG" ]; then \
+		echo "ERROR: manifest version does not match tag $$TAG." >&2; \
+		exit 1; \
+	fi; \
 	NOTES="RELEASE_NOTES_$$TAG.md"; \
 	if [ ! -f "$$NOTES" ]; then \
 		echo "ERROR: release notes file $$NOTES not found." >&2; \

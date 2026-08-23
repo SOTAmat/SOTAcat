@@ -44,6 +44,8 @@ In Settings, configure:
 
 New firmware is published exclusively to [SOTAcat's GitHub Releases page](https://github.com/SOTAmat/SOTAcat/releases). Any other source (mirror, Slack drop, side-channel) is not authoritative — the OTA flow on the Firmware settings card checks GitHub Releases directly.
 
+For first-time installs, recovery, or firmware too old to update itself, flash over USB instead: the [browser flasher](https://sotamat.github.io/SOTAcat/flash/) (desktop Chrome, Edge, or Opera), or the [command line](USB-Flashing.md) for everything else. Note that USB flashing is a factory reset; OTA preserves your settings.
+
 ## Next Steps
 
 1. [UI Tour](UI-Tour.md) — learn what each tab does

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SOTAcat USB Firmware Installer</title>
+  <style>
+    :root {
+      --accent: #1a73e8;
+      --warn-bg: #fff3cd;
+      --warn-border: #ffc107;
+      --text: #202124;
+      --muted: #5f6368;
+    }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      max-width: 44rem;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+      line-height: 1.55;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.15rem; margin-top: 2rem; }
+    .subtitle { color: var(--muted); margin-top: 0; }
+    .warning {
+      background: var(--warn-bg);
+      border-left: 4px solid var(--warn-border);
+      padding: 0.75rem 1rem;
+      margin: 1.25rem 0;
+      border-radius: 4px;
+    }
+    .warning strong { display: block; margin-bottom: 0.25rem; }
+    .install {
+      text-align: center;
+      margin: 2rem 0;
+      padding: 1.5rem;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+    }
+    .error { color: #b00020; }
+    #release-version { color: var(--muted); font-size: 0.9rem; margin-top: 0.75rem; }
+    ul { padding-left: 1.25rem; }
+    li { margin: 0.4rem 0; }
+    a { color: var(--accent); }
+    footer { margin-top: 3rem; font-size: 0.85rem; color: var(--muted); }
+  </style>
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+</head>
+<body>
+
+<h1>SOTAcat USB Firmware Installer</h1>
+<p class="subtitle">Install the latest SOTAcat firmware over a USB cable, straight from this page.</p>
+
+<h2>Requirements</h2>
+<ul>
+  <li>A <strong>desktop</strong> browser: Google Chrome, Microsoft Edge, or Opera.
+      Phones and tablets cannot do this — Web Serial does not exist on iOS or Android.</li>
+  <li>A USB <strong>data</strong> cable connecting the SOTAcat to this computer.</li>
+</ul>
+
+<div class="warning">
+  <strong>&#9888;&#65039; USB flashing is a factory reset.</strong>
+  It erases all settings on the device: WiFi networks, callsign, everything.
+  If your SOTAcat already works and its Settings page has a Firmware section, update
+  over the air instead and keep your settings — see
+  <a href="https://github.com/SOTAmat/SOTAcat/blob/main/docs/user/Getting-Started.md#updating-firmware">Updating Firmware</a>.
+  This page is for first-time installs, recovery, and devices too old to update themselves.
+</div>
+
+<div class="install">
+  <esp-web-install-button manifest="manifest.json">
+    <p slot="unsupported" class="error">
+      Your current browser does not support installing SOTAcat firmware via USB.
+      You must use desktop Google Chrome, Microsoft Edge, or Opera &mdash; or flash
+      from the command line instead:
+      <a href="https://github.com/SOTAmat/SOTAcat/blob/main/docs/user/USB-Flashing.md">USB Flashing guide</a>.
+    </p>
+    <p slot="not-allowed" class="error">
+      You must connect to this web page over secure HTTPS (not insecure HTTP) in
+      order to install SOTAcat firmware. Change your browser URL and try again.
+    </p>
+  </esp-web-install-button>
+  <p id="release-version"></p>
+</div>
+
+<h2>If the device doesn't show up</h2>
+<ul>
+  <li><strong>Charge-only USB cables are the #1 culprit.</strong> Many USB cables carry
+      power but no data. If no serial port appears in the picker, try a different cable.</li>
+  <li><strong>The SOTAcat sleeps after about 60 seconds of inactivity.</strong> If it has
+      been sitting idle, power-cycle it just before clicking the install button.</li>
+</ul>
+
+<h2>After installing</h2>
+<p>The device reboots as a fresh SOTAcat and broadcasts its own
+<code>SOTAcat-XXXX</code> WiFi hotspot. Connect to it and follow
+<a href="https://github.com/SOTAmat/SOTAcat/blob/main/docs/user/Getting-Started.md">Getting Started</a>
+to set it up.</p>
+
+<footer>
+  <p>Firmware is served directly from this site's copy of the latest
+  <a href="https://github.com/SOTAmat/SOTAcat/releases/latest">GitHub release</a>.
+  Need an older version, or a browser this page rejects? Use the
+  <a href="https://github.com/SOTAmat/SOTAcat/blob/main/docs/user/USB-Flashing.md">command-line procedure</a>.</p>
+</footer>
+
+<script>
+  // Progressive enhancement: name the release this page will install.
+  // If this fetch fails the installer still works; it just doesn't show a version.
+  fetch("https://api.github.com/repos/SOTAmat/SOTAcat/releases/latest")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rel) {
+      if (rel && rel.tag_name) {
+        var link = document.createElement("a");
+        link.href = rel.html_url;
+        link.textContent = rel.tag_name;
+        var el = document.getElementById("release-version");
+        el.append("Installs firmware ", link);
+      }
+    })
+    .catch(function () { /* version display is optional */ });
+</script>
+
+</body>
+</html>

@@ -1,6 +1,10 @@
 # USB Web Serial Flasher on GitHub Pages — Design
 
-**Status:** Design approved 2026-08-21. Not implemented.
+**Status:** Design approved 2026-08-21. Implemented on this branch 2026-08-22.
+Tested 2026-08-22: localhost smoke test, then a real flash of a connected
+SOTAcat from the localhost-served page — successful. Pending: release-asset
+patch (rollout sequencing), post-deploy flash from the live Pages URL, CLI
+acceptance run of USB-Flashing.md, sotamat.com coordination.
 **Date:** 2026-08-21
 **Scope:** New page under `website/flash/`, a new `docs/user/USB-Flashing.md`,
 a change to `_write_manifest_file()` in `pio-pre-build-script.py`, additions to
