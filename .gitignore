@@ -124,4 +124,5 @@ test/host/test_radio_snapshot
 test/host/test_radio_park
 test/host/test_radio_mode
 test/host/test_chunked_send
+test/host/test_uart_retry
 
