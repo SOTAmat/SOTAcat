@@ -1,5 +1,7 @@
 #pragma once
 
+#include "radio_mode.h"
+
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
@@ -7,23 +9,8 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
-#define SC_KX_COMMUNICATION_RETRIES 3
 
-/**
- * Enumeration of radio operation modes.
- */
-typedef enum {
-    MODE_UNKNOWN = 0,
-    MODE_LSB     = 1,
-    MODE_USB     = 2,
-    MODE_CW      = 3,
-    MODE_FM      = 4,
-    MODE_AM      = 5,
-    MODE_DATA    = 6,
-    MODE_CW_R    = 7,
-    MODE_DATA_R  = 9,
-    MODE_LAST    = 9
-} radio_mode_t;
+#define SC_KX_COMMUNICATION_RETRIES 3
 
 enum class RadioType {
     UNKNOWN,

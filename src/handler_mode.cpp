@@ -6,49 +6,23 @@
 #include "radio_snapshot.h"
 #include "webserver.h"
 
-#include <cassert>
 #include <cctype>
 #include <esp_timer.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:hdl_mode";
 
-// Struct to map radio mode names to their corresponding radio_mode_t enum values
-typedef struct {
-    char const * const name;  // Name of the radio mode as a string
-    radio_mode_t       mode;  // Corresponding value from the radio_mode_t enumeration
-} radio_mode_map_t;
-
-// Array of radio mode mappings, ordered to match the radio_mode_t enumeration
-static const radio_mode_map_t radio_mode_map[] = {
-    {"UNKNOWN", MODE_UNKNOWN}, //  MODE_UNKNOWN = 0,
-    {"LSB",     MODE_LSB    }, //  MODE_LSB     = 1,
-    {"USB",     MODE_USB    }, //  MODE_USB     = 2,
-    {"CW",      MODE_CW     }, //  MODE_CW      = 3,
-    {"FM",      MODE_FM     }, //  MODE_FM      = 4,
-    {"AM",      MODE_AM     }, //  MODE_AM      = 5,
-    {"DATA",    MODE_DATA   }, //  MODE_DATA    = 6,
-    {"CW_R",    MODE_CW_R   }, //  MODE_CW_R    = 7,
-    {"DATA_R",  MODE_DATA_R }, //  MODE_DATA_R  = 9,
-
-    // Aliases for "DATA":
-    {"FT8",     MODE_DATA   },
-    {"JS8",     MODE_DATA   },
-    {"PK31",    MODE_DATA   },
-    {"FT4",     MODE_DATA   },
-    {"RTTY",    MODE_DATA   },
-};
-
 static void send_mode (httpd_req_t * req, const RadioSnapshotData & snap) {
-    long mode = snap.mode;  // 0 == MODE_UNKNOWN -> "UNKNOWN", as before
-    if (mode < MODE_UNKNOWN || mode > MODE_LAST) {
+    // 0 == MODE_UNKNOWN -> "UNKNOWN", as before; nullptr covers both
+    // out-of-range values and the enum gap at 8 (CR-01).
+    char const * name = radio_mode_name (snap.mode);
+    if (!name) {
         ESP_LOGE (TAG8, "unrecognized mode");
         http_send_error_json (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unrecognized mode");
         return;
     }
-    assert (radio_mode_map[mode].mode == mode);
-    ESP_LOGI (TAG8, "returning mode: %s", radio_mode_map[mode].name);
-    http_send_string (req, radio_mode_map[mode].name);
+    ESP_LOGI (TAG8, "returning mode: %s", name);
+    http_send_string (req, name);
 }
 
 // Async completer: the refresh finished (or the wait expired) — reply with
@@ -119,21 +93,12 @@ esp_err_t handler_mode_put (httpd_req_t * req) {
         return radio_set_via_http (req, RadioCmdType::SET_MODE, RADIO_MODE_SSB_AUTO, "mode change");
     }
 
-    radio_mode_t mode = MODE_UNKNOWN;
-#define COUNTOF(array) (sizeof (array) / sizeof (array[0]))
-    // Iterate through the radio_mode_map to find a matching mode
-    for (radio_mode_map_t const * mode_kv = &radio_mode_map[COUNTOF (radio_mode_map) - 1];
-         mode_kv >= &radio_mode_map[0];
-         --mode_kv)
-        if (!strcmp (mode_param, mode_kv->name)) {
-            mode = mode_kv->mode;
-            break;
-        }
+    radio_mode_t mode = radio_mode_from_name (mode_param);
 
     // Respond with an error if the mode is not recognized
     if (mode == MODE_UNKNOWN)
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid mode");
 
-    ESP_LOGI (TAG8, "mode = '%s'", radio_mode_map[mode].name);
+    ESP_LOGI (TAG8, "mode = '%s'", radio_mode_name (mode));
     return radio_set_via_http (req, RadioCmdType::SET_MODE, (long)mode, "mode change");
 }
