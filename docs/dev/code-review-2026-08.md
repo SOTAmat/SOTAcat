@@ -103,25 +103,25 @@ before changing code.
 
 | Batch | Issue title | Findings | Notes |
 |-------|-------------|----------|-------|
-| B1 | Mode map panics on DATA-REV (crash loop) | CR-01 | critical, standalone; test: mode 9 name lookup |
-| B2 | UART retry accounting and busy-recursion | CR-03 | host-testable |
-| B3 | Chunk-send failure handling in asset server | CR-02 | abort on error; no fall-through |
-| B4 | Return 503 for SETs during CW keyer TX | CR-07 | mirror FT8 branch using is_keyer_active() |
-| B5 | qrx robustness: search loop + zero coordinates | CR-04, CR-15 | one file |
-| B6 | → existing issue #107 (US-centric band plan) | CR-05, CR-06 | schema redesign; needs design |
-| B7 | Chase data path: enrichment, mode normalization, refresh timer | CR-10, CR-14, CR-17 | one pipeline |
-| B8 | Consolidate VFO polling onto main.js stack | CR-18, CR-19, CR-20 | refactor is the fix vehicle |
-| B9 | Tab lifecycle fixes in main.js | CR-11, CR-12, CR-13, CR-16, CR-22 | migration map, re-entrancy guard, button gating |
-| B10 | Surface silent HTTP failures (fetchQuiet, keyer length) | CR-09 | helper + callers |
-| B11 | handler_settings: bracket bug then consolidation | CR-08, CR-45, CR-43 | fix truncation first, refactor second, enforce MAX_* |
-| B12 | FT8 command-guard cleanup | CR-23 | behavior-preserving; watch the 986-1098 tail |
-| B13 | Radio driver dedup (verify-first) | CR-47, CR-48, CR-49 | shared helpers for KX/KH1 |
-| B14 | Settings page reuses main.js loaders (verify-first) | CR-50, CR-21 | single cache-write site |
-| B15 | radio_get_via_http chokepoint (verify-first) | CR-46 | counterpart to radio_set_via_http |
-| B16 | Radio service efficiency (verify-first) | CR-51, CR-52, CR-53, CR-54 | ping/health unification, timeout table to drivers |
-| B17 | Battery/power coherence | CR-24, CR-34, CR-36, CR-37 | decide: implement learned-param persistence or delete |
-| B18 | TCP keep-alive coherence | CR-32, CR-33 | behavior change; field-test with multiple tabs |
-| B19 | Mechanical sweep (no behavior change) | CR-25–CR-31, CR-35, CR-38–CR-42, CR-44, CR-55, CR-56 | one PR; comments, dead code, tags, housekeeping |
+| B1 (#112) | Mode map panics on DATA-REV (crash loop) | CR-01 | critical, standalone; test: mode 9 name lookup |
+| B2 (#113) | UART retry accounting and busy-recursion | CR-03 | host-testable |
+| B3 (#114) | Chunk-send failure handling in asset server | CR-02 | abort on error; no fall-through |
+| B4 (#115) | Return 503 for SETs during CW keyer TX | CR-07 | mirror FT8 branch using is_keyer_active() |
+| B5 (#116) | qrx robustness: search loop + zero coordinates | CR-04, CR-15 | one file |
+| B6 (#107) | → existing issue #107 (US-centric band plan) | CR-05, CR-06 | schema redesign; needs design |
+| B7 (#117) | Chase data path: enrichment, mode normalization, refresh timer | CR-10, CR-14, CR-17 | one pipeline |
+| B8 (#118) | Consolidate VFO polling onto main.js stack | CR-18, CR-19, CR-20 | refactor is the fix vehicle |
+| B9 (#119) | Tab lifecycle fixes in main.js | CR-11, CR-12, CR-13, CR-16, CR-22 | migration map, re-entrancy guard, button gating |
+| B10 (#120) | Surface silent HTTP failures (fetchQuiet, keyer length) | CR-09 | helper + callers |
+| B11 (#121) | handler_settings: bracket bug then consolidation | CR-08, CR-45, CR-43 | fix truncation first, refactor second, enforce MAX_* |
+| B12 (#122) | FT8 command-guard cleanup | CR-23 | behavior-preserving; watch the 986-1098 tail |
+| B13 (#123) | Radio driver dedup (verify-first) | CR-47, CR-48, CR-49 | shared helpers for KX/KH1 |
+| B14 (#124) | Settings page reuses main.js loaders (verify-first) | CR-50, CR-21 | single cache-write site |
+| B15 (#125) | radio_get_via_http chokepoint (verify-first) | CR-46 | counterpart to radio_set_via_http |
+| B16 (#126) | Radio service efficiency (verify-first) | CR-51, CR-52, CR-53, CR-54 | ping/health unification, timeout table to drivers |
+| B17 (#127) | Battery/power coherence | CR-24, CR-34, CR-36, CR-37 | decide: implement learned-param persistence or delete |
+| B18 (#128) | TCP keep-alive coherence | CR-32, CR-33 | behavior change; field-test with multiple tabs |
+| B19 (#129) | Mechanical sweep (no behavior change) | CR-25–CR-31, CR-35, CR-38–CR-42, CR-44, CR-55, CR-56 | one PR; comments, dead code, tags, housekeeping |
 
 Suggested order: B1, B3, B2, B4, B5 (rank order), then B19 (cheap, clears noise),
 then B7–B11, with the verify-first refactors (B13–B16) and design work (B6) last.
