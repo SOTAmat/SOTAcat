@@ -1,3 +1,4 @@
+#include "chunked_send.h"
 #include "webserver.h"
 #include "globals.h"
 #include "hardware_specific.h"  // get_version_string()
@@ -169,46 +170,17 @@ static const size_t CHUNK_SIZE = 8192;  // Increased from 1KB to 8KB for efficie
  * @return ESP_OK on successful transmission, or an error code if the send fails.
  */
 static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, const uint8_t * end) {
-    const int MAX_RETRIES    = 3;
-    const int RETRY_DELAY_MS = 10;
-    size_t    total_size     = end - start;
-    size_t    sent           = 0;
-
-    while (sent < total_size) {
-        size_t to_send = MIN (CHUNK_SIZE, total_size - sent);
-        int    ret     = ESP_FAIL;
-
-        // Retry loop for EAGAIN/EWOULDBLOCK errors
-        for (int retry = 0; retry <= MAX_RETRIES; retry++) {
-            ret = httpd_resp_send_chunk (req, (const char *)(start + sent), to_send);
-
-            if (ret == ESP_OK) {
-                break;  // Success, continue with next chunk
-            }
-
-            // If error is not EAGAIN or we've exhausted retries, give up
-            if (ret != ESP_ERR_HTTPD_RESP_SEND && retry >= MAX_RETRIES) {
-                ESP_LOGW (TAG8, "Failed to send chunk after %d retries, error: %d", MAX_RETRIES, ret);
-                httpd_resp_send_chunk (req, NULL, 0);  // Terminate chunked response
-                return ret;
-            }
-
-            // EAGAIN error - wait and retry
-            if (retry < MAX_RETRIES) {
-                vTaskDelay (pdMS_TO_TICKS (RETRY_DELAY_MS));
-            }
-        }
-
-        sent += to_send;
-
-        // Cooperative yield every 4 chunks to allow other tasks to run
-        if (sent < total_size && (sent % (CHUNK_SIZE * 4)) == 0) {
-            taskYIELD();
-        }
-    }
-
-    // Send final chunk
-    return httpd_resp_send_chunk (req, NULL, 0);
+    esp_err_t ret = send_region_chunked (
+        [req] (const unsigned char * p, size_t n) {
+            return (int)httpd_resp_send_chunk (req, (const char *)p, n);
+        },
+        [] { taskYIELD (); },
+        start,
+        end,
+        CHUNK_SIZE);
+    if (ret != ESP_OK)
+        ESP_LOGW (TAG8, "chunked send aborted, error: %d", ret);
+    return ret;
 }
 
 /**
