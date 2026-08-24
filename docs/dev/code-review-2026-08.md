@@ -6,9 +6,13 @@ top correctness claims adversarially verified by independent agents, mechanical 
 spot-checked against source.
 
 This document is the **plan and evidence archive**. The **burndown lives in GitHub
-issues** (milestone: `2026-08 code review`): one issue per batch below, PRs reference
-`Fixes #N` and the finding IDs (e.g. `fix: CR-01 ...`). This doc is updated only to
-record fixing commit hashes in the Status column.
+issues** (milestone: `2026-08 code review`): one issue per batch below. No PRs —
+we commit as a direct contributor, so each fix branch merges to main locally and
+its commit body carries `Fixes #N` plus the finding IDs (e.g. `fix: CR-01 ...`),
+which closes the issue when the commit reaches main. With no review gate, the
+verification bar is doubled: host suite green, firmware build green, and the diff
+reviewed before anything merges. This doc is updated only to record fixing commit
+hashes in the Status column.
 
 ## Scoring
 
