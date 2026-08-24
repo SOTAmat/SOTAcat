@@ -10,8 +10,9 @@ issues** (milestone: `2026-08 code review`): one issue per batch below. No PRs �
 we commit as a direct contributor, so each fix branch merges to main locally and
 its commit body carries `Fixes #N` plus the finding IDs (e.g. `fix: CR-01 ...`),
 which closes the issue when the commit reaches main. With no review gate, the
-verification bar is doubled: host suite green, firmware build green, and the diff
-reviewed before anything merges. This doc is updated only to record fixing commit
+verification bar is doubled: every batch fully retests on every tier that exists —
+host unit suite, firmware build, integration/UI (Playwright), and real hardware via
+OTA — and the diff is reviewed before anything merges. This doc is updated only to record fixing commit
 hashes in the Status column.
 
 ## Scoring
@@ -35,7 +36,7 @@ Verification status: **V** = adversarially verified, **S** = spot-checked code f
 |-------|------------------------------------------------------------------------------------------------|------------------------------------------------|-----------|-----|------|-----|-----|-----------|--------|
 | CR-01 | DATA-REV mode panics device (mode map index ≠ enum)                                            | handler_mode.cpp:23-49                         | V         | 3   | 3    | 3   | 2   | B1        | fixed 726c25b |
 | CR-02 | Chunk-send fall-through: silent truncation as HTTP 200, httpd stalls                           | webserver.cpp:171-212                          | V         | 3   | 3    | 3   | 2   | B3        | fixed c214c2b |
-| CR-03 | UART retry gives 2 of 3 attempts; busy `?;` recurses unboundedly                               | kx_radio.cpp:86-92,386                         | V         | 3   | 2    | 3   | 2   | B2        | open   |
+| CR-03 | UART retry gives 2 of 3 attempts; busy `?;` recurses unboundedly                               | kx_radio.cpp:86-92,386                         | V         | 3   | 2    | 3   | 2   | B2        | fixed 3c7576b |
 | CR-04 | qrx nearest-SOTA search loops forever on empty results at 100 km                               | qrx.js:170-217                                 | V         | 2   | 3    | 2   | 2   | B5        | open   |
 | CR-05 | FCC table grants N/T DATA on 80/40/15 CW-only segments                                         | bandprivileges.js:59,74,96                     | V         | 2   | 1    | 3   | 2   | B6 (#107) | open   |
 | CR-06 | 60 m channel 5403.5–5406.5 outside BAND_PLAN 5.3–5.4                                           | main.js:398, bandprivileges.js:70              | V         | 2   | 2    | 3   | 1   | B6 (#107) | open   |
