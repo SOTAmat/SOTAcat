@@ -354,8 +354,8 @@ static void wifi_attenuate_power () {
      * | [74, 75]  | level2            | 18.5 dBm |
      * | [68, 73]  | level3            | 17   dBm |
      * | [60, 67]  | level4            | 15   dBm |
-     * | [52, 59]  | level5            | 13   dBm |
-     * | [44, 51]  | level5 -  2.0 dBm | 11   dBm |  <-- currently using this
+     * | [52, 59]  | level5            | 13   dBm |  <-- currently using this
+     * | [44, 51]  | level5 -  2.0 dBm | 11   dBm |
      * | [34, 43]  | level5 -  4.5 dBm |  8.5 dBm |
      * | [28, 33]  | level5 -  6.0 dBm |  7   dBm |
      * | [20, 27]  | level5 -  8.0 dBm |  5   dBm |

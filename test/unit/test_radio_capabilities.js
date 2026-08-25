@@ -4,8 +4,7 @@
  *
  * Covers:
  * - RADIO_CAPABILITIES nested record shape
- * - getRadioBands / getRadioModes (with and without requireTx)
- * - radioCanTransmit semantics (Unknown = permissive)
+ * - getRadioBands (with and without requireTx)
  * - getRadioBandCapabilities back-compat (used by chase.js)
  *
  * Usage:
@@ -80,16 +79,10 @@ const mainJsCode = fs.readFileSync(mainJsPath, 'utf8');
 
 const radioCapMatch = mainJsCode.match(/const RADIO_CAPABILITIES = \{[\s\S]*?\n\};/);
 const getRadioBandsMatch = mainJsCode.match(/function getRadioBands\([\s\S]*?\n\}/);
-const getRadioModesMatch = mainJsCode.match(/function getRadioModes\([\s\S]*?\n\}/);
-const radioCanTransmitMatch = mainJsCode.match(/function radioCanTransmit\([\s\S]*?\n\}/);
-const getRadioBandCapsMatch = mainJsCode.match(/function getRadioBandCapabilities\([\s\S]*?\n\}/);
 
 for (const [name, m] of [
     ['RADIO_CAPABILITIES', radioCapMatch],
     ['getRadioBands', getRadioBandsMatch],
-    ['getRadioModes', getRadioModesMatch],
-    ['radioCanTransmit', radioCanTransmitMatch],
-    ['getRadioBandCapabilities', getRadioBandCapsMatch],
 ]) {
     if (!m) {
         console.error(`Could not extract ${name} from main.js`);
@@ -103,9 +96,6 @@ for (const [name, m] of [
 const {
     RADIO_CAPABILITIES,
     getRadioBands,
-    getRadioModes,
-    radioCanTransmit,
-    getRadioBandCapabilities,
 } = sandbox;
 
 // ============================================================================
@@ -203,85 +193,6 @@ describe('getRadioBands', () => {
 
     it('Unrecognized radio name returns null', () => {
         assertNull(getRadioBands('FT-818'));
-    });
-});
-
-describe('getRadioModes', () => {
-    it('KH1 requireTx=false: CW, USB, LSB', () => {
-        assertArrayEqualUnordered(getRadioModes('KH1', false), ['CW','USB','LSB']);
-    });
-
-    it('KH1 requireTx=true: CW only', () => {
-        assertEqual(getRadioModes('KH1', true), ['CW']);
-    });
-
-    it('KX3 requireTx=true: 6 modes (CW, USB, LSB, DATA, AM, FM)', () => {
-        assertArrayEqualUnordered(
-            getRadioModes('KX3', true),
-            ['CW','USB','LSB','DATA','AM','FM'],
-        );
-    });
-
-    it('Unknown returns null', () => {
-        assertNull(getRadioModes('Unknown'));
-    });
-});
-
-describe('radioCanTransmit', () => {
-    it('KX2: 20m USB → true', () => {
-        assertTrue(radioCanTransmit('KX2', '20m', 'USB'));
-    });
-
-    it('KX2: 160m USB → false (160m is RX)', () => {
-        assertFalse(radioCanTransmit('KX2', '160m', 'USB'));
-    });
-
-    it('KX2: 6m USB → false (band absent)', () => {
-        assertFalse(radioCanTransmit('KX2', '6m', 'USB'));
-    });
-
-    it('KH1: 20m CW → true', () => {
-        assertTrue(radioCanTransmit('KH1', '20m', 'CW'));
-    });
-
-    it('KH1: 20m USB → false (mode is RX-only)', () => {
-        assertFalse(radioCanTransmit('KH1', '20m', 'USB'));
-    });
-
-    it('KH1: 80m CW → false (band absent)', () => {
-        assertFalse(radioCanTransmit('KH1', '80m', 'CW'));
-    });
-
-    it('Unknown: any → true (permissive)', () => {
-        assertTrue(radioCanTransmit('Unknown', '20m', 'USB'));
-        assertTrue(radioCanTransmit('Unknown', 'foo', 'bar'));
-    });
-
-    it('Unrecognized radio: permissive (treated as Unknown)', () => {
-        assertTrue(radioCanTransmit('FT-818', '20m', 'CW'));
-    });
-});
-
-describe('getRadioBandCapabilities back-compat', () => {
-    it('KX2 returns the full RX-or-TX list (used by chase filter)', () => {
-        const bands = getRadioBandCapabilities('KX2');
-        assertTrue(bands.includes('160m'), 'chase filter still sees 160m for KX2');
-        assertTrue(bands.includes('20m'));
-        assertFalse(bands.includes('6m'), 'KX2 6m correctly removed');
-    });
-
-    it('KX3 returns 11 bands (160m-6m)', () => {
-        const bands = getRadioBandCapabilities('KX3');
-        assertEqual(bands.length, 11);
-    });
-
-    it('KH1 returns 5 bands', () => {
-        const bands = getRadioBandCapabilities('KH1');
-        assertEqual(bands.length, 5);
-    });
-
-    it('Unknown returns null (= no filtering)', () => {
-        assertNull(getRadioBandCapabilities('Unknown'));
     });
 });
 

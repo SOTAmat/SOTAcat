@@ -28,9 +28,12 @@
 static const char * TAG8 = "sc:hdl_ft8.";
 
 /**
- * Holds the timestamp until which the radio should remain in FT8 mode. This variable is used as a watchdog timer;
- * if the system time surpasses this timestamp without any new FT8 activity, the system will automatically exit
- * FT8 mode and revert the radio to its previous state. The value is in microseconds since the Unix epoch.
+ * Watchdog deadline for FT8 mode, in microseconds on the boot clock
+ * (esp_timer_get_time()). When the boot clock passes this value without new
+ * FT8 activity, cleanup exits FT8 mode and restores the radio state.
+ * Sentinels: 0 = idle/cleaned up; 1 = cancel requested (ft8_request_cancel);
+ * values > 1 are live deadlines, extended monotonically by
+ * ft8_extend_cancel_deadline_us().
  */
 static std::atomic<int64_t> CancelRadioFT8ModeTime{0};
 
@@ -334,17 +337,6 @@ static void waitForFT8Window () {
     }
 }
 
-#define EASE_STEPS 1
-
-/**
- * Transitions from a prior frequency to a new frequency smoothly over one or more steps.
- *
- * @param base_frequency The base frequency for the FT8 transmission. Needed for KH offset calculations.
- * @param prior_frequency The frequency at which the previous tone was sent.
- * @param frequency The target frequency for the current tone.
- * @param lastWakeTime The last recorded wake time, used for task delay calculations.
- * @param toneInterval The interval at which tones should be sent, in ticks.
- */
 /**
  * Task function to handle the FT8 transmission process.
  *

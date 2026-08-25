@@ -513,19 +513,17 @@ bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
  *
  *   DELEGATE_BOOL(name, PARAMS, ...)
  *     Generates: bool KXRadio::name PARAMS
- *     Preconditions: radio must be locked (logged error if not), m_driver must be set.
- *     Returns false if m_driver is null; otherwise returns the driver result.
+ *     Preconditions: radio must be locked (logged error if not).
  *
  *   DELEGATE_BOOL_CONST(name)
- *     Generates: bool KXRadio::name() const
- *     Preconditions: m_driver must be set (no lock required).
- *     Returns false if m_driver is null; otherwise returns the driver result.
+ *     Generates: bool KXRadio::name() const  (no lock required)
  *
  *   DELEGATE_VOID(name, PARAMS, ...)
  *     Generates: void KXRadio::name PARAMS
- *     Preconditions: radio must be locked (logged error if not), m_driver must be set.
- *     Does nothing if m_driver is null.
+ *     Preconditions: radio must be locked (logged error if not).
  *
+ * m_driver is always valid: the constructor selects the KX driver and
+ * select_driver() only ever swaps between the two drivers.
  * All three variants add LOGV tracing; the non-const variants also check is_locked().
  */
 #define DELEGATE_BOOL(name, PARAMS, ...)                                   \
@@ -533,20 +531,19 @@ bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
         ESP_LOGV (TAG8, "trace: %s()", __func__);                          \
         if (!is_locked())                                                  \
             ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)"); \
-        return m_driver && m_driver->name (*this, ##__VA_ARGS__);          \
+        return m_driver->name (*this, ##__VA_ARGS__);                     \
     }
 #define DELEGATE_BOOL_CONST(name)                 \
     bool KXRadio::name() const {                  \
         ESP_LOGV (TAG8, "trace: %s()", __func__); \
-        return m_driver && m_driver->name();      \
+        return m_driver->name();                  \
     }
 #define DELEGATE_VOID(name, PARAMS, ...)                                   \
     void KXRadio::name PARAMS {                                            \
         ESP_LOGV (TAG8, "trace: %s()", __func__);                          \
         if (!is_locked())                                                  \
             ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)"); \
-        if (m_driver)                                                      \
-            m_driver->name (*this, ##__VA_ARGS__);                         \
+        m_driver->name (*this, ##__VA_ARGS__);                             \
     }
 // clang-format off
 DELEGATE_BOOL (ft8_prepare,         (long base_freq),                         base_freq)
