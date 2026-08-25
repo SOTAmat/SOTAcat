@@ -1105,9 +1105,25 @@ function saveActiveTab(tabName) {
     localStorage.setItem("activeTab", tabName.toLowerCase());
 }
 
-// Tune radio to specified frequency (Hz) and mode (adjusts SSB sideband based on frequency)
+// Map a raw spot/source mode string onto the set the firmware's mode PUT
+// accepts. Returns the normalized mode, or null when there is no sensible
+// mapping (the caller then tunes frequency-only).
+function normalizeRadioMode(mode) {
+    const up = String(mode || "").trim().toUpperCase();
+    const accepted = ["LSB", "USB", "CW", "FM", "AM", "DATA", "CW_R", "DATA_R", "FT8", "JS8", "PK31", "FT4", "RTTY", "SSB"];
+    if (accepted.includes(up)) return up;
+    const synonyms = { "PSK31": "PK31", "CW-R": "CW_R", "CWR": "CW_R", "DATA-R": "DATA_R", "PHONE": "SSB", "VOICE": "SSB" };
+    if (up in synonyms) return synonyms[up];
+    // Digital modes with no firmware alias of their own key the radio's DATA mode.
+    const dataModes = ["PSK", "BPSK", "BPSK31", "JT65", "JT9", "MFSK", "MFSK32", "OLIVIA", "HELL", "SSTV", "PKT", "MSK144", "DIG", "DIGI"];
+    if (dataModes.includes(up)) return "DATA";
+    return null;
+}
+
+// Tune radio to specified frequency (Hz) and mode (adjusts SSB sideband based
+// on frequency). An unmappable mode tunes frequency-only.
 async function tuneRadioHz(frequency, mode) {
-    let useMode = mode.toUpperCase();
+    let useMode = normalizeRadioMode(mode);
     if (useMode === "SSB") {
         if (frequency < LSB_USB_BOUNDARY_HZ) useMode = "LSB";
         else useMode = "USB";
@@ -1126,18 +1142,22 @@ async function tuneRadioHz(frequency, mode) {
 
         Log.debug("Tune")("Frequency updated:", frequency);
 
-        const modeResponse = await fetch(`/api/v1/mode?mode=${useMode}`, { method: "PUT" });
+        if (useMode) {
+            const modeResponse = await fetch(`/api/v1/mode?mode=${useMode}`, { method: "PUT" });
 
-        if (!modeResponse.ok) {
-            Log.error("Tune")("Mode update failed");
-            return;
+            if (!modeResponse.ok) {
+                Log.error("Tune")("Mode update failed");
+                return;
+            }
+
+            Log.debug("Tune")("Mode updated:", useMode);
+        } else {
+            Log.warn("Tune")(`No radio mode mapping for "${mode}"; tuned frequency only`);
         }
-
-        Log.debug("Tune")("Mode updated:", useMode);
 
         // Update global VFO state
         AppState.vfoFrequencyHz = frequency;
-        AppState.vfoMode = useMode;
+        if (useMode) AppState.vfoMode = useMode;
         AppState.vfoLastUpdated = Date.now();
 
         // Notify any page-specific listeners (chase row highlight, etc.).
