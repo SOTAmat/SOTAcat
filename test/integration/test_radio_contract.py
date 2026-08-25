@@ -131,6 +131,9 @@ class ContractTest:
                     self.expect(valid(body), f"unexpected payload {body!r}")
                     self.expect("no-store" in r.headers.get("Cache-Control", ""),
                                 "missing Cache-Control: no-store")
+                    if not self.mock:  # the mock's dev server closes per-request by design
+                        self.expect(r.headers.get("Connection", "").lower() != "close",
+                                    "API replies must not send Connection: close (keep-alive)")
                 self.expect(worst <= GET_BOUND_S,
                             f"slowest GET {worst*1000:.0f} ms > {GET_BOUND_S*1000:.0f} ms bound")
             self.check(f"GET {ep}: payload shape, headers, <= {GET_BOUND_S*1000:.0f} ms", one)
