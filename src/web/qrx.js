@@ -167,7 +167,35 @@ async function saveGpsLocation() {
 // ============================================================================
 
 const SOTA_DISTANCE_API_URL = "https://api-db2.sota.org.uk/api/summits/distance";
-const SOTA_SEARCH_RANGE_KM = 0.1;
+// Expanding search ladder; the final entry is the hard search limit.
+// Iterating a fixed list terminates by construction.
+const SOTA_SEARCH_RANGES_KM = [0.1, 1, 10, 50, 100];
+
+// A location is valid only with finite numeric coordinates; 0 is a real
+// latitude (equator) and longitude (Greenwich), not "unset".
+function hasValidLocation(location) {
+    return !!location && Number.isFinite(location.latitude) && Number.isFinite(location.longitude);
+}
+
+// Search each range in turn; returns the first non-empty summit list, or []
+// after the final range. fetchFn is injectable for tests.
+async function searchSotaSummitsExpanding(latitude, longitude, fetchFn = fetch) {
+    for (const range of SOTA_SEARCH_RANGES_KM) {
+        const url = `${SOTA_DISTANCE_API_URL}/${latitude}/${longitude}/${range}`;
+        Log.debug("QRX")(`Fetching SOTA summits: ${url}`);
+
+        const response = await fetchFn(url);
+        if (!response.ok) {
+            throw new Error(`SOTA API error: ${response.status}`);
+        }
+
+        const summits = await response.json();
+        if (summits.length > 0) {
+            return summits;
+        }
+    }
+    return [];
+}
 
 // Fetch nearest SOTA summit and populate reference input
 async function fetchNearestSota() {
@@ -189,7 +217,7 @@ async function fetchNearestSota() {
     try {
         // Get current location
         const location = await getLocation();
-        if (!location || !location.latitude || !location.longitude) {
+        if (!hasValidLocation(location)) {
             alert("No location available. Please set your location first.");
             return;
         }
@@ -197,24 +225,7 @@ async function fetchNearestSota() {
         const { latitude, longitude } = location;
 
         // Fetch summits near the location, starting with small range and expanding if needed
-        let summits = [];
-        let range = SOTA_SEARCH_RANGE_KM;
-        const maxRange = 100; // Max 100km search radius
-
-        while (summits.length === 0 && range <= maxRange) {
-            const url = `${SOTA_DISTANCE_API_URL}/${latitude}/${longitude}/${range}`;
-            Log.debug("QRX")(`Fetching SOTA summits: ${url}`);
-
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`SOTA API error: ${response.status}`);
-            }
-
-            summits = await response.json();
-            if (summits.length === 0) {
-                range = range < 1 ? 1 : range < 10 ? 10 : range < 50 ? 50 : 100;
-            }
-        }
+        const summits = await searchSotaSummitsExpanding(latitude, longitude);
 
         if (!summits || summits.length === 0) {
             alert("No SOTA summits found within 100km of your location.");

@@ -75,7 +75,7 @@ esp_err_t radio_set_via_http (httpd_req_t * req, RadioCmdType type, long arg, co
 
     // FT8 and the CW keyer each own the radio for a whole transmission and
     // the service can do no CAT work meanwhile; a SET would only sit until
-    // it expired (CR-07). Say so now.
+    // it expired. Say so now.
     RadioSetRefusal refusal = radio_set_refusal (Ft8RadioExclusive, kxRadio.is_keyer_active());
     if (refusal != RadioSetRefusal::NONE) {
         const char * reason = radio_set_refusal_message (refusal);

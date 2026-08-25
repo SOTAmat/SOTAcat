@@ -3,8 +3,8 @@
 #include <cstddef>
 
 /**
- * Chunked-send loop over a memory region, extracted from webserver.cpp for
- * host-testability (CR-02; see test/host/test_chunked_send.cpp).
+ * Chunked-send loop over a memory region (host-testable; see
+ * test/host/test_chunked_send.cpp).
  *
  * Contract: any chunk failure aborts the transfer immediately — the loop
  * never advances past an unsent chunk — and the terminating zero-length

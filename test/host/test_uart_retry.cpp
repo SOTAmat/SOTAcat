@@ -1,13 +1,9 @@
 // Standalone host test — no ESP-IDF. Build: see test/host/Makefile
 //
-// CR-03: the old recursive retry both decremented `tries` and recursed with
-// `tries - 1`, so a budget of 3 bought 2 attempts; and the "radio busy,
-// don't count as retry" branch neither honored that promise (the recursion
-// still consumed budget) nor bounded itself (a persistently busy radio
-// recursed without limit). The contract pinned here: `tries` is the exact
-// number of transmissions for non-busy failures; busy responses consume a
-// separate bounded tolerance; the between() hook (buffer flush + delay)
-// runs before every retry and never after the final failure.
+// Contract pinned here: `tries` is the exact number of transmissions for
+// non-busy failures; busy responses consume a separate bounded tolerance;
+// the between() hook (buffer flush + delay) runs before every retry and
+// never after the final failure.
 #include "../../include/uart_retry.h"
 #include <cassert>
 #include <cstdio>
@@ -27,7 +23,7 @@ struct Script {
 };
 
 int main () {
-    {  // tries=3 buys exactly 3 attempts on plain failures (the bug gave 2).
+    {  // tries=3 buys exactly 3 attempts on plain failures.
         Script s{{R::BAD, R::BAD, R::BAD, R::BAD}};
         bool   ok = uart_retry ([&] { return s (); }, [&] { s.betweens++; }, 3);
         assert (!ok);
@@ -60,8 +56,8 @@ int main () {
         assert (ok && s.attempts == 3);
     }
 
-    {  // But busy is bounded: with tolerance B, the (B+1)th busy response
-       // gives up instead of recursing forever (the old code never returned).
+    {  // Busy is bounded: with tolerance B, the (B+1)th busy response
+       // gives up.
         Script s{{R::BUSY, R::BUSY, R::BUSY, R::BUSY}};
         bool   ok = uart_retry ([&] { return s (); }, [&] { s.betweens++; }, 3, 3);
         assert (!ok);
