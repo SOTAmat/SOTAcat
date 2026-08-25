@@ -10,9 +10,7 @@
  *
  * The enumerator values mirror the Elecraft MDn CAT codes, which skip 8:
  * MODE_CW_R = 7, MODE_DATA_R = 9. Never index a table by these values —
- * use the scan-based lookups below (CR-01: a packed table indexed by enum
- * value served the wrong row, and an assert on the mismatch panicked the
- * device whenever a KX radio sat in DATA-REV).
+ * use the scan-based lookups below, which stay correct across the gap.
  */
 typedef enum {
     MODE_UNKNOWN = 0,

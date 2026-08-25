@@ -1,10 +1,8 @@
 // Standalone host test — no ESP-IDF. Build: see test/host/Makefile
 //
-// CR-07: radio_set_via_http refused SETs during FT8 (503) but accepted them
-// during a CW keyer transmission, returning 202 "accepted, applying" for a
-// command that then expired silently at SET_APPLY_DEADLINE_MS while the
-// keyer task held the radio mutex. The gate pinned here refuses both long
-// exclusive owners up front, honestly.
+// The gate refuses SETs while either long exclusive owner (FT8, CW keyer)
+// holds the radio, replying 503 up front rather than accepting a command
+// that could only expire unapplied.
 #include "../../include/radio_set_gate.h"
 #include <cassert>
 #include <cstring>
@@ -19,7 +17,7 @@ int main () {
     assert (radio_set_refusal (true, false) == RadioSetRefusal::FT8);
     assert (!strcmp (radio_set_refusal_message (RadioSetRefusal::FT8), "radio busy (FT8)"));
 
-    // The bug: keyer TX must refuse too, not 202-then-drop.
+    // Keyer TX refuses with its own reason.
     assert (radio_set_refusal (false, true) == RadioSetRefusal::KEYER);
     assert (!strcmp (radio_set_refusal_message (RadioSetRefusal::KEYER), "radio busy (keyer)"));
 

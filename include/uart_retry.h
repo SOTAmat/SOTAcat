@@ -1,13 +1,8 @@
 #pragma once
 
 /**
- * Retry policy for UART command transactions, extracted from kx_radio.cpp
- * for host-testability (CR-03; see test/host/test_uart_retry.cpp).
- *
- * The old recursive form both decremented its counter and recursed with
- * `tries - 1`, so a budget of 3 bought 2 attempts — and its "radio busy,
- * don't count as retry" branch still consumed budget while placing no bound
- * of its own, so a radio streaming `?;` recursed without limit.
+ * Retry policy for UART command transactions (host-testable; see
+ * test/host/test_uart_retry.cpp).
  *
  * Contract: `tries` is the exact number of transmissions granted to plain
  * (non-busy) failures. Busy responses do not consume that budget; they draw

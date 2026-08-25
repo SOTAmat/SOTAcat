@@ -1,11 +1,9 @@
 // Standalone host test — no ESP-IDF. Build: see test/host/Makefile
 //
-// CR-02: the old chunk loop's abort guard was unreachable for real send
-// failures, so it fell through, advanced `sent` past a never-sent chunk, and
-// delivered a truncated body as a clean HTTP 200. The contract pinned here:
-// any chunk failure aborts immediately (no chunk is ever skipped), the
-// terminator is still attempted so the client sees a torn connection, and the
-// first failure's error code is what the caller gets.
+// Contract pinned here: any chunk failure aborts immediately (no chunk is
+// ever skipped, so a truncated body can never ship under a clean status),
+// the terminator is still attempted so the client sees a torn connection,
+// and the first failure's error code is what the caller gets.
 #include "../../include/chunked_send.h"
 #include <cassert>
 #include <cstdio>
@@ -49,8 +47,8 @@ int main () {
         assert (yields == 0);  // fewer than 4 full chunks, no yield
     }
 
-    {  // The bug: a chunk failure must abort — terminator attempted, no
-       // further data chunks, and the failing send's error is returned.
+    {  // A chunk failure must abort — terminator attempted, no further
+       // data chunks, and the failing send's error is returned.
         FakeSender s (region);
         s.fail_on_call = 1;
         int ret = send_region_chunked (s, [] {}, region, region + sizeof (region), CHUNK);
