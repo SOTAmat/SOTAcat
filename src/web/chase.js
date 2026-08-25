@@ -849,7 +849,11 @@ function buildChaseRow(spot, isMySpot) {
     refCell.appendChild(buildReferenceLink(spot));
 
     // 7. Distance (stored canonically in kilometres, formatted for the selected unit)
-    row.insertCell().textContent = formatDistanceKmForTable(spot.distanceKm);
+    // Older cached spot records used `distance`; keep them usable across this update.
+    const distanceKm = Number.isFinite(spot.distanceKm) ? spot.distanceKm : spot.distance;
+    const distanceCell = row.insertCell();
+    distanceCell.classList.add("distance-cell");
+    distanceCell.textContent = formatDistanceKmForTable(distanceKm);
 
     // 8. Details
     row.insertCell().textContent = spot.details;

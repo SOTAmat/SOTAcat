@@ -76,11 +76,15 @@ it("formats metric prose distances in metres and kilometres", () => {
     assertEqual(sandbox.formatDistanceKm(25), "25.0km away");
 });
 
-it("converts CHASE table values from canonical kilometres", () => {
+it("converts and rounds CHASE table values from canonical kilometres", () => {
     sandbox.AppState.distanceUnits = "miles";
-    assertEqual(sandbox.formatDistanceKmForTable(25), "15.5");
+    assertEqual(sandbox.formatDistanceKmForTable(25), "16");
     sandbox.AppState.distanceUnits = "kilometres";
-    assertEqual(sandbox.formatDistanceKmForTable(25), "25");
+    assertEqual(sandbox.formatDistanceKmForTable(1010.2), "1,010");
+});
+
+it("uses a placeholder for an unavailable CHASE distance", () => {
+    assertEqual(sandbox.formatDistanceKmForTable(undefined), "-");
 });
 
 console.log(`\nResults: ${passed} passed, ${failed} failed`);

@@ -1494,9 +1494,22 @@ tbody tr:active {
     text-align: right;
 }
 
-/* Miles column - right aligned */
+/* Distance column - compact, right aligned numeric values */
+#chase-table th:nth-child(7),
 #chase-table td:nth-child(7) {
+    width: 1%;
+    white-space: nowrap;
     text-align: right;
+}
+
+#chase-table th:nth-child(7) {
+    padding-left: var(--space-xs);
+    padding-right: var(--space-xs);
+}
+
+#chase-table td.distance-cell {
+    padding-left: var(--space-xs);
+    padding-right: var(--space-xs);
 }
 
 /* Frequency display styling - emphasize MHz, de-emphasize fractional KHz */

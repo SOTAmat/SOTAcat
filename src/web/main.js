@@ -551,8 +551,11 @@ function formatDistanceKm(distanceKm) {
 
 // Format a canonical kilometre distance for the CHASE table; its header supplies the unit.
 function formatDistanceKmForTable(distanceKm) {
+    if (!Number.isFinite(distanceKm)) {
+        return "-";
+    }
     const value = AppState.distanceUnits === "kilometres" ? distanceKm : distanceKm * 0.621371;
-    return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+    return Math.round(value).toLocaleString();
 }
 
 // Apply UI compact mode class to document body
