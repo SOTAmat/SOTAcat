@@ -252,7 +252,10 @@ fetchReferenceDetails, referenceDetailsCache, formatReferenceDetails all unreach
 ### CR-15 — zero coordinate (VERIFIED)
 qrx.js:192 `!location.latitude || !location.longitude` on parseFloat'd numbers;
 `51.4779, 0` saves fine then "Nearest SOTA" claims no location.
-**Fix:** `Number.isFinite` checks.
+**Fix:** `Number.isFinite` checks. *Errata (2866649):* the geolocation bridge
+delivers URL-parameter strings, which the old falsy guard silently tolerated —
+saveGpsToDevice now pins coordinates to finite numbers at the boundary so the
+strict guard holds (field report: Nearest SOTA refused right after Locate Me).
 
 ### CR-16 — version check bookkeeping (VERIFIED)
 main.js manual branch (:1831-1840) returns before the :1867-1877 tail; dead
