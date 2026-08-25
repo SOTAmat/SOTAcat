@@ -2,8 +2,10 @@
 //
 // Contract pinned here: any chunk failure aborts immediately (no chunk is
 // ever skipped, so a truncated body can never ship under a clean status),
-// the terminator is still attempted so the client sees a torn connection,
-// and the first failure's error code is what the caller gets.
+// NO terminator is sent after a failure — a zero-length chunk would make the
+// truncated body read as complete; the caller's error return closes the
+// socket instead — and the first failure's error code is what the caller
+// gets.
 #include "../../include/chunked_send.h"
 #include <cassert>
 #include <cstdio>
@@ -47,22 +49,22 @@ int main () {
         assert (yields == 0);  // fewer than 4 full chunks, no yield
     }
 
-    {  // A chunk failure must abort — terminator attempted, no further
-       // data chunks, and the failing send's error is returned.
+    {  // A chunk failure must abort with no further sends of any kind: a
+       // post-failure terminator would make the truncated body look complete.
         FakeSender s (region);
         s.fail_on_call = 1;
         int ret = send_region_chunked (s, [] {}, region, region + sizeof (region), CHUNK);
         assert (ret == s.error_code);
-        assert (s.calls.size () == 3);  // chunk0 ok, chunk1 fail, terminator — nothing more
-        assert (s.calls[0].is_data && !s.calls[2].is_data);
+        assert (s.calls.size () == 2);  // chunk0 ok, chunk1 fail — nothing more
+        assert (s.calls[0].is_data && s.calls[1].is_data);
     }
 
-    {  // First-chunk failure: no data ever counted as sent.
+    {  // First-chunk failure: single call, no terminator.
         FakeSender s (region);
         s.fail_on_call = 0;
         int ret = send_region_chunked (s, [] {}, region, region + sizeof (region), CHUNK);
         assert (ret == s.error_code);
-        assert (s.calls.size () == 2 && !s.calls[1].is_data);
+        assert (s.calls.size () == 1 && s.calls[0].is_data);
     }
 
     {  // Terminator failure on an otherwise clean send surfaces its error.
