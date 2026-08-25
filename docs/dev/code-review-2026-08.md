@@ -40,7 +40,7 @@ Verification status: **V** = adversarially verified, **S** = spot-checked code f
 | CR-04 | qrx nearest-SOTA search loops forever on empty results at 100 km                               | qrx.js:170-217                                 | V         | 2   | 3    | 2   | 2   | B5        | open   |
 | CR-05 | FCC table grants N/T DATA on 80/40/15 CW-only segments                                         | bandprivileges.js:59,74,96                     | V         | 2   | 1    | 3   | 2   | B6 (#107) | open   |
 | CR-06 | 60 m channel 5403.5–5406.5 outside BAND_PLAN 5.3–5.4                                           | main.js:398, bandprivileges.js:70              | V         | 2   | 2    | 3   | 1   | B6 (#107) | open   |
-| CR-07 | SET during CW keyer TX: 202 accepted then silently dropped                                     | radio_set_http.cpp:76                          | V         | 2   | 3    | 3   | 2   | B4        | open   |
+| CR-07 | SET during CW keyer TX: 202 accepted then silently dropped                                     | radio_set_http.cpp:76                          | V         | 2   | 3    | 3   | 2   | B4        | fixed 63c5260 |
 | CR-08 | tuneTargets POST truncates bracketed/IPv6 URLs into NVS                                        | handler_settings.cpp:632                       | V         | 2   | 3    | 2   | 1   | B11       | open   |
 | CR-09 | Keyer message unbounded vs 128 B buffer; fetchQuiet swallows errors                            | main.js:795-802, webserver.h:69                | V         | 2   | 2    | 3   | 2   | B10       | open   |
 | CR-10 | Raw spot modes (JT65, OTHER, "") passed verbatim to mode PUT                                   | chase_api.js:196-208, main.js:1131             | V         | 2   | 2    | 2   | 2   | B7        | open   |
@@ -90,6 +90,8 @@ Verification status: **V** = adversarially verified, **S** = spot-checked code f
 | CR-54 | Per-command UART timeout table hardcoded in transport; KH1 DS pinned at 100 ms                 | kx_radio.cpp:302,477                           | R         | 2   | 2    | 2   | 1   | B16       | open   |
 | CR-55 | Orphan generated assets (wrx/spot/nearest/pois .gz) + nohup.out in src/web                     | src/web/                                       | S         | 1   | 3    | 3   | 1   | B19       | open   |
 | CR-56 | .gitignore byte-identical duplicate rules (lines 99, 116)                                      | .gitignore                                     | S         | 1   | 3    | 3   | 1   | B19       | open   |
+| CR-57 | timed_lock.h usage example shows 4-arg TIMED_LOCK_OR_FAIL; macro takes 2 | timed_lock.h:41 vs :124 | S | 1 | 3 | 3 | 1 | B19 (#129) | open |
+| CR-58 | max_uri_handlers=6; exactly 3 handlers registered | webserver.cpp:292,317-321 | S | 1 | 3 | 3 | 1 | B19 (#129) | open |
 
 ## Refuted during verification (do not fix)
 
@@ -126,7 +128,7 @@ before changing code.
 | B16 (#126) | Radio service efficiency (verify-first) | CR-51, CR-52, CR-53, CR-54 | ping/health unification, timeout table to drivers |
 | B17 (#127) | Battery/power coherence | CR-24, CR-34, CR-36, CR-37 | decide: implement learned-param persistence or delete |
 | B18 (#128) | TCP keep-alive coherence | CR-32, CR-33 | behavior change; field-test with multiple tabs |
-| B19 (#129) | Mechanical sweep (no behavior change) | CR-25–CR-31, CR-35, CR-38–CR-42, CR-44, CR-55, CR-56 | one PR; comments, dead code, tags, housekeeping |
+| B19 (#129) | Mechanical sweep (no behavior change) | CR-25–CR-31, CR-35, CR-38–CR-42, CR-44, CR-55–CR-58 | one PR; comments, dead code, tags, housekeeping |
 
 Suggested order: B1, B3, B2, B4, B5 (rank order), then B19 (cheap, clears noise),
 then B7–B11, with the verify-first refactors (B13–B16) and design work (B6) last.
