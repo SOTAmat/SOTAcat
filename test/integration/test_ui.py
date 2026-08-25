@@ -925,6 +925,11 @@ class SOTAcatUITests:
 
     def test_chase_polo_button_exists(self):
         """Chase page has PoLo button that is disabled by default"""
+        # The tuned-row highlight is frequency-proximity based against live
+        # spot data, so park the radio where no spot sits (a radio left on
+        # 14.074 MHz FT8 by earlier tests legitimately enables the button).
+        self.page.request.put(self.url('/api/v1/frequency?frequency=7012345'))
+        time.sleep(1)  # let the SET apply before the page's first poll
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="chase"]')
