@@ -58,26 +58,26 @@ Verification status: **V** = adversarially verified, **S** = spot-checked code f
 | CR-22 | visibilitychange refresh no-ops if a controller was in flight                                  | main.js:1367-1374                              | V(plaus.) | 1   | 2    | 2   | 1   | B9        | open   |
 | CR-23 | FT8 guard: duplicated struct, defeated by manual clears, unguarded tail                        | handler_ft8.cpp:840,954,986-1098               | V         | 1   | 2    | 3   | 1   | B12       | open   |
 | CR-24 | MAX17260 learned params never persisted; dead write_learned_params                             | max17260.cpp:246,316                           | S         | 2   | 2    | 3   | 2   | B17       | open   |
-| CR-25 | radio_park drain_all/DRAINED/count unreachable outside tests                                   | radio_park.h:130, radio_set_http.cpp:48        | S         | 1   | 3    | 3   | 1   | B19       | open   |
-| CR-26 | `m_driver` can never be null; 22 constant-true guards                                          | kx_radio.cpp:122,141,532+                      | S         | 1   | 2    | 3   | 1   | B19       | open   |
-| CR-27 | Always-true `starts_with(uri,"/")` + unreachable ESP_FAIL tail                                 | webserver.cpp:294-299                          | S         | 1   | 3    | 2   | 1   | B19       | open   |
-| CR-28 | `#if 0` debug-wait block rots in setup()                                                       | setup.cpp:80                                   | S         | 1   | 3    | 3   | 1   | B19       | open   |
-| CR-29 | Dead EASE_STEPS define + orphan doc for deleted function                                       | handler_ft8.cpp:337                            | S         | 1   | 3    | 2   | 1   | B19       | open   |
-| CR-30 | SC_TASK_PRIORITY_HIGH unused                                                                   | globals.h:18                                   | S         | 1   | 3    | 3   | 1   | B19       | open   |
-| CR-31 | JS dead: getRadioModes/radioCanTransmit; 1-caller wrapper                                      | main.js:475-492                                | S         | 1   | 3    | 2   | 1   | B19       | open   |
+| CR-25 | radio_park drain_all/DRAINED/count unreachable outside tests                                   | radio_park.h:130, radio_set_http.cpp:48        | S         | 1   | 3    | 3   | 1   | B19       | fixed 82c7e52 |
+| CR-26 | `m_driver` can never be null; 22 constant-true guards                                          | kx_radio.cpp:122,141,532+                      | S         | 1   | 2    | 3   | 1   | B19       | fixed 82c7e52 |
+| CR-27 | Always-true `starts_with(uri,"/")` + unreachable ESP_FAIL tail                                 | webserver.cpp:294-299                          | S         | 1   | 3    | 2   | 1   | B19       | fixed 82c7e52 |
+| CR-28 | `#if 0` debug-wait block rots in setup()                                                       | setup.cpp:80                                   | S         | 1   | 3    | 3   | 1   | B19       | fixed 82c7e52 |
+| CR-29 | Dead EASE_STEPS define + orphan doc for deleted function                                       | handler_ft8.cpp:337                            | S         | 1   | 3    | 2   | 1   | B19       | fixed 82c7e52 |
+| CR-30 | SC_TASK_PRIORITY_HIGH unused                                                                   | globals.h:18                                   | S         | 1   | 3    | 3   | 1   | B19       | fixed 82c7e52 |
+| CR-31 | JS dead: getRadioModes/radioCanTransmit; 1-caller wrapper                                      | main.js:475-492                                | S         | 1   | 3    | 2   | 1   | B19       | fixed 82c7e52 |
 | CR-32 | Throwaway socket created/configured/closed every 60 s                                          | wifi.cpp:794-820                               | S         | 1   | 3    | 3   | 1   | B18       | open   |
 | CR-33 | Every API reply sends `Connection: close` vs configured keep-alive                             | webserver.h:111,125 vs webserver.cpp:328       | S         | 2   | 2    | 3   | 2   | B18       | open   |
 | CR-34 | 16-sample ADC average computed and discarded when MAX17260 present                             | battery_monitor.cpp:218                        | S         | 1   | 3    | 2   | 1   | B17       | open   |
-| CR-35 | mdns forced to DEBUG log level in every build                                                  | main.cpp:9                                     | S         | 1   | 3    | 3   | 1   | B19       | open   |
+| CR-35 | mdns forced to DEBUG log level in every build                                                  | main.cpp:9                                     | S         | 1   | 3    | 3   | 1   | B19       | fixed 82c7e52 |
 | CR-36 | "above 80%" comments vs BATTERY_SHUTOFF_PERCENTAGE 70 (×2)                                     | setup.cpp:38, idle_status_task.cpp:85          | S         | 1   | 3    | 2   | 1   | B17       | open   |
 | CR-37 | REPORTING_TIME_SEC=10 is a divisor; real cadence 50 s                                          | battery_monitor.cpp:12                         | S         | 1   | 3    | 2   | 1   | B17       | open   |
-| CR-38 | REBOOT_DELAY_US comment says 1.5 s, value is 2 s                                               | webserver.cpp:411                              | S         | 1   | 3    | 2   | 1   | B19       | open   |
-| CR-39 | Volume doc claims 0-255 radio read; snapshot + 0-60 scale; KX/KH1 set_volume contracts diverge | handler_volume.cpp:18, radio_driver_*.cpp      | S/R       | 1   | 2    | 2   | 1   | B19       | open   |
-| CR-40 | TX-power table marker on 11 dBm row; MAX_TX_PWR=52 is 13 dBm                                   | wifi.cpp:358-371                               | S         | 1   | 3    | 2   | 1   | B19       | open   |
-| CR-41 | License comment lists T/G/E; UI ships N/A too; POST unvalidated                                | settings.h:44, settings.html:19-24             | S         | 1   | 3    | 2   | 1   | B19       | open   |
-| CR-42 | handler_reboot TAG8 = "sc:hdl_stat" (collides with status)                                     | handler_reboot.cpp:4                           | S         | 1   | 3    | 3   | 1   | B19       | open   |
+| CR-38 | REBOOT_DELAY_US comment says 1.5 s, value is 2 s                                               | webserver.cpp:411                              | S         | 1   | 3    | 2   | 1   | B19       | fixed 82c7e52 |
+| CR-39 | Volume doc claims 0-255 radio read; snapshot + 0-60 scale; KX/KH1 set_volume contracts diverge | handler_volume.cpp:18, radio_driver_*.cpp      | S/R       | 1   | 2    | 2   | 1   | B19       | fixed 82c7e52 |
+| CR-40 | TX-power table marker on 11 dBm row; MAX_TX_PWR=52 is 13 dBm                                   | wifi.cpp:358-371                               | S         | 1   | 3    | 2   | 1   | B19       | fixed 82c7e52 |
+| CR-41 | License comment lists T/G/E; UI ships N/A too; POST unvalidated                                | settings.h:44, settings.html:19-24             | S         | 1   | 3    | 2   | 1   | B19       | fixed 82c7e52 |
+| CR-42 | handler_reboot TAG8 = "sc:hdl_stat" (collides with status)                                     | handler_reboot.cpp:4                           | S         | 1   | 3    | 3   | 1   | B19       | fixed 82c7e52 |
 | CR-43 | MAX_TUNE_TARGETS/MAX_CW_MACROS unused in C++; JS re-hardcodes 5/8                              | settings.h:49-57, settings.js:125,457          | S         | 1   | 2    | 2   | 1   | B11       | open   |
-| CR-44 | CancelRadioFT8ModeTime doc says Unix epoch; writers use boot clock; 0/1 sentinels undocumented | handler_ft8.cpp:33                             | R         | 1   | 3    | 2   | 1   | B19       | open   |
+| CR-44 | CancelRadioFT8ModeTime doc says Unix epoch; writers use boot clock; 0/1 sentinels undocumented | handler_ft8.cpp:33                             | R         | 1   | 3    | 2   | 1   | B19       | fixed 82c7e52 |
 | CR-45 | JSON POST body-read block copied 6× with drift (uninit buffer, 404 vs 408)                     | handler_settings.cpp:340+                      | S         | 2   | 2    | 1   | 1   | B11       | open   |
 | CR-46 | GET dance copied 5× with drift; no radio_get_via_http counterpart                              | handler_frequency.cpp:49 et al.                | R         | 2   | 1    | 1   | 1   | B15       | open   |
 | CR-47 | adjust_kh1_time_component verbatim copy of KX version                                          | radio_driver_kh1.cpp:102 vs kx.cpp:27          | R         | 1   | 2    | 1   | 1   | B13       | open   |
@@ -88,10 +88,10 @@ Verification status: **V** = adversarially verified, **S** = spot-checked code f
 | CR-52 | SET_VOLUME discards driver-known level; forces re-read round trips                             | radio_service.cpp:290, radio_driver_kx.cpp:121 | R         | 1   | 2    | 2   | 1   | B16       | open   |
 | CR-53 | Three ping-and-record-health paths disagree (throttle stamp)                                   | radio_service.cpp:109,126,238                  | R         | 2   | 2    | 2   | 1   | B16       | open   |
 | CR-54 | Per-command UART timeout table hardcoded in transport; KH1 DS pinned at 100 ms                 | kx_radio.cpp:302,477                           | R         | 2   | 2    | 2   | 1   | B16       | open   |
-| CR-55 | Orphan generated assets (wrx/spot/nearest/pois .gz) + nohup.out in src/web                     | src/web/                                       | S         | 1   | 3    | 3   | 1   | B19       | open   |
-| CR-56 | .gitignore byte-identical duplicate rules (lines 99, 116)                                      | .gitignore                                     | S         | 1   | 3    | 3   | 1   | B19       | open   |
-| CR-57 | timed_lock.h usage example shows 4-arg TIMED_LOCK_OR_FAIL; macro takes 2 | timed_lock.h:41 vs :124 | S | 1 | 3 | 3 | 1 | B19 (#129) | open |
-| CR-58 | max_uri_handlers=6; exactly 3 handlers registered | webserver.cpp:292,317-321 | S | 1 | 3 | 3 | 1 | B19 (#129) | open |
+| CR-55 | Orphan generated assets (wrx/spot/nearest/pois .gz) + nohup.out in src/web                     | src/web/                                       | S         | 1   | 3    | 3   | 1   | B19       | fixed 82c7e52 |
+| CR-56 | .gitignore byte-identical duplicate rules (lines 99, 116)                                      | .gitignore                                     | S         | 1   | 3    | 3   | 1   | B19       | fixed 82c7e52 |
+| CR-57 | timed_lock.h usage example shows 4-arg TIMED_LOCK_OR_FAIL; macro takes 2 | timed_lock.h:41 vs :124 | S | 1 | 3 | 3 | 1 | B19 (#129) | fixed 82c7e52 |
+| CR-58 | max_uri_handlers=6; exactly 3 handlers registered | webserver.cpp:292,317-321 | S | 1 | 3 | 3 | 1 | B19 (#129) | fixed 82c7e52 |
 
 ## Refuted during verification (do not fix)
 
