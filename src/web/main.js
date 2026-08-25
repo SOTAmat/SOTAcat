@@ -110,6 +110,7 @@ const AppState = {
     vfoLastUpdated: 0,
     vfoUpdateInterval: null,
     vfoChangeCallbacks: [], // subscribers for VFO change notifications
+    vfoPollSuppressedUntil: 0, // suppressVfoPolling(): polls skipped until this time
 
     // Tune targets (WebSDR, KiwiSDR URLs)
     tuneTargets: null,         // null = not loaded, [] = loaded but empty
@@ -789,6 +790,7 @@ async function fetchVfoState() {
     if (isLocalhost) return;
     if (pollingPaused) return;
     if (vfoController) return; // Skip if previous request still in-flight
+    if (Date.now() < AppState.vfoPollSuppressedUntil) return; // user action in flight
 
     vfoController = new AbortController();
     const timeoutId = setTimeout(() => vfoController.abort(), VFO_TIMEOUT_MS);
@@ -831,6 +833,24 @@ async function fetchVfoState() {
         clearTimeout(timeoutId);
         vfoController = null;
     }
+}
+
+// Suppress VFO polling for a window after a user action, so an optimistic
+// local set is not reverted by a poll that reads the radio before the set
+// applies.
+function suppressVfoPolling(ms) {
+    AppState.vfoPollSuppressedUntil = Date.now() + ms;
+}
+
+// Notify all VFO subscribers with the current shared state.
+function notifyVfoSubscribers() {
+    AppState.vfoChangeCallbacks.forEach((callback) => {
+        try {
+            callback(AppState.vfoFrequencyHz, AppState.vfoMode);
+        } catch (error) {
+            Log.error("VFO")("Callback error:", error);
+        }
+    });
 }
 
 // Start global VFO polling (if not already running)
