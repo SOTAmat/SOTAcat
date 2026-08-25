@@ -1,6 +1,8 @@
 #include "radio_set_http.h"
 
 #include "globals.h"
+#include "kx_radio.h"
+#include "radio_set_gate.h"
 #include "radio_park_httpd.h"
 #include "webserver.h"
 
@@ -71,11 +73,14 @@ static radio_park_completer_t completer_for (RadioParkKind kind) {
 esp_err_t radio_set_via_http (httpd_req_t * req, RadioCmdType type, long arg, const char * what) {
     char msg[96];
 
-    // FT8 owns the radio for the whole transmission and the service does no
-    // CAT work meanwhile; a SET would only sit until it expired. Say so now.
-    if (Ft8RadioExclusive) {
-        ESP_LOGW (TAG8, "%s refused: radio busy (FT8)", what);
-        http_send_service_unavailable (req, "radio busy (FT8)");
+    // FT8 and the CW keyer each own the radio for a whole transmission and
+    // the service can do no CAT work meanwhile; a SET would only sit until
+    // it expired (CR-07). Say so now.
+    RadioSetRefusal refusal = radio_set_refusal (Ft8RadioExclusive, kxRadio.is_keyer_active());
+    if (refusal != RadioSetRefusal::NONE) {
+        const char * reason = radio_set_refusal_message (refusal);
+        ESP_LOGW (TAG8, "%s refused: %s", what, reason);
+        http_send_service_unavailable (req, reason);
         return ESP_FAIL;
     }
 
