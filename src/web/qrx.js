@@ -229,18 +229,11 @@ async function fetchNearestSota() {
         referenceInput.value = nearest.summitCode;
         onReferenceInputChange(); // Trigger change handler to enable save button
 
-        // Display summit info with distance (convert km to miles/feet)
+        // Display distance using the shared Miles/Kilometres preference.
         if (summitInfoDiv) {
-            const distanceMiles = nearest.distance * 0.621371;
-            let distanceStr;
-            if (distanceMiles < 0.1) {
-                const distanceFeet = Math.round(distanceMiles * 5280);
-                distanceStr = `${distanceFeet}ft away`;
-            } else {
-                distanceStr = `${distanceMiles.toFixed(1)}mi away`;
-            }
+            const distanceStr = formatDistanceKm(nearest.distance);
             summitInfoDiv.textContent = `${nearest.name} • ${nearest.altFt}ft • ${nearest.points}pt • ${distanceStr}`;
-            // Cache with location-based key
+            // Cache with location-based key. This cache is display-only and is refreshed on the next lookup.
             const cacheKey = buildLocationKey("summitInfo", latitude, longitude);
             localStorage.setItem(cacheKey, summitInfoDiv.textContent);
         }

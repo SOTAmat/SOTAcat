@@ -771,6 +771,21 @@ function onUiCompactModeChange() {
     Log.info("Settings")(`Compact mode: ${enabled ? "enabled" : "disabled"}`);
 }
 
+// Load distance-unit preference into the segmented control.
+function loadDistanceUnitsSettingUI() {
+    loadDistanceUnits();
+    const input = document.querySelector(`input[name="distance-units"][value="${AppState.distanceUnits}"]`);
+    if (input) input.checked = true;
+}
+
+// Persist the selected distance unit. The CHASE table is rebuilt when its tab opens.
+function onDistanceUnitsChange(event) {
+    const units = event.target.value === "kilometres" ? "kilometres" : "miles";
+    localStorage.setItem("sotacat_distance_units", units);
+    AppState.distanceUnits = units;
+    Log.info("Settings")(`Distance units: ${units}`);
+}
+
 // ============================================================================
 // Scan Dwell Time Functions
 // ============================================================================
@@ -1386,6 +1401,11 @@ function attachSettingsEventListeners() {
         compactModeCheckbox.addEventListener("change", onUiCompactModeChange);
     }
 
+    // Display settings - distance-unit segmented control
+    document.querySelectorAll('input[name="distance-units"]').forEach((input) => {
+        input.addEventListener("change", onDistanceUnitsChange);
+    });
+
     // Display settings - scan dwell time input
     const scanDwellInput = document.getElementById("scan-dwell-time");
     if (scanDwellInput) {
@@ -1406,6 +1426,7 @@ function onSettingsAppearing() {
     loadCwMacros();
     loadFilterBandsSettingUI();
     loadUiCompactModeSettingUI();
+    loadDistanceUnitsSettingUI();
     loadScanDwellTimeSettingUI();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }

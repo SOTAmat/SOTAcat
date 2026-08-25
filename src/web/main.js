@@ -100,6 +100,7 @@ const AppState = {
     // UI density
     uiCompactMode: true,       // Compact mode for denser table display
     scanDwellTimeMs: 7000,     // Scan dwell time per spot in milliseconds (default 7s)
+    distanceUnits: "miles",    // "miles" or "kilometres" for distance displays
 
     // Version checking
     versionCheckRetryTimer: null,
@@ -519,6 +520,39 @@ function loadUiCompactMode() {
     const saved = localStorage.getItem("sotacat_ui_compact");
     AppState.uiCompactMode = saved !== null ? saved === "true" : AppState.uiCompactMode;
     return AppState.uiCompactMode;
+}
+
+// Load distance-unit preference from localStorage. Miles is the default.
+function loadDistanceUnits() {
+    const saved = localStorage.getItem("sotacat_distance_units");
+    AppState.distanceUnits = saved === "kilometres" ? "kilometres" : "miles";
+    return AppState.distanceUnits;
+}
+
+function getDistanceUnitsLabel() {
+    return AppState.distanceUnits === "kilometres" ? "Kilometres" : "Miles";
+}
+
+// Format a canonical kilometre distance for prose displays such as QRX.
+function formatDistanceKm(distanceKm) {
+    if (AppState.distanceUnits === "kilometres") {
+        if (distanceKm < 0.1) {
+            return `${Math.round(distanceKm * 1000)}m away`;
+        }
+        return `${distanceKm.toFixed(1)}km away`;
+    }
+
+    const distanceMiles = distanceKm * 0.621371;
+    if (distanceMiles < 0.1) {
+        return `${Math.round(distanceMiles * 5280)}ft away`;
+    }
+    return `${distanceMiles.toFixed(1)}mi away`;
+}
+
+// Format a canonical kilometre distance for the CHASE table; its header supplies the unit.
+function formatDistanceKmForTable(distanceKm) {
+    const value = AppState.distanceUnits === "kilometres" ? distanceKm : distanceKm * 0.621371;
+    return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
 
 // Apply UI compact mode class to document body
@@ -1308,9 +1342,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // Preload CW macros at startup so RUN page can render buttons immediately
     loadCwMacrosAsync();
 
-    // Apply UI density preference from localStorage
+    // Apply display preferences from localStorage
     loadUiCompactMode();
     applyUiCompactMode();
+    loadDistanceUnits();
 
     // Ensure all tab buttons use the same click handler
     document.querySelectorAll(".tabBar button").forEach((button) => {

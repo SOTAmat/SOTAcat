@@ -848,8 +848,8 @@ function buildChaseRow(spot, isMySpot) {
     const refCell = row.insertCell();
     refCell.appendChild(buildReferenceLink(spot));
 
-    // 7. Distance
-    row.insertCell().textContent = spot.distance.toLocaleString();
+    // 7. Distance (stored canonically in kilometres, formatted for the selected unit)
+    row.insertCell().textContent = formatDistanceKmForTable(spot.distanceKm);
 
     // 8. Details
     row.insertCell().textContent = spot.details;
@@ -862,6 +862,11 @@ function buildChaseRow(spot, isMySpot) {
 
 // Update chase table display with sorted spots from Spots module
 function updateChaseTable() {
+    const distanceHeading = document.getElementById("chase-distance-heading");
+    if (distanceHeading) {
+        distanceHeading.textContent = getDistanceUnitsLabel();
+    }
+
     const data = Spots.getAll();
     if (data === null) {
         Log.info("Chase")("Json is null");
@@ -1185,6 +1190,7 @@ async function onChaseAppearing() {
     await loadRadioType();
     loadFilterBandsSetting();
     loadScanDwellTime();
+    loadDistanceUnits();
     ensureLicenseClassLoaded();
 
     // Subscribe to VFO changes and start polling for row highlighting

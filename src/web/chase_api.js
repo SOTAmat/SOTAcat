@@ -208,12 +208,10 @@ function spothole_transformSpots(spotsData, location) {
             }
         }
 
-        // Calculate distance if we have coordinates
-        let distance = 99999; // Default to large number if no location
+        // Store distance in canonical kilometres; convert only when rendering.
+        let distanceKm = 99999; // Default to a large number if no location
         if (location && spot.dx_latitude && spot.dx_longitude) {
-            distance = Math.round(
-                calculateDistance(location.latitude, location.longitude, spot.dx_latitude, spot.dx_longitude)
-            );
+            distanceKm = calculateDistance(location.latitude, location.longitude, spot.dx_latitude, spot.dx_longitude);
         }
 
         // Convert timestamp to Date object
@@ -250,7 +248,7 @@ function spothole_transformSpots(spotsData, location) {
             modeType: modeType,
             locationID: locationID,
             sig: spot.sig || "Cluster", // Source type (SOTA, POTA, or Cluster for DX spots)
-            distance: distance,
+            distanceKm: distanceKm,
             timestamp: timestamp,
             comments: spot.comment || "",
 
