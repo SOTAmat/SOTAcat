@@ -43,14 +43,14 @@ Verification status: **V** = adversarially verified, **S** = spot-checked code f
 | CR-07 | SET during CW keyer TX: 202 accepted then silently dropped                                     | radio_set_http.cpp:76                          | V         | 2   | 3    | 3   | 2   | B4        | fixed 63c5260 |
 | CR-08 | tuneTargets POST truncates bracketed/IPv6 URLs into NVS                                        | handler_settings.cpp:632                       | V         | 2   | 3    | 2   | 1   | B11       | open   |
 | CR-09 | Keyer message unbounded vs 128 B buffer; fetchQuiet swallows errors                            | main.js:795-802, webserver.h:69                | V         | 2   | 2    | 3   | 2   | B10       | open   |
-| CR-10 | Raw spot modes (JT65, OTHER, "") passed verbatim to mode PUT                                   | chase_api.js:196-208, main.js:1131             | V         | 2   | 2    | 2   | 2   | B7        | open   |
+| CR-10 | Raw spot modes (JT65, OTHER, "") passed verbatim to mode PUT                                   | chase_api.js:196-208, main.js:1131             | V         | 2   | 2    | 2   | 2   | B7        | fixed 1328378 |
 | CR-11 | Legacy stored tab names (wrx/cat/sota/pota) → alert + blank on load                            | main.js:1119-1127                              | V         | 2   | 3    | 2   | 2   | B9        | open   |
 | CR-12 | Run-tab appear/leave race (unawaited hooks, no re-entrancy guard)                              | run.js:1649-1676, main.js:1272                 | V         | 2   | 2    | 2   | 2   | B9        | open   |
 | CR-13 | PoLo spot button enabled with null frequency; failure is log-only                              | run.js:1377,1475-1483                          | V         | 2   | 3    | 2   | 1   | B9        | open   |
-| CR-14 | Spot enrichment dead: reads `sig_ref`, only `sig_refs` exists                                  | chase_api.js:280                               | V         | 2   | 2    | 2   | 2   | B7        | open   |
+| CR-14 | Spot enrichment dead: reads `sig_ref`, only `sig_refs` exists                                  | chase_api.js:280                               | V         | 2   | 2    | 2   | 2   | B7        | fixed 1328378 |
 | CR-15 | Coordinate 0 treated as "no location" (falsy check on numbers)                                 | qrx.js:192, main.js:1551                       | V         | 2   | 3    | 2   | 1   | B5        | fixed fd2750f |
 | CR-16 | Manual version check returns before timestamp/retry bookkeeping                                | main.js:1831-1877                              | V         | 2   | 3    | 2   | 1   | B9        | open   |
-| CR-17 | "Refreshed 0:00 ago" after cache restore (timestamp never set)                                 | chase.js:1217-1232                             | V         | 2   | 3    | 2   | 2   | B7        | open   |
+| CR-17 | "Refreshed 0:00 ago" after cache restore (timestamp never set)                                 | chase.js:1217-1232                             | V         | 2   | 3    | 2   | 2   | B7        | fixed 1328378 |
 | CR-18 | Mid-edit VFO poll stomps display (no edit-mode suppression)                                    | run.js:1016-1020                               | V         | 1   | 2    | 1   | 2   | B8        | open   |
 | CR-19 | run.js duplicates main.js VFO polling stack minus its guards                                   | run.js:1016,1092,865 vs main.js:810+           | V         | 2   | 1    | 1   | 2   | B8        | open   |
 | CR-20 | Debounce `finally` nulls shared timer handle without comparison                                | run.js:895-919                                 | V(plaus.) | 1   | 3    | 1   | 1   | B8        | open   |
@@ -159,7 +159,10 @@ Transient failure: 8 KB hole delivered as clean HTTP 200, zero logging. Dead soc
 4 sends + 30 ms per remaining chunk in the single httpd task before the NULL-chunk
 terminator finally errors. Bonus: retrying a partially-sent chunk corrupts chunked
 framing. **Fix:** abort and return on any error after (or instead of) the retry budget;
-never fall through.
+never fall through. *Errata (e20aebe):* no terminator may be sent after a
+failure either — a zero-length chunk makes the truncated body read as
+complete (observed live: 19 KB asset delivered as 2.7 KB with HTTP 200);
+the error return closes the socket instead.
 
 ### CR-03 — UART retry accounting (VERIFIED)
 kx_radio.cpp:86-92: `if ((busy) || --tries > 0)` then recurse with `tries - 1` —
