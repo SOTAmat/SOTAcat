@@ -471,28 +471,6 @@ function getRadioBands(radioType, requireTx = false) {
         .map(([k]) => k);
 }
 
-// List a radio's modes. requireTx=true filters to TX-capable modes.
-function getRadioModes(radioType, requireTx = false) {
-    const cap = RADIO_CAPABILITIES[radioType];
-    if (!cap) return null;
-    return Object.entries(cap.modes)
-        .filter(([, v]) => requireTx ? v === "TXRX" : true)
-        .map(([k]) => k);
-}
-
-// True iff the radio can transmit on (band, mode). Unknown radios are
-// treated as permissive (returns true) to avoid surprising restrictions.
-function radioCanTransmit(radioType, band, mode) {
-    const cap = RADIO_CAPABILITIES[radioType];
-    if (!cap) return true;
-    return cap.bands?.[band] === "TXRX" && cap.modes?.[mode] === "TXRX";
-}
-
-// Back-compat wrapper for chase.js; preserves prior behavior (RX or TX bands).
-function getRadioBandCapabilities(radioType) {
-    return getRadioBands(radioType, /*requireTx*/ false);
-}
-
 // Load radio type from device into AppState
 async function loadRadioType() {
     try {

@@ -12,12 +12,13 @@
 static const char * TAG8 = "sc:hdl_vol.";
 
 /**
- * Handles an HTTP GET request to retrieve the current audio gain (volume).
+ * Sends the cached AF gain (volume) level as a plain-text reply.
  *
- * This function retrieves the current AF gain level from the radio
- * using the AG command. The value is returned as plain text (0-255).
+ * The value comes from the radio snapshot, never a live CAT read, and is on
+ * the knob's 0-60 display scale.
  *
- * @param req Pointer to the HTTP request structure.
+ * @param req  Pointer to the HTTP request structure.
+ * @param snap Snapshot to serve the volume from.
  */
 static void send_volume (httpd_req_t * req, const RadioSnapshotData & snap) {
     if (!snap.has_volume()) {

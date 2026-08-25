@@ -186,4 +186,3 @@ void radio_park_notify_done (RadioParkKind kind, uint32_t gen, bool ok) {
     }
 }
 
-int radio_park_count () { return s_table.count(); }

@@ -6,8 +6,8 @@
 // docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md).
 //
 // Threading contract:
-//   * radio_park_init / radio_park_request / radio_park_set_completer run on
-//     the HTTP server task (from start_webserver / URI handlers).
+//   * radio_park_init and radio_park_request (with its per-kind completers)
+//     run on the HTTP server task (from start_webserver / URI handlers).
 //   * radio_park_notify_done may be called from ANY task (the radio service
 //     worker); it only posts a message via httpd_queue_work.
 //   * All table mutation and all response sending happen on the server task.
@@ -59,5 +59,3 @@ bool radio_park_request (httpd_req_t * req, RadioParkKind kind, uint32_t gen, ui
 // completes the request.
 void radio_park_notify_done (RadioParkKind kind, uint32_t gen, bool ok);
 
-// Number of currently parked requests (server task only; diagnostics).
-int radio_park_count ();

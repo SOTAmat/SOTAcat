@@ -917,7 +917,7 @@ function applyTableFilters() {
     // Get band filter state - only filter if enabled AND we have a valid radio type
     let allowedBands = null;
     if (AppState.filterBandsEnabled && AppState.radioType) {
-        allowedBands = getRadioBandCapabilities(AppState.radioType);
+        allowedBands = getRadioBands(AppState.radioType);
     }
 
     Log.debug("Chase")(`Applying filters - Mode: ${selectedMode}, Type: ${selectedType}, BandFilter: ${allowedBands ? "active" : "off"}, Rows: ${allRows.length}`);

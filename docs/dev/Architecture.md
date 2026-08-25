@@ -96,7 +96,7 @@ The web UI is a small set of focused JS modules. See [Web-UI.md](Web-UI.md) for 
 `main.js` holds `RADIO_CAPABILITIES`, a per-radio table of native bands and modes (KX2 / KX3 / KH1; unknown radios = `null` = permissive). It's read by:
 
 - The CHASE band filter (`AppState.filterBandsEnabled`, default on, exposed in Settings as "Show only bands my radio can access") — opt-out so transverter users can disable it.
-- Helpers `getRadioBands(requireTx)`, `getRadioModes(requireTx)`, `radioCanTransmit(band, mode)` for any future gating.
+- Helper `getRadioBands(radioType, requireTx)` lists a radio's bands; the chase band filter consumes it.
 
 The run-page band/mode buttons are deliberately **not** gated by this table — gating them would lock out users running transverters.
 
