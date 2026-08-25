@@ -1386,7 +1386,7 @@ function processGeolocationCallback() {
 
     if (geoLat && geoLon) {
         Log.info("GPS")(`Received location from bridge: ${geoLat}, ${geoLon} (accuracy: ${geoAccuracy}m)`);
-        saveGeolocationFromBridge(geoLat, geoLon, geoAccuracy);
+        saveGeolocationFromBridge(parseFloat(geoLat), parseFloat(geoLon), geoAccuracy);
         cleanUrlParams();
         return true;
     }
@@ -1409,7 +1409,16 @@ function processGeolocationCallback() {
 
 // Save GPS coordinates to device and invalidate caches
 // Returns true on success, throws on failure
+// Sole writer of AppState.gpsOverride: coordinates are pinned to finite
+// numbers here no matter how callers deliver them (the geolocation bridge
+// hands them over as URL-parameter strings).
 async function saveGpsToDevice(lat, lon) {
+    lat = parseFloat(lat);
+    lon = parseFloat(lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        throw new Error(`Invalid coordinates: ${lat}, ${lon}`);
+    }
+
     const settings = {
         gps_lat: lat.toString(),
         gps_lon: lon.toString(),
