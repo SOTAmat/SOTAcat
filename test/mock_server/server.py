@@ -51,6 +51,7 @@ DEFAULT_STATE = {
     "radio_latency_ms": 50,  # simulated CAT round-trip per operation
     "radio_dead": False,     # radio off / unplugged: CAT never answers
     "ft8": False,            # FT8 transmission in progress (radio exclusive)
+    "keyer": False,          # CW keyer transmission in progress (radio exclusive)
     # Device info (format: {HW}_{VER}:{YYMMDD}:{HHMM}-{R|D})
     "version": "TEST_1:260101:0101-D",
     "rssi": -62,
@@ -209,6 +210,8 @@ class MockRadio:
             return "⚫"
         if self.state.get("ft8"):
             return "⚪"
+        if self.state.get("keyer"):
+            return "🔴"  # keyer TX: firmware reports transmitting without a CAT poll
         self.get_value("xmit")
         return "🔴" if self.state.get("xmit") else "🟢"
 
@@ -218,6 +221,8 @@ class MockRadio:
         (radio accepted / refused). Returns (status, message)."""
         if self.state.get("ft8"):
             return 503, "radio busy (FT8)"
+        if self.state.get("keyer"):
+            return 503, "radio busy (keyer)"
         if not self.link_up:
             return 503, "radio link down"
         gen = self.set_gen.get(kind, 0) + 1

@@ -2,13 +2,14 @@ CXX ?= g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -Werror -O0 -g
 
 .PHONY: test
-test: test_radio_link_health test_radio_snapshot test_radio_park test_radio_mode test_chunked_send test_uart_retry
+test: test_radio_link_health test_radio_snapshot test_radio_park test_radio_mode test_chunked_send test_uart_retry test_radio_set_gate
 	./test_radio_link_health
 	./test_radio_snapshot
 	./test_radio_park
 	./test_radio_mode
 	./test_chunked_send
 	./test_uart_retry
+	./test_radio_set_gate
 
 test_radio_link_health: test_radio_link_health.cpp ../../include/radio_link_health.h
 	$(CXX) $(CXXFLAGS) test_radio_link_health.cpp -o test_radio_link_health
@@ -28,6 +29,9 @@ test_chunked_send: test_chunked_send.cpp ../../include/chunked_send.h
 test_uart_retry: test_uart_retry.cpp ../../include/uart_retry.h
 	$(CXX) $(CXXFLAGS) test_uart_retry.cpp -o test_uart_retry
 
+test_radio_set_gate: test_radio_set_gate.cpp ../../include/radio_set_gate.h
+	$(CXX) $(CXXFLAGS) test_radio_set_gate.cpp -o test_radio_set_gate
+
 .PHONY: clean
 clean:
-	rm -f test_radio_link_health test_radio_snapshot test_radio_park test_radio_mode test_chunked_send test_uart_retry
+	rm -f test_radio_link_health test_radio_snapshot test_radio_park test_radio_mode test_chunked_send test_uart_retry test_radio_set_gate

@@ -446,8 +446,24 @@ class ContractTest:
                 self.mock_state(radio_latency_ms=50)
                 self.put("frequency?frequency=14285000")
 
+        def keyer():
+            # CR-07: the CW keyer holds the radio for the whole transmission;
+            # a SET must be refused honestly (503), not 202'd and dropped.
+            self.mock_state(keyer=True)
+            try:
+                r, dt = self.put("frequency?frequency=14074000")
+                self.expect(r.status_code == 503, f"expected 503 during keyer TX, got {r.status_code}")
+                self.expect("keyer" in r.text, "503 body should say keyer")
+                r, _ = self.get("connectionStatus")
+                self.expect(r.text.strip() == "🔴", f"expected 🔴 during keyer TX, got {r.text!r}")
+            finally:
+                self.mock_state(keyer=False)
+                r, _ = self.put("frequency?frequency=14074000")
+                self.expect(200 <= r.status_code < 300, "PUT after keyer TX should succeed")
+
         self.check("mock: radio dead -> GETs bounded, ⚫, PUT 503, recovers", dead)
         self.check("mock: FT8 active -> PUT 503, GET instant, ⚪", ft8)
+        self.check("mock: keyer active -> PUT 503, 🔴", keyer)
         self.check("mock: CAT slower than SET bound -> 202 then applied", slow_radio)
 
     # -- driver -----------------------------------------------------------
