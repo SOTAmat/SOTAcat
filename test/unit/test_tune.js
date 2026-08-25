@@ -44,6 +44,9 @@ function makeSandbox() {
     // Load just the tuneRadioHz function from main.js
     const mainJsPath = path.join(__dirname, '../../src/web/main.js');
     const mainJsCode = fs.readFileSync(mainJsPath, 'utf8');
+    const normMatch = mainJsCode.match(/function normalizeRadioMode\([\s\S]*?\n\}/);
+    if (!normMatch) throw new Error("normalizeRadioMode not found in main.js");
+    vm.runInContext(normMatch[0], sandbox);
     const fnMatch = mainJsCode.match(/async function tuneRadioHz\(frequency, mode\) \{[\s\S]*?\n\}/);
     if (!fnMatch) throw new Error("tuneRadioHz not found in main.js");
     vm.runInContext(fnMatch[0], sandbox);

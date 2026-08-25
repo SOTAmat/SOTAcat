@@ -105,7 +105,7 @@ var Spots = {
                 const loc = location !== undefined
                     ? location
                     : (typeof getLocation === "function" ? await getLocation() : null);
-                const spots = await fetchAndProcessSpots(opts, loc, true);
+                const spots = await fetchAndProcessSpots(opts, loc);
                 SpotsState.spots = spots;
                 SpotsState.lastFetchCompleteTime = Date.now();
                 this._saveCache(spots);

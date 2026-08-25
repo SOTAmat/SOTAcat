@@ -1225,6 +1225,9 @@ async function onChaseAppearing() {
 
     if (Spots.getAll() !== null) {
         Log.debug("Chase")("tab appearing: rendering existing spots");
+        // The "Refreshed N ago" timer reflects when these spots were actually
+        // fetched, which for a cache restore predates this render.
+        ChaseState.lastRefreshCompleteTime = Spots.getLastFetchCompleteTime();
         updateChaseTable();
     } else {
         Log.debug("Chase")("tab appearing: fetching new data");
