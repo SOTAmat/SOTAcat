@@ -867,6 +867,7 @@ function onRunVfoChanged(frequency, mode) {
     updateBandDisplay();
     updateModeDisplay();
     updatePrivilegeDisplay();
+    updateSpotButtonStates(); // PoLo enables once a frequency is known
 }
 
 // Re-read the radio immediately (e.g. after a failed set): lift any
@@ -1226,7 +1227,7 @@ function updateSpotButtonStates() {
     if (sotamatBtn) sotamatBtn.disabled = false; // SOTAmāt app handles location itself
     if (smsSpotBtn) smsSpotBtn.disabled = !isValid;
     if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
-    if (poloSpotBtn) poloSpotBtn.disabled = false; // frequency comes from the radio at tap time
+    if (poloSpotBtn) poloSpotBtn.disabled = !AppState.vfoFrequencyHz; // needs a VFO frequency to deep-link
 
     Log.debug("Spot")(`SOTAmāt/Polo enabled, SMS ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
 }
@@ -1332,6 +1333,7 @@ function launchPoloSpot() {
         window.location.href = url;
     } else {
         Log.warn("Spot")("Cannot launch Polo - no frequency available");
+        alert("Cannot launch Polo - no frequency from the radio yet.");
     }
 }
 

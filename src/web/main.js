@@ -111,6 +111,7 @@ const AppState = {
     vfoUpdateInterval: null,
     vfoChangeCallbacks: [], // subscribers for VFO change notifications
     vfoPollSuppressedUntil: 0, // suppressVfoPolling(): polls skipped until this time
+    tabSwitchInProgress: false, // openTab() re-entrancy guard
 
     // Tune targets (WebSDR, KiwiSDR URLs)
     tuneTargets: null,         // null = not loaded, [] = loaded but empty
@@ -792,12 +793,13 @@ async function fetchVfoState() {
     if (vfoController) return; // Skip if previous request still in-flight
     if (Date.now() < AppState.vfoPollSuppressedUntil) return; // user action in flight
 
-    vfoController = new AbortController();
-    const timeoutId = setTimeout(() => vfoController.abort(), VFO_TIMEOUT_MS);
+    const thisController = new AbortController();
+    vfoController = thisController;
+    const timeoutId = setTimeout(() => thisController.abort(), VFO_TIMEOUT_MS);
     try {
         const [freqResponse, modeResponse] = await Promise.all([
-            fetch("/api/v1/frequency", { signal: vfoController.signal }),
-            fetch("/api/v1/mode", { signal: vfoController.signal }),
+            fetch("/api/v1/frequency", { signal: thisController.signal }),
+            fetch("/api/v1/mode", { signal: thisController.signal }),
         ]);
 
         if (!freqResponse.ok || !modeResponse.ok) {
@@ -831,7 +833,7 @@ async function fetchVfoState() {
         Log.warn("VFO")("Error fetching VFO state:", error);
     } finally {
         clearTimeout(timeoutId);
-        vfoController = null;
+        if (vfoController === thisController) vfoController = null; // a newer request may own the slot
     }
 }
 
@@ -972,12 +974,13 @@ async function updateBatteryInfo() {
     if (pollingPaused) return;
     if (batteryController) return; // Skip if previous request still in-flight
 
-    batteryController = new AbortController();
-    const timeoutId = setTimeout(() => batteryController.abort(), BATTERY_INFO_TIMEOUT_MS);
+    const thisController = new AbortController();
+    batteryController = thisController;
+    const timeoutId = setTimeout(() => thisController.abort(), BATTERY_INFO_TIMEOUT_MS);
     try {
         const [batteryInfoResponse, rssiResponse] = await Promise.all([
-            fetch("/api/v1/batteryInfo", { signal: batteryController.signal }),
-            fetch("/api/v1/rssi", { signal: batteryController.signal }),
+            fetch("/api/v1/batteryInfo", { signal: thisController.signal }),
+            fetch("/api/v1/rssi", { signal: thisController.signal }),
         ]);
 
         if (batteryInfoResponse.ok) {
@@ -1010,7 +1013,7 @@ async function updateBatteryInfo() {
         if (timeEl) timeEl.textContent = "";
     } finally {
         clearTimeout(timeoutId);
-        batteryController = null;
+        if (batteryController === thisController) batteryController = null; // a newer request may own the slot
     }
 }
 
@@ -1020,11 +1023,12 @@ async function updateConnectionStatus() {
     if (pollingPaused) return;
     if (connectionStatusController) return; // Skip if previous request still in-flight
 
-    connectionStatusController = new AbortController();
-    const timeoutId = setTimeout(() => connectionStatusController.abort(), CONNECTION_STATUS_TIMEOUT_MS);
+    const thisController = new AbortController();
+    connectionStatusController = thisController;
+    const timeoutId = setTimeout(() => thisController.abort(), CONNECTION_STATUS_TIMEOUT_MS);
     try {
         const response = await fetch("/api/v1/connectionStatus", {
-            signal: connectionStatusController.signal,
+            signal: thisController.signal,
         });
 
         if (response.ok) {
@@ -1046,7 +1050,7 @@ async function updateConnectionStatus() {
         document.getElementById("connection-status").textContent = "??";
     } finally {
         clearTimeout(timeoutId);
-        connectionStatusController = null;
+        if (connectionStatusController === thisController) connectionStatusController = null; // a newer request may own the slot
     }
 }
 
@@ -1113,11 +1117,16 @@ function cleanupCurrentTab() {
     }
 }
 
-// Load previously active tab from localStorage (returns tab name string, defaults to 'chase')
+// Load previously active tab from localStorage. Historical tab names map to
+// their current successors, and anything unrecognized falls back to the
+// default so a stale stored value can never wedge startup on a missing page.
 function loadActiveTab() {
+    const KNOWN_TABS = ["run", "chase", "qrx", "settings", "about"];
+    const MIGRATED_TABS = { spot: "run", cat: "run", wrx: "qrx", sota: "chase", pota: "chase" };
     const activeTab = localStorage.getItem("activeTab");
-    if (activeTab === "spot") return "run";
-    return activeTab ? activeTab : "qrx"; // Default to 'qrx' if no tab is saved
+    if (!activeTab) return "qrx";
+    if (activeTab in MIGRATED_TABS) return MIGRATED_TABS[activeTab];
+    return KNOWN_TABS.includes(activeTab) ? activeTab : "qrx";
 }
 
 // Save currently active tab to localStorage (tabName: 'chase', 'cat', 'settings', 'about')
@@ -1237,6 +1246,13 @@ async function loadTabScriptIfNeeded(tabName) {
 
 // Switch to a different tab (tabName: 'chase', 'cat', 'settings', 'about')
 async function openTab(tabName) {
+    // One switch at a time: a click landing while the previous switch still
+    // awaits its loaders must not run leave/enter hooks interleaved.
+    if (AppState.tabSwitchInProgress) {
+        Log.debug("Tab")(`Ignoring ${tabName}: switch already in flight`);
+        return;
+    }
+    AppState.tabSwitchInProgress = true;
     Log.debug("Tab")(`Switching to: ${tabName}`);
 
     // Pause polling during tab transition to prioritize page load
@@ -1287,7 +1303,7 @@ async function openTab(tabName) {
 
         if (typeof window[onAppearingFunctionName] === "function") {
             try {
-                window[onAppearingFunctionName]();
+                await window[onAppearingFunctionName]();
             } catch (error) {
                 Log.error("Tab")(`Error in ${onAppearingFunctionName}:`, error);
                 throw error;
@@ -1305,6 +1321,7 @@ async function openTab(tabName) {
     } finally {
         // Resume polling after tab transition completes (or fails)
         pollingPaused = false;
+        AppState.tabSwitchInProgress = false;
     }
 }
 
@@ -1382,14 +1399,22 @@ setInterval(updateConnectionStatus, CONNECTION_STATUS_UPDATE_INTERVAL_MS);
 // refresh status immediately so a stale "disconnected" overlay clears and the
 // VFO display snaps back to live.
 
-document.addEventListener("visibilitychange", function () {
+function onVisibilityRefresh() {
     if (document.visibilityState !== "visible") return;
     if (pollingPaused) return; // a sub-tab switch is mid-flight; let its finally{} restart polling
     Log.debug("Visibility")("Page visible — refreshing pollers");
+    // A request frozen mid-flight while the tab was backgrounded would make
+    // each poller's in-flight guard skip the refresh; abort and clear them.
+    for (const abortStale of [
+        () => { if (connectionStatusController) { connectionStatusController.abort(); connectionStatusController = null; } },
+        () => { if (vfoController) { vfoController.abort(); vfoController = null; } },
+        () => { if (batteryController) { batteryController.abort(); batteryController = null; } },
+    ]) abortStale();
     updateConnectionStatus();
     fetchVfoState();
     updateBatteryInfo();
-});
+}
+document.addEventListener("visibilitychange", onVisibilityRefresh);
 
 // ============================================================================
 // Geolocation Bridge Callback Handling
@@ -1853,17 +1878,20 @@ async function checkFirmwareVersion(manualCheck = false) {
 
         // Handle different cases for manual vs automatic checks
         let shouldUpdateTimestamp = false;
+        let manualReport = null;
 
         if (manualCheck) {
-            // Manual check - always show popup with version strings and update timestamp
+            // Manual check - always report with version strings and update
+            // timestamp; the report returns AFTER the shared bookkeeping below.
             shouldUpdateTimestamp = true;
 
+            const versions = `\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
             if (latestVersion > currentBuildTime) {
-                return `A new firmware is available: please update using instructions on the Settings page.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
+                manualReport = `A new firmware is available: please update using instructions on the Settings page.${versions}`;
             } else if (latestVersion < currentBuildTime) {
-                return `Your firmware is newer than the official version on the server.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
+                manualReport = `Your firmware is newer than the official version on the server.${versions}`;
             } else {
-                return `You already have the current firmware. No update needed.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
+                manualReport = `You already have the current firmware. No update needed.${versions}`;
             }
         } else {
             // Automatic check - only show popup if firmware is different
@@ -1902,6 +1930,8 @@ async function checkFirmwareVersion(manualCheck = false) {
 
         // Stop retry timer on successful check
         stopVersionCheckRetryTimer();
+
+        if (manualReport) return manualReport;
     } catch (error) {
         Log.debug("Version")("Error during version check:", error.message);
 

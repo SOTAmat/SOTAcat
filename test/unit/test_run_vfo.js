@@ -66,6 +66,7 @@ if (subMatch) {
             updateBandDisplay: () => calls.push('band'),
             updateModeDisplay: () => calls.push('mode'),
             updatePrivilegeDisplay: () => calls.push('priv'),
+            updateSpotButtonStates: () => calls.push('buttons'),
             _calls: calls,
         };
         vm.createContext(sandbox);
