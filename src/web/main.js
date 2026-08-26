@@ -68,9 +68,20 @@ const Log = {
     error: (ctx) => console.error.bind(console, `[${ctx}]`),
 };
 
-// Fire-and-forget fetch for commands that don't need response handling
+// Fire-and-forget fetch for commands that don't need response handling.
+// HTTP-level failures are logged (a 4xx/5xx resolves normally and would
+// otherwise vanish); the response is returned so callers that DO care can
+// check it. Resolves undefined when the request never completed.
 function fetchQuiet(url, options = {}, context = "Fetch") {
-    return fetch(url, options).catch((err) => Log.error(context)(url, err.message));
+    return fetch(url, options)
+        .then((response) => {
+            if (!response.ok) Log.error(context)(url, `HTTP ${response.status}`);
+            return response;
+        })
+        .catch((err) => {
+            Log.error(context)(url, err.message);
+            return undefined;
+        });
 }
 
 // ============================================================================
@@ -770,15 +781,32 @@ function syncXmitButtonState() {
     }
 }
 
-// Send CW message to radio keyer (message: string, up to ~128 characters)
-// Backend handles splitting into <=24-char KYW commands at whitespace boundaries.
-function sendKeys(message) {
+// The firmware copies the keyer message parameter into a 128-byte buffer
+// while it is still URL-encoded, so the ENCODED length is the limit that
+// matters (spaces cost 3 characters each).
+const KEYER_MESSAGE_ENCODED_LIMIT = 127;
+
+// Send CW message to radio keyer. Backend handles splitting into
+// <=24-char KYW commands at whitespace boundaries. The operator is told
+// whenever the message does not go out.
+async function sendKeys(message) {
     if (!message || message.length < 1) {
         return;
     }
 
-    const url = `/api/v1/keyer?message=${encodeURIComponent(message)}`;
-    fetchQuiet(url, { method: "PUT" }, "Spot");
+    const encoded = encodeURIComponent(message);
+    if (encoded.length > KEYER_MESSAGE_ENCODED_LIMIT) {
+        alert(
+            `CW message too long for the radio (${encoded.length} of ` +
+                `${KEYER_MESSAGE_ENCODED_LIMIT} encoded characters). Shorten the message.`
+        );
+        return;
+    }
+
+    const response = await fetchQuiet(`/api/v1/keyer?message=${encoded}`, { method: "PUT" }, "Spot");
+    if (!response || !response.ok) {
+        alert("CW message was not sent - the radio refused or the request failed.");
+    }
 }
 
 // ============================================================================
