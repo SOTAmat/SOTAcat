@@ -72,3 +72,4 @@ esp_err_t handler_batteryInfo_get (httpd_req_t * req) {
     httpd_resp_set_type (req, "application/json");
     REPLY_WITH_STRING (req, out_buf, "battery info message");
 }
+
