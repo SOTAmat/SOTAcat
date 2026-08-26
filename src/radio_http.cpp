@@ -1,4 +1,5 @@
-#include "radio_set_http.h"
+#include "radio_http.h"
+#include "radio_get_gate.h"
 
 #include "globals.h"
 #include "kx_radio.h"
@@ -106,4 +107,31 @@ esp_err_t radio_set_via_http (httpd_req_t * req, RadioCmdType type, long arg, co
     ESP_LOGI (TAG8, "%s (not parked)", msg);
     http_send_accepted (req, msg);
     return ESP_OK;
+}
+
+esp_err_t radio_get_via_http (httpd_req_t * req, RadioCmdType refresh, RadioParkKind kind, const RadioSnapshotData & snap, bool fresh, bool has_value, radio_get_sender_t send_now, radio_park_completer_t completer) {
+    switch (radio_get_action (fresh, Ft8RadioExclusive, radio_service_link_up())) {
+    case RadioGetAction::SERVE_FRESH:
+        send_now (req, snap);
+        return ESP_OK;
+
+    case RadioGetAction::REFUSE_LINK_DOWN:
+        // The refresh slot doubles as the link-recovery probe. API clients
+        // without the black-circle cue (SOTAmat polls only frequency/mode)
+        // must not be fed a stale value as live.
+        radio_service_request_refresh (refresh);
+        REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
+
+    case RadioGetAction::TRY_PARK:
+        radio_service_request_refresh (refresh);
+        if (radio_park_request (req, kind, 0, RADIO_PARK_GET_WAIT_MS, completer))
+            return ESP_OK;  // reply sent later by the completer
+        break;  // no room: fall through to last-known
+
+    case RadioGetAction::SERVE_STALE:
+        break;  // FT8 owns the radio: last-known without refresh churn
+    }
+
+    send_now (req, snap);  // last known, or the field's error reply if nothing cached yet
+    return has_value ? ESP_OK : ESP_FAIL;
 }

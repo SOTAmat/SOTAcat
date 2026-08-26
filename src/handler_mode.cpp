@@ -2,7 +2,7 @@
 #include "kx_radio.h"
 #include "radio_park_httpd.h"
 #include "radio_service.h"
-#include "radio_set_http.h"
+#include "radio_http.h"
 #include "radio_snapshot.h"
 #include "webserver.h"
 
@@ -48,23 +48,7 @@ esp_err_t handler_mode_get (httpd_req_t * req) {
 
     RadioSnapshotData snap = radio_snapshot::get();
     int64_t           now  = esp_timer_get_time();
-
-    if (snap.mode_fresh (now)) {
-        send_mode (req, snap);
-        return ESP_OK;
-    }
-
-    // See handler_frequency_get for the FT8 / link-up reasoning.
-    if (!Ft8RadioExclusive) {
-        radio_service_request_refresh (RadioCmdType::REFRESH_MODE);  // also the recovery probe when down
-        if (!radio_service_link_up())
-            REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");  // see handler_frequency_get
-        if (radio_park_request (req, RadioParkKind::GET_MODE, 0, RADIO_PARK_GET_WAIT_MS, mode_get_complete))
-            return ESP_OK;  // reply sent later by mode_get_complete
-    }
-
-    send_mode (req, snap);  // FT8 / no room: last known, or "UNKNOWN"
-    return ESP_OK;
+    return radio_get_via_http (req, RadioCmdType::REFRESH_MODE, RadioParkKind::GET_MODE, snap, snap.mode_fresh (now), snap.has_mode(), send_mode, mode_get_complete);
 }
 
 /**
