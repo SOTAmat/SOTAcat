@@ -163,6 +163,22 @@ class ContractTest:
         self.check("PUT mode (invalid) -> 404", mode)
         self.check("PUT numeric params: junk/partial/negative rejected", numeric)
 
+    def test_dispatch_exact_match(self):
+        def exact():
+            # The dispatcher must match handler names exactly (query string
+            # excluded): a strict prefix, an extension, or the empty name must
+            # 404, never dispatch a handler. Destructive prefixes ("reb" ->
+            # reboot, "a" -> atu) are deliberately not probed; a regression
+            # already fails on the safe probes below.
+            for ep in ("batteryPerc", "versionX", ""):
+                r, _ = self.get(ep)
+                self.expect(r.status_code == 404,
+                            f"GET /api/v1/{ep}: expected 404, got {r.status_code}")
+            r, _ = self.get("version?x=1")
+            self.expect(r.status_code == 200,
+                        f"query string must not break the match: got {r.status_code}")
+        self.check("GET dispatch: exact name match only (prefix/empty -> 404)", exact)
+
     def test_read_your_write(self):
         if self.expect_radio == "dead":
             return self._test_sets_when_dead()
@@ -477,6 +493,7 @@ class ContractTest:
         print("=" * 60)
         self.test_get_shapes_and_bounds()
         self.test_bad_params()
+        self.test_dispatch_exact_match()
         self.test_read_your_write()
         self.test_sotamat_sequences()
         self.test_concurrency()

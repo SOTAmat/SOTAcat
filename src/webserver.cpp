@@ -150,7 +150,8 @@ static int find_and_execute_api_handler (int method, const char * api_name, cons
 
     for (const api_handler_t * handler = handlers; handler->api_name != NULL; ++handler)
         if (method == handler->method &&
-            strncmp (api_name, handler->api_name, compare_length) == 0) {
+            strncmp (api_name, handler->api_name, compare_length) == 0 &&
+            handler->api_name[compare_length] == '\0') {  // exact match only: a prefix like "reb" must not dispatch "reboot"
             if (kxRadio.is_connected() || !handler->requires_radio)
                 return handler->handler_func (req);
             else
