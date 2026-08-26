@@ -52,7 +52,7 @@ trigger not fully constructible).
 | UR-03 | Keyer `1200 / kh_wpm` with no zero guard; div-by-0 → −1 → task hangs with TX keyed    | radio_driver_kh1.cpp:260-279                      | V   | 3   | 3    | 3   | 2   | U2    | open |
 | UR-04 | set_power treats readback −1 (comms failure) as success; snapshot records wish        | radio_driver_kx.cpp:104                           | V   | 2   | 3    | 3   | 1   | U2    | open |
 | UR-05 | radio_connection_task starves task-WDT forever with no radio (log spam every 20 s)    | setup.cpp:50; kx_radio.cpp:209-267                | V   | 1   | 3    | 3   | 2   | U1    | open |
-| UR-06 | API dispatch matches any strict prefix (`/api/v1/reb` reboots; empty name matches)    | webserver.cpp:149-153,261                         | V   | 3   | 3    | 3   | 2   | U3    | open |
+| UR-06 | API dispatch matches any strict prefix (`/api/v1/reb` reboots; empty name matches)    | webserver.cpp:149-153,261                         | V   | 3   | 3    | 3   | 2   | U3    | fixed 0241a7c |
 | UR-07 | read_post_body: single recv accepts truncated body; unbounded `new char[len+1]`       | handler_settings.cpp:337-347                      | V   | 3   | 2    | 2   | 2   | U4    | open |
 | UR-08 | Settings GET emits raw NVS strings unescaped; POST parser strips escapes — a stored quote breaks every subsequent GET | handler_settings.cpp:202,395,445,242-249 | V | 2 | 2 | 2 | 2 | U4 | open |
 | UR-09 | gps/callsign/license POSTs commit *any* key to settings NVS (no whitelist)            | handler_settings.cpp:234,417-434,467-484,521-538  | V   | 2   | 2    | 2   | 1   | U4    | open |
