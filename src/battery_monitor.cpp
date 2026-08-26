@@ -1,3 +1,4 @@
+#include "battery_learned_policy.h"
 #include "battery_monitor.h"
 #include "globals.h"
 #include "hardware_specific.h"
@@ -5,11 +6,12 @@
 #include "settings.h"
 #include <driver/i2c_master.h>
 #include <esp_task_wdt.h>
+#include <nvs.h>
 
 #include <esp_log.h>
 static const char * TAG8 = "sc:batmon..";
 
-const int REPORTING_TIME_SEC = 10;
+const int POLLS_PER_LOG = 10;  // log every 10th poll (~50 s at the 5 s poll rate)
 
 /**
  * Measures and calculates the battery voltage by averaging several ADC samples.
@@ -78,7 +80,32 @@ float get_analog_battery_percentage (float voltage) {
 #define BATTERY_POLL_TIME_MS (5000)  // Approximate rate at which to poll the battery info
 
 static max17260_saved_params_t params;
+static uint16_t                s_saved_cycles    = 0;  // Cycles value at the last learned-params checkpoint
+static nvs_handle_t            s_batt_nvs        = 0;
 static bool                    max17260_detected = false;
+
+// Learned fuel-gauge parameters persist in their own NVS namespace so a
+// gauge that lost battery power (deep-discharge cutoff, pack swap) can be
+// restored instead of relearning capacity from factory defaults.
+static bool learned_nvs_ready (void) {
+    return s_batt_nvs != 0 || nvs_open ("battery", NVS_READWRITE, &s_batt_nvs) == ESP_OK;
+}
+
+static bool load_learned_blob (max17260_saved_params_t * out) {
+    if (!learned_nvs_ready())
+        return false;
+    size_t size = sizeof (*out);
+    return nvs_get_blob (s_batt_nvs, "learned", out, &size) == ESP_OK && size == sizeof (*out);
+}
+
+static void save_learned_blob (const max17260_saved_params_t * p) {
+    if (!learned_nvs_ready())
+        return;
+    if (nvs_set_blob (s_batt_nvs, "learned", p, sizeof (*p)) == ESP_OK)
+        nvs_commit (s_batt_nvs);
+    else
+        ESP_LOGE (TAG8, "failed to persist battery learned parameters");
+}
 static float                   vbat_analog       = 0;
 static float                   vpct_analog       = 0;
 static float                   vbat_digital      = 0;
@@ -201,7 +228,12 @@ void battery_monitor_task (void * _pvParameter) {
         // Check for the digital battery monitor
         if (bat_mon_err == ESP_OK) {
             max17260_detected = true;
-            dig_bat_mon.read_learned_params (&params);
+            xSemaphoreTake (bat_info_mutex, portMAX_DELAY);
+            if (dig_bat_mon.was_reconfigured() && load_learned_blob (&params))
+                dig_bat_mon.restore_learned_params (&params);
+            dig_bat_mon.clear_reconfigured();
+            dig_bat_mon.read_cycles (&s_saved_cycles);  // baseline for the save policy
+            xSemaphoreGive (bat_info_mutex);
         }
         else {  // No digital battery monitor dectected, free resources
             ESP_LOGW (TAG8, "MAX17260 init failed: %s - falling back to analog battery monitoring", esp_err_to_name (bat_mon_err));
@@ -215,23 +247,45 @@ void battery_monitor_task (void * _pvParameter) {
         // Reset watchdog timer
         ESP_ERROR_CHECK (esp_task_wdt_reset());
 
-        vbat_analog = get_analog_battery_voltage();
-        vpct_analog = get_analog_battery_percentage (vbat_analog);
-        if (max17260_detected) {
+        if (!max17260_detected) {  // analog is the only source without the gauge
+            vbat_analog = get_analog_battery_voltage();
+            vpct_analog = get_analog_battery_percentage (vbat_analog);
+            if (!(cnt % POLLS_PER_LOG))
+                ESP_LOGI (TAG8, "battery: %4.2fV %4.2f%%", get_battery_voltage(), get_battery_percentage());
+        }
+        else {
             xSemaphoreTake (bat_info_mutex, 100 / portTICK_PERIOD_MS);
             dig_bat_mon.poll (&bat_info);
+            xSemaphoreGive (bat_info_mutex);
+
+            xSemaphoreTake (bat_info_mutex, 100 / portTICK_PERIOD_MS);
+
+            // The gauge lost battery power mid-session and poll() just
+            // reconfigured it: bring back the learned parameters.
+            if (dig_bat_mon.was_reconfigured()) {
+                if (load_learned_blob (&params))
+                    dig_bat_mon.restore_learned_params (&params);
+                dig_bat_mon.clear_reconfigured();
+            }
+
+            // Checkpoint the learned parameters when the save policy fires.
+            uint16_t cycles_now = s_saved_cycles;
+            if (dig_bat_mon.read_cycles (&cycles_now) == ESP_OK && learned_save_due (s_saved_cycles, cycles_now)) {
+                if (dig_bat_mon.read_learned_params (&params) == ESP_OK) {
+                    save_learned_blob (&params);
+                    s_saved_cycles = cycles_now;
+                    ESP_LOGI (TAG8, "battery learned parameters checkpointed (cycles %.2f)", cycles_now * 0.01);
+                }
+            }
+
             xSemaphoreGive (bat_info_mutex);
 
             // Reset watchdog again after I2C operations
             ESP_ERROR_CHECK (esp_task_wdt_reset());
             vbat_digital = bat_info.voltage_average;
             vpct_digital = bat_info.reported_state_of_charge;
-            if (!(cnt % REPORTING_TIME_SEC))
+            if (!(cnt % POLLS_PER_LOG))
                 ESP_LOGI (TAG8, "battery: %4.2fV %4.1f%% %5.1fmA %s", vbat_digital, vpct_digital, bat_info.current_average, (bat_info.charging ? "charging" : "discharging"));
-        }
-        else {
-            if (!(cnt % REPORTING_TIME_SEC))
-                ESP_LOGI (TAG8, "battery: %4.2fV %4.2f%%", get_battery_voltage(), get_battery_percentage());
         }
 
         // Reset watchdog timer before sleeping to ensure we don't timeout during the delay
@@ -240,3 +294,4 @@ void battery_monitor_task (void * _pvParameter) {
         cnt++;
     }
 }
+

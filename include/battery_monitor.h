@@ -13,3 +13,4 @@ esp_err_t get_battery_info (batteryInfo_t *);
 
 extern TaskHandle_t xBatteryMonitorHandle;
 extern void         battery_monitor_task (void * pvParameter);
+
