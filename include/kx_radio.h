@@ -12,6 +12,12 @@
 
 #define SC_KX_COMMUNICATION_RETRIES 3
 
+// UART reply waits. Band, frequency and mode changes retune radio hardware
+// and can take seconds to acknowledge; KH1 display reads (DS1/DS2) render
+// the display before replying; everything else answers fast.
+#define KX_TIMEOUT_MS_SHORT_COMMANDS 100
+#define KX_TIMEOUT_MS_LONG_COMMANDS  2000
+
 enum class RadioType {
     UNKNOWN,
     KX2,
@@ -82,7 +88,7 @@ class KXRadio {
     bool put_to_kx (const char * command, int num_digits, long value, int tries);
     long get_from_kx_menu_item (uint8_t menu_item, int tries);
     bool put_to_kx_menu_item (uint8_t menu_item, long value, int tries);
-    bool get_from_kx_string (const char * command, int tries, char * result, int result_size);
+    bool get_from_kx_string (const char * command, int tries, char * result, int result_size, int wait_ms = KX_TIMEOUT_MS_SHORT_COMMANDS);
     bool put_to_kx_command_string (const char * command, int tries);
 
     bool get_frequency (long & out_hz);

@@ -219,12 +219,15 @@ static bool is_data_keyer_mode (radio_mode_t mode) {
 }
 
 // Poll TQ; until the radio reports TQ0 (back in RX) or timeout_ms elapses.
+// Single-try polls at a relaxed cadence: a dropped reply just means one
+// more 250 ms wait, so the retry budget would only multiply UART traffic
+// during the many minutes a long transmission can hold the radio mutex.
 static bool wait_for_tx_end (KXRadio & radio, TickType_t timeout_ms) {
-    constexpr TickType_t POLL_INTERVAL_MS = 100;
+    constexpr TickType_t POLL_INTERVAL_MS = 250;
     const TickType_t     deadline_ticks   = xTaskGetTickCount() + pdMS_TO_TICKS (timeout_ms);
 
     while (true) {
-        long tq = radio.get_from_kx ("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
+        long tq = radio.get_from_kx ("TQ", 1, 1);
         if (tq == 0)
             return true;
         if (xTaskGetTickCount() >= deadline_ticks)
