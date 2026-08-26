@@ -5,6 +5,11 @@ run 2026-08-23. Multi-agent review: 8 finder angles per side, candidates dedupli
 top correctness claims adversarially verified by independent agents, mechanical claims
 spot-checked against source.
 
+**Status: COMPLETE (2026-08-25).** Every finding is resolved: fixed, declined
+for documented cause, refuted under verification, or handed to its own track
+(#107). All fixes passed the full gate — unit, integration, UI, and real
+hardware via OTA.
+
 This document is the **plan and evidence archive**. The **burndown lives in GitHub
 issues** (milestone: `2026-08 code review`): one issue per batch below. No PRs —
 we commit as a direct contributor, so each fix branch merges to main locally and
@@ -38,8 +43,8 @@ Verification status: **V** = adversarially verified, **S** = spot-checked code f
 | CR-02 | Chunk-send fall-through: silent truncation as HTTP 200, httpd stalls                           | webserver.cpp:171-212                          | V         | 3   | 3    | 3   | 2   | B3        | fixed c214c2b |
 | CR-03 | UART retry gives 2 of 3 attempts; busy `?;` recurses unboundedly                               | kx_radio.cpp:86-92,386                         | V         | 3   | 2    | 3   | 2   | B2        | fixed 3c7576b |
 | CR-04 | qrx nearest-SOTA search loops forever on empty results at 100 km                               | qrx.js:170-217                                 | V         | 2   | 3    | 2   | 2   | B5        | fixed fd2750f |
-| CR-05 | FCC table grants N/T DATA on 80/40/15 CW-only segments                                         | bandprivileges.js:59,74,96                     | V         | 2   | 1    | 3   | 2   | B6 (#107) | open   |
-| CR-06 | 60 m channel 5403.5–5406.5 outside BAND_PLAN 5.3–5.4                                           | main.js:398, bandprivileges.js:70              | V         | 2   | 2    | 3   | 1   | B6 (#107) | open   |
+| CR-05 | FCC table grants N/T DATA on 80/40/15 CW-only segments                                         | bandprivileges.js:59,74,96                     | V         | 2   | 1    | 3   | 2   | B6 (#107) | out of review scope: tracked in #107 |
+| CR-06 | 60 m channel 5403.5–5406.5 outside BAND_PLAN 5.3–5.4                                           | main.js:398, bandprivileges.js:70              | V         | 2   | 2    | 3   | 1   | B6 (#107) | out of review scope: tracked in #107 |
 | CR-07 | SET during CW keyer TX: 202 accepted then silently dropped                                     | radio_set_http.cpp:76                          | V         | 2   | 3    | 3   | 2   | B4        | fixed 63c5260 |
 | CR-08 | tuneTargets POST truncates bracketed/IPv6 URLs into NVS                                        | handler_settings.cpp:632                       | V         | 2   | 3    | 2   | 1   | B11       | fixed 77142ac |
 | CR-09 | Keyer message unbounded vs 128 B buffer; fetchQuiet swallows errors                            | main.js:795-802, webserver.h:69                | V         | 2   | 2    | 3   | 2   | B10       | fixed 50e3880 |
