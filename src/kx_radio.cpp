@@ -32,12 +32,6 @@ KXRadio & kxRadio = KXRadio::getInstance();
 static KXRadioDriver  g_kx_driver;
 static KH1RadioDriver g_kh1_driver;
 
-// UART timeouts for radio commands
-// Short commands (status checks): 100ms is sufficient
-// Long commands (frequency changes): Radio needs time to settle VFO, use 2000ms
-#define KX_TIMEOUT_MS_SHORT_COMMANDS 100
-#define KX_TIMEOUT_MS_LONG_COMMANDS  2000
-
 /*
  * Utilities
  */
@@ -117,6 +111,24 @@ static long parse_response (const char * response, int num_digits) {
         break;
     }
     return -1;  // Invalid response size
+}
+
+/**
+ * Reports whether a command needs the long UART reply wait.
+ *
+ * Band, frequency and mode changes retune radio hardware, and the radio can
+ * take seconds to acknowledge them; every other command answers within the
+ * short wait.
+ *
+ * @param command Command token, without the trailing semicolon.
+ * @return bool True if the command needs KX_TIMEOUT_MS_LONG_COMMANDS.
+ */
+static bool kx_command_is_slow (const char * command) {
+    static const char * const slow[] = {"AP", "FA", "FR", "FT", "MD", "PC"};
+    for (const char * s : slow)
+        if (strcmp (command, s) == 0)
+            return true;
+    return false;
 }
 
 KXRadio::KXRadio()
@@ -301,11 +313,7 @@ long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
         return '\0';
     }
 
-    int wait_time = KX_TIMEOUT_MS_SHORT_COMMANDS;
-
-    const char * long_command_prefixes = "AP FA FR FT MD PC";
-    if (command != NULL && strstr (long_command_prefixes, command) != NULL)
-        wait_time = KX_TIMEOUT_MS_LONG_COMMANDS;
+    int wait_time = kx_command_is_slow (command) ? KX_TIMEOUT_MS_LONG_COMMANDS : KX_TIMEOUT_MS_SHORT_COMMANDS;
 
     snprintf (command_buff, sizeof (command_buff), "%s;", command);
     int response_size = num_digits + command_size + 1;
@@ -468,7 +476,7 @@ bool KXRadio::put_to_kx_menu_item (uint8_t menu_item, long value, int tries) {
  * Preconditions:
  *   The radio must be locked before calling this function. If not, an error is logged.
  */
-bool KXRadio::get_from_kx_string (const char * command, int tries, char * response, int response_size) {
+bool KXRadio::get_from_kx_string (const char * command, int tries, char * response, int response_size, int wait_ms) {
     ESP_LOGV (TAG8, "trace: %s(command = '%s')", __func__, command);
 
     if (!is_locked())
@@ -478,7 +486,7 @@ bool KXRadio::get_from_kx_string (const char * command, int tries, char * respon
     char command_buff[8] = {0};
     snprintf (command_buff, sizeof (command_buff), "%s;", command);
 
-    return uart_get_command (command_buff, response, response_size, tries, KX_TIMEOUT_MS_SHORT_COMMANDS);
+    return uart_get_command (command_buff, response, response_size, tries, wait_ms);
 }
 
 /**
