@@ -88,6 +88,8 @@ class KXRadio {
     bool put_to_kx (const char * command, int num_digits, long value, int tries);
     long get_from_kx_menu_item (uint8_t menu_item, int tries);
     bool put_to_kx_menu_item (uint8_t menu_item, long value, int tries);
+    // result_size is the expected reply length; result must have room for
+    // result_size + 1 bytes (callers pass sizeof(buf) - 1).
     bool get_from_kx_string (const char * command, int tries, char * result, int result_size, int wait_ms = KX_TIMEOUT_MS_SHORT_COMMANDS);
     bool put_to_kx_command_string (const char * command, int tries);
 
