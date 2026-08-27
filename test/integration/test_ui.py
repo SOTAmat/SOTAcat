@@ -228,29 +228,47 @@ class SOTAcatUITests:
         mode = self.page.locator('#current-mode')
         assert mode.count() > 0, "Mode display should exist"
 
-    def test_run_cw_macro_buttons(self):
-        """RUN page has CW macro buttons"""
-        self.page.goto(self.url('/'))
-        self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="run"]')
-        time.sleep(0.5)
-        container = self.page.locator('#cw-macro-buttons')
-        assert container.count() > 0, "CW macro buttons container should exist"
-        buttons = self.page.locator('.btn-cw-macro')
-        assert buttons.count() > 0, "Should have at least one CW macro button"
+    def test_run_cw_macros_empty_by_default(self):
+        """RUN page renders no CW macro buttons on a fresh device.
 
-    def test_run_cw_macro_buttons_have_labels(self):
-        """RUN page CW macro buttons have non-empty labels"""
+        Built-in defaults were removed deliberately (cb9b99f); macros exist
+        only once configured in Settings, and the mock starts empty to match.
+        """
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="run"]')
-        time.sleep(0.5)
+        # state='attached': an empty container has zero size, which Playwright's
+        # default visibility wait treats as hidden. The networkidle wait lets
+        # the macros fetch settle so the zero-count is the final state, not a
+        # not-yet-rendered transient.
+        self.page.wait_for_selector('#cw-macro-buttons', state='attached')
+        self.page.wait_for_load_state('networkidle')
         buttons = self.page.locator('.btn-cw-macro')
-        count = buttons.count()
-        assert count > 0, "Should have at least one CW macro button"
-        for i in range(count):
-            text = buttons.nth(i).text_content().strip()
-            assert len(text) > 0, f"Macro button {i} should have non-empty label"
+        assert buttons.count() == 0, \
+            f"Fresh device must render zero CW macro buttons, got {buttons.count()}"
+
+    def test_run_cw_macro_buttons_render_from_settings(self):
+        """Configured CW macros render as labeled buttons on the RUN page"""
+        macros = [{"label": "CQ", "template": "CQ CQ DE {MYCALL}"},
+                  {"label": "73", "template": "73 TU EE"}]
+        self.page.request.post(self.url('/api/v1/cwMacros'), data={"macros": macros})
+        try:
+            self.page.goto(self.url('/'))
+            self.page.wait_for_load_state('networkidle')
+            self.page.click('[data-tab="run"]')
+            # Clicking the tab re-fetches its content even when it is already
+            # active (the app restores the stored tab on load), transiently
+            # wiping and re-rendering the macro container. Wait for the final
+            # rendered state, not merely the first button to appear.
+            self.page.wait_for_function(
+                f"document.querySelectorAll('.btn-cw-macro').length === {len(macros)}")
+            buttons = self.page.locator('.btn-cw-macro')
+            for i, macro in enumerate(macros):
+                text = buttons.nth(i).text_content().strip()
+                assert text == macro["label"], \
+                    f"Button {i}: expected label {macro['label']!r}, got {text!r}"
+        finally:
+            self.page.request.post(self.url('/api/v1/cwMacros'), data={"macros": []})
 
     def test_run_band_buttons(self):
         """RUN page has band selection buttons"""
@@ -375,10 +393,10 @@ class SOTAcatUITests:
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="run"]')
-        time.sleep(0.5)
-        vol_up = self.page.locator('#vol-up-button')
+        # Condition wait, not a fixed sleep: the tab content mount
+        # occasionally exceeded 0.5 s and made this test flap (#144).
+        self.page.wait_for_selector('#vol-up-button')
         vol_down = self.page.locator('#vol-down-button')
-        assert vol_up.count() > 0, "Vol+ button should exist"
         assert vol_down.count() > 0, "Vol- button should exist"
 
     # =========================================================================
@@ -1011,14 +1029,21 @@ class SOTAcatUITests:
     # =========================================================================
 
     def test_cw_macro_button_is_clickable(self):
-        """CW macro buttons are clickable"""
-        self.page.goto(self.url('/'))
-        self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="run"]')
-        time.sleep(0.5)
-        buttons = self.page.locator('.btn-cw-macro')
-        assert buttons.count() > 0, "Should have at least one CW macro button"
-        assert buttons.first.is_enabled(), "First macro button should be enabled"
+        """A configured CW macro button is enabled and clickable"""
+        self.page.request.post(self.url('/api/v1/cwMacros'),
+                               data={"macros": [{"label": "CQ", "template": "CQ CQ DE {MYCALL}"}]})
+        try:
+            self.page.goto(self.url('/'))
+            self.page.wait_for_load_state('networkidle')
+            self.page.click('[data-tab="run"]')
+            # Wait for the final render; the tab click transiently wipes and
+            # re-renders the container (see the render-from-settings test).
+            self.page.wait_for_function(
+                "document.querySelectorAll('.btn-cw-macro').length === 1")
+            buttons = self.page.locator('.btn-cw-macro')
+            assert buttons.first.is_enabled(), "First macro button should be enabled"
+        finally:
+            self.page.request.post(self.url('/api/v1/cwMacros'), data={"macros": []})
 
     def test_callsign_input_accepts_text(self):
         """Callsign input accepts text"""
@@ -1136,8 +1161,8 @@ class SOTAcatUITests:
             print("\nRUN Page Elements:")
             self.run_test("Frequency display", self.test_run_frequency_display)
             self.run_test("Mode display", self.test_run_mode_display)
-            self.run_test("CW macro buttons", self.test_run_cw_macro_buttons)
-            self.run_test("CW macro buttons have labels", self.test_run_cw_macro_buttons_have_labels)
+            self.run_test("CW macros empty by default", self.test_run_cw_macros_empty_by_default)
+            self.run_test("CW macro buttons render from settings", self.test_run_cw_macro_buttons_render_from_settings)
             self.run_test("Band buttons", self.test_run_band_buttons)
             self.run_test("SMS spot button", self.test_run_sms_spot_button)
             self.run_test("SMS QRT button", self.test_run_sms_qrt_button)
