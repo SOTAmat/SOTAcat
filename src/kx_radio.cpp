@@ -41,7 +41,9 @@ static KH1RadioDriver g_kh1_driver;
  * Handles errors like the device being busy and logs detailed communication status.
  *
  * @param cmd Command to be sent to UART, expressed as a null-terminated string.
- * @param response Buffer to store the response.
+ * @param response Buffer to store the response; must have room for
+ *                 expected_chars + 1 bytes (the terminator lands at
+ *                 response[expected_chars] on a full read).
  * @param expected_chars Expected number of characters in the response.
  * @param tries Number of retries for the command.
  * @param wait_ms Milliseconds to wait for a response.
@@ -208,6 +210,11 @@ int KXRadio::connect() {
     uint8_t buffer[256];
     while (true) {
         for (size_t i = 0; i < num_rates; ++i) {
+            // Our caller (radio_connection_task, setup.cpp) is subscribed to
+            // the task watchdog, and this hunt loops until a radio answers
+            // (forever, when none is attached), so check in each pass or the
+            // watchdog reports the task as starved every timeout period.
+            esp_task_wdt_reset();
             uart_set_baudrate (UART_NUM, baud_rates[i]);  // Change baud rate
             vTaskDelay (pdMS_TO_TICKS (250));             // Delay for stability before next try
 
@@ -216,7 +223,7 @@ int KXRadio::connect() {
                 uart_flush (UART_NUM);
                 uart_write_bytes (UART_NUM, ";I;", strlen (";I;"));
 
-                int length = uart_read_bytes (UART_NUM, buffer, 256, 250 / portTICK_PERIOD_MS);
+                int length = uart_read_bytes (UART_NUM, buffer, sizeof (buffer) - 1, 250 / portTICK_PERIOD_MS);
                 if (length > 0) {
                     buffer[length] = '\0';  // Null terminate the string
                     ESP_LOGV (TAG8, "received %d bytes: %s", length, buffer);
@@ -237,7 +244,7 @@ int KXRadio::connect() {
             uart_flush (UART_NUM);
             uart_write_bytes (UART_NUM, ";RVR;", strlen (";RVR;"));
 
-            int length = uart_read_bytes (UART_NUM, buffer, 256, 250 / portTICK_PERIOD_MS);
+            int length = uart_read_bytes (UART_NUM, buffer, sizeof (buffer) - 1, 250 / portTICK_PERIOD_MS);
             if (length > 0) {
                 buffer[length] = '\0';  // Null terminate the string
                 ESP_LOGV (TAG8, "received %d bytes: %s", length, buffer);

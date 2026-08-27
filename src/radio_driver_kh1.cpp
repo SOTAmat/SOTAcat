@@ -18,11 +18,17 @@ static const char morse[] = "##TEMANIOWKUGRDS#JY#Q#XV#PCFZLBH01#2###3######=49##
                             "7#65############,########.#*######-####################?####";
 ;  //                        6         7         8         9         0         1         2
 
+// A DS display read replies "DS<l>" + up to 16 display characters + ";",
+// 20 chars max (KH1 Programmer's Reference rev B2, "DS (Display Text)").
+// Each read below sizes its buffer with a sample reply whose marked
+// positions are the display characters the code then parses ('x' = don't
+// care), and passes sizeof - 1 so the terminator fits.
+
 static bool get_kh1_display_frequency (KXRadio & radio, long & out_hz) {
-    char response[20];
+    char response[sizeof ("DS114026.50xxxxxxxx;")];
     char freq_char[10];
 
-    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response), KX_TIMEOUT_MS_LONG_COMMANDS))
+    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response) - 1, KX_TIMEOUT_MS_LONG_COMMANDS))
         return false;
 
     snprintf (freq_char, sizeof (freq_char), "%.*s", 8, response + 3);  // Characters 4-11 represent frequency as a string
@@ -33,8 +39,8 @@ static bool get_kh1_display_frequency (KXRadio & radio, long & out_hz) {
 }
 
 static bool get_kh1_display_mode (KXRadio & radio, radio_mode_t & out_mode) {
-    char response[20];
-    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response), KX_TIMEOUT_MS_LONG_COMMANDS))
+    char response[sizeof ("DS1xxxxxxxxxCxxxxxx;")];
+    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response) - 1, KX_TIMEOUT_MS_LONG_COMMANDS))
         return false;
 
     char mode_char = response[12];  // 13th character represents the mode
@@ -49,10 +55,10 @@ static bool get_kh1_display_mode (KXRadio & radio, radio_mode_t & out_mode) {
 }
 
 static bool get_kh1_display_power (KXRadio & radio, long & out_power) {
-    char response[20];
+    char response[sizeof ("DS1HIGHxxxxxxxxxxxx;")];
     char power_char[5];
 
-    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response), KX_TIMEOUT_MS_LONG_COMMANDS))
+    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response) - 1, KX_TIMEOUT_MS_LONG_COMMANDS))
         return false;
 
     snprintf (power_char, sizeof (power_char), "%.*s", 4, response + 3);  // Characters 4-7 represent power level as a string
@@ -68,11 +74,11 @@ static bool get_kh1_display_power (KXRadio & radio, long & out_power) {
 }
 
 static bool set_kh1_power_level (KXRadio & radio, long power_level) {
-    char power_return[20];
+    char power_return[sizeof ("DS1HIGHxxxxxxxxxxxx;")];
     char power_char[5];
 
     radio.put_to_kx_command_string ("SW2H;SW2H;", 1);
-    if (radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, power_return, sizeof (power_return), KX_TIMEOUT_MS_LONG_COMMANDS)) {
+    if (radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, power_return, sizeof (power_return) - 1, KX_TIMEOUT_MS_LONG_COMMANDS)) {
         snprintf (power_char, sizeof (power_char), "%.*s", 4, power_return + 3);  // Characters 4-7 represent power level as a string
         if (!strcmp (power_char, power_level > 0 ? "LOW " : "HIGH")) {
             radio.put_to_kx_command_string ("SW2H;SW2H;", 1);
@@ -225,8 +231,8 @@ bool KH1RadioDriver::set_volume (KXRadio & radio, long volume) {
 }
 
 bool KH1RadioDriver::get_xmit_state (KXRadio & radio, long & out_state) {
-    char response[20];
-    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response), KX_TIMEOUT_MS_LONG_COMMANDS))
+    char response[sizeof ("DS1Pxxxxxxxxxxxxxxx;")];
+    if (!radio.get_from_kx_string ("DS1", SC_KX_COMMUNICATION_RETRIES, response, sizeof (response) - 1, KX_TIMEOUT_MS_LONG_COMMANDS))
         return false;
 
     char xmit_char = response[3];
