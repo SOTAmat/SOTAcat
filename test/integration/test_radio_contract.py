@@ -125,7 +125,7 @@ class ContractTest:
                     r, dt = self.get(ep)
                     worst = max(worst, dt)
                     if ep in ("frequency", "mode") and r.status_code in (500, 503):
-                        continue  # 500: nothing cached yet; 503: link down — both legal
+                        continue  # 500: nothing cached yet; 503: link down (both legal)
                     self.expect(r.status_code == 200, f"HTTP {r.status_code}")
                     body = r.text.strip()
                     self.expect(valid(body), f"unexpected payload {body!r}")
@@ -258,7 +258,7 @@ class ContractTest:
             self.expect(dt <= SET_BOUND_S, f"PUT took {dt*1000:.0f} ms > bound")
             g, _ = self.get("power")
             self.expect(g.text.strip() == str(cur), f"GET power after PUT read {g.text.strip()!r}, want {cur}")
-            # NOTE: no "invalid power" probe here on purpose — the firmware
+            # NOTE: no "invalid power" probe here on purpose. The firmware
             # parses with atoi(), so power=abc means power=0 and WOULD change
             # the operator's setting on a real radio.
 
@@ -294,7 +294,7 @@ class ContractTest:
 
         def gets():
             # Once the link is down, value GETs say so (503) instead of
-            # serving a stale value as live — SOTAmat polls only these.
+            # serving a stale value as live. SOTAmat polls only these.
             r, dt = self.get("frequency")
             self.expect(r.status_code in (503, 200), f"GET frequency: {r.status_code}")
             self.expect(dt <= GET_BOUND_S, f"GET frequency took {dt*1000:.0f} ms")
@@ -362,7 +362,7 @@ class ContractTest:
     def test_concurrency(self):
         """A parallel-connect burst. On the ESP32 the TCP accept backlog is
         small, so ANY burst wider than ~6 shows +1 s / +3 s SYN-retransmit
-        steps — a platform trait, not a radio-path one (test_mutex_stress.py
+        steps, a platform trait, not a radio-path one (test_mutex_stress.py
         documents the same). So the assertion is relative: the radio GET burst
         must be no slower than a same-size /version burst (which never touches
         the radio), and nothing may error (socket exhaustion would)."""
@@ -397,7 +397,7 @@ class ContractTest:
             # so a +1.0 s margin flapped between runs; a real radio-path stall
             # would still show as several seconds.
             self.expect(rad_p95 <= ctrl_p95 + 1.5,
-                        f"radio burst p95 {rad_p95*1000:.0f} ms vs control {ctrl_p95*1000:.0f} ms — radio path adds latency")
+                        f"radio burst p95 {rad_p95*1000:.0f} ms vs control {ctrl_p95*1000:.0f} ms; radio path adds latency")
         self.check(f"{self.concurrency} parallel radio GETs: no errors, no slower than /version control", run)
 
     # -- mock-only scenarios ---------------------------------------------

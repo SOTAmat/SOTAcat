@@ -9,8 +9,8 @@
  * (see test/host/test_radio_mode.cpp).
  *
  * The enumerator values mirror the Elecraft MDn CAT codes, which skip 8:
- * MODE_CW_R = 7, MODE_DATA_R = 9. Never index a table by these values —
- * use the scan-based lookups below, which stay correct across the gap.
+ * MODE_CW_R = 7, MODE_DATA_R = 9. Never index a table by these values.
+ * Use the scan-based lookups below, which stay correct across the gap.
  */
 typedef enum {
     MODE_UNKNOWN = 0,

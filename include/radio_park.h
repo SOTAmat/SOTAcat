@@ -16,12 +16,12 @@
 //   * SET kinds are generation-gated: on_done(kind, gen_applied) completes
 //     the parked SET only if gen_applied >= parked.gen, so an op that started
 //     before this request armed its slot cannot satisfy it.
-//   * GET kinds complete on ANY refresh completion of that kind — a refresh
+//   * GET kinds complete on ANY refresh completion of that kind. A refresh
 //     that began just before the park is still fresher than the wait bound.
 //   * expire(now) removes every entry whose deadline has passed. Nothing
 //     may stay parked past its deadline: parked sockets bypass httpd's LRU
 //     purge, so an unbounded park exhausts sockets.
-//   * The table is single-actor (HTTP server task only) — no locking here.
+//   * The table is single-actor (HTTP server task only); no locking here.
 #include <cstdint>
 
 // GET_* kinds first, then SET_* (is_set_kind() relies on that ordering).
@@ -62,7 +62,7 @@ class RadioParkTable {
     bool occupied (RadioParkKind k) const { return valid (k) && m_slots[(int)k].occupied; }
 
     // Park `handle`. Returns false (and parks nothing) if the kind is invalid
-    // or the table is at its cap and this kind is unoccupied — the caller
+    // or the table is at its cap and this kind is unoccupied; the caller
     // then falls back to a synchronous reply. On success, *superseded (if
     // non-null) receives the handle this park displaced, or nullptr.
     bool park (RadioParkKind k, void * handle, uint32_t gen, int64_t deadline_us, void ** superseded = nullptr) {

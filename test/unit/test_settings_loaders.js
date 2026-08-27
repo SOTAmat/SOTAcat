@@ -4,7 +4,7 @@
  *
  * A successful device read refreshes the app-wide caches (AppState and the
  * localStorage write-through), so values edited from another client are
- * picked up everywhere as soon as any client visits Settings — not just on
+ * picked up everywhere as soon as any client visits Settings, not just on
  * the Settings page itself.
  *
  * Usage:

@@ -1067,12 +1067,12 @@ class SOTAcatUITests:
         assert container.count() > 0, "Band-range container should exist"
         assert stack.count() > 0, "Band-range stack should exist"
         # The stack should populate with one row per visible license class
-        # (T/G/E by default — three rows) once the mock server reports VFO state.
+        # (T/G/E by default, three rows) once the mock server reports VFO state.
         rows = self.page.locator('#vfo-band-range-stack .vfo-band-range-row')
         assert rows.count() >= 3, \
             f"Band-range stack should render at least 3 class rows, got {rows.count()}"
         # Each row should contain at least one mode-colored stripe somewhere on
-        # the band — Extra always has access on every band that has privileges.
+        # the band. Extra always has access on every band that has privileges.
         stripes = self.page.locator('#vfo-band-range-stack .vfo-band-range-mode-stripe')
         assert stripes.count() > 0, \
             "Band-range rows should contain mode stripes after VFO load"

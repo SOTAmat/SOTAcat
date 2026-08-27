@@ -4,8 +4,8 @@
  * Dispatch order for GET handlers serving cached radio values (host-
  * testable; see test/host/test_radio_get_gate.cpp).
  *
- * Freshness wins outright. FT8 exclusivity serves last-known immediately —
- * the radio service does no CAT work then, so arming a refresh would only
+ * Freshness wins outright. FT8 exclusivity serves last-known immediately.
+ * The radio service does no CAT work then, so arming a refresh would only
  * churn the slot. A known-down link is refused honestly, but its refresh IS
  * armed first: the refresh slot doubles as the link-recovery probe.
  * Otherwise the request parks so the reply can carry the refreshed value.

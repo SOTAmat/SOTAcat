@@ -145,7 +145,7 @@ function updateModeDisplay() {
     applyKeyerFamilyHints();
 }
 
-// Returns "cw" | "data" | null — the family of signal that will actually be
+// Returns "cw" | "data" | null: the family of signal that will actually be
 // transmitted when we key.  CW/CW_R stay in CW; DATA/DATA_R send as RTTY
 // (DT2) or PSK31 (DT3) depending on the DT sub-mode set on the radio;
 // everything else gets forced to CW by the backend (see the RTTY-keying plan,
@@ -154,7 +154,7 @@ function getKeyerFamily(mode) {
     const m = (mode || "").toUpperCase();
     if (!m || m === "UNKNOWN") return null;
     if (m === "DATA" || m === "DATA_R") return "data";
-    return "cw"; // CW, CW_R, USB, LSB, AM, FM — all emit CW from the keyer
+    return "cw"; // CW, CW_R, USB, LSB, AM, FM all emit CW from the keyer
 }
 
 // Update the RUN-tab Transmit section to reflect what the keyer will emit:
@@ -339,13 +339,13 @@ const MODE_CATEGORIES = ["CW", "DATA", "PHONE"];
 // Determine which license-class badges are currently rendered in the VFO
 // (matches the visibility logic in updatePrivilegeDisplay()).
 // Novice + Advanced badges are hidden unless the user actually holds one of
-// those classes — the legacy classes are otherwise just visual clutter.
+// those classes. The legacy classes are otherwise just visual clutter.
 function getVisibleLicenseClasses() {
     const showLegacy = AppState.licenseClass === "N" || AppState.licenseClass === "A";
     return showLegacy ? ["N", "T", "G", "A", "E"] : ["T", "G", "E"];
 }
 
-// Render the band-range graph as a stack of thin rows — one row per
+// Render the band-range graph as a stack of thin rows: one row per
 // currently-visible license class, top = most-restrictive (E), bottom =
 // least (T or N). The chart is OPERATOR-CENTRIC: it visualizes the band
 // from the perspective of the user's currently-selected radio mode.
@@ -355,7 +355,7 @@ function getVisibleLicenseClasses() {
 //   • Class has privileges AND current mode is permitted → solid stripe
 //     in the current mode's color (PHONE green / CW blue / DATA yellow).
 //     Other modes that may also be allowed in this segment are
-//     deliberately not depicted — the operator is in their chosen mode.
+//     deliberately not depicted. The operator is in their chosen mode.
 //   • Class has privileges but current mode is forbidden → side-by-side
 //     stripes for the modes that ARE allowed (the user's current mode
 //     is excluded since it's not allowed here anyway). The visual
@@ -367,7 +367,7 @@ function getVisibleLicenseClasses() {
 // the underlying truth stays discoverable on hover.
 //
 // Stripe positions inside a segment do NOT correspond to frequency
-// sub-ranges — all listed modes are permitted across the segment's full
+// sub-ranges. All listed modes are permitted across the segment's full
 // frequency range; the stripes are a "which modes are available here" key.
 function updateBandRangeDisplay() {
     const container = document.getElementById("vfo-band-range");
@@ -408,13 +408,13 @@ function updateBandRangeDisplay() {
     const frag = document.createDocumentFragment();
 
     // Spots row (top of stack). Built before license rows so DOM order
-    // gives us correct visual stacking — first child is topmost.
+    // gives us correct visual stacking. First child is topmost.
     const spotsRow = document.createElement("div");
     spotsRow.className = "vfo-band-range-row vfo-band-range-spots-row";
 
     const spotsLabel = document.createElement("span");
     spotsLabel.className = "vfo-band-range-label";
-    spotsLabel.textContent = "";  // empty — no label for the spots row
+    spotsLabel.textContent = "";  // empty: no label for the spots row
     spotsRow.appendChild(spotsLabel);
 
     const spotsTrack = document.createElement("div");
@@ -519,7 +519,7 @@ function updateBandRangeDisplay() {
 // ============================================================================
 // Drag-to-tune (mouse) / tap-to-tune (touch) on the band-range chart
 // ============================================================================
-// Mouse: pointerdown anywhere in #vfo-band-range starts a live drag — the
+// Mouse: pointerdown anywhere in #vfo-band-range starts a live drag. The
 // visual tick follows the pointer (snapped per-mode, clamped to band edges)
 // and CAT writes are throttled to ~15 Hz, with a final canonical
 // setFrequency() on pointerup.
@@ -571,7 +571,7 @@ function applyDragFrequency(hz, state) {
 }
 
 function onBandRangeDragStart(event) {
-    // Skip if the pointerdown landed on a spot tick — its click handler
+    // Skip if the pointerdown landed on a spot tick. Its click handler
     // takes care of the tune, and we don't want a phantom drag commit.
     if (event.target && event.target.closest && event.target.closest(".vfo-band-range-spot-tick")) {
         return;
@@ -625,7 +625,7 @@ function onBandRangeDragStart(event) {
     }
     // Touch: don't preventDefault (let the browser hand off to a scroll
     // gesture if that's what the user is doing), don't capture, and don't
-    // commit the touch-down position — we wait until pointerup.
+    // commit the touch-down position; we wait until pointerup.
 }
 
 function onBandRangeDragMove(event) {
@@ -633,7 +633,7 @@ function onBandRangeDragMove(event) {
     if (Math.abs(event.clientX - dragState.startX) >= DRAG_DEAD_ZONE_PX) {
         dragState.exceededDeadZone = true;
     }
-    // Touch: no live tracking — tap-to-jump only. Mouse: live drag.
+    // Touch: no live tracking, tap-to-jump only. Mouse: live drag.
     if (dragState.isTouch) return;
     const hz = computeDragFrequency(event.clientX, dragState);
     applyDragFrequency(hz, dragState);
@@ -725,7 +725,7 @@ function updateButtonPrivileges() {
     const currentMode = AppState.vfoMode || "USB";
     const userLicense = getUserLicenseClass();
 
-    // Check each mode category (3 calls — SSB/AM/FM share PHONE)
+    // Check each mode category (3 calls; SSB/AM/FM share PHONE)
     const cwStatus = checkPrivileges(frequencyHz, "CW", userLicense);
     const phoneStatus = checkPrivileges(frequencyHz, "USB", userLicense);
     const dataStatus = checkPrivileges(frequencyHz, "DATA", userLicense);
@@ -1542,7 +1542,7 @@ function onSpotLeaving() {
     }
     AppState.vfoPollSuppressedUntil = 0;
 
-    // Unsubscribe from spot updates — no need to rebuild while the tab is hidden.
+    // Unsubscribe from spot updates. No need to rebuild while the tab is hidden.
     Spots.unsubscribe(onSpotsChanged);
 
     // Reset event listener flag so they can be reattached when returning to this tab

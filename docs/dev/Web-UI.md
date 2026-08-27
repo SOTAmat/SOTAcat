@@ -12,12 +12,12 @@ Web assets in `src/web/` are:
 
 ### Dual-wiring rule (read this before adding files)
 
-Every file under `src/web/` must be registered in **two** places — both are required:
+Every file under `src/web/` must be registered in **two** places; both are required:
 
 1. **`src/CMakeLists.txt`** — add the file to the `EMBED_FILES` list so the build embeds it in the firmware binary.
 2. **`src/webserver.cpp`** — add an entry to the `asset_map` so the HTTP server knows what URL path to serve it from.
 
-Miss the CMakeLists entry → the file isn't in the binary (build- or link-time error). Miss the `asset_map` entry → the file is in the binary but unreachable, and the browser gets `ERR_EMPTY_RESPONSE`. The second mode is the silent failure — always grep both files when adding a new asset.
+Miss the CMakeLists entry → the file isn't in the binary (build- or link-time error). Miss the `asset_map` entry → the file is in the binary but unreachable, and the browser gets `ERR_EMPTY_RESPONSE`. The second mode is the silent failure. Always grep both files when adding a new asset.
 
 ## File Structure
 
@@ -44,8 +44,9 @@ src/web/
 Both `run.js` (badges, warning states, button enablement, and the VFO
 band-range bar) and `chase.js` (per-row privilege flagging) read from
 `FCC_AMATEUR_PRIVILEGES` and use the bandwidth/edge helpers. It also
-exposes `MODE_SNAP_HZ` — per-mode snap step in Hz used by drag-to-tune
-on the band-range chart (CW = 100, DATA = 500, SSB/AM = 1000, FM = 5000).
+exposes `MODE_SNAP_HZ`, the per-mode snap step in Hz used by
+drag-to-tune on the band-range chart (CW = 100, DATA = 500,
+SSB/AM = 1000, FM = 5000).
 
 ### Spots Module (`spots.js`)
 
@@ -64,7 +65,7 @@ the `Spots` global.
   data reset, not a state-machine reset).
 - `Spots.subscribe(cb)` / `Spots.unsubscribe(cb)` — page callbacks fired
   with the new array whenever a refresh completes. Always unsubscribe on
-  teardown — `chase.js` and `run.js` both subscribe on tab-enter and
+  teardown. `chase.js` and `run.js` both subscribe on tab-enter and
   unsubscribe on leave.
 - `Spots.startAutoRefresh()` / `Spots.stopAutoRefresh()` /
   `Spots.isAutoRefreshEnabled()` / `Spots.loadAutoRefreshPref()` —
@@ -78,7 +79,7 @@ the `Spots` global.
 - A 60 s rate-limit gate between API calls. `force=true` bypasses the
   gate (for manual refresh / auto-refresh tick) but does **not** bypass
   in-flight dedup.
-- Concurrent `refresh()` calls dedup to a single fetch — additional
+- Concurrent `refresh()` calls dedup to a single fetch. Additional
   callers receive the in-flight promise.
 - `lastFetchTime` advances *before* the fetch resolves, so a network
   failure still counts against the 60 s gate. Auto-refresh has its own
@@ -153,7 +154,7 @@ buttons are *not* gated on radio capability today. Add escape hatches
 The graphic above the frequency display in `run.html` (`#vfo-band-range`)
 is rendered by `updateBandRangeDisplay()` in `run.js`, called from
 `updatePrivilegeDisplay()`. It is a vertical stack of thin rows
-(`.vfo-band-range-stack`), one per currently-visible license class —
+(`.vfo-band-range-stack`), one per currently-visible license class:
 top = most-restrictive (E), bottom = least (T or N). Visibility is decided
 by `getVisibleLicenseClasses()`, which mirrors the badge-visibility rule:
 N and A only appear when the configured license is one of those legacy
@@ -162,7 +163,7 @@ classes. Each row has a small monospace label and a per-row track.
 Within a row, each FCC privilege segment in `FCC_AMATEUR_PRIVILEGES[band]`
 that contains the row's class becomes a `.vfo-band-range-segment` div; if
 the row's class isn't in `seg.classes`, no segment is rendered for that
-range — the empty space *is* the visualization that the class lacks
+range. The empty space *is* the visualization that the class lacks
 privileges there. The chart is **operator-centric** with respect to the
 radio's currently-selected mode (mapped to a category via
 `getModeCategory()`):
@@ -178,7 +179,7 @@ radio's currently-selected mode (mapped to a category via
 
 Mode stripe positions inside a segment do not correspond to frequency
 sub-ranges (all listed modes are permitted across the full segment
-width) — they're a "which alternative modes are available here" key.
+width); they're a "which alternative modes are available here" key.
 Tooltips show the full FCC mode list per segment regardless of which
 stripes are rendered.
 
@@ -197,12 +198,12 @@ Above the license-class stack, `run.js` renders a separate
 per spot whose `hertz` falls within the current band's `[bandMin,
 bandMax]`. `buildSpotTickData(spots, bandStart, bandEnd)` is the pure
 helper that filters and computes `leftPct` + `modeCategory` for each
-tick — it's the unit-testable seam (see `test/unit/test_run_spot_ticks.js`).
+tick. It's the unit-testable seam (see `test/unit/test_run_spot_ticks.js`).
 
 Ticks are colored by mode category (`cw` / `data` / `phone` / `other`,
 see `style.css` `[data-mode]` selectors). The pointer handler on
 `#vfo-band-range` short-circuits when `event.target.closest(".vfo-band-range-spot-tick")`
-matches — instead of drag-to-tune, a spot tick tap calls
+matches. Instead of drag-to-tune, a spot tick tap calls
 `tuneRadioHz(spotHz, spotMode)` directly. There is **no** drag
 semantics for spot ticks: tap-only on both mouse and touch.
 
@@ -225,14 +226,14 @@ PHONE = 1 kHz, FM = 5 kHz), then clamped to the current band's overall
 
 **Mouse**: `pointerdown` applies the position eagerly (instant click
 feedback), `pointermove` updates the visual tick and fires throttled CAT
-writes at ~15 Hz (66 ms) by calling `setFrequencyImmediate()` directly —
-this bypasses the 300 ms debounce in `setFrequency()` so the rig retunes
+writes at ~15 Hz (66 ms) by calling `setFrequencyImmediate()` directly.
+This bypasses the 300 ms debounce in `setFrequency()` so the rig retunes
 live. `setPointerCapture()` keeps the drag tracking even if the cursor
 wanders out of the container. On `pointerup`/`pointercancel` a final
 canonical `setFrequency()` lands the released value through the
 debounced path.
 
-**Touch**: tap-to-jump only — no live finger-tracking. `pointerdown`
+**Touch**: tap-to-jump only, with no live finger-tracking. `pointerdown`
 records state but does not commit (so a finger landing on the chart
 while reaching to scroll the page doesn't accidentally retune).
 `pointermove` is ignored (the chart rows are too small to drag
@@ -249,7 +250,7 @@ VFO read polling is suppressed automatically because the path updates
 
 The overlay itself stays `pointer-events: none` so segment `title=`
 tooltips on the rows below keep firing on hover. Only the 2 px tick
-gets `pointer-events: auto` — needed both to differentiate the cursor
+gets `pointer-events: auto`, needed both to differentiate the cursor
 on desktop (`ew-resize` over the tick, `col-resize` elsewhere,
 `grabbing` while `#vfo-band-range.is-dragging`) and to ensure the tick
 is hit-testable on touch (the parent handler still receives the event

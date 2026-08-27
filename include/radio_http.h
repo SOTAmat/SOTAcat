@@ -4,7 +4,7 @@
 // snapshot/refresh/park dance.
 //
 // SET side: enqueue the op on the radio service,
-// park the request, and reply with the honest outcome — without ever
+// park the request, and reply with the honest outcome, without ever
 // blocking the HTTP server task. See docs/dev/Radio-Access.md.
 //
 //   FT8 active                 → 503 "radio busy (FT8)"        (sync; not enqueued)

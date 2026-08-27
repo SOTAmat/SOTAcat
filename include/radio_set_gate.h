@@ -10,7 +10,7 @@
  * transmission and the CW keyer task (radio mutex held for the whole
  * message, typically 10-15 s). During either, the radio-service worker
  * cannot acquire the mutex, so an accepted SET would only sit in its slot
- * until it expired at SET_APPLY_DEADLINE_MS — a silent drop behind a 202.
+ * until it expired at SET_APPLY_DEADLINE_MS: a silent drop behind a 202.
  * Refuse both up front with an honest 503 instead. FT8 takes precedence
  * when both flags read true, keeping the reason stable.
  */

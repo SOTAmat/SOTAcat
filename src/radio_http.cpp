@@ -14,8 +14,8 @@ static const char * TAG8 = "sc:radioset";
 
 // Human label for the parked SET of each kind, for reply/log messages. Set
 // at park time on the server task; one parked request per kind, and the
-// superseded occupant is completed inside radio_park_request() — i.e.
-// BEFORE we overwrite its label below — so it still sees its own.
+// superseded occupant is completed inside radio_park_request() (i.e.
+// BEFORE we overwrite its label below), so it still sees its own.
 static const char * s_what[RADIO_PARK_KINDS] = {};
 
 static const char * what_of (RadioParkKind kind) {
@@ -24,7 +24,7 @@ static const char * what_of (RadioParkKind kind) {
 }
 
 // Async completer (server task). The shim's completer signature carries no
-// user argument, so instantiate one thin wrapper per kind — each knows its
+// user argument, so instantiate one thin wrapper per kind. Each knows its
 // kind statically and fetches its label from s_what.
 template <RadioParkKind K>
 static void set_complete_k (httpd_req_t * req, RadioParkOutcome outcome, bool ok) {

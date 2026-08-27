@@ -439,7 +439,7 @@ const BAND_PLAN = {
 //
 // Note: users may operate beyond this list via external transverters
 // (e.g. KX2 + 2 m transverter). UI gating that disables controls strictly
-// from this table would lock those users out — see chase.js for the
+// from this table would lock those users out. See chase.js for the
 // opt-out (filterBandsEnabled) pattern.
 const RADIO_CAPABILITIES = {
     "KX2": {
@@ -468,7 +468,7 @@ const RADIO_CAPABILITIES = {
             "17m": "TXRX", "15m": "TXRX",
         },
         // SSB on KH1 is selectable for FT8 receive but the radio cannot
-        // transmit SSB — flagged here as RX so future TX-aware UI can warn.
+        // transmit SSB. Flagged here as RX so future TX-aware UI can warn.
         modes: { "CW": "TXRX", "USB": "RX", "LSB": "RX" },
     },
     "Unknown": null,
@@ -709,7 +709,7 @@ const POLO_DEEP_LINK_QSO_BASE = "com.ham2k.polo:///qso";
 const SOTAMAT_DEEP_LINK_BASE = "sotamat://api/v1?app=sotacat&appversion=2.2";
 
 // Build xOTA-style deep link URL (Polo, SOTAmat) from parameters.
-// All other caller params are optional — only non-empty values are emitted.
+// All other caller params are optional. Only non-empty values are emitted.
 // params.baseUrl is REQUIRED: callers pass the target app's scheme explicitly.
 // The separator before our query parts is auto-detected: "&" when the
 // baseUrl already contains "?", "?" otherwise.
@@ -1430,7 +1430,7 @@ setInterval(updateConnectionStatus, CONNECTION_STATUS_UPDATE_INTERVAL_MS);
 function onVisibilityRefresh() {
     if (document.visibilityState !== "visible") return;
     if (pollingPaused) return; // a sub-tab switch is mid-flight; let its finally{} restart polling
-    Log.debug("Visibility")("Page visible — refreshing pollers");
+    Log.debug("Visibility")("Page visible; refreshing pollers");
     // A request frozen mid-flight while the tab was backgrounded would make
     // each poller's in-flight guard skip the refresh; abort and clear them.
     for (const abortStale of [

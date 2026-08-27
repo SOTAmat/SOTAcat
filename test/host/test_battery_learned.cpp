@@ -2,7 +2,7 @@
 //
 // Contract pinned here: the fuel gauge's learned parameters are persisted
 // when bit 6 of the Cycles register toggles versus the last-saved value
-// (about every 64% of battery cycled), and never otherwise — so NVS wear
+// (about every 64% of battery cycled), and never otherwise, so NVS wear
 // stays negligible while a deep-discharge or battery swap can always be
 // restored from a checkpoint at most one save-interval old.
 #include "../../include/battery_learned_policy.h"

@@ -211,7 +211,7 @@ static bool is_keyer_native_mode (radio_mode_t mode) {
     return mode == MODE_CW || mode == MODE_CW_R || mode == MODE_DATA || mode == MODE_DATA_R;
 }
 
-// True for DATA/DATA_R only — i.e., RTTY (FSK-D) or PSK31 (PSK-D) when the
+// True for DATA/DATA_R only, i.e., RTTY (FSK-D) or PSK31 (PSK-D) when the
 // operator has set the corresponding DT sub-mode.  These are the modes for
 // which ^D (EOT, 0x04) is meaningful per the KY command description (p.15).
 static bool is_data_keyer_mode (radio_mode_t mode) {
@@ -266,7 +266,7 @@ bool KXRadioDriver::send_keyer_message (KXRadio & radio, const char * message) {
 
     // Fire all chunks back-to-back as plain `KY <text>;` (no W flag).  The
     // radio stitches consecutive KY commands into continuous transmission
-    // (empirically verified on KX2/KX3 — no unkey between chunks).  Using
+    // (empirically verified on KX2/KX3: no unkey between chunks).  Using
     // the W flag here would defer processing of all subsequent host commands
     // including our TQ; poll below, and also produce inter-chunk gaps.
     while (pos < end) {

@@ -43,7 +43,7 @@ struct RadioSnapshotData {
 
   private:
     // now_us < stamp (clock skew / unset clock) reads stale, never falsely
-    // fresh — a negative age is not "recent".
+    // fresh (a negative age is not "recent").
     static bool fresh (bool known, int64_t stamp_us, int64_t now_us) {
         return known && now_us >= stamp_us && (now_us - stamp_us) < RADIO_SNAPSHOT_FRESH_US;
     }
@@ -51,7 +51,7 @@ struct RadioSnapshotData {
 
 // Thread-safe accessor for the single shared snapshot. Implemented in
 // radio_snapshot.cpp with a FreeRTOS mutex distinct from the radio
-// mutex — readers (HTTP handlers) never contend on UART.
+// mutex; readers (HTTP handlers) never contend on UART.
 namespace radio_snapshot {
 // Copy the whole snapshot out under the lock.
 RadioSnapshotData get ();

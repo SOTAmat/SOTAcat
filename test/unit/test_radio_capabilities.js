@@ -16,7 +16,7 @@ const path = require('path');
 const vm = require('vm');
 
 // ============================================================================
-// Test framework (minimal — same shape as the other test_*.js files)
+// Test framework (minimal; same shape as the other test_*.js files)
 // ============================================================================
 
 let testsPassed = 0;

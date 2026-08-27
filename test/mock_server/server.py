@@ -79,7 +79,7 @@ DEFAULT_STATE = {
         {"url": "http://rx.linkfanel.net/", "enabled": False},
     ],
     "tune_targets_mobile": False,
-    # CW macros (empty by default — must be configured in Settings)
+    # CW macros (empty by default; must be configured in Settings)
     "cw_macros": [],
     # WiFi settings
     "sta1_ssid": "HomeNetwork",
@@ -263,7 +263,7 @@ class MockSOTAcatServer:
 
     def _setup_routes(self):
         # ------------------------------------------------------------------
-        # Cache policy — mirrors the firmware (src/webserver.cpp
+        # Cache policy mirrors the firmware (src/webserver.cpp
         # dynamic_file_handler + the REPLY_WITH_* macros in webserver.h):
         #   * embedded web assets  -> ETag = firmware version + no-cache
         #                             (revalidate; honor If-None-Match -> 304)
@@ -312,7 +312,7 @@ class MockSOTAcatServer:
             return self.state["version"]
 
         # --- Radio endpoints: firmware-contract-faithful (bare text GETs,
-        # 204/500/202/503 PUTs, bounded waits) — see MockRadio.
+        # 204/500/202/503 PUTs, bounded waits); see MockRadio.
         def radio_reply(status, message):
             if status == 204:
                 return Response("", status=204, headers={"Cache-Control": "no-store"})

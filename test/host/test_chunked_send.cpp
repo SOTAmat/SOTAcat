@@ -2,10 +2,10 @@
 //
 // Contract pinned here: any chunk failure aborts immediately (no chunk is
 // ever skipped, so a truncated body can never ship under a clean status),
-// NO terminator is sent after a failure — a zero-length chunk would make the
-// truncated body read as complete; the caller's error return closes the
-// socket instead — and the first failure's error code is what the caller
-// gets.
+// NO terminator is sent after a failure, and the first failure's error code
+// is what the caller gets. A zero-length chunk would make the truncated
+// body read as complete; the caller's error return closes the socket
+// instead.
 #include "../../include/chunked_send.h"
 #include <cassert>
 #include <cstdio>
@@ -55,7 +55,7 @@ int main () {
         s.fail_on_call = 1;
         int ret = send_region_chunked (s, [] {}, region, region + sizeof (region), CHUNK);
         assert (ret == s.error_code);
-        assert (s.calls.size () == 2);  // chunk0 ok, chunk1 fail — nothing more
+        assert (s.calls.size () == 2);  // chunk0 ok, chunk1 fail; nothing more
         assert (s.calls[0].is_data && s.calls[1].is_data);
     }
 

@@ -73,7 +73,7 @@ var Spots = {
     },
 
     async refresh({ force = false, location = undefined, fetchOptions = undefined } = {}) {
-        // Dedupe concurrent calls — return whichever fetch is already in flight.
+        // Dedupe concurrent calls. Return whichever fetch is already in flight.
         // Note: force=true does NOT bypass this dedup; running two parallel
         // fetches is wasteful, and a force-after-in-flight caller already gets
         // the freshest data when the in-flight call resolves.

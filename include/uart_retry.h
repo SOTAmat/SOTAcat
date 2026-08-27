@@ -13,8 +13,8 @@
 
 enum class UartAttemptResult {
     OK,    // valid response received
-    BUSY,  // radio answered "?;" — try again without spending an attempt
-    BAD,   // anything else — spend one attempt
+    BUSY,  // radio answered "?;", so retry without spending an attempt
+    BAD,   // any other response spends one attempt
 };
 
 // A radio pausing for a menu redraw or relay click answers busy a few times;

@@ -396,7 +396,7 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
     for (int attempt = 0; attempt < tries; attempt++) {
         // Each attempt can burn ~6 s against an unresponsive radio; keep a
         // WDT-subscribed caller (the radio service task) fed. Returns
-        // ESP_ERR_NOT_FOUND for unsubscribed tasks — harmless, ignored.
+        // ESP_ERR_NOT_FOUND for unsubscribed tasks (harmless, ignored).
         esp_task_wdt_reset();
         uart_flush (UART_NUM);
         uart_write_bytes (UART_NUM, request, num_digits + 3);

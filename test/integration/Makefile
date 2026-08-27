@@ -79,7 +79,7 @@ test-contract: check-venv
 
 # Spawns two mock servers (healthy, and dead radio with slow CAT), runs the
 # contract test against each, and tears them down. Needs flask in the venv
-# (pip install flask flask-cors) — see test/mock_server/README.md.
+# (pip install flask flask-cors); see test/mock_server/README.md.
 test-contract-mock: check-venv
 	@echo "Running radio HTTP contract test against the mock server..."
 	@cd ../mock_server && $(PYTHON) server.py --port 8099 > /dev/null 2>&1 & echo $$! > .mock_healthy.pid

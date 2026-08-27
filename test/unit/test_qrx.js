@@ -36,7 +36,7 @@ function it(name, fn) {
     }
 }
 
-// Async tests: it() runs sync bodies only — a sync process.exit at EOF would
+// Async tests: it() runs sync bodies only. A sync process.exit at EOF would
 // kill pending awaits, silently skipping the assertions (vacuous pass). Queue
 // async bodies here; the summary tail awaits them all before reporting.
 const asyncTests = [];

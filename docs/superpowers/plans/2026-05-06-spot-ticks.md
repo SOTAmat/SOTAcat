@@ -151,7 +151,7 @@ if (testsFailed > 0) {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `node test/unit/test_spots.js`
-Expected: FAIL with "Cannot find module" or similar — `spots.js` doesn't exist yet.
+Expected: FAIL with "Cannot find module" or similar (`spots.js` doesn't exist yet).
 
 - [ ] **Step 3: Create the minimal `spots.js` shell**
 
@@ -190,7 +190,7 @@ const Spots = {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node test/unit/test_spots.js`
-Expected: PASS — both shell tests green.
+Expected: PASS (both shell tests green).
 
 - [ ] **Step 5: Wire `spots.js` into `index.html`**
 
@@ -295,7 +295,7 @@ describe('Spots cache (localStorage)', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `node test/unit/test_spots.js`
-Expected: FAIL — `Spots._saveCache is not a function`.
+Expected: FAIL (`Spots._saveCache is not a function`).
 
 - [ ] **Step 3: Implement the cache methods**
 
@@ -350,7 +350,7 @@ Edit `src/web/spots.js`. Add to the `Spots` object literal (after `getAll`, befo
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node test/unit/test_spots.js`
-Expected: PASS — all six tests green.
+Expected: PASS (all six tests green).
 
 - [ ] **Step 5: Commit**
 
@@ -441,7 +441,7 @@ setTimeout(() => {
 }, 100);
 ```
 
-Also wrap the async `it()` bodies. Update the `it` helper to handle promises — replace the existing `it` function:
+Also wrap the async `it()` bodies. Update the `it` helper to handle promises; replace the existing `it` function:
 
 ```javascript
 function it(name, fn) {
@@ -473,7 +473,7 @@ function it(name, fn) {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `node test/unit/test_spots.js`
-Expected: FAIL — `Spots.refresh is not a function`.
+Expected: FAIL (`Spots.refresh is not a function`).
 
 - [ ] **Step 3: Implement Spots.refresh()**
 
@@ -540,7 +540,7 @@ Edit `src/web/spots.js`. Add to the `Spots` object literal (after `clear`):
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node test/unit/test_spots.js`
-Expected: PASS — all tests including the four new async ones.
+Expected: PASS (all tests including the four new async ones).
 
 - [ ] **Step 5: Commit**
 
@@ -600,7 +600,7 @@ describe('Spots subscribers', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `node test/unit/test_spots.js`
-Expected: FAIL — `Spots.subscribe is not a function`.
+Expected: FAIL (`Spots.subscribe is not a function`).
 
 - [ ] **Step 3: Implement subscribe / unsubscribe**
 
@@ -670,7 +670,7 @@ describe('Spots auto-refresh', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `node test/unit/test_spots.js`
-Expected: FAIL — `Spots.startAutoRefresh is not a function`.
+Expected: FAIL (`Spots.startAutoRefresh is not a function`).
 
 - [ ] **Step 3: Implement auto-refresh methods**
 
@@ -736,7 +736,7 @@ Edit `src/web/spots.js`. Add to the `Spots` object literal:
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node test/unit/test_spots.js`
-Expected: PASS — all tests including the three new ones.
+Expected: PASS (all tests including the three new ones).
 
 - [ ] **Step 5: Commit**
 
@@ -825,7 +825,7 @@ function stopAutoRefresh() {
 }
 ```
 
-Delete `scheduleNextAutoRefresh` entirely. Find its three internal call sites in chase.js (`grep -n "scheduleNextAutoRefresh" src/web/chase.js` — at lines ~263, 1214, 1238 in the pre-refactor numbering) and delete them; `Spots._scheduleNext` chains itself.
+Delete `scheduleNextAutoRefresh` entirely. Find its three internal call sites in chase.js (`grep -n "scheduleNextAutoRefresh" src/web/chase.js`; at lines ~263, 1214, 1238 in the pre-refactor numbering) and delete them; `Spots._scheduleNext` chains itself.
 
 - [ ] **Step 4: Remove auto-refresh fields from `ChaseState`**
 
@@ -895,13 +895,13 @@ Run: `grep -n "latestChaseJson" src/web/chase.js`
 
 Two readers in chase.js (around lines 1016 and 1408):
 
-- Line ~1016 in `updateChaseTable`: replace `const data = await AppState.latestChaseJson;` with `const data = Spots.getAll();` (drop the `await` — `Spots.getAll()` is synchronous).
+- Line ~1016 in `updateChaseTable`: replace `const data = await AppState.latestChaseJson;` with `const data = Spots.getAll();` (drop the `await`; `Spots.getAll()` is synchronous).
 - Line ~1408: replace `if (AppState.latestChaseJson !== null)` with `if (Spots.getAll() !== null)`.
 
 Delete the writes:
 
-- Line ~83 (inside the deleted `restoreSpotsFromCache` — already gone).
-- Line ~1198 (`AppState.latestChaseJson = spots;` inside `refreshChaseJson` — already replaced).
+- Line ~83 (inside the deleted `restoreSpotsFromCache`; already gone).
+- Line ~1198 (`AppState.latestChaseJson = spots;` inside `refreshChaseJson`; already replaced).
 
 - [ ] **Step 7: Subscribe `updateChaseTable` to spot changes on chase init**
 
@@ -919,7 +919,7 @@ Edit `src/web/chase.js`. In `attachChaseEventListeners()` (around line 1254), at
 
 - [ ] **Step 8: Restore cache on chase page appearance**
 
-Edit `src/web/chase.js`. Find `onChaseAppearing` (or equivalent — `grep -n "onChaseAppearing\|onAppearing" src/web/chase.js`). Near the start of that function, add:
+Edit `src/web/chase.js`. Find `onChaseAppearing` (or equivalent; `grep -n "onChaseAppearing\|onAppearing" src/web/chase.js`). Near the start of that function, add:
 
 ```javascript
     // Restore cached spots so the table renders something immediately.
@@ -971,7 +971,7 @@ with:
 - [ ] **Step 10: Run unit tests**
 
 Run: `make test-unit`
-Expected: PASS — all existing tests including spots tests stay green. (No tests for chase.js exist; this is a refactor.)
+Expected: PASS (all existing tests including spots tests stay green). (No tests for chase.js exist; this is a refactor.)
 
 - [ ] **Step 11: Manual verification**
 
@@ -1091,7 +1091,7 @@ setTimeout(() => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `node test/unit/test_tune.js`
-Expected: FAIL — `tuneRadioHz not found in main.js`.
+Expected: FAIL (`tuneRadioHz not found in main.js`).
 
 - [ ] **Step 3: Move `tuneRadioHz` to `main.js`**
 
@@ -1171,7 +1171,7 @@ Run: `node test/unit/test_tune.js`
 Expected: PASS.
 
 Run: `make test-unit`
-Expected: PASS — all suites green.
+Expected: PASS (all suites green).
 
 - [ ] **Step 6: Manual verification**
 
@@ -1306,7 +1306,7 @@ if (testsFailed > 0) process.exit(1);
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `node test/unit/test_run_spot_ticks.js`
-Expected: FAIL — `buildSpotTickData not found in run.js`.
+Expected: FAIL (`buildSpotTickData not found in run.js`).
 
 - [ ] **Step 3: Implement `buildSpotTickData()`**
 
@@ -1359,10 +1359,10 @@ function buildSpotTickData(spots, bandStart, bandEnd) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `node test/unit/test_run_spot_ticks.js`
-Expected: PASS — all five tests green.
+Expected: PASS (all five tests green).
 
 Run: `make test-unit`
-Expected: PASS — every suite green.
+Expected: PASS (every suite green).
 
 - [ ] **Step 5: Commit**
 
@@ -1545,7 +1545,7 @@ Find the `RunState` definition (`grep -n "const RunState" src/web/run.js`) and a
     spotsRebuildPending: false,
 ```
 
-If the field isn't initialized in `RunState`, JavaScript will treat reads as `undefined` (falsy) and writes will create the property — but explicit is better. Add the line.
+If the field isn't initialized in `RunState`, JavaScript will treat reads as `undefined` (falsy) and writes will create the property, but explicit is better. Add the line.
 
 - [ ] **Step 3: Unsubscribe when leaving the run tab**
 
@@ -1557,7 +1557,7 @@ Find `cleanupCurrentTab` or the run-disappearing cleanup (`grep -n "onRunDisappe
     }
 ```
 
-If no such hook exists in run.js, leave the subscriber in place — the `Set` deduplicates by reference, so re-entering run will not stack subscribers, and `onSpotsChanged` checks `document.getElementById("vfo-band-range")` and bails if the run tab isn't mounted.
+If no such hook exists in run.js, leave the subscriber in place. The `Set` deduplicates by reference, so re-entering run will not stack subscribers, and `onSpotsChanged` checks `document.getElementById("vfo-band-range")` and bails if the run tab isn't mounted.
 
 - [ ] **Step 4: Manual verification**
 
@@ -1565,7 +1565,7 @@ Build, flash. Open chase tab, then run tab. Trigger a chase auto-refresh (or cli
 
 Expected:
 - Spots row updates without a tab switch when a refresh happens.
-- During a drag-to-tune on run, a refresh does not snap the dragged tick — drag stays smooth.
+- During a drag-to-tune on run, a refresh does not snap the dragged tick; drag stays smooth.
 - After releasing the drag, the spots row reflects the latest refresh.
 
 - [ ] **Step 5: Commit**
@@ -1627,7 +1627,7 @@ Test cases:
 2. Tap a phone tick (green) → radio tunes, mode picks USB or LSB based on frequency (LSB_USB_BOUNDARY_HZ rule).
 3. Tap a data tick (amber) → mode becomes DATA.
 4. Drag the band-range bar (not on a tick) → still works; VFO follows finger.
-5. Tap an empty area of the spots row → no tune, no drag commit (drag handler will fire and pin the tick at the click position — that's the existing behavior, not a regression).
+5. Tap an empty area of the spots row → no tune, no drag commit (drag handler will fire and pin the tick at the click position; that's the existing behavior, not a regression).
 
 - [ ] **Step 3: Commit**
 

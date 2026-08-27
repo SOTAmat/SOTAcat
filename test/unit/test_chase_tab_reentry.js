@@ -97,7 +97,7 @@ function loadSandbox() {
         stopAutoRefresh() {},
         clearTimeout() {},
         onChaseKeydown() {},
-        // Listener callbacks referenced directly (not via arrow body) — these
+        // Listener callbacks referenced directly (not via arrow body). These
         // names must resolve at attachChaseEventListeners call time, so they
         // need to exist in the sandbox even though we don't invoke them.
         onMyCallClick() {},

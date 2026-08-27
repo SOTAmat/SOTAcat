@@ -13,13 +13,14 @@ factually, 3 candidates REFUTED with constructive proofs.
 
 This document is the **plan and evidence archive**. The **burndown lives in
 GitHub issues** (milestone: `2026-08 ultra review`): one issue per batch below.
-No PRs — we commit as a direct contributor, so each fix branch merges to main
-locally and its commit body carries `Fixes #N` plus the finding IDs (e.g.
-`fix: UR-06 ...`), which closes the issue when the commit reaches main. With no
-review gate, the verification bar is doubled: every batch fully retests on every
-tier that exists — host unit suite, firmware build, integration/UI (Playwright),
-and real hardware via OTA — and the diff is reviewed before anything merges.
-This doc is updated only to record fixing commit hashes in the Status column.
+There are no PRs. We commit as a direct contributor, so each fix branch merges
+to main locally and its commit body carries `Fixes #N` plus the finding IDs
+(e.g. `fix: UR-06 ...`), which closes the issue when the commit reaches main.
+With no review gate, the verification bar is doubled. Every batch fully retests
+on every tier that exists: host unit suite, firmware build, integration/UI
+(Playwright), and real hardware via OTA. The diff is reviewed before anything
+merges. This doc is updated only to record fixing commit hashes in the Status
+column.
 
 **KH1 caveat:** UR-01 (caller half), UR-03, and UR-04's KH1 sibling paths cannot
 be hardware-verified until a KH1 is on the bench (same constraint that deferred
@@ -35,7 +36,7 @@ Each finding scored 1–3 on four dimensions (same scheme as the 2026-08 review)
 - **Ease**: 3 = small localized fix, 2 = moderate, 1 = refactor/design work
 - **Iso** (isolation): 3 = independent, 2 = shares files with other findings, 1 = needs a refactor vehicle
 - **Imp** (real-world user impact): 3 = routine use, 2 = common situations, 1 = rare/invisible
-  — *Imp values are the reviewer's estimate; Q adjusts before ranking.*
+  (*Imp values are the reviewer's estimate; Q adjusts before ranking.*)
 
 **Rank** = Sev × Imp, tiebreak by Ease. **Iso** drives batching only.
 
@@ -99,7 +100,7 @@ trigger not fully constructible).
 - **Battery `snprintf` accumulation overflow** — every field is a 16-bit
   register with fixed scale constants; worst-case JSON is exactly 192 chars +
   NUL = 193 ≤ 200. Headroom is 7 bytes: adding one field makes the negative-size
-  conversion reachable — clamp between calls if that JSON ever grows.
+  conversion reachable. Clamp between calls if that JSON ever grows.
 - **FT8 `CommandInProgress` race** — both FT8 handlers run inline in the single
   httpd task and never use radio_park, so no interleaving exists; the unguarded
   store(true) at handler_ft8.cpp:978 becomes the described race only if FT8
@@ -141,10 +142,11 @@ kx_radio.cpp:69 executes `response[expected_chars] = '\0'` whenever
 returned_chars ≥ expected_chars; get_from_kx_string (kx_radio.cpp:489) passes
 response_size straight through. The five KH1 DS1 callers
 (radio_driver_kh1.cpp:25, 37, 55, 75, 229) all declare `char response[20]` and
-pass `sizeof(response)` — a full 20-char read writes response[20]. KX paths are
+pass `sizeof(response)`. A full 20-char read writes response[20]. KX paths are
 safe (16-byte buffer, response_size ≤ 15; other callers pass sizeof−1).
-**Fix:** contract change — terminator must fit inside the buffer (callers pass
-sizeof−1, or the transport takes buffer size and caps reads at size−1).
+**Fix:** change the contract so the terminator must fit inside the buffer
+(callers pass sizeof−1, or the transport takes buffer size and caps reads at
+size−1).
 
 ### UR-02 — connect() one-past-end write (VERIFIED)
 kx_radio.cpp:208 declares `uint8_t buffer[256]`; both reads (219, 240) request
@@ -157,8 +159,8 @@ radio_driver_kh1.cpp:260 unconditionally overwrites the 20-WPM default with
 `atoi(speed_char)` on any successful DS1 read; non-digit display chars 4–5
 yield 0; no guard before `1200 / kh_wpm` at :263. RISC-V div-by-zero returns
 all-ones: ditPeriod = −1, `HK1;` has already keyed TX (:279), and
-`pdMS_TO_TICKS(-1)` widens to an enormous tick count — hung keyer task with
-the transmitter keyed. **Fix:** validate digits / clamp WPM to a sane range
+`pdMS_TO_TICKS(-1)` widens to an enormous tick count. The result is a hung
+keyer task with the transmitter keyed. **Fix:** validate digits / clamp WPM to a sane range
 before dividing; keep the default on garbage.
 
 ### UR-04 — set_power accepts failed readback (VERIFIED)
@@ -177,21 +179,21 @@ naming radio_task every 20 s, forever, whenever powered without a radio.
 **Fix:** feed the WDT in the hunt loop (or subscribe after connect).
 
 ### UR-06 — prefix-match API dispatch (VERIFIED)
-webserver.cpp:149 computes `compare_length = strcspn(api_name, "?")` — the
-*requested* name's length — and :153 strncmp's only that many chars, so any
+webserver.cpp:149 computes `compare_length = strcspn(api_name, "?")` (the
+*requested* name's length), and :153 strncmp's only that many chars, so any
 strict prefix of a registered name matches: `/api/v1/reb` dispatches
 handler_reboot_get; empty name (compare_length 0) matches the first same-method
 entry; `PUT /api/v1/a` fires ATU tune. api_name arrives unvalidated from
-`requested_uri + sizeof("/api/v1/") - 1` (:261). Over-long names do not match —
-strict prefixes only. **Fix:** require `strlen(handler->api_name) ==
+`requested_uri + sizeof("/api/v1/") - 1` (:261). Over-long names do not match
+(strict prefixes only). **Fix:** require `strlen(handler->api_name) ==
 compare_length` alongside the strncmp.
 
 ### UR-07 — read_post_body short-read + unbounded alloc (VERIFIED)
 handler_settings.cpp:337-347: exactly one `httpd_req_recv(req, buf,
 content_len)`; only `ret <= 0` is checked, so a partial recv passes and the
 value-initialized tail parses as truncated-but-valid pairs, committed to NVS by
-all five POST handlers. No cap on content_len; ESP-IDF aborts on failed `new` —
-a huge Content-Length is a remote panic-reboot. **Fix:** recv loop to
+all five POST handlers. No cap on content_len; ESP-IDF aborts on failed `new`.
+A huge Content-Length is a remote panic-reboot. **Fix:** recv loop to
 completion (408 on timeout), sane content_len ceiling.
 
 ### UR-08 — settings JSON round-trip corruption (VERIFIED)
@@ -199,7 +201,7 @@ POST parser (handler_settings.cpp:242-249) shifts out every backslash,
 consuming the exposed char in the same iteration: incoming `\"` stores a
 literal quote in NVS. GET builders (get_settings_json :202,
 get_gps_settings_json :395, get_callsign_settings_json :445) snprintf raw NVS
-strings into `"%s"` unescaped — one stored quote/backslash and every subsequent
+strings into `"%s"` unescaped. One stored quote/backslash and every subsequent
 GET returns invalid JSON; settings.js `response.json()` throws; all fields
 blank until overwritten blind. WiFi passwords legitimately contain quotes.
 **Fix:** escape on output (and store escaped-correctly on input); add a
@@ -207,8 +209,8 @@ round-trip unit test with quote/backslash values.
 
 ### UR-09 — no per-endpoint key whitelist (VERIFIED)
 parse_and_process_json (:234-303) nvs_set_str's every quoted pair;
-handler_gps_settings_post (:417-434) — and the callsign (:467-484) and license
-(:521-538) siblings — feed the raw body in, so `POST /api/v1/gps` with
+handler_gps_settings_post (:417-434) and its callsign (:467-484) and license
+(:521-538) siblings feed the raw body in, so `POST /api/v1/gps` with
 `{"sta1_ssid":"x","sta1_pass":"y"}` silently overwrites WiFi credentials.
 Arbitrary unknown keys persist too (≤15-char NVS limit; process() return
 ignored). tuneTargets/cwMacros use targeted parsers, unaffected.
@@ -217,7 +219,7 @@ ignored). tuneTargets/cwMacros use targeted parsers, unaffected.
 ### UR-10 — double response on settings POST (VERIFIED)
 handler_settings.cpp:369 sends the full settings JSON
 (retrieve_and_send_settings → REPLY_WITH_STRING), then :371-379 runs
-schedule_deferred_reboot and REPLY_WITH_SUCCESS (204) — a second complete
+schedule_deferred_reboot and REPLY_WITH_SUCCESS (204), a second complete
 response on the same request; the failure branch (:377) can send a third.
 Bounded in practice by the 2 s reboot killing the connection.
 **Fix:** one response per request; pick the JSON, drop the 204.
@@ -227,8 +229,8 @@ handler_battery.cpp:38 declares `char out_buf[200]` uninitialized; the
 smart-battery failure branch (:58-60, triggered by get_battery_info's 100 ms
 mutex timeout, battery_monitor.cpp:144) only logs and falls through to :72-73:
 REPLY_WITH_STRING strlen's uninitialized stack (overread if no NUL) and ships
-it as HTTP 200 application/json — stack disclosure plus a body that fails
-response.json(). **Fix:** REPLY_WITH_FAILURE/503 in the branch — not `= {0}`
+it as HTTP 200 application/json: stack disclosure plus a body that fails
+response.json(). **Fix:** REPLY_WITH_FAILURE/503 in the branch, not `= {0}`
 (an empty-body 200 mislabeled as JSON is still wrong).
 
 ### UR-12 — XMIT UI inversion (VERIFIED)
@@ -236,18 +238,18 @@ main.js:761 flips AppState.isXmitActive and the button class before
 sendXmitRequest (:753-756) fire-and-forgets the PUT (fetchQuiet logs !ok,
 returns the response; sendXmitRequest discards it). radio_set_via_http
 (radio_http.cpp:80-93) returns 503 when FT8/keyer own the radio or the link is
-down. Nothing else writes isXmitActive — the inversion persists across every
+down. Nothing else writes isXmitActive. The inversion persists across every
 subsequent toggle until reload. **Fix:** revert state+UI on !ok/rejection;
 longer term, reflect real TX state from the status poll.
 
 ### UR-13 — normalizeRadioMode collision (VERIFIED)
-Both files declare global `function normalizeRadioMode(mode)` (main.js:1168 —
-spot-mode → firmware-mode mapper; chase.js:258 — USB/LSB→SSB family
+Both files declare global `function normalizeRadioMode(mode)` (main.js:1168,
+the spot-mode → firmware-mode mapper; chase.js:258, the USB/LSB→SSB family
 classifier). Tab scripts are persistent classic scripts: once Chase loads, the
 classifier wins everywhere. tuneRadioHz (main.js:1183) then passes synonym/data
 modes verbatim; handler_mode.cpp:80-84 replies 404; the mode failure
 early-returns *after* the frequency PUT succeeded but *before* the AppState
-update and onTuneRadioComplete — radio retunes, shared VFO state/highlight/
+update and onTuneRadioComplete. The radio retunes; shared VFO state/highlight/
 hooks lag until the next poll. Common modes (CW/FM/AM/FT8) pass through
 either way; breakage is synonym modes (PSK31, CW-R, PHONE), DATA-alias modes
 (SSTV, JT65…), and strings main.js would have treated as frequency-only tunes.
@@ -277,22 +279,22 @@ does. A poll landing between the PUTs and the optimistic AppState write
 (:1216-1219) returns pre-tune snapshot values and overwrites/notifies,
 reverting highlight/PoLo until the next 3 s tick. **Fix:** call
 suppressVfoPolling in tuneRadioHz; note suppression is checked only at poll
-start — the in-flight window needs a request-epoch/abort guard if it matters.
+start. The in-flight window needs a request-epoch/abort guard if it matters.
 
 ### UR-17 — rejected saves alert "saved" then clobber (VERIFIED)
 saveTuneTargets/saveCwMacros (settings.js:427-429, 700-702) set savedToDevice
-only on response.ok; a 400 ("too large" — handler_settings.cpp:600/675, caps
+only on response.ok; a 400 ("too large", handler_settings.cpp:600/675, caps
 in settings.h) or the 500 nvs-commit path (:611-612) falls through like a
 network error: caches written anyway (:435-441, 707-709), alert claims "saved
 for this session (device unavailable)" (:453, :720), and the next load
 (:140-149, 474-481) overwrites AppState and localStorage with the device's old
-list. Client per-field limits keep ASCII under the byte caps — the 400 is
+list. Client per-field limits keep ASCII under the byte caps. The 400 is
 realistically reachable via multi-byte UTF-8. **Fix:** distinguish 4xx/5xx from
 network failure; on rejection, report the server's reason and do not cache.
 
 ### UR-18 — zero-coordinate falsy checks (VERIFIED, narrowed)
 The string-side claims were wrong (the /api/v1/gps JSON carries quoted strings;
-"0" is truthy — main.js:1658 and qrx.js:76 are safe). The numeric-side bugs are
+"0" is truthy, so main.js:1658 and qrx.js:76 are safe). The numeric-side bugs are
 real: qrx.js:307 (`location.latitude && location.longitude`) and
 chase_api.js:127 (`spot.dx_latitude && spot.dx_longitude` → distance 99999)
 treat genuine 0° as missing. **Fix:** Number.isFinite / `!= null`, as
@@ -302,13 +304,13 @@ main.js:1643 already does for the localStorage path.
 main.js:837 `parseInt(await freqResponse.text(), 10)` unguarded; NaN !== NaN
 would fire all subscribers every tick. Not constructible from the firmware
 (handler_frequency.cpp:20 always formats numerically; the 500 path is caught by
-the !ok guard) — requires a captive portal/proxy answering 200. Damage partly
+the !ok guard). It requires a captive portal/proxy answering 200. Damage partly
 contained (NaN is falsy → chase highlight clears rather than corrupts).
 **Fix (one line):** Number.isFinite after the parse.
 
 ### UR-20/28/31 — firmware hygiene (U12)
 Idle/LED task wakes every 25 ms re-setting LED_OFF (idle_status_task.cpp:118-124;
-LED_FLASH_MSEC settings.h:11) — event-driven wait (portMAX_DELAY when idle)
+LED_FLASH_MSEC settings.h:11). An event-driven wait (portMAX_DELAY when idle)
 removes 40 wakeups/s. Reboot timer unique_ptr (webserver.cpp:378-412) is never
 release()d, so the success path deletes the just-armed timer (works only per
 ESP-IDF's documented delete-while-armed grace; reboot still fires). handler_ft8
@@ -321,16 +323,16 @@ write is throttled at 66 ms; touch returns early). loadCwMacrosAsync
 (main.js:232) has no already-loaded guard and Run-appear serializes four awaits
 (run.js:1510-1527). Spots auto-refresh (spots.js:191-201) fetches 500 spots and
 full-serializes localStorage every 60 s with no document.hidden check. VFO poll
-issues 2 GETs/tick (parallel; fix needs a combined endpoint — decide, likely
+issues 2 GETs/tick (parallel; a fix needs a combined endpoint, so likely a
 decline). QRX-appear double-fetches /api/v1/gps (concurrent; second visit
-cached). loadTabScriptIfNeeded fetch + script-tag re-request (ETag 304 — waste
-is one request, not a re-download). about.js refreshVersion duplicates
+cached). loadTabScriptIfNeeded fetch + script-tag re-request (ETag 304, so the
+waste is one request, not a re-download). about.js refreshVersion duplicates
 fetchAndUpdateElement's scaffolding (its extra version-parsing stays).
 
 ### UR-26/29 — settings.js / main.js dedup (U9 vehicle)
 Tune Targets stack (15 fns, settings.js:133-460) mirrors CW Macros (14 fns,
-:468-727) — structurally identical minus selectors/field shape/endpoint/mobile
-flag (+2 tune-target-only handlers). main.js loader triads (:174-224 vs
+:468-727). They are structurally identical minus selectors/field shape/endpoint/
+mobile flag (+2 tune-target-only handlers). main.js loader triads (:174-224 vs
 :232-273) same shape. Consolidate after UR-17 lands.
 
 ### UR-27 — handler_settings triplication (U4 vehicle)
@@ -346,8 +348,8 @@ main.js:1175); lists diverge in both directions (RTTY/PSK31/FT8/FT4/JS8 handled
 via main.js's separate tables). One shared table/pattern each.
 
 ### UR-35/36 — capability altitude (U13)
-adjustFrequency clamps to hardcoded KX2 limits (main.js:36-38 — the comment
-admits it — with a commented-out KX3 variant) while RADIO_CAPABILITIES
+adjustFrequency clamps to hardcoded KX2 limits (main.js:36-38; the comment
+admits it and includes a commented-out KX3 variant) while RADIO_CAPABILITIES
 (main.js:444-479) already carries per-radio band tables. setMode (run.js:942-950)
 resolves SSB client-side using `AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ`
 (14.225 MHz → USB, wrong on 40 m when VFO unknown) while the firmware accepts

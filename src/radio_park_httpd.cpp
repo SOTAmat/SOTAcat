@@ -89,7 +89,7 @@ static void on_park_tick (void *) {
 }
 
 // esp_timer callback (esp_timer task): never touch the table or sockets
-// here — just hop onto the server task. A failed post is harmless: the
+// here; just hop onto the server task. A failed post is harmless: the
 // timer fires again in RADIO_PARK_TICK_MS.
 static void tick_cb (void *) {
     if (s_server)

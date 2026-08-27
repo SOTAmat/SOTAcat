@@ -5,7 +5,7 @@
  *
  * The geolocation bridge returns coordinates as URL-parameter strings;
  * saveGpsToDevice is the single writer of AppState.gpsOverride, so it must
- * pin the coordinate type to finite numbers no matter what callers pass —
+ * pin the coordinate type to finite numbers no matter what callers pass;
  * hasValidLocation() consumers reject anything else.
  *
  * Usage:

@@ -21,7 +21,7 @@ int main () {
     assert (radio_get_action (false, true, false) == A::SERVE_STALE);
     assert (!radio_get_should_refresh (false, true));
 
-    // Link down (not FT8): refuse — but the refresh IS armed first.
+    // Link down (not FT8): refuse, but the refresh IS armed first.
     assert (radio_get_action (false, false, false) == A::REFUSE_LINK_DOWN);
     assert (radio_get_should_refresh (false, false));
 

@@ -4,9 +4,9 @@
  *
  * fetchQuiet logs HTTP-level failures (not only network rejections) and
  * hands the response back so callers can act. sendKeys enforces the
- * firmware's parameter limit client-side — the keyer message is decoded
+ * firmware's parameter limit client-side (the keyer message is decoded
  * into a 128-byte buffer while still URL-encoded, so the ENCODED length is
- * what matters — and tells the operator whenever the CW did not go out.
+ * what matters) and tells the operator whenever the CW did not go out.
  *
  * Usage:
  *   node test/unit/test_send_keys.js

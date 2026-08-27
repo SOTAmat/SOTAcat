@@ -37,7 +37,7 @@
 happens in a handler. A dedicated **radio service task** (`src/radio_service.cpp`)
 owns CAT I/O for the HTTP layer: handlers read a mutex-guarded **snapshot** or
 drop a command in a per-type **slot** (newest-wins; volume deltas accumulate),
-and — when they need the radio's answer — **park** the request
+and, when they need the radio's answer, **park** the request
 (`httpd_req_async_handler_begin`, `src/radio_park_httpd.cpp`) so the server
 task carries on while the worker completes it. Link health (3 consecutive CAT
 failures → down, first success → up) drives ⚫ and the 503 fast-path. FT8
@@ -98,7 +98,7 @@ The web UI is a small set of focused JS modules. See [Web-UI.md](Web-UI.md) for 
 - The CHASE band filter (`AppState.filterBandsEnabled`, default on, exposed in Settings as "Show only bands my radio can access") — opt-out so transverter users can disable it.
 - Helper `getRadioBands(radioType, requireTx)` lists a radio's bands; the chase band filter consumes it.
 
-The run-page band/mode buttons are deliberately **not** gated by this table — gating them would lock out users running transverters.
+The run-page band/mode buttons are deliberately **not** gated by this table. Gating them would lock out users running transverters.
 
 ### Firmware Distribution
 
@@ -116,7 +116,7 @@ src/
 ├── ...                # CAT, API, FT8 code
 ```
 
-Any new file added under `src/web/` must be wired in *two* places — see [Web-UI.md → Asset Pipeline](Web-UI.md#asset-pipeline).
+Any new file added under `src/web/` must be wired in *two* places. See [Web-UI.md → Asset Pipeline](Web-UI.md#asset-pipeline).
 
 ---
 

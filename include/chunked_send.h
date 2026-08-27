@@ -6,7 +6,7 @@
  * Chunked-send loop over a memory region (host-testable; see
  * test/host/test_chunked_send.cpp).
  *
- * Contract: any chunk failure aborts the transfer immediately — the loop
+ * Contract: any chunk failure aborts the transfer immediately. The loop
  * never advances past an unsent chunk, and nothing further is sent: a
  * zero-length terminator after a failure would make the truncated body read
  * as a complete response, so the error is returned instead and the caller's

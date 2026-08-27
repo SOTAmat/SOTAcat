@@ -7,18 +7,18 @@ spot-checked against source.
 
 **Status: COMPLETE (2026-08-25).** Every finding is resolved: fixed, declined
 for documented cause, refuted under verification, or handed to its own track
-(#107). All fixes passed the full gate — unit, integration, UI, and real
+(#107). All fixes passed the full gate: unit, integration, UI, and real
 hardware via OTA.
 
 This document is the **plan and evidence archive**. The **burndown lives in GitHub
-issues** (milestone: `2026-08 code review`): one issue per batch below. No PRs —
-we commit as a direct contributor, so each fix branch merges to main locally and
-its commit body carries `Fixes #N` plus the finding IDs (e.g. `fix: CR-01 ...`),
-which closes the issue when the commit reaches main. With no review gate, the
-verification bar is doubled: every batch fully retests on every tier that exists —
-host unit suite, firmware build, integration/UI (Playwright), and real hardware via
-OTA — and the diff is reviewed before anything merges. This doc is updated only to record fixing commit
-hashes in the Status column.
+issues** (milestone: `2026-08 code review`): one issue per batch below. There
+are no PRs. We commit as a direct contributor, so each fix branch merges to main
+locally and its commit body carries `Fixes #N` plus the finding IDs (e.g.
+`fix: CR-01 ...`), which closes the issue when the commit reaches main. With no
+review gate, the verification bar is doubled. Every batch fully retests on every
+tier that exists: host unit suite, firmware build, integration/UI (Playwright),
+and real hardware via OTA. The diff is reviewed before anything merges. This doc
+is updated only to record fixing commit hashes in the Status column.
 
 ## Scoring
 
@@ -28,7 +28,7 @@ Each finding scored 1–3 on four dimensions:
 - **Ease**: 3 = small localized fix, 2 = moderate, 1 = refactor/design work
 - **Iso** (isolation): 3 = independent, 2 = shares files with other findings, 1 = needs a refactor vehicle
 - **Imp** (real-world user impact): 3 = routine use, 2 = common situations, 1 = rare/invisible
-  — *Imp values are the reviewer's estimate; Q adjusts before ranking.*
+  (*Imp values are the reviewer's estimate; Q adjusts before ranking.*)
 
 **Rank** = Sev × Imp, tiebreak by Ease. **Iso** drives batching only.
 
@@ -165,14 +165,14 @@ Transient failure: 8 KB hole delivered as clean HTTP 200, zero logging. Dead soc
 terminator finally errors. Bonus: retrying a partially-sent chunk corrupts chunked
 framing. **Fix:** abort and return on any error after (or instead of) the retry budget;
 never fall through. *Errata (e20aebe):* no terminator may be sent after a
-failure either — a zero-length chunk makes the truncated body read as
+failure either. A zero-length chunk makes the truncated body read as
 complete (observed live: 19 KB asset delivered as 2.7 KB with HTTP 200);
 the error return closes the socket instead.
 
 ### CR-03 — UART retry accounting (VERIFIED)
-kx_radio.cpp:86-92: `if ((busy) || --tries > 0)` then recurse with `tries - 1` —
-double decrement per failed attempt: attempts = ceil((tries+1)/2); the promised 3
-becomes 2. Busy path short-circuits `--tries` but still passes `tries-1` (budget IS
+kx_radio.cpp:86-92: `if ((busy) || --tries > 0)` then recurse with `tries - 1`.
+That is a double decrement per failed attempt: attempts = ceil((tries+1)/2); the
+promised 3 becomes 2. Busy path short-circuits `--tries` but still passes `tries-1` (budget IS
 consumed, contradicting the comment) *and* never consults tries at all → persistent
 `?;` recurses unboundedly (stack growth, 30 ms + buffer flush per frame).
 put_to_kx:386 pins readback retries at 2 (outer write-verify loop does honor tries).
@@ -183,14 +183,14 @@ tries to the readback.
 ### CR-04 — qrx infinite loop (VERIFIED)
 qrx.js:170-217: ladder 0.1→1→10→50→100 saturates (all ternaries false at 100 →
 `range = 100`), guard `range <= maxRange` stays true, no break/counter. Steady 200
-with `[]` (ocean/plains — the case the ceiling exists for) → unbounded identical
+with `[]` (ocean/plains, the case the ceiling exists for) → unbounded identical
 requests to api-db2.sota.org.uk. **Fix:** break after the 100 km attempt (or `<`).
 
 ### CR-05 / CR-06 — band privileges (VERIFIED; attach to #107)
 bandprivileges.js:59,74,96 give N/T `["CW","DATA"]` on 80/40/15 segments that are
 CW-only for N/T (§97.301(e)); the file's own 10 m rows encode the real exception.
-The flat modes×classes cross-product cannot express per-class mode limits — schema
-change required. Separately, BAND_PLAN["60m"] = 5.300–5.400 MHz (main.js:398)
+The flat modes×classes cross-product cannot express per-class mode limits. A
+schema change is required. Separately, BAND_PLAN["60m"] = 5.300–5.400 MHz (main.js:398)
 excludes the real 5403.5–5406.5 channel (bandprivileges.js:70 has it right):
 getBandFromFrequency returns null → VFO input rejected, privileges fail.
 
@@ -215,7 +215,7 @@ helper for both).
 main.js:795-802 sendKeys URL-encodes unbounded input; firmware parameter buffer is
 128 B (STANDARD_DECODE_PARAMETER, webserver.h:69) → over-long PUT fails server-side.
 fetchQuiet (main.js:72-74) only catches network rejections; HTTP 4xx/5xx resolve and
-are discarded — operator sees nothing, CW never goes out. **Fix:** client-side length
+are discarded. The operator sees nothing; CW never goes out. **Fix:** client-side length
 check against the encoded length; make fetchQuiet (or a wrapper) surface !ok.
 
 ### CR-10 — unmapped modes (VERIFIED)
@@ -237,7 +237,7 @@ against known tabs with fallback to default.
 
 ### CR-12 — run-tab appear/leave race (VERIFIED)
 openTab fires `window[onAppearingFunctionName]()` without awaiting (main.js:1272);
-onSpotEntering awaits four loaders (run.js:1649-1676) — loadCwMacrosAsync always hits
+onSpotEntering awaits four loaders (run.js:1649-1676). loadCwMacrosAsync always hits
 the network. A tab switch inside that window runs onRunLeaving mid-setup; no
 generation counter or re-entrancy guard anywhere. **Fix:** generation token or await
 + disable tab buttons during transition.
@@ -252,13 +252,13 @@ chase.js:678-681 alerts. **Fix:** alert or disable until frequency known.
 chase_api.js:280 reads `spot.sig_ref`; transform (:180-261) writes only
 `spothole_sig_refs`/`locationID`/`details`. uniqueRefs stays empty →
 fetchReferenceDetails, referenceDetailsCache, formatReferenceDetails all unreachable.
-**Fix:** decide — wire it to real keys or delete the machinery.
+**Fix:** decide whether to wire it to real keys or delete the machinery.
 
 ### CR-15 — zero coordinate (VERIFIED)
 qrx.js:192 `!location.latitude || !location.longitude` on parseFloat'd numbers;
 `51.4779, 0` saves fine then "Nearest SOTA" claims no location.
 **Fix:** `Number.isFinite` checks. *Errata (2866649):* the geolocation bridge
-delivers URL-parameter strings, which the old falsy guard silently tolerated —
+delivers URL-parameter strings, which the old falsy guard silently tolerated.
 saveGpsToDevice now pins coordinates to finite numbers at the boundary so the
 strict guard holds (field report: Nearest SOTA refused right after Locate Me).
 
@@ -278,10 +278,10 @@ run.js getCurrentVfoState/startVfoUpdates/notifyVfoSubscribers (:1016,:1092,:865
 duplicate main.js fetchVfoState/startGlobalVfoPolling/subscriber fan-out (:810,:859,
 :841) minus AbortController, timeout, localhost and pause guards; both write the same
 AppState fields and iterate the same callback array. Intervals are mutually exclusive
-in normal flow (correction) — cost is drift. Edit-mode has no poll suppression beyond
+in normal flow (correction); the cost is drift. Edit-mode has no poll suppression beyond
 the 2 s post-action window (:1016-1020) vs 3 s poll period → mid-edit stomp, self-
 heals next tick. setFrequency debounce `finally` nulls the shared handle without
-comparing (:895-919) — plausible lost-cleanup on overlap.
+comparing (:895-919), a plausible lost-cleanup on overlap.
 **Fix (one vehicle):** run.js subscribes via subscribeToVfo/startGlobalVfoPolling;
 add edit-mode suppression; capture handle locally in debounce.
 
@@ -294,29 +294,29 @@ before fixing (part of B14's loader consolidation).
 ### CR-22 — visibility resume (PLAUSIBLE)
 main.js:1367-1374 refresh calls no-op if a controller was in flight when the tab
 froze (each poller bails on its module-scope controller; nothing aborts on
-visibilitychange). Timeout abort callbacks eventually clear — window is narrow.
+visibilitychange). Timeout abort callbacks eventually clear; the window is narrow.
 **Fix (if taken):** abort+null controllers on visibilitychange before refreshing.
 
 ### CR-23 — FT8 guard hygiene (VERIFIED; race REFUTED)
 CommandInProgressResetGuard defined twice verbatim (handler_ft8.cpp:840-854,
 954-968); success paths store(false)+dismiss (redundant); after :983 the flag is
-re-set with a plain store and :986-1098 has ~10 manually-cleared exit paths, no guard
-— a future early return leaks the flag stuck-true and stalls cleanup_ft8_task
+re-set with a plain store and :986-1098 has ~10 manually-cleared exit paths, no
+guard. A future early return leaks the flag stuck-true and stalls cleanup_ft8_task
 (:524-528). Concurrency stomp refuted: single httpd task serializes handlers; the
 pre-acquisition clears at :931/938/943 are dead no-ops. **Fix:** one file-scope guard
 type, guard the whole tail, delete manual stores.
 
 ### CR-24 — fuel-gauge persistence (SPOT-CHECKED)
 write_learned_params has zero callers; poll() reads learned params into m_saved_params
-(max17260.cpp:316) which nothing consumes — 5 I2C reads/cycle wasted and battery
-learning lost every power cycle. **Fix:** decide — implement the save-on-Cycles-bit
-policy the TODO describes, or delete both halves.
+(max17260.cpp:316) which nothing consumes: 5 I2C reads/cycle wasted and battery
+learning lost every power cycle. **Fix:** decide whether to implement the
+save-on-Cycles-bit policy the TODO describes, or delete both halves.
 
 ### CR-32/33 — keep-alive coherence (SPOT-CHECKED; B18, behavior change)
 wifi.cpp:794-820 creates a socket every 60 s, sets keepalive options on it, closes
-it — options reach no live connection. Meanwhile every API reply sends
+it. The options reach no live connection. Meanwhile every API reply sends
 `Connection: close` (webserver.h:111,125) while start_webserver configures
-keep-alive (webserver.cpp:328-331) — every poll pays a TCP handshake on a 12-socket
+keep-alive (webserver.cpp:328-331). Every poll pays a TCP handshake on a 12-socket
 pool. **Fix:** delete the wifi.cpp block; drop the Connection: close header; field-
 test with 3+ tabs (watch lru_purge behavior) before merging.
 

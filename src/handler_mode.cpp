@@ -25,7 +25,7 @@ static void send_mode (httpd_req_t * req, const RadioSnapshotData & snap) {
     http_send_string (req, name);
 }
 
-// Async completer: the refresh finished (or the wait expired) — reply with
+// Async completer: the refresh finished (or the wait expired). Reply with
 // whatever the snapshot holds now. Payload byte-identical to the sync path.
 static void mode_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
     send_mode (req, radio_snapshot::get());
@@ -36,7 +36,7 @@ static void mode_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
  *
  * Fresh snapshot: reply immediately. Stale/unknown: arm a background refresh
  * and, if the link is up, park the request (up to RADIO_PARK_GET_WAIT_MS)
- * so the reply reflects the refreshed value — the HTTP server task is never
+ * so the reply reflects the refreshed value. The HTTP server task is never
  * blocked. If parking isn't possible, reply with the last-known value.
  *
  * @param req Pointer to the HTTP request structure.

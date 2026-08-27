@@ -209,7 +209,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
         return ESP_FAIL;
 
     // ETag = firmware version. It changes on every OTA, so a browser's whole
-    // cached asset set revalidates together after an update — no stale-mix (#110).
+    // cached asset set revalidates together after an update, never a stale mix (#110).
     char etag[80];
     snprintf (etag, sizeof (etag), "\"%s\"", get_version_string());
 
@@ -317,7 +317,7 @@ void start_webserver () {
         uri_api.method = HTTP_POST;
         httpd_register_uri_handler (server, &uri_api);
 
-        // Async radio GET/SET completion (parked requests) — inert until a
+        // Async radio GET/SET completion (parked requests). Inert until a
         // handler registers a completer and calls radio_park_request().
         radio_park_init (server);
 

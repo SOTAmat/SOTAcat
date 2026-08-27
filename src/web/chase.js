@@ -496,7 +496,7 @@ function updateMyCallButton() {
     let title = "";
 
     if (modeCategory === "PHONE") {
-        // Phone mode: acts as Toggle TX — only disable if privileges don't allow
+        // Phone mode: acts as Toggle TX; only disable if privileges don't allow
         if (vfoFreq) {
             const userLicense = getUserLicenseClass();
             const status = checkPrivileges(vfoFreq, vfoMode, userLicense);
@@ -520,7 +520,7 @@ function updateMyCallButton() {
         shouldDisable = true;
         title = "Not available in DATA mode";
     } else {
-        // CW mode: sends callsign — disable only if no privilege
+        // CW mode: sends callsign; disable only if no privilege
         if (vfoFreq) {
             const userLicense = getUserLicenseClass();
             const status = checkPrivileges(vfoFreq, vfoMode, userLicense);
@@ -785,7 +785,7 @@ function buildChaseRow(spot, isMySpot) {
         }
     };
 
-    // 1. UTC time (ensure Date object — cache round-trip deserializes as string)
+    // 1. UTC time (ensure Date object; cache round-trip deserializes as string)
     const ts = spot.timestamp instanceof Date ? spot.timestamp : new Date(spot.timestamp);
     const formattedTime = `${ts.getUTCHours().toString().padStart(2, "0")}:${ts.getUTCMinutes().toString().padStart(2, "0")}`;
     const utcCell = row.insertCell();

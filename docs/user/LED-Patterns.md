@@ -2,7 +2,7 @@
 
 **Who this is for:** Users reading the lights on the SOTAcat device
 
-SOTAcat has two LEDs — **blue** and **red** — that report what the device is
+SOTAcat has two LEDs, **blue** and **red**, that report what the device is
 doing. The patterns below are the same on both hardware versions (the original
 AB6D module and the cased K5EM module); only the charging behavior differs (see
 [Charging](#charging-and-usb-power)).
@@ -48,7 +48,7 @@ When you power on:
   is complete and the idle heartbeat begins.
 
 If you use the device as its own access point, both LEDs can stay on until
-your phone actually joins that network — advertising the AP is not enough.
+your phone actually joins that network. Advertising the AP is not enough.
 
 If startup can't complete and the battery is below 70%, the device powers
 itself off rather than draining the battery. That path just goes dark; it
@@ -112,7 +112,7 @@ It will **not** shut down from idle if either of these is true:
 
 - USB power is detected (K5EM module), or
 - the battery is still at or above 70% (the idle timer is reset and it keeps
-running — typical while charging)
+running; typical while charging)
 
 To wake it back up, power-cycle the device (or your radio, if SOTAcat is
 powered from it).

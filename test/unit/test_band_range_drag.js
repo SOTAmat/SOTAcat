@@ -60,7 +60,7 @@ function assertClose(actual, expected, tolerance, msg = '') {
 // ============================================================================
 // Load the functions under test
 // ============================================================================
-// Strategy: same as test_bandprivileges.js — pull the source files into a
+// Strategy (same as test_bandprivileges.js): pull the source files into a
 // sandboxed VM context, then extract the functions we want.
 
 const sandbox = {
@@ -73,7 +73,7 @@ vm.createContext(sandbox);
 const bpPath = path.join(__dirname, '../../src/web/bandprivileges.js');
 vm.runInContext(fs.readFileSync(bpPath, 'utf8'), sandbox);
 
-// run.js is too large and has DOM/network dependencies — extract only the
+// run.js is too large and has DOM/network dependencies. Extract only the
 // drag pure helpers by regex. These are intentionally written as standalone
 // top-level functions for exactly this reason.
 const runJsPath = path.join(__dirname, '../../src/web/run.js');
@@ -97,7 +97,7 @@ for (const name of fnNames) {
 }
 
 // Note: const declarations in vm.runInContext live in the script's scope,
-// not on the context object — so we destructure functions (which are
+// not on the context object, so we destructure functions (which are
 // hoisted onto the context) but NOT const tables like MODE_SNAP_HZ. Reach
 // MODE_SNAP_HZ values through getSnapStepHz instead.
 const {
