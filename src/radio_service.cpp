@@ -41,6 +41,9 @@ static std::atomic<bool>         s_link_up{false};
 static std::atomic<bool>         s_started{false};
 static std::atomic<int64_t>      s_last_cat_attempt_us{0};
 static std::atomic<TaskHandle_t> s_worker{nullptr};
+static std::atomic<bool>         s_manual_tune_active{false};
+static std::atomic<int64_t>      s_manual_tune_deadline_us{0};
+static constexpr int64_t         MANUAL_TUNE_TIMEOUT_US = 5'000'000;
 
 // All pending work is held as per-type slots (not a FIFO queue), so a
 // burst of N requests of the same type collapses to one automatically:
@@ -76,6 +79,7 @@ bool radio_service_park_kind (RadioCmdType t, RadioParkKind & k) {
     case RadioCmdType::SET_VOLUME: k = RadioParkKind::SET_VOLUME; return true;
     case RadioCmdType::SET_POWER: k = RadioParkKind::SET_POWER; return true;
     case RadioCmdType::SET_ATU: k = RadioParkKind::SET_ATU; return true;
+    case RadioCmdType::SET_MANUAL_TUNE: k = RadioParkKind::SET_MANUAL_TUNE; return true;
     case RadioCmdType::SET_XMIT: k = RadioParkKind::SET_XMIT; return true;
     case RadioCmdType::SET_MSG: k = RadioParkKind::SET_MSG; return true;
     case RadioCmdType::SET_TIME: k = RadioParkKind::SET_TIME; return true;
@@ -297,6 +301,21 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
     case RadioCmdType::SET_ATU:
         ok = kxRadio.tune_atu();
         break;
+    case RadioCmdType::SET_MANUAL_TUNE: {
+        const bool want_active = arg != 0;
+        const bool is_active = s_manual_tune_active.load (std::memory_order_acquire);
+        if (want_active == is_active) {
+            ok = true;  // Idempotent retry; do not toggle the radio again.
+        }
+        else {
+            ok = kxRadio.manual_tune (want_active);
+            if (ok) {
+                s_manual_tune_active.store (want_active, std::memory_order_release);
+                s_manual_tune_deadline_us.store (want_active ? now + MANUAL_TUNE_TIMEOUT_US : 0, std::memory_order_release);
+            }
+        }
+        break;
+    }
     case RadioCmdType::SET_XMIT:
         ok = kxRadio.set_xmit_state (arg != 0);
         if (ok)
@@ -358,6 +377,16 @@ static void radio_service_task (void *) {
         // timeout, so the watchdog stays fed. FT8 timing takes precedence.
         if (Ft8RadioExclusive)
             continue;
+
+        // Firmware-side fail-safe: stop manual tune even if the browser
+        // disconnects. This bypasses the normal SET expiry because safety
+        // shutdown must remain pending until it reaches the radio.
+        const int64_t manual_deadline = s_manual_tune_deadline_us.load (std::memory_order_acquire);
+        if (s_manual_tune_active.load (std::memory_order_acquire) && manual_deadline > 0 && esp_timer_get_time() >= manual_deadline) {
+            bool ok = false;
+            if (do_set (RadioCmdType::SET_MANUAL_TUNE, 0, 0, ok) && !ok)
+                ESP_LOGE (TAG8, "automatic manual-tune stop failed; retrying");
+        }
 
         // Drain SET slots first (freq, mode, volume, power, atu order:
         // a tune sets frequency then mode, matching the client).

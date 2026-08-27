@@ -696,7 +696,7 @@ input.frequency-display {
 
 .power-controls {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: var(--space-sm);
 }
 
@@ -807,6 +807,16 @@ input.frequency-display {
     background: var(--warning);
     color: var(--gray-9);
     padding: 0;
+}
+
+.btn-manual-tune {
+    background: var(--success);
+    color: var(--white);
+    padding: 0;
+}
+
+.btn-manual-tune.active {
+    background: var(--danger);
 }
 
 /* Msg buttons: pushbuttons colored by current mode (saturated at rest) */
@@ -2411,6 +2421,12 @@ button.password-visibility-toggle svg {
     }
     .btn-tune:hover:not(:disabled) {
         background: var(--warning-dark);
+    }
+    .btn-manual-tune:hover:not(:disabled) {
+        background: var(--success-dark);
+    }
+    .btn-manual-tune.active:hover:not(:disabled) {
+        background: var(--danger-dark);
     }
     .btn-msg:hover:not(:disabled) {
         background: var(--gray-6);

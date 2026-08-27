@@ -35,6 +35,7 @@ enum class RadioParkKind : int {
     SET_MODE,
     SET_VOLUME,
     SET_ATU,
+    SET_MANUAL_TUNE,
     SET_POWER,
     SET_XMIT,
     SET_MSG,

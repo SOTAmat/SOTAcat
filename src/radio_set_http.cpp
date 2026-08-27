@@ -60,6 +60,7 @@ static radio_park_completer_t completer_for (RadioParkKind kind) {
     case RadioParkKind::SET_MODE: return set_complete_k<RadioParkKind::SET_MODE>;
     case RadioParkKind::SET_VOLUME: return set_complete_k<RadioParkKind::SET_VOLUME>;
     case RadioParkKind::SET_ATU: return set_complete_k<RadioParkKind::SET_ATU>;
+    case RadioParkKind::SET_MANUAL_TUNE: return set_complete_k<RadioParkKind::SET_MANUAL_TUNE>;
     case RadioParkKind::SET_POWER: return set_complete_k<RadioParkKind::SET_POWER>;
     case RadioParkKind::SET_XMIT: return set_complete_k<RadioParkKind::SET_XMIT>;
     case RadioParkKind::SET_MSG: return set_complete_k<RadioParkKind::SET_MSG>;

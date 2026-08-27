@@ -605,6 +605,20 @@ class MockSOTAcatServer:
 
             return radio_reply(*self.radio.apply("ATU tune", mutate))
 
+        # Manual tune (firmware enforces the five-second safety timeout)
+        @self.app.route("/api/v1/manualTune", methods=["PUT"])
+        def manual_tune():
+            state_val = request.args.get("state", "")
+            if state_val not in ("0", "1"):
+                return radio_reply(404, "invalid state")
+
+            def mutate():
+                self.state["manual_tune"] = state_val == "1"
+                print(f"[MOCK] Manual tune: {'active' if state_val == '1' else 'stopped'}")
+                return True
+
+            return radio_reply(*self.radio.apply("manual tune", mutate))
+
         # OTA update (just acknowledge, don't do anything)
         @self.app.route("/api/v1/ota", methods=["POST"])
         def ota_update():
