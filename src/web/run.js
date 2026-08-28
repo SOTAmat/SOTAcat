@@ -10,13 +10,9 @@
 // Spot page state encapsulated in a single object
 // Note: VFO frequency/mode are stored in global AppState for cross-page sharing
 const RunState = {
-    // VFO polling state (frequency/mode stored in AppState)
-    vfoUpdateInterval: null,
-    lastUserAction: 0,
-    isUpdatingVfo: false,
+    // VFO state (frequency/mode stored in AppState; polling lives in main.js)
     pendingFrequencyUpdate: null,
-    consecutiveErrors: 0,
-    lastFrequencyChange: 0,
+    isEditingFrequency: false,
 
     // UI state
     spotEventListenersAttached: false,
@@ -32,7 +28,7 @@ const VISUAL_FEEDBACK_DURATION_MS = 200;
 const FREQUENCY_UPDATE_DEBOUNCE_MS = 300;
 const MODE_CHECK_DELAY_MS = 400;
 // VFO_POLLING_INTERVAL_MS is defined in main.js
-const ERROR_RESET_STABILITY_MS = 10000;
+const VFO_ACTION_SUPPRESS_MS = 2000; // pause shared VFO polling after a user action
 const ATU_FEEDBACK_DURATION_MS = 1000;
 
 // Frequency constants defined in main.js: BAND_PLAN, DEFAULT_FREQUENCY_HZ,
@@ -56,7 +52,7 @@ function playMsg(slot) {
 function setPowerMinMax(maximum) {
     // KX3 max power is 15w, KX2 will accept that and gracefully set 10w instead
     // On both radios, actual power may be lower than requested, depending on mode, battery, etc.
-    RunState.lastUserAction = Date.now(); // Prevent VFO polling while setting power. KH reads power/freq from display
+    suppressVfoPolling(VFO_ACTION_SUPPRESS_MS); // KH reads power/freq from display
     const url = `/api/v1/power?power=${maximum ? "15" : "0"}`;
     fetchQuiet(url, { method: "PUT" }, "Spot");
 }
@@ -149,7 +145,7 @@ function updateModeDisplay() {
     applyKeyerFamilyHints();
 }
 
-// Returns "cw" | "data" | null — the family of signal that will actually be
+// Returns "cw" | "data" | null: the family of signal that will actually be
 // transmitted when we key.  CW/CW_R stay in CW; DATA/DATA_R send as RTTY
 // (DT2) or PSK31 (DT3) depending on the DT sub-mode set on the radio;
 // everything else gets forced to CW by the backend (see the RTTY-keying plan,
@@ -158,7 +154,7 @@ function getKeyerFamily(mode) {
     const m = (mode || "").toUpperCase();
     if (!m || m === "UNKNOWN") return null;
     if (m === "DATA" || m === "DATA_R") return "data";
-    return "cw"; // CW, CW_R, USB, LSB, AM, FM — all emit CW from the keyer
+    return "cw"; // CW, CW_R, USB, LSB, AM, FM all emit CW from the keyer
 }
 
 // Update the RUN-tab Transmit section to reflect what the keyer will emit:
@@ -343,13 +339,13 @@ const MODE_CATEGORIES = ["CW", "DATA", "PHONE"];
 // Determine which license-class badges are currently rendered in the VFO
 // (matches the visibility logic in updatePrivilegeDisplay()).
 // Novice + Advanced badges are hidden unless the user actually holds one of
-// those classes — the legacy classes are otherwise just visual clutter.
+// those classes. The legacy classes are otherwise just visual clutter.
 function getVisibleLicenseClasses() {
     const showLegacy = AppState.licenseClass === "N" || AppState.licenseClass === "A";
     return showLegacy ? ["N", "T", "G", "A", "E"] : ["T", "G", "E"];
 }
 
-// Render the band-range graph as a stack of thin rows — one row per
+// Render the band-range graph as a stack of thin rows: one row per
 // currently-visible license class, top = most-restrictive (E), bottom =
 // least (T or N). The chart is OPERATOR-CENTRIC: it visualizes the band
 // from the perspective of the user's currently-selected radio mode.
@@ -359,7 +355,7 @@ function getVisibleLicenseClasses() {
 //   • Class has privileges AND current mode is permitted → solid stripe
 //     in the current mode's color (PHONE green / CW blue / DATA yellow).
 //     Other modes that may also be allowed in this segment are
-//     deliberately not depicted — the operator is in their chosen mode.
+//     deliberately not depicted. The operator is in their chosen mode.
 //   • Class has privileges but current mode is forbidden → side-by-side
 //     stripes for the modes that ARE allowed (the user's current mode
 //     is excluded since it's not allowed here anyway). The visual
@@ -371,7 +367,7 @@ function getVisibleLicenseClasses() {
 // the underlying truth stays discoverable on hover.
 //
 // Stripe positions inside a segment do NOT correspond to frequency
-// sub-ranges — all listed modes are permitted across the segment's full
+// sub-ranges. All listed modes are permitted across the segment's full
 // frequency range; the stripes are a "which modes are available here" key.
 function updateBandRangeDisplay() {
     const container = document.getElementById("vfo-band-range");
@@ -412,13 +408,13 @@ function updateBandRangeDisplay() {
     const frag = document.createDocumentFragment();
 
     // Spots row (top of stack). Built before license rows so DOM order
-    // gives us correct visual stacking — first child is topmost.
+    // gives us correct visual stacking. First child is topmost.
     const spotsRow = document.createElement("div");
     spotsRow.className = "vfo-band-range-row vfo-band-range-spots-row";
 
     const spotsLabel = document.createElement("span");
     spotsLabel.className = "vfo-band-range-label";
-    spotsLabel.textContent = "";  // empty — no label for the spots row
+    spotsLabel.textContent = "";  // empty: no label for the spots row
     spotsRow.appendChild(spotsLabel);
 
     const spotsTrack = document.createElement("div");
@@ -523,7 +519,7 @@ function updateBandRangeDisplay() {
 // ============================================================================
 // Drag-to-tune (mouse) / tap-to-tune (touch) on the band-range chart
 // ============================================================================
-// Mouse: pointerdown anywhere in #vfo-band-range starts a live drag — the
+// Mouse: pointerdown anywhere in #vfo-band-range starts a live drag. The
 // visual tick follows the pointer (snapped per-mode, clamped to band edges)
 // and CAT writes are throttled to ~15 Hz, with a final canonical
 // setFrequency() on pointerup.
@@ -534,8 +530,7 @@ function updateBandRangeDisplay() {
 // the browser handing off to a scroll gesture) commits nothing.
 //
 // VFO read polling is suppressed automatically because the drag/tap path
-// updates RunState.lastUserAction, which getCurrentVfoState() already
-// honors via its existing 2s window.
+// calls suppressVfoPolling(), which the shared main.js poller honors.
 
 const DRAG_WRITE_THROTTLE_MS = 66;
 const DRAG_DEAD_ZONE_PX = 3;
@@ -563,7 +558,7 @@ function computeDragFrequency(clientX, state) {
 function applyDragFrequency(hz, state) {
     AppState.vfoFrequencyHz = hz;
     AppState.vfoLastUpdated = Date.now();
-    RunState.lastUserAction = Date.now(); // Suppress VFO read polling for 2s
+    suppressVfoPolling(VFO_ACTION_SUPPRESS_MS);
     updateFrequencyDisplay();
     updatePrivilegeDisplay();   // redraws the tick at the new position
     notifyVfoSubscribers();
@@ -576,7 +571,7 @@ function applyDragFrequency(hz, state) {
 }
 
 function onBandRangeDragStart(event) {
-    // Skip if the pointerdown landed on a spot tick — its click handler
+    // Skip if the pointerdown landed on a spot tick. Its click handler
     // takes care of the tune, and we don't want a phantom drag commit.
     if (event.target && event.target.closest && event.target.closest(".vfo-band-range-spot-tick")) {
         return;
@@ -630,7 +625,7 @@ function onBandRangeDragStart(event) {
     }
     // Touch: don't preventDefault (let the browser hand off to a scroll
     // gesture if that's what the user is doing), don't capture, and don't
-    // commit the touch-down position — we wait until pointerup.
+    // commit the touch-down position; we wait until pointerup.
 }
 
 function onBandRangeDragMove(event) {
@@ -638,7 +633,7 @@ function onBandRangeDragMove(event) {
     if (Math.abs(event.clientX - dragState.startX) >= DRAG_DEAD_ZONE_PX) {
         dragState.exceededDeadZone = true;
     }
-    // Touch: no live tracking — tap-to-jump only. Mouse: live drag.
+    // Touch: no live tracking, tap-to-jump only. Mouse: live drag.
     if (dragState.isTouch) return;
     const hz = computeDragFrequency(event.clientX, dragState);
     applyDragFrequency(hz, dragState);
@@ -730,7 +725,7 @@ function updateButtonPrivileges() {
     const currentMode = AppState.vfoMode || "USB";
     const userLicense = getUserLicenseClass();
 
-    // Check each mode category (3 calls — SSB/AM/FM share PHONE)
+    // Check each mode category (3 calls; SSB/AM/FM share PHONE)
     const cwStatus = checkPrivileges(frequencyHz, "CW", userLicense);
     const phoneStatus = checkPrivileges(frequencyHz, "USB", userLicense);
     const dataStatus = checkPrivileges(frequencyHz, "DATA", userLicense);
@@ -784,6 +779,7 @@ function enableFrequencyEditing() {
     display.classList.add("hidden");
     input.classList.remove("hidden");
     if (vfoDisplay) vfoDisplay.classList.add("editing");
+    RunState.isEditingFrequency = true;
     input.value = display.textContent;
 
     // Handle input confirmation
@@ -830,6 +826,7 @@ function enableFrequencyEditing() {
         input.classList.add("hidden");
         display.classList.remove("hidden");
         if (vfoDisplay) vfoDisplay.classList.remove("editing");
+        RunState.isEditingFrequency = false;
         display.textContent = formatFrequency(AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ);
 
         // Remove event listeners
@@ -861,15 +858,23 @@ function enableFrequencyEditing() {
 // VFO Control Functions
 // ============================================================================
 
-// Notify all VFO subscribers of state change
-function notifyVfoSubscribers() {
-    AppState.vfoChangeCallbacks.forEach((callback) => {
-        try {
-            callback(AppState.vfoFrequencyHz, AppState.vfoMode);
-        } catch (error) {
-            Log.error("Spot")("VFO callback error:", error);
-        }
-    });
+// Shared-poller subscriber: renders VFO state into this page's displays.
+// Skips every write while the operator is editing the frequency field, so a
+// poll can never repaint the display mid-edit.
+function onRunVfoChanged(frequency, mode) {
+    if (RunState.isEditingFrequency) return;
+    updateFrequencyDisplay();
+    updateBandDisplay();
+    updateModeDisplay();
+    updatePrivilegeDisplay();
+    updateSpotButtonStates(); // PoLo enables once a frequency is known
+}
+
+// Re-read the radio immediately (e.g. after a failed set): lift any
+// user-action suppression and let the shared poller fetch fresh state.
+function resyncVfoFromRadio() {
+    AppState.vfoPollSuppressedUntil = 0;
+    fetchVfoState();
 }
 
 // Send frequency to radio without debouncing. Used by the drag-to-tune
@@ -883,17 +888,17 @@ async function setFrequencyImmediate(frequencyHz) {
             Log.debug("Spot")("Frequency updated:", frequencyHz);
         } else {
             Log.error("Spot")("Frequency update failed");
-            getCurrentVfoState(); // Revert display on error
+            resyncVfoFromRadio(); // Revert display on error
         }
     } catch (error) {
         Log.error("Spot")("Frequency fetch error:", error);
-        getCurrentVfoState(); // Revert display on error
+        resyncVfoFromRadio(); // Revert display on error
     }
 }
 
 // Set radio frequency with 300ms debouncing to avoid flooding (frequencyHz: integer in Hz)
 function setFrequency(frequencyHz) {
-    RunState.lastUserAction = Date.now(); // Mark user action timestamp
+    suppressVfoPolling(VFO_ACTION_SUPPRESS_MS);
 
     // Clear any pending frequency update
     if (RunState.pendingFrequencyUpdate) {
@@ -908,14 +913,17 @@ function setFrequency(frequencyHz) {
     updatePrivilegeDisplay();
     notifyVfoSubscribers();
 
-    // Debounce frequency updates to avoid flooding the radio
-    RunState.pendingFrequencyUpdate = setTimeout(async () => {
+    // Debounce frequency updates to avoid flooding the radio. The timer
+    // clears only its own handle: a stale timer finishing late must not
+    // wipe a newer pending one.
+    const handle = setTimeout(async () => {
         try {
             await setFrequencyImmediate(frequencyHz);
         } finally {
-            RunState.pendingFrequencyUpdate = null;
+            if (RunState.pendingFrequencyUpdate === handle) RunState.pendingFrequencyUpdate = null;
         }
     }, FREQUENCY_UPDATE_DEBOUNCE_MS);
+    RunState.pendingFrequencyUpdate = handle;
 }
 
 // Adjust frequency by specified delta in Hz (positive or negative)
@@ -932,7 +940,7 @@ function adjustFrequency(deltaHz) {
 
 // Set radio mode (mode: 'CW', 'SSB', 'USB', 'LSB', 'DATA', etc.)
 async function setMode(mode) {
-    RunState.lastUserAction = Date.now(); // Mark user action timestamp
+    suppressVfoPolling(VFO_ACTION_SUPPRESS_MS);
 
     let actualMode = mode;
 
@@ -956,19 +964,19 @@ async function setMode(mode) {
         } else {
             Log.error("Spot")("Mode update failed");
             // Revert display on error
-            getCurrentVfoState();
+            resyncVfoFromRadio();
         }
     } catch (error) {
         Log.error("Spot")("Mode fetch error:", error);
         // Revert display on error
-        getCurrentVfoState();
+        resyncVfoFromRadio();
     }
 }
 
 // Select band and set appropriate frequency and mode (band: '40m', '20m', '17m', '15m', '12m', '10m')
 function selectBand(band) {
     if (BAND_PLAN[band]) {
-        RunState.lastUserAction = Date.now(); // Mark user action to prevent polling conflicts
+        suppressVfoPolling(VFO_ACTION_SUPPRESS_MS);
 
         // Set frequency first
         setFrequency(BAND_PLAN[band].initial);
@@ -1006,161 +1014,6 @@ function selectBand(band) {
             }
         }, MODE_CHECK_DELAY_MS);
     }
-}
-
-// ============================================================================
-// VFO Polling Functions
-// ============================================================================
-
-// Poll radio for current VFO state (frequency and mode)
-async function getCurrentVfoState() {
-    if (RunState.isUpdatingVfo) return; // Avoid concurrent updates
-
-    // Don't poll if user made a change in the last 2 seconds
-    if (Date.now() - RunState.lastUserAction < 2000) return;
-
-    // Back off if we've had consecutive errors
-    if (RunState.consecutiveErrors > 2) {
-        Log.debug("Spot")("Backing off due to errors, skipping poll");
-        return;
-    }
-
-    // If frequency changed recently (within 5 seconds), we're likely tuning - be more cautious
-    const timeSinceFreqChange = Date.now() - RunState.lastFrequencyChange;
-    if (timeSinceFreqChange < 5000 && timeSinceFreqChange > 0) {
-        // Skip some polls when actively tuning to reduce server load
-        if (Math.random() < 0.5) return;
-    }
-
-    RunState.isUpdatingVfo = true;
-
-    try {
-        // Fetch both frequency and mode in parallel
-        const [frequencyResponse, modeResponse] = await Promise.all([
-            fetch("/api/v1/frequency", { method: "GET" }),
-            fetch("/api/v1/mode", { method: "GET" }),
-        ]);
-
-        const frequency = frequencyResponse.ok ? await frequencyResponse.text() : null;
-        const mode = modeResponse.ok ? await modeResponse.text() : null;
-
-        // Success - reset error counter
-        RunState.consecutiveErrors = 0;
-
-        let changed = false;
-
-        // Update frequency if it has changed
-        if (frequency) {
-            const newFreq = parseInt(frequency, 10);
-            if (newFreq !== AppState.vfoFrequencyHz) {
-                AppState.vfoFrequencyHz = newFreq;
-                RunState.lastFrequencyChange = Date.now(); // Track that frequency changed
-                updateFrequencyDisplay();
-                updateBandDisplay(); // Update band button active state
-                Log.debug("Spot")("Frequency updated from radio:", AppState.vfoFrequencyHz);
-                changed = true;
-            }
-        }
-
-        // Update mode if it has changed
-        if (mode) {
-            const newMode = mode.toUpperCase();
-            if (newMode !== AppState.vfoMode) {
-                AppState.vfoMode = newMode;
-                updateModeDisplay();
-                Log.debug("Spot")("Mode updated from radio:", AppState.vfoMode);
-                changed = true;
-            }
-        }
-
-        // Notify subscribers if anything changed
-        if (changed) {
-            AppState.vfoLastUpdated = Date.now();
-            updatePrivilegeDisplay();
-            notifyVfoSubscribers();
-        }
-    } catch (error) {
-        RunState.consecutiveErrors++;
-        Log.error("Spot")(`VFO state error (${RunState.consecutiveErrors} consecutive):`, error);
-        // After 3 consecutive errors, we'll back off automatically
-    } finally {
-        RunState.isUpdatingVfo = false;
-    }
-}
-
-// Start periodic VFO state polling
-async function startVfoUpdates() {
-    if (RunState.vfoUpdateInterval) {
-        clearInterval(RunState.vfoUpdateInterval);
-    }
-
-    // Reset error tracking
-    RunState.consecutiveErrors = 0;
-    RunState.lastFrequencyChange = 0;
-
-    // Get initial values
-    RunState.isUpdatingVfo = true;
-
-    try {
-        const [frequencyResponse, modeResponse] = await Promise.all([
-            fetch("/api/v1/frequency", { method: "GET" }),
-            fetch("/api/v1/mode", { method: "GET" }),
-        ]);
-
-        const frequency = frequencyResponse.ok ? await frequencyResponse.text() : null;
-        const mode = modeResponse.ok ? await modeResponse.text() : null;
-
-        if (frequency) {
-            AppState.vfoFrequencyHz = parseInt(frequency, 10);
-            updateFrequencyDisplay();
-            updateBandDisplay();
-            Log.debug("Spot")("Initial frequency loaded:", AppState.vfoFrequencyHz);
-        }
-        if (mode) {
-            AppState.vfoMode = mode.toUpperCase();
-            updateModeDisplay();
-            Log.debug("Spot")("Initial mode loaded:", AppState.vfoMode);
-        }
-        // Update privilege display with initial state
-        updatePrivilegeDisplay();
-        // Notify subscribers of initial state
-        AppState.vfoLastUpdated = Date.now();
-        notifyVfoSubscribers();
-    } catch (error) {
-        Log.error("Spot")("Error loading initial VFO state:", error);
-    } finally {
-        RunState.isUpdatingVfo = false;
-
-        // Start periodic updates (every 3 seconds, respecting user actions)
-        RunState.vfoUpdateInterval = setInterval(() => {
-            getCurrentVfoState();
-
-            // Reset error counter if we've been stable for a while
-            if (
-                RunState.consecutiveErrors > 0 &&
-                Date.now() - RunState.lastFrequencyChange > ERROR_RESET_STABILITY_MS
-            ) {
-                Log.debug("Spot")("System stable, resetting error counter");
-                RunState.consecutiveErrors = 0;
-            }
-        }, VFO_POLLING_INTERVAL_MS);
-    }
-}
-
-// Stop VFO state polling
-function stopVfoUpdates() {
-    if (RunState.vfoUpdateInterval) {
-        clearInterval(RunState.vfoUpdateInterval);
-        RunState.vfoUpdateInterval = null;
-    }
-
-    if (RunState.pendingFrequencyUpdate) {
-        clearTimeout(RunState.pendingFrequencyUpdate);
-        RunState.pendingFrequencyUpdate = null;
-    }
-
-    RunState.isUpdatingVfo = false;
-    RunState.lastUserAction = 0;
 }
 
 // ============================================================================
@@ -1417,7 +1270,7 @@ function updateSpotButtonStates() {
     if (sotamatBtn) sotamatBtn.disabled = false; // SOTAmāt app handles location itself
     if (smsSpotBtn) smsSpotBtn.disabled = !isValid;
     if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
-    if (poloSpotBtn) poloSpotBtn.disabled = false; // frequency comes from the radio at tap time
+    if (poloSpotBtn) poloSpotBtn.disabled = !AppState.vfoFrequencyHz; // needs a VFO frequency to deep-link
 
     Log.debug("Spot")(`SOTAmāt/Polo enabled, SMS ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
 }
@@ -1523,6 +1376,7 @@ function launchPoloSpot() {
         window.location.href = url;
     } else {
         Log.warn("Spot")("Cannot launch Polo - no frequency available");
+        alert("Cannot launch Polo - no frequency from the radio yet.");
     }
 }
 
@@ -1721,20 +1575,28 @@ async function onSpotAppearing() {
     // Ensure license class is loaded before VFO updates (needed for privilege badges)
     await ensureLicenseClassLoaded();
 
-    startVfoUpdates();
+    // Render whatever shared state exists now, then ride the shared poller.
+    onRunVfoChanged(AppState.vfoFrequencyHz, AppState.vfoMode);
+    subscribeToVfo(onRunVfoChanged);
+    startGlobalVfoPolling();
 }
 
 // Called when Spot tab is hidden
 function onSpotLeaving() {
     Log.info("Spot")("tab leaving");
-    stopVfoUpdates();
-    if (typeof manualTuneTimer !== "undefined" && manualTuneTimer) {
+    unsubscribeFromVfo(onRunVfoChanged);
+    if (RunState.pendingFrequencyUpdate) {
+        clearTimeout(RunState.pendingFrequencyUpdate);
+        RunState.pendingFrequencyUpdate = null;
+    }
+    AppState.vfoPollSuppressedUntil = 0;
+    if (manualTuneTimer) {
         clearTimeout(manualTuneTimer);
         manualTuneTimer = null;
     }
-    if (typeof manualTuneActive !== "undefined") manualTuneActive = false;
+    manualTuneActive = false;
 
-    // Unsubscribe from spot updates — no need to rebuild while the tab is hidden.
+    // Unsubscribe from spot updates. No need to rebuild while the tab is hidden.
     Spots.unsubscribe(onSpotsChanged);
 
     // Reset event listener flag so they can be reattached when returning to this tab

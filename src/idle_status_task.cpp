@@ -82,7 +82,7 @@ void idle_status_task (void * _pvParameter) {
             else {
                 // The user has been idle for the limit, but we have enough battery to keep running.
                 // If we are plugged in via USB, we will never power off because the battery will
-                // remain charged above 80%.
+                // stay above BATTERY_SHUTOFF_PERCENTAGE.
                 // Reset the timers as if the user has been active.
                 showActivity();
             }

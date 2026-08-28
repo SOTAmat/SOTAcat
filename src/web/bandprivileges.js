@@ -48,7 +48,7 @@ const MODE_SNAP_HZ = {
 // License classes: N (Novice), T (Technician), G (General), A (Advanced), E (Extra)
 // Covers HF (160m-10m) and VHF/UHF amateur allocations where SOTAcat may
 // operate (natively or via transverter). Voluntary band-plan sub-allocations
-// (e.g. FM repeater sub-bands) are intentionally not encoded — only FCC rules.
+// (e.g. FM repeater sub-bands) are intentionally not encoded; only FCC rules are.
 
 const FCC_AMATEUR_PRIVILEGES = {
     "160m": [

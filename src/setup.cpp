@@ -35,7 +35,7 @@ void startup_watchdog_timer (void * _) {
         vTaskDelay (pdMS_TO_TICKS (60000));
     }
     // We will never turn off if the unit is plugged in and is charging,
-    // as the battery voltage will never dip below 80%.
+    // as the battery will stay above BATTERY_SHUTOFF_PERCENTAGE.
     while (get_battery_percentage() >= BATTERY_SHUTOFF_PERCENTAGE);
 
     ESP_LOGI (TAG8, "Startup watchdog timer expired, and battery not charged; shutting down.");
@@ -77,13 +77,6 @@ void setup () {
     // "Informational" or "Warning" for release builds.  In that case for deep debug you can set
     // "ESP_LOG_VERBOSE" here.
     // esp_log_level_set ("*", ESP_LOG_VERBOSE);
-#if 0
-    for (int i = 0; i < 5; i++)
-    {
-        ESP_LOGI(TAG8, "setup starting soon: waiting for debug console connection");
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-#endif
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     set_hardware_specific();

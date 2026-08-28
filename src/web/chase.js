@@ -496,7 +496,7 @@ function updateMyCallButton() {
     let title = "";
 
     if (modeCategory === "PHONE") {
-        // Phone mode: acts as Toggle TX — only disable if privileges don't allow
+        // Phone mode: acts as Toggle TX; only disable if privileges don't allow
         if (vfoFreq) {
             const userLicense = getUserLicenseClass();
             const status = checkPrivileges(vfoFreq, vfoMode, userLicense);
@@ -520,7 +520,7 @@ function updateMyCallButton() {
         shouldDisable = true;
         title = "Not available in DATA mode";
     } else {
-        // CW mode: sends callsign — disable only if no privilege
+        // CW mode: sends callsign; disable only if no privilege
         if (vfoFreq) {
             const userLicense = getUserLicenseClass();
             const status = checkPrivileges(vfoFreq, vfoMode, userLicense);
@@ -785,7 +785,7 @@ function buildChaseRow(spot, isMySpot) {
         }
     };
 
-    // 1. UTC time (ensure Date object — cache round-trip deserializes as string)
+    // 1. UTC time (ensure Date object; cache round-trip deserializes as string)
     const ts = spot.timestamp instanceof Date ? spot.timestamp : new Date(spot.timestamp);
     const formattedTime = `${ts.getUTCHours().toString().padStart(2, "0")}:${ts.getUTCMinutes().toString().padStart(2, "0")}`;
     const utcCell = row.insertCell();
@@ -917,7 +917,7 @@ function applyTableFilters() {
     // Get band filter state - only filter if enabled AND we have a valid radio type
     let allowedBands = null;
     if (AppState.filterBandsEnabled && AppState.radioType) {
-        allowedBands = getRadioBandCapabilities(AppState.radioType);
+        allowedBands = getRadioBands(AppState.radioType);
     }
 
     Log.debug("Chase")(`Applying filters - Mode: ${selectedMode}, Type: ${selectedType}, BandFilter: ${allowedBands ? "active" : "off"}, Rows: ${allRows.length}`);
@@ -1225,6 +1225,9 @@ async function onChaseAppearing() {
 
     if (Spots.getAll() !== null) {
         Log.debug("Chase")("tab appearing: rendering existing spots");
+        // The "Refreshed N ago" timer reflects when these spots were actually
+        // fetched, which for a cache restore predates this render.
+        ChaseState.lastRefreshCompleteTime = Spots.getLastFetchCompleteTime();
         updateChaseTable();
     } else {
         Log.debug("Chase")("tab appearing: fetching new data");

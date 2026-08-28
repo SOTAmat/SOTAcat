@@ -79,7 +79,7 @@ Becomes a consumer of `spots.js`:
 - The "Auto-refresh" checkbox calls
   `Spots.startAutoRefresh()` / `Spots.stopAutoRefresh()`.
 - The 1-second UI countdown (`ChaseState.refreshTimerInterval`) stays
-  in chase — it's display-only and reads `Spots.getNextAutoRefreshTime()`.
+  in chase; it's display-only and reads `Spots.getNextAutoRefreshTime()`.
 - `chase.js` subscribes to spots so the table re-renders if a refresh
   fires while chase is open.
 
@@ -117,7 +117,7 @@ const spotsRow = <div class="vfo-band-range-row vfo-band-range-spots-row">
 ```
 
 Mode-category mapping reuses `getModeCategory()` from
-`bandprivileges.js` — same logic the renderer already uses for stripe
+`bandprivileges.js`, the same logic the renderer already uses for stripe
 colors, so coloring is consistent. `OTHER` modes (per Spothole's
 `modeType`) get `data-mode="other"` and a neutral gray.
 
@@ -235,7 +235,7 @@ rows already use.
 
 Ticks stack visually; last-rendered wins z-order. No bucketing or
 fan-out. Tap-to-tune picks the topmost tick at the tapped position
-(natural DOM behavior). Acceptable per user direction — the bar is
+(natural DOM behavior). Acceptable per user direction; the bar is
 approximate at high density.
 
 ## Spot Filtering

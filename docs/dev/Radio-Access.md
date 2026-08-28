@@ -1,14 +1,14 @@
 # Radio Access Model
 
 **Who this is for:** Developers touching anything between an HTTP handler and the
-radio — `radio_service.*`, `radio_snapshot.*`, `radio_park*.*`, `radio_set_http.*`,
+radio: `radio_service.*`, `radio_snapshot.*`, `radio_park*.*`, `radio_set_http.*`,
 `handler_*.cpp`.
 
 ESP-IDF's `esp_http_server` runs **every** request on **one** task. On the original
 design each radio handler did a synchronous CAT exchange inside that task, so one
 request against a slow or powered-off radio (~6 s UART timeout) froze the entire web
-UI. This document describes the model that replaced it and — because the design is
-entirely about *who waits on whom* — shows it as timelines. Timings are the ones
+UI. This document describes the model that replaced it and (because the design is
+entirely about *who waits on whom*) shows it as timelines. Timings are the ones
 measured on a KX2 (2026-08-17), not idealized.
 
 Related documents:
@@ -219,7 +219,7 @@ sequenceDiagram
 
 Twelve rapid PUTs become one or two CAT tunes; the radio never chases intermediate
 frequencies; the client's own newer request is what made the older one moot. Two
-*different* clients parking the same GET kind behave the same way — the earlier one is
+*different* clients parking the same GET kind behave the same way. The earlier one is
 answered immediately with the current snapshot value.
 
 ---
@@ -279,7 +279,7 @@ resets the WDT *after* acquiring the lock, so that op is inside the 20 s budget)
 
 Client behaviour by design: web UI treats non-OK as "no update" and shows ⚫; SOTAmat
 (polls only frequency/mode) sees a real failure and flags the radio, exactly as it did
-on the pre-async firmware — minus the 6 s server stalls.
+on the pre-async firmware, minus the 6 s server stalls.
 
 ---
 
@@ -408,12 +408,12 @@ copies), parked occupancy typically 0–1.
   retransmits); Playwright UI 71/71.
 - **Scenarios on hardware**: VFO knob → next poll; radio off → ⚫ in ~2 s, GETs 503,
   PUTs 503, `/version` 15 ms throughout; radio on → 🟢 in ~3 s (≤5 s probe, 2 s poll);
-  FT8 ×3 with two browsers polling and a 1 Hz PUT probe — every PUT 503 in ~14 ms,
+  FT8 ×3 with two browsers polling and a 1 Hz PUT probe: every PUT 503 in ~14 ms,
   `ft8 transmission time: 12480 ms` on all three, no watchdog; PUT-through-detection:
   in-flight SET takes its ~18 s (parked PUTs bounded 202), next SET fails fast on the
   pre-flight ping, then 503s, no watchdog.
 - **Adversarial sockets**: 300 abort-while-parked connections, 40-wide same-kind GET
-  and PUT storms (superseded → 202, last-wins), a 1-byte/s slow reader — every socket
+  and PUT storms (superseded → 202, last-wins), a 1-byte/s slow reader. Every socket
   free afterwards, `/version` 13 ms; console shows only the expected `recv/send: 104`.
 - **2 h mixed soak** (two header pollers, two VFO pollers, SOTAmat-style 1 s poller,
   asset reloads, tune round-trip every 20 s, mode toggle every 3 min): 33,499
@@ -437,15 +437,15 @@ copies), parked occupancy typically 0–1.
   detection (the polls' GETs usually fail first, in 0.5–4.5 s). The pre-flight ping
   bounds everything after it.
 - **Wide parallel-connect bursts** (>~12 simultaneous connections) show +1 s/+3 s
-  SYN-retransmit steps on every endpoint — the ESP accept backlog, not the radio
-  path; the contract test therefore compares against a `/version` control.
+  SYN-retransmit steps on every endpoint (the ESP accept backlog, not the radio
+  path); the contract test therefore compares against a `/version` control.
 - **Client-side observation, unresolved**: once, a phone's Chase tab issued no VFO
   GETs for 35 s after its initial fetch while `connectionStatus` kept polling. The
   server no longer depends on it (`connectionStatus` arms the recovery probe); if
   Chase's row highlighting ever looks frozen, look at `startGlobalVfoPolling` /
   `openTab`'s `pollingPaused` race.
 - **Phase-2 client work (optional)**: enable client-only buttons synchronously from
-  `localStorage`, and pause/back off VFO polling while ⚫ — now safe to do. Worth
+  `localStorage`, and pause/back off VFO polling while ⚫, now safe to do. Worth
   pairing with collapsing `run.js`'s own VFO poller into `main.js`'s and deleting the
   load-protection heuristics the non-blocking server made unnecessary.
 - **rigctld** (`feature/rigctld-server`) should become a client of this service (a

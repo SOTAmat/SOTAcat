@@ -36,6 +36,14 @@ function it(name, fn) {
     }
 }
 
+// Async tests: it() runs sync bodies only. A sync process.exit at EOF would
+// kill pending awaits, silently skipping the assertions (vacuous pass). Queue
+// async bodies here; the summary tail awaits them all before reporting.
+const asyncTests = [];
+function itAsync(name, fn) {
+    asyncTests.push({ name, fn });
+}
+
 function assertEqual(actual, expected, msg = '') {
     if (actual !== expected) {
         throw new Error(`${msg}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
@@ -520,18 +528,126 @@ describe('SOTA API Response Handling', () => {
 });
 
 // ============================================================================
+// Real-code extraction: SOTA search + location guard
+// ============================================================================
+// These extract the SHIPPED functions from src/web/qrx.js and exercise them,
+// rather than testing a local copy.
+
+const fs = require('fs');
+const path = require('path');
+const qrxJsCode = fs.readFileSync(path.join(__dirname, '../../src/web/qrx.js'), 'utf8');
+
+const rangesMatch = qrxJsCode.match(/const SOTA_SEARCH_RANGES_KM = \[[^\]]*\];/);
+const searchFnMatch = qrxJsCode.match(/async function searchSotaSummitsExpanding\([\s\S]*?\n\}/);
+const guardFnMatch = qrxJsCode.match(/function hasValidLocation\([\s\S]*?\n\}/);
+
+describe('SOTA search termination (extracted from qrx.js)', () => {
+    it('qrx.js defines SOTA_SEARCH_RANGES_KM and searchSotaSummitsExpanding', () => {
+        assertTrue(!!rangesMatch, 'SOTA_SEARCH_RANGES_KM not found in qrx.js');
+        assertTrue(!!searchFnMatch, 'searchSotaSummitsExpanding not found in qrx.js');
+    });
+
+    if (rangesMatch && searchFnMatch) {
+        const Log = { debug: () => () => {} };
+        const SOTA_DISTANCE_API_URL = 'https://api-db2.sota.org.uk/api/summits/distance';
+        const setup = `${rangesMatch[0]}\n${searchFnMatch[0]}\nreturn { SOTA_SEARCH_RANGES_KM, searchSotaSummitsExpanding };`;
+        const { SOTA_SEARCH_RANGES_KM, searchSotaSummitsExpanding } =
+            new Function('Log', 'SOTA_DISTANCE_API_URL', setup)(Log, SOTA_DISTANCE_API_URL);
+
+        const okJson = (body) => Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+
+        it('ladder is finite, ascending, and ends at 100 km', () => {
+            assertTrue(SOTA_SEARCH_RANGES_KM.length >= 2, 'ladder too short');
+            for (let i = 1; i < SOTA_SEARCH_RANGES_KM.length; i++) {
+                assertTrue(SOTA_SEARCH_RANGES_KM[i] > SOTA_SEARCH_RANGES_KM[i - 1], 'ladder not ascending');
+            }
+            assertEqual(SOTA_SEARCH_RANGES_KM[SOTA_SEARCH_RANGES_KM.length - 1], 100, 'ladder must end at 100');
+        });
+
+        itAsync('terminates after the final range when every response is empty', async () => {
+            let calls = 0;
+            const fetchStub = () => { calls++; return okJson([]); };
+            const result = await searchSotaSummitsExpanding(51.4779, 0, fetchStub);
+            assertEqual(result.length, 0, 'no summits expected');
+            assertEqual(calls, SOTA_SEARCH_RANGES_KM.length, 'must stop after one pass over the ladder');
+        });
+
+        itAsync('stops early when a range returns summits', async () => {
+            let calls = 0;
+            const summit = [{ summitCode: 'W6/NC-350' }];
+            const fetchStub = () => { calls++; return calls === 3 ? okJson(summit) : okJson([]); };
+            const result = await searchSotaSummitsExpanding(51.4779, 0, fetchStub);
+            assertEqual(result.length, 1, 'summit list expected');
+            assertEqual(calls, 3, 'must stop at the first non-empty range');
+        });
+
+        itAsync('throws on a non-OK response', async () => {
+            let threw = false;
+            try {
+                await searchSotaSummitsExpanding(51.4779, 0, () => Promise.resolve({ ok: false, status: 500 }));
+            } catch (e) {
+                threw = true;
+            }
+            assertTrue(threw, 'HTTP error must throw');
+        });
+    }
+});
+
+describe('location guard accepts zero coordinates (extracted from qrx.js)', () => {
+    it('qrx.js defines hasValidLocation', () => {
+        assertTrue(!!guardFnMatch, 'hasValidLocation not found in qrx.js');
+    });
+
+    if (guardFnMatch) {
+        const hasValidLocation = new Function(`${guardFnMatch[0]}\nreturn hasValidLocation;`)();
+
+        it('accepts longitude 0 (Greenwich) and latitude 0 (equator)', () => {
+            assertTrue(hasValidLocation({ latitude: 51.4779, longitude: 0 }), 'lon 0 must be valid');
+            assertTrue(hasValidLocation({ latitude: 0, longitude: -78.5 }), 'lat 0 must be valid');
+        });
+
+        it('rejects null, missing, and non-finite coordinates', () => {
+            assertTrue(!hasValidLocation(null), 'null location');
+            assertTrue(!hasValidLocation({}), 'missing fields');
+            assertTrue(!hasValidLocation({ latitude: NaN, longitude: 0 }), 'NaN latitude');
+            assertTrue(!hasValidLocation({ latitude: 51, longitude: Infinity }), 'Infinity longitude');
+            assertTrue(!hasValidLocation({ latitude: '51', longitude: 0 }), 'string latitude');
+        });
+    }
+});
+
+
+// ============================================================================
 // Summary
 // ============================================================================
 
-console.log('\n' + '='.repeat(60));
-console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
-if (failures.length > 0) {
-    console.log('\nFailures:');
-    for (const f of failures) {
-        console.log(`  - ${f.name}: ${f.error}`);
+(async () => {
+    if (asyncTests.length > 0) {
+        console.log('\nAsync tests');
+        for (const t of asyncTests) {
+            try {
+                await t.fn();
+                testsPassed++;
+                console.log(`  ✓ ${t.name}`);
+            } catch (e) {
+                testsFailed++;
+                console.log(`  ✗ ${t.name}`);
+                console.log(`    ${e.message}`);
+                failures.push({ name: t.name, error: e.message });
+            }
+        }
     }
-}
-console.log('='.repeat(60));
 
-process.exit(testsFailed > 0 ? 1 : 0);
+    console.log('\n' + '='.repeat(60));
+    console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
+    if (failures.length > 0) {
+        console.log('\nFailures:');
+        for (const f of failures) {
+            console.log(`  - ${f.name}: ${f.error}`);
+        }
+    }
+    console.log('='.repeat(60));
+
+    process.exit(testsFailed > 0 ? 1 : 0);
+})();
 

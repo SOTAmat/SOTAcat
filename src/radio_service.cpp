@@ -24,7 +24,7 @@ static const char * TAG8 = "sc:radiosvc";
 // During link-down, recovery probes are throttled to one per this interval.
 // Without it, every stale-snapshot GET would drive a CAT to a dead radio and
 // under client polling that saturates WiFi/HTTP scheduling. A probe is a
-// single TQ; ping (~0.2 s on a dead radio — see probe_link), so 5 s costs
+// single TQ; ping (~0.2 s on a dead radio; see probe_link), so 5 s costs
 // nothing noticeable and bounds recovery latency at ~5 s after power-on.
 static constexpr int64_t LINK_DOWN_PROBE_INTERVAL_US = 5'000'000;  // 5 s
 
@@ -50,7 +50,7 @@ static constexpr int64_t         MANUAL_TUNE_TIMEOUT_US = 5'000'000;
 // newest-wins for frequency/mode/power/atu, accumulate for volume (a
 // delta). Protected by s_req_mutex. The worker drains every slot on each
 // wake; handlers set a slot and notify the worker. SET handlers are thus
-// pure fire-and-forget — they never block the single HTTP server task.
+// pure fire-and-forget. They never block the single HTTP server task.
 static SemaphoreHandle_t s_req_mutex = nullptr;
 
 // Refresh slots, indexed [type - REFRESH_FREQUENCY].
@@ -107,7 +107,7 @@ bool radio_service_link_up () { return s_link_up.load (std::memory_order_acquire
 // two slow ops: up to LINK_DOWN_FAIL_THRESHOLD-1 TQ; pings (~100 ms timeout
 // each). Dead radio -> link down ~0.5 s after the first failed op, not ~8 s
 // later (a failed FA;/MD; refresh costs ~4 s each). Ping succeeds -> the
-// failure was transient (radio busy, or it REFUSED a command — not a link
+// failure was transient (radio busy, or it REFUSED a command; not a link
 // problem) -> reset the counter (anti-flap, and refusals no longer count
 // against the link).
 static void fast_confirm_link (int64_t now) {
@@ -123,7 +123,7 @@ static void fast_confirm_link (int64_t now) {
 }
 
 // Link-down recovery probe: one cheap TQ; ping (~100 ms timeout x2) instead
-// of whatever refresh happens to be armed — a dead-radio FA;/MD; refresh
+// of whatever refresh happens to be armed. A dead-radio FA;/MD; refresh
 // costs ~8-10 s, which made recovery take up to ~20 s after power-on.
 // Returns true if the radio answered (link is up again; caller proceeds
 // with the real refresh). Stamps s_last_cat_attempt_us either way.
@@ -148,7 +148,7 @@ static bool probe_link () {
 
 // Returns true if the radio mutex was acquired and a refresh was attempted
 // (*ok_out = CAT success); false if the lock could not be acquired (FT8 /
-// handler_cat held it) — the caller re-arms the slot for a later wake. A
+// handler_cat held it); the caller re-arms the slot for a later wake. A
 // failed acquire never reaches the radio, so it is not a CAT attempt and
 // does not touch the snapshot.
 static bool do_refresh (RadioCmdType which, bool & ok_out) {
@@ -156,7 +156,7 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
     // The lock is bounded by WORKER_LOCK_TIMEOUT_MS, not portMAX_DELAY:
     // FT8 and the unconverted handler_cat/handler_time paths also contend
     // for the radio mutex, so an unbounded wait could sit past the 20 s
-    // task watchdog — which is exactly why the bound and the FT8 skip exist.
+    // task watchdog, which is exactly why the bound and the FT8 skip exist.
     TimedLock lock = kxRadio.timed_lock (WORKER_LOCK_TIMEOUT_MS, "radiosvc refresh");
     if (!lock.acquired())
         return false;
@@ -210,9 +210,9 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
 // expires_at_us is the worker's apply window (SET_APPLY_DEADLINE_MS, 5 s).
 // SET handlers are fire-and-forget (HTTP 202); the client confirms the
 // outcome via a later GET. The expiry skip guards against applying a SET
-// long after the user's action — e.g. one that sat while the worker was
-// stuck behind a ~13 s FT8 transmission holding the radio mutex.
-// Returns true if the radio mutex was acquired — whether the SET was then
+// long after the user's action (e.g. one that sat while the worker was
+// stuck behind a ~13 s FT8 transmission holding the radio mutex).
+// Returns true if the radio mutex was acquired, whether the SET was then
 // applied (*ok_out = true), expired-skipped, or CAT-failed (*ok_out =
 // false); false if the lock could not be acquired (FT8 / handler_cat held
 // it), in which case the caller re-arms the slot.
@@ -223,12 +223,12 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         return false;
     // WDT budget starts after the lock wait (see do_refresh). A dead-radio
     // set_frequency/set_mode/set_power costs ~18 s (3 attempts x two 2 s
-    // "long command" reads + gaps) — measured 2026-08-17 — so the 3 s lock
+    // "long command" reads + gaps), measured 2026-08-17, so the 3 s lock
     // wait must not be inside the same 20 s budget.
     esp_task_wdt_reset();
     int64_t now = esp_timer_get_time();
     if (expires_at_us != 0 && now > expires_at_us) {
-        // Expiry says nothing about the radio — no CAT was attempted, so it
+        // Expiry says nothing about the radio. No CAT was attempted, so it
         // is neither a link failure nor a probe. (Counting it as a failure
         // flipped the link down after ordinary SETs queued behind FT8.)
         ESP_LOGW (TAG8, "SET expired before mutex acquired (>%lld ms past deadline); skipping", (long long)((now - expires_at_us) / 1000));
@@ -265,7 +265,7 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         if (arg == RADIO_MODE_SSB_AUTO) {
             // Frequency slot drains before mode, so the snapshot already
             // reflects a tune queued ahead of this SET (a failed tune left
-            // the radio — and the snapshot — on the old frequency, which is
+            // the radio (and the snapshot) on the old frequency, which is
             // then the right basis too). Snapshot mutex is leaf-level, safe
             // to take under the radio lock. Nothing cached: read it live.
             long f = radio_snapshot::get().frequency_hz;
@@ -353,7 +353,7 @@ static void radio_service_task (void *) {
         ESP_ERROR_CHECK (esp_task_wdt_reset());
         // Wait for a request, or wake every 1 s anyway to service the
         // task watchdog. pdTRUE clears the notification count, so any
-        // number of producer notifications collapse into one wake — we
+        // number of producer notifications collapse into one wake; we
         // drain every slot below regardless.
         ulTaskNotifyTake (pdTRUE, pdMS_TO_TICKS (1000));
 
@@ -393,7 +393,7 @@ static void radio_service_task (void *) {
         // Each drained CAT op can block several seconds on an unreachable
         // radio (a SET retries 3x with ~6 s readback each), so the task
         // watchdog is serviced before every op rather than only once per
-        // loop — otherwise draining two pending SETs in one pass could
+        // loop. Otherwise draining two pending SETs in one pass could
         // exceed the WDT timeout without an intervening reset.
         for (int i = 0; i < RADIO_SET_KINDS; ++i) {
             PendingSet ps;
@@ -411,7 +411,7 @@ static void radio_service_task (void *) {
                 }
                 else {
                     // Couldn't get the radio (FT8 / handler_cat held it).
-                    // Re-arm so a later wake retries — unless the command has
+                    // Re-arm so a later wake retries, unless the command has
                     // expired, or a newer SET of this type already arrived.
                     if (ps.expires_at_us == 0 || esp_timer_get_time() <= ps.expires_at_us) {
                         xSemaphoreTake (s_req_mutex, portMAX_DELAY);
@@ -470,7 +470,7 @@ void radio_service_start () {
         ESP_LOGE (TAG8, "failed to create radio service mutex");
         abort();
     }
-    // Called right after kxRadio.connect() succeeded — that handshake was a
+    // Called right after kxRadio.connect() succeeded. That handshake was a
     // real CAT exchange, so the link starts UP. Without this the first
     // seconds after boot showed ⚫ and 503'd every SET until a GET-driven
     // probe happened to run.
@@ -499,7 +499,7 @@ void radio_service_request_refresh (RadioCmdType which) {
 
 int radio_service_set (RadioCmdType type, long arg, uint32_t * gen_out) {
     if (!radio_service_link_up())
-        return -1;  // fast reject, sub-millisecond — link known-down
+        return -1;  // fast reject, sub-millisecond (link known-down)
     if (!s_req_mutex)
         return -1;  // service not started yet
     int idx = (int)type - (int)RadioCmdType::SET_FREQUENCY;
@@ -508,7 +508,7 @@ int radio_service_set (RadioCmdType type, long arg, uint32_t * gen_out) {
     int64_t expires = esp_timer_get_time() + (int64_t)SET_APPLY_DEADLINE_MS * 1000;
     xSemaphoreTake (s_req_mutex, portMAX_DELAY);
     if (type == RadioCmdType::SET_VOLUME && s_set_pending[idx].valid)
-        s_set_pending[idx].arg += arg;  // volume is a delta — accumulate
+        s_set_pending[idx].arg += arg;  // volume is a delta, so accumulate
     else
         s_set_pending[idx].arg = arg;  // newest-wins
     s_set_pending[idx].expires_at_us = expires;
@@ -521,5 +521,5 @@ int radio_service_set (RadioCmdType type, long arg, uint32_t * gen_out) {
     TaskHandle_t w = s_worker.load (std::memory_order_acquire);
     if (w)
         xTaskNotifyGive (w);
-    return 0;  // accepted — applies asynchronously
+    return 0;  // accepted; applies asynchronously
 }

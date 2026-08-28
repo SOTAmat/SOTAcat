@@ -2,8 +2,8 @@
 
 **Status:** Design approved 2026-08-21. Implemented on this branch 2026-08-22.
 Tested 2026-08-22: localhost smoke test, then a real flash of a connected
-SOTAcat from the localhost-served page — successful. Tested 2026-08-23: CLI
-acceptance — USB-Flashing.md commands run verbatim (esptool v5.3.1, Linux,
+SOTAcat from the localhost-served page; successful. Tested 2026-08-23: CLI
+acceptance; USB-Flashing.md commands run verbatim (esptool v5.3.1, Linux,
 auto-detected port among 34 candidates incl. an unrelated FTDI adapter); erase
 + write via the stub flasher, hash verified, device booted to AP mode. Open
 Question 3 settled: stub is reliable, no `--no-stub` needed. 2026-08-23:
@@ -11,7 +11,7 @@ v260804.2114 manifest asset patched to the relative path per Rollout
 sequencing and re-verified from a fresh download (binary untouched, all
 deploy assertions pass). Merged to main 2026-08-23 (6e40057); first deploy
 passed all assertions and the post-deploy sha256 check; a real SOTAcat was
-then flashed from the live Pages URL successfully — launch gate met. Sole
+then flashed from the live Pages URL successfully; launch gate met. Sole
 remaining item, sotamat.com coordination (Open Question 4), filed as
 [SOTAmatApp#11](https://github.com/SOTAmat/SOTAmatApp/issues/11).
 **Date:** 2026-08-21
@@ -31,7 +31,7 @@ no firmware section on the Settings page at all. A user on such a build (e.g.
 
 **2. The only public USB flasher is broken.** `https://sotamat.com/sotacat/`
 embeds `esp-web-tools@10` pointed at `https://sotamat.com/wp-content/uploads/manifest.json`,
-which names tag `v260323.0932`. That release does not exist — the asset URL
+which names tag `v260323.0932`. That release does not exist. The asset URL
 returns 404, `gh release view` reports "release not found", the remote has no
 such tag, and nothing in repo history ever stamped `260323`. It is a phantom
 build of exactly the kind `docs/dev/BUILD.md` §mirror warns about: a local
@@ -112,7 +112,7 @@ relative filename:
 The `version` field still carries the real tag from `build_info.h`, so the
 install dialog names the version truthfully.
 
-This makes the **release's own `manifest.json` the single source of truth** —
+This makes the **release's own `manifest.json` the single source of truth**:
 CI copies it, never regenerates it, so there is no second definition of the
 schema to drift. It also deletes a documented hazard: `BUILD.md:135` currently
 lists "`manifest.json`'s embedded download URL carries the release tag …
@@ -120,7 +120,7 @@ lists "`manifest.json`'s embedded download URL carries the release tag …
 a known failure mode. With a relative path the build script no longer needs to
 know a URL that does not yet exist.
 
-The absolute form was not pointless — it served a "manifest hosted elsewhere,
+The absolute form was not pointless. It served a "manifest hosted elsewhere,
 binary on GitHub" model that presumably worked when release assets still sent
 CORS headers. GitHub's move to Azure Blob-backed asset serving eroded that, and
 the only consumer built on it (sotamat.com) is already broken twice over.
@@ -147,7 +147,7 @@ existing `upload-pages-artifact` path untouched. Content, in order:
    <esp-web-install-button manifest="manifest.json">
    ```
 
-   The `unsupported` slot links to `USB-Flashing.md` — a user who has just
+   The `unsupported` slot links to `USB-Flashing.md`. A user who has just
    learned their browser cannot do this needs the alternative in the same
    breath, not a search. Because Pages does not publish `docs/` (verified
    above), that link must be an absolute
@@ -169,7 +169,7 @@ the existing sotamat page. Accepted risk, recorded under Open Questions.
 
 ### 3. Deploy workflow (`.github/workflows/pages.yml`)
 
-Triggers gain a release event — the site now redeploys when a release is
+Triggers gain a release event; the site now redeploys when a release is
 published, not only when `website/` changes:
 
 ```yaml
@@ -217,7 +217,7 @@ A post-deploy step then checks reality rather than intent:
 
 The bounded retry absorbs Pages propagation lag, then fails loudly. This makes
 "the live site serves the exact bytes of the published release" a CI-enforced
-invariant — precisely the property nobody was checking when the WordPress mirror
+invariant, precisely the property nobody was checking when the WordPress mirror
 drifted onto a phantom build.
 
 `.gitignore` gains `website/flash/esp32c3.bin` and `website/flash/manifest.json`
@@ -229,7 +229,7 @@ release and a push racing each other.
 
 ### 4. CLI fallback (`docs/user/USB-Flashing.md`)
 
-A new user doc, not a developer one — `dev/BUILD.md` covers building from
+A new user doc, not a developer one; `dev/BUILD.md` covers building from
 source, which is a different audience with a different goal. This covers
 flashing a *published* binary from the command line.
 
@@ -252,7 +252,7 @@ nowhere else:
   `spiffs` dropped), so a stale `nvs` at `0x9000` and `otadata` at `0xe000`
   survive the write and reference a layout that no longer exists. `erase-flash`
   first. This is also why the doc must state plainly that flashing over USB is
-  a factory reset — same warning the page carries.
+  a factory reset, the same warning the page carries.
 - **esptool 5.x renamed its commands.** `erase-flash` and `write-flash`;
   the underscore forms still run but emit a deprecation warning. The doc names
   the version it was written against and shows the current spelling, so its
@@ -281,7 +281,7 @@ currently wrong in a way that helps nobody, and the alternative is leaving
 pre-OTA users on hex offsets until the next release.
 
 Rejected: normalizing the path defensively in CI, which would work but silently
-mask a build-script regression — the exact failure mode this design exists to
+mask a build-script regression, the exact failure mode this design exists to
 eliminate.
 
 ## Failure modes
@@ -347,13 +347,13 @@ Web Serial cannot be unit-tested, so coverage is layered:
    rather than discovering.
 3. **`CONFIG_ESPTOOLPY_NO_STUB=y`.** ~~`sdkconfig.defaults:35` disables the
    esptool stub loader with the comment "slower, but sometimes more reliable".
-   Whether that reflects a known stub problem on this board — and so whether
-   `USB-Flashing.md` should tell users to pass `--no-stub` — is unverified.~~
+   Whether that reflects a known stub problem on this board (and so whether
+   `USB-Flashing.md` should tell users to pass `--no-stub`) is unverified.~~
    **Settled 2026-08-23** by the CLI acceptance test: erase-flash and
    write-flash both ran via the stub on real hardware (esptool v5.3.1,
    USB-Serial/JTAG), write hash verified, device booted. The doc's bare
    commands stand; no `--no-stub` advice needed.
 4. **sotamat.com coordination.** Once this ships, that page should link here or
    point its button at `https://sotamat.github.io/SOTAcat/flash/manifest.json`
-   (viable — Pages sends `access-control-allow-origin: *`). Outside this repo;
+   (viable; Pages sends `access-control-allow-origin: *`). Outside this repo;
    needs a conversation with its owner.

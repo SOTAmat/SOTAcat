@@ -3,7 +3,7 @@
 #include <cassert>
 #include <cstdio>
 
-// Opaque "request handles" — the table never dereferences them.
+// Opaque "request handles". The table never dereferences them.
 static int a, b, c, d;
 #define H(x) ((void *) &(x))
 

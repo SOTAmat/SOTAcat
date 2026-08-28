@@ -1,7 +1,7 @@
 #include "webserver.h"
 
 #include <esp_log.h>
-static const char * TAG8 = "sc:hdl_stat";
+static const char * TAG8 = "sc:hdl_rbt.";
 
 /**
  * Handles an HTTP GET request to reboot the device.

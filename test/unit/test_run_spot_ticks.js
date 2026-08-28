@@ -134,13 +134,17 @@ function loadLifecycleSandbox() {
         window: {},
         RunState: { spotsRebuildPending: false },
         AppState: {},
+        manualTuneTimer: null,
+        manualTuneActive: false,
         Spots: {
             subscribe(cb) { subscribeCalls.push(cb); },
             unsubscribe(cb) { unsubscribeCalls.push(cb); },
         },
         tuneRadioHz(hz, mode) { tunes.push({ hz, mode }); },
         updateBandRangeDisplay() { updateCalls.push(true); },
-        stopVfoUpdates() {},
+        unsubscribeFromVfo() {},
+        onRunVfoChanged() {},
+        clearTimeout() {},
         Log: {
             info() { return () => {}; }, warn() { return () => {}; },
             error() { return () => {}; }, debug() { return () => {}; },

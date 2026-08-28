@@ -355,8 +355,8 @@ a {
 
    The row is centered, so the frequency's position depends on the width of
    everything beside it. Nothing here is ever removed from the flow while a
-   frequency is being entered — the badges dim instead (see the editing state
-   below) — and both .frequency-display elements carry the same fixed width,
+   frequency is being entered (the badges dim instead; see the editing state
+   below), and both .frequency-display elements carry the same fixed width,
    so swapping the div for the input changes nothing either. Issue #111. */
 .vfo-main {
     display: flex;
@@ -611,7 +611,7 @@ a {
    they stand down while a new one is typed rather than asserting privileges
    the user is in the middle of leaving. Dimmed, not removed: the row keeps
    its identity, nothing blinks out of the display, and nothing reflows. The
-   mode is left fully lit — alone among the three, it stays true while typing.
+   mode is left fully lit. Alone among the three, it stays true while typing.
    Issue #111. */
 .vfo-display.editing .license-badges,
 .vfo-display.editing .vfo-warning {
@@ -995,8 +995,8 @@ input.frequency-display {
 
 /* Mode-reactive tint for keyer-path buttons.  CW-family modes (CW/CW_R, and
    SSB/LSB/AM/FM which the backend forces to CW) keep the default saturated
-   --primary blue.  DATA modes (DATA/DATA_R) — where the keyer will emit RTTY
-   or PSK31 depending on DT sub-mode — switch to saturated amber.  Dark text
+   --primary blue.  DATA modes (DATA/DATA_R), where the keyer will emit RTTY
+   or PSK31 depending on DT sub-mode, switch to saturated amber.  Dark text
    required on amber for contrast.  :disabled/:active/hover rules defined
    elsewhere take precedence in their respective states. */
 [data-keyer-family="data"] .btn-cw-macro,

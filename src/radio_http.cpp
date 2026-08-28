@@ -1,6 +1,9 @@
-#include "radio_set_http.h"
+#include "radio_http.h"
+#include "radio_get_gate.h"
 
 #include "globals.h"
+#include "kx_radio.h"
+#include "radio_set_gate.h"
 #include "radio_park_httpd.h"
 #include "webserver.h"
 
@@ -11,8 +14,8 @@ static const char * TAG8 = "sc:radioset";
 
 // Human label for the parked SET of each kind, for reply/log messages. Set
 // at park time on the server task; one parked request per kind, and the
-// superseded occupant is completed inside radio_park_request() — i.e.
-// BEFORE we overwrite its label below — so it still sees its own.
+// superseded occupant is completed inside radio_park_request() (i.e.
+// BEFORE we overwrite its label below), so it still sees its own.
 static const char * s_what[RADIO_PARK_KINDS] = {};
 
 static const char * what_of (RadioParkKind kind) {
@@ -21,7 +24,7 @@ static const char * what_of (RadioParkKind kind) {
 }
 
 // Async completer (server task). The shim's completer signature carries no
-// user argument, so instantiate one thin wrapper per kind — each knows its
+// user argument, so instantiate one thin wrapper per kind. Each knows its
 // kind statically and fetches its label from s_what.
 template <RadioParkKind K>
 static void set_complete_k (httpd_req_t * req, RadioParkOutcome outcome, bool ok) {
@@ -72,11 +75,14 @@ static radio_park_completer_t completer_for (RadioParkKind kind) {
 esp_err_t radio_set_via_http (httpd_req_t * req, RadioCmdType type, long arg, const char * what) {
     char msg[96];
 
-    // FT8 owns the radio for the whole transmission and the service does no
-    // CAT work meanwhile; a SET would only sit until it expired. Say so now.
-    if (Ft8RadioExclusive) {
-        ESP_LOGW (TAG8, "%s refused: radio busy (FT8)", what);
-        http_send_service_unavailable (req, "radio busy (FT8)");
+    // FT8 and the CW keyer each own the radio for a whole transmission and
+    // the service can do no CAT work meanwhile; a SET would only sit until
+    // it expired. Say so now.
+    RadioSetRefusal refusal = radio_set_refusal (Ft8RadioExclusive, kxRadio.is_keyer_active());
+    if (refusal != RadioSetRefusal::NONE) {
+        const char * reason = radio_set_refusal_message (refusal);
+        ESP_LOGW (TAG8, "%s refused: %s", what, reason);
+        http_send_service_unavailable (req, reason);
         return ESP_FAIL;
     }
 
@@ -102,4 +108,31 @@ esp_err_t radio_set_via_http (httpd_req_t * req, RadioCmdType type, long arg, co
     ESP_LOGI (TAG8, "%s (not parked)", msg);
     http_send_accepted (req, msg);
     return ESP_OK;
+}
+
+esp_err_t radio_get_via_http (httpd_req_t * req, RadioCmdType refresh, RadioParkKind kind, const RadioSnapshotData & snap, bool fresh, bool has_value, radio_get_sender_t send_now, radio_park_completer_t completer) {
+    switch (radio_get_action (fresh, Ft8RadioExclusive, radio_service_link_up())) {
+    case RadioGetAction::SERVE_FRESH:
+        send_now (req, snap);
+        return ESP_OK;
+
+    case RadioGetAction::REFUSE_LINK_DOWN:
+        // The refresh slot doubles as the link-recovery probe. API clients
+        // without the black-circle cue (SOTAmat polls only frequency/mode)
+        // must not be fed a stale value as live.
+        radio_service_request_refresh (refresh);
+        REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");
+
+    case RadioGetAction::TRY_PARK:
+        radio_service_request_refresh (refresh);
+        if (radio_park_request (req, kind, 0, RADIO_PARK_GET_WAIT_MS, completer))
+            return ESP_OK;  // reply sent later by the completer
+        break;  // no room: fall through to last-known
+
+    case RadioGetAction::SERVE_STALE:
+        break;  // FT8 owns the radio: last-known without refresh churn
+    }
+
+    send_now (req, snap);  // last known, or the field's error reply if nothing cached yet
+    return has_value ? ESP_OK : ESP_FAIL;
 }

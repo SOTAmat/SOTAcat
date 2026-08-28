@@ -2,7 +2,7 @@
 #include "kx_radio.h"
 #include "radio_park_httpd.h"
 #include "radio_service.h"
-#include "radio_set_http.h"
+#include "radio_http.h"
 #include "radio_snapshot.h"
 #include "webserver.h"
 
@@ -12,12 +12,13 @@
 static const char * TAG8 = "sc:hdl_vol.";
 
 /**
- * Handles an HTTP GET request to retrieve the current audio gain (volume).
+ * Sends the cached AF gain (volume) level as a plain-text reply.
  *
- * This function retrieves the current AF gain level from the radio
- * using the AG command. The value is returned as plain text (0-255).
+ * The value comes from the radio snapshot, never a live CAT read, and is on
+ * the knob's 0-60 display scale.
  *
- * @param req Pointer to the HTTP request structure.
+ * @param req  Pointer to the HTTP request structure.
+ * @param snap Snapshot to serve the volume from.
  */
 static void send_volume (httpd_req_t * req, const RadioSnapshotData & snap) {
     if (!snap.has_volume()) {
@@ -44,19 +45,7 @@ esp_err_t handler_volume_get (httpd_req_t * req) {
 
     RadioSnapshotData snap = radio_snapshot::get();
     int64_t           now  = esp_timer_get_time();
-    if (snap.volume_fresh (now)) {
-        send_volume (req, snap);
-        return ESP_OK;
-    }
-    if (!Ft8RadioExclusive) {
-        radio_service_request_refresh (RadioCmdType::REFRESH_VOLUME);
-        if (!radio_service_link_up())
-            REPLY_WITH_SERVICE_UNAVAILABLE (req, "radio link down");  // see handler_frequency_get
-        if (radio_park_request (req, RadioParkKind::GET_VOLUME, 0, RADIO_PARK_GET_WAIT_MS, volume_get_complete))
-            return ESP_OK;
-    }
-    send_volume (req, snap);
-    return snap.has_volume() ? ESP_OK : ESP_FAIL;
+    return radio_get_via_http (req, RadioCmdType::REFRESH_VOLUME, RadioParkKind::GET_VOLUME, snap, snap.volume_fresh (now), snap.has_volume(), send_volume, volume_get_complete);
 }
 
 /**

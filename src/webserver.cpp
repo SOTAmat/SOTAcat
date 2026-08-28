@@ -151,7 +151,8 @@ static int find_and_execute_api_handler (int method, const char * api_name, cons
 
     for (const api_handler_t * handler = handlers; handler->api_name != NULL; ++handler)
         if (method == handler->method &&
-            strncmp (api_name, handler->api_name, compare_length) == 0) {
+            strncmp (api_name, handler->api_name, compare_length) == 0 &&
+            handler->api_name[compare_length] == '\0') {  // exact match only: a prefix like "reb" must not dispatch "reboot"
             if (kxRadio.is_connected() || !handler->requires_radio)
                 return handler->handler_func (req);
             else
@@ -209,7 +210,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
         return ESP_FAIL;
 
     // ETag = firmware version. It changes on every OTA, so a browser's whole
-    // cached asset set revalidates together after an update — no stale-mix (#110).
+    // cached asset set revalidates together after an update, never a stale mix (#110).
     char etag[80];
     snprintf (etag, sizeof (etag), "\"%s\"", get_version_string());
 
@@ -263,13 +264,9 @@ static esp_err_t my_http_request_handler (httpd_req_t * req) {
         return find_and_execute_api_handler (req->method, api_name, api_handlers, req);
     }
 
-    // 2. Check for Web Page Assets
-    if (starts_with (requested_uri, "/"))
-        return dynamic_file_handler (req);
-
-    // 3. Default / Not Found - should not be possible to reach this code.
-    //    Not found errors would happen in the dynamic_file_handler in step 2.
-    return ESP_FAIL;
+    // 2. Everything else is a web page asset; unknown paths fail inside
+    //    dynamic_file_handler.
+    return dynamic_file_handler (req);
 }
 
 /**
@@ -290,7 +287,7 @@ void start_webserver () {
     ESP_LOGV (TAG8, "trace: %s", __func__);
 
     httpd_config_t config      = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers    = 6;
+    config.max_uri_handlers    = 3;  // GET/PUT/POST, all routed through my_http_request_handler
     config.uri_match_fn        = custom_uri_matcher;
     config.server_port         = 80;  // Explicitly set port 80 for mobile compatibility
     config.lru_purge_enable    = true;
@@ -321,7 +318,7 @@ void start_webserver () {
         uri_api.method = HTTP_POST;
         httpd_register_uri_handler (server, &uri_api);
 
-        // Async radio GET/SET completion (parked requests) — inert until a
+        // Async radio GET/SET completion (parked requests). Inert until a
         // handler registers a completer and calls radio_park_request().
         radio_park_init (server);
 
@@ -381,7 +378,7 @@ bool url_decode_in_place (char * str) {
  *   - ESP_ERR_* code on failure, indicating the specific error that occurred.
  */
 esp_err_t schedule_deferred_reboot (httpd_req_t * req) {
-    const uint64_t REBOOT_DELAY_US = 2000000;  // 1.5 seconds in microseconds
+    const uint64_t REBOOT_DELAY_US = 2000000;  // 2 seconds in microseconds
 
     // use a unique_ptr with a custom deleter for proper resource management
     auto deleter = [] (esp_timer_handle_t * t) {

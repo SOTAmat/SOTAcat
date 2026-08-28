@@ -84,7 +84,7 @@ Control your radio during activation.
 
 <img src="../images/run-transmit.png" alt="Transmit controls" width="300">
 
-**Tip:** After self-spotting, use split-screen mode with PoLo (or your preferred logging app) on top and SOTAcat's Transmit section on the bottom. This gives you one-tap access to TX, CW macro buttons, and your log — ideal for working a pileup right after spotting yourself.
+**Tip:** After self-spotting, use split-screen mode with PoLo (or your preferred logging app) on top and SOTAcat's Transmit section on the bottom. This gives you one-tap access to TX, CW macro buttons, and your log, ideal for working a pileup right after spotting yourself.
 
 <img src="../images/splitscreen-polo-sotacat-run.png" alt="Split-screen with PoLo logging and SOTAcat Transmit" width="300">
 

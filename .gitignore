@@ -112,9 +112,6 @@ website/flash/manifest.json
 # content is published to the GitHub release body, not tracked here.
 RELEASE_NOTES_*.md
 
-# Gzip-compressed web assets (build artifacts from kowalski/wip branch)
-src/web/*.*gz
-
 # Claude Code git worktrees (local tooling, not project content)
 .claude/worktrees/
 
@@ -125,4 +122,8 @@ test/host/test_radio_park
 test/host/test_radio_mode
 test/host/test_chunked_send
 test/host/test_uart_retry
+test/host/test_radio_set_gate
+test/host/test_battery_learned
+test/host/test_json_scan
+test/host/test_radio_get_gate
 

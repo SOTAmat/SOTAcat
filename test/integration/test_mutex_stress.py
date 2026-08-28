@@ -200,14 +200,14 @@ def responsiveness_probe(host, stop_event, results):
 
 
 def cold_probe_decoupling(host: str) -> None:
-    """Single-client unloaded latency check — proves no handler blocks
+    """Single-client unloaded latency check. Proves no handler blocks
     on radio I/O regardless of radio state. Runs before the stress test.
 
     Each endpoint is probed N times serially. Every request must return
     (with any HTTP status) within COLD_PROBE_MAX_MS. This is the test
     the user's experience actually depends on: their phone is ONE client;
     if these endpoints stay fast, the Run tab stays usable when the
-    radio is off — which is exactly the reported bug
+    radio is off, which is exactly the reported bug
     (radio-decoupling-design.md, lines 6–13).
     """
     import socket
@@ -217,7 +217,7 @@ def cold_probe_decoupling(host: str) -> None:
     # spikes while requests-based probes (even with fresh Session() per
     # call, IP pinning, and warmup) flaked ~1-in-3 with spikes matching
     # lwIP TCP SYN retransmit RTO. The cause is some interaction between
-    # Python's transport stack and ESP-IDF's httpd/lwIP/WiFi state —
+    # Python's transport stack and ESP-IDF's httpd/lwIP/WiFi state,
     # unrelated to radio I/O (manual curls + radio-decoupling code reviews
     # both confirm the decoupling is intact). Subprocess curl bypasses the
     # interaction and matches the empirical baseline.
@@ -280,7 +280,7 @@ def cold_probe_decoupling(host: str) -> None:
         f"Cold-probe FAILED: endpoints exceeded {COLD_PROBE_MAX_MS} ms: "
         + ", ".join(f"{ep}={ms:.0f}ms" for ep, ms in failures)
     )
-    print(f"  All endpoints < {COLD_PROBE_MAX_MS} ms — decoupling intact.")
+    print(f"  All endpoints < {COLD_PROBE_MAX_MS} ms; decoupling intact.")
 
 
 class MutexStressTest:
@@ -433,7 +433,7 @@ class MutexStressTest:
         # blocking-on-radio failure mode. The single-client cold probe (run
         # before this stress test) is what actually proves the decoupling.
         assert results["probe_p95"] < 2.0, (
-            f"/version p95 {results['probe_p95']:.2f}s — exceeds 2.0 s; "
+            f"/version p95 {results['probe_p95']:.2f}s exceeds 2.0 s; "
             f"server is stalling on radio I/O OR the HTTP server saturation "
             f"floor regressed."
         )

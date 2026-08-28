@@ -142,6 +142,11 @@ async function loadTuneTargets() {
             originalTuneTargets = normalizeTuneTargets(data.targets);
             originalTuneTargetsMobile = data.mobile || false;
             loadedFromDevice = true;
+            // Refresh the app-wide caches too, so values edited from another
+            // client reach every consumer, not just this page.
+            AppState.tuneTargets = [...originalTuneTargets];
+            AppState.tuneTargetsMobile = originalTuneTargetsMobile;
+            saveTuneTargetsToLocalStorage(AppState.tuneTargets, AppState.tuneTargetsMobile);
         }
     } catch (error) {
         Log.warn("Settings")("Device unavailable for tune targets load:", error);
@@ -470,6 +475,10 @@ async function loadCwMacros() {
             const data = await response.json();
             originalCwMacros = data.macros || [];
             loadedFromDevice = true;
+            // Refresh the app-wide caches too, so values edited from another
+            // client reach every consumer, not just this page.
+            AppState.cwMacros = [...originalCwMacros];
+            saveCwMacrosToLocalStorage(AppState.cwMacros);
         }
     } catch (error) {
         Log.warn("Settings")("Device unavailable for CW macros load:", error);

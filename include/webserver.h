@@ -106,10 +106,9 @@ static inline bool parse_long_param (const char * s, long & out) {
 }
 
 // Non-returning send helpers. The REPLY_WITH_* macros wrap these and
-// `return`; async completers (radio_park_httpd.h) — which run outside the
-// original handler and must not return early — call them directly.
+// `return`; async completers (radio_park_httpd.h), which run outside the
+// original handler and must not return early, call them directly.
 static inline void http_send_string (httpd_req_t * req, const char * payload) {
-    httpd_resp_set_hdr (req, "Connection", "close");
     httpd_resp_set_hdr (req, "Cache-Control", "no-store");
     httpd_resp_send (req, payload, HTTPD_RESP_USE_STRLEN);
 }
@@ -123,7 +122,6 @@ static inline void http_send_error_json (httpd_req_t * req, httpd_err_code_t cod
 
 static inline void http_send_no_content (httpd_req_t * req) {
     httpd_resp_set_status (req, "204 No Content");
-    httpd_resp_set_hdr (req, "Connection", "close");
     httpd_resp_set_hdr (req, "Cache-Control", "no-store");
     httpd_resp_send (req, NULL, 0);
 }
@@ -196,7 +194,8 @@ static inline void http_send_service_unavailable (httpd_req_t * req, const char 
 
 /**
  * Logs a message using the description and value, then sends an HTTP response
- * with a specified string payload and a "Connection: close" header.
+ * with a specified string payload; the connection stays open for the
+ * server's keep-alive policy to manage.
  *
  * @param req         The HTTP request handler (type: `httpd_req_t *`) used to send the response back to the client.
  * @param payload     The response string to be sent to the client. The length of this string is

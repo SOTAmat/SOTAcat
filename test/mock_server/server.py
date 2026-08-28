@@ -51,6 +51,7 @@ DEFAULT_STATE = {
     "radio_latency_ms": 50,  # simulated CAT round-trip per operation
     "radio_dead": False,     # radio off / unplugged: CAT never answers
     "ft8": False,            # FT8 transmission in progress (radio exclusive)
+    "keyer": False,          # CW keyer transmission in progress (radio exclusive)
     # Device info (format: {HW}_{VER}:{YYMMDD}:{HHMM}-{R|D})
     "version": "TEST_1:260101:0101-D",
     "rssi": -62,
@@ -78,7 +79,7 @@ DEFAULT_STATE = {
         {"url": "http://rx.linkfanel.net/", "enabled": False},
     ],
     "tune_targets_mobile": False,
-    # CW macros (empty by default — must be configured in Settings)
+    # CW macros (empty by default; must be configured in Settings)
     "cw_macros": [],
     # WiFi settings
     "sta1_ssid": "HomeNetwork",
@@ -209,6 +210,8 @@ class MockRadio:
             return "⚫"
         if self.state.get("ft8"):
             return "⚪"
+        if self.state.get("keyer"):
+            return "🔴"  # keyer TX: firmware reports transmitting without a CAT poll
         self.get_value("xmit")
         return "🔴" if self.state.get("xmit") else "🟢"
 
@@ -218,6 +221,8 @@ class MockRadio:
         (radio accepted / refused). Returns (status, message)."""
         if self.state.get("ft8"):
             return 503, "radio busy (FT8)"
+        if self.state.get("keyer"):
+            return 503, "radio busy (keyer)"
         if not self.link_up:
             return 503, "radio link down"
         gen = self.set_gen.get(kind, 0) + 1
@@ -258,7 +263,7 @@ class MockSOTAcatServer:
 
     def _setup_routes(self):
         # ------------------------------------------------------------------
-        # Cache policy — mirrors the firmware (src/webserver.cpp
+        # Cache policy mirrors the firmware (src/webserver.cpp
         # dynamic_file_handler + the REPLY_WITH_* macros in webserver.h):
         #   * embedded web assets  -> ETag = firmware version + no-cache
         #                             (revalidate; honor If-None-Match -> 304)
@@ -307,7 +312,7 @@ class MockSOTAcatServer:
             return self.state["version"]
 
         # --- Radio endpoints: firmware-contract-faithful (bare text GETs,
-        # 204/500/202/503 PUTs, bounded waits) — see MockRadio.
+        # 204/500/202/503 PUTs, bounded waits); see MockRadio.
         def radio_reply(status, message):
             if status == 204:
                 return Response("", status=204, headers={"Cache-Control": "no-store"})

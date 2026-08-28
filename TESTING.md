@@ -30,7 +30,7 @@ SOTAcat has a comprehensive test suite covering:
 3. **Stress Tests** (`test/integration/`) — Multi-client concurrent access, mutex timeout validation. Requires a live device.
 
 ### Unit Tests
-Pure JS tests for extracted web-UI logic. Each `test/unit/test_*.js` file runs standalone under Node.js with no dependencies — `make test-unit` runs all of them. The harness is a small custom runner (no Jest/Mocha); each file builds its own VM sandbox and loads only the code under test (usually by extracting specific functions from the relevant `src/web/*.js` file). PlatformIO's old unit-test harness is no longer used.
+Pure JS tests for extracted web-UI logic. Each `test/unit/test_*.js` file runs standalone under Node.js with no dependencies; `make test-unit` runs all of them. The harness is a small custom runner (no Jest/Mocha); each file builds its own VM sandbox and loads only the code under test (usually by extracting specific functions from the relevant `src/web/*.js` file). PlatformIO's old unit-test harness is no longer used.
 
 **Test files (`test/unit/`)**:
 

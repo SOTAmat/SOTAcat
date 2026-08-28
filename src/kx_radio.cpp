@@ -32,12 +32,6 @@ KXRadio & kxRadio = KXRadio::getInstance();
 static KXRadioDriver  g_kx_driver;
 static KH1RadioDriver g_kh1_driver;
 
-// UART timeouts for radio commands
-// Short commands (status checks): 100ms is sufficient
-// Long commands (frequency changes): Radio needs time to settle VFO, use 2000ms
-#define KX_TIMEOUT_MS_SHORT_COMMANDS 100
-#define KX_TIMEOUT_MS_LONG_COMMANDS  2000
-
 /*
  * Utilities
  */
@@ -47,7 +41,9 @@ static KH1RadioDriver g_kh1_driver;
  * Handles errors like the device being busy and logs detailed communication status.
  *
  * @param cmd Command to be sent to UART, expressed as a null-terminated string.
- * @param response Buffer to store the response.
+ * @param response Buffer to store the response; must have room for
+ *                 expected_chars + 1 bytes (the terminator lands at
+ *                 response[expected_chars] on a full read).
  * @param expected_chars Expected number of characters in the response.
  * @param tries Number of retries for the command.
  * @param wait_ms Milliseconds to wait for a response.
@@ -117,6 +113,24 @@ static long parse_response (const char * response, int num_digits) {
         break;
     }
     return -1;  // Invalid response size
+}
+
+/**
+ * Reports whether a command needs the long UART reply wait.
+ *
+ * Band, frequency and mode changes retune radio hardware, and the radio can
+ * take seconds to acknowledge them; every other command answers within the
+ * short wait.
+ *
+ * @param command Command token, without the trailing semicolon.
+ * @return bool True if the command needs KX_TIMEOUT_MS_LONG_COMMANDS.
+ */
+static bool kx_command_is_slow (const char * command) {
+    static const char * const slow[] = {"AP", "FA", "FR", "FT", "MD", "PC"};
+    for (const char * s : slow)
+        if (strcmp (command, s) == 0)
+            return true;
+    return false;
 }
 
 KXRadio::KXRadio()
@@ -196,6 +210,11 @@ int KXRadio::connect() {
     uint8_t buffer[256];
     while (true) {
         for (size_t i = 0; i < num_rates; ++i) {
+            // Our caller (radio_connection_task, setup.cpp) is subscribed to
+            // the task watchdog, and this hunt loops until a radio answers
+            // (forever, when none is attached), so check in each pass or the
+            // watchdog reports the task as starved every timeout period.
+            esp_task_wdt_reset();
             uart_set_baudrate (UART_NUM, baud_rates[i]);  // Change baud rate
             vTaskDelay (pdMS_TO_TICKS (250));             // Delay for stability before next try
 
@@ -204,7 +223,7 @@ int KXRadio::connect() {
                 uart_flush (UART_NUM);
                 uart_write_bytes (UART_NUM, ";I;", strlen (";I;"));
 
-                int length = uart_read_bytes (UART_NUM, buffer, 256, 250 / portTICK_PERIOD_MS);
+                int length = uart_read_bytes (UART_NUM, buffer, sizeof (buffer) - 1, 250 / portTICK_PERIOD_MS);
                 if (length > 0) {
                     buffer[length] = '\0';  // Null terminate the string
                     ESP_LOGV (TAG8, "received %d bytes: %s", length, buffer);
@@ -225,7 +244,7 @@ int KXRadio::connect() {
             uart_flush (UART_NUM);
             uart_write_bytes (UART_NUM, ";RVR;", strlen (";RVR;"));
 
-            int length = uart_read_bytes (UART_NUM, buffer, 256, 250 / portTICK_PERIOD_MS);
+            int length = uart_read_bytes (UART_NUM, buffer, sizeof (buffer) - 1, 250 / portTICK_PERIOD_MS);
             if (length > 0) {
                 buffer[length] = '\0';  // Null terminate the string
                 ESP_LOGV (TAG8, "received %d bytes: %s", length, buffer);
@@ -301,11 +320,7 @@ long KXRadio::get_from_kx (const char * command, int tries, int num_digits) {
         return '\0';
     }
 
-    int wait_time = KX_TIMEOUT_MS_SHORT_COMMANDS;
-
-    const char * long_command_prefixes = "AP FA FR FT MD PC";
-    if (command != NULL && strstr (long_command_prefixes, command) != NULL)
-        wait_time = KX_TIMEOUT_MS_LONG_COMMANDS;
+    int wait_time = kx_command_is_slow (command) ? KX_TIMEOUT_MS_LONG_COMMANDS : KX_TIMEOUT_MS_SHORT_COMMANDS;
 
     snprintf (command_buff, sizeof (command_buff), "%s;", command);
     int response_size = num_digits + command_size + 1;
@@ -381,7 +396,7 @@ bool KXRadio::put_to_kx (const char * command, int num_digits, long value, int t
     for (int attempt = 0; attempt < tries; attempt++) {
         // Each attempt can burn ~6 s against an unresponsive radio; keep a
         // WDT-subscribed caller (the radio service task) fed. Returns
-        // ESP_ERR_NOT_FOUND for unsubscribed tasks — harmless, ignored.
+        // ESP_ERR_NOT_FOUND for unsubscribed tasks (harmless, ignored).
         esp_task_wdt_reset();
         uart_flush (UART_NUM);
         uart_write_bytes (UART_NUM, request, num_digits + 3);
@@ -468,7 +483,7 @@ bool KXRadio::put_to_kx_menu_item (uint8_t menu_item, long value, int tries) {
  * Preconditions:
  *   The radio must be locked before calling this function. If not, an error is logged.
  */
-bool KXRadio::get_from_kx_string (const char * command, int tries, char * response, int response_size) {
+bool KXRadio::get_from_kx_string (const char * command, int tries, char * response, int response_size, int wait_ms) {
     ESP_LOGV (TAG8, "trace: %s(command = '%s')", __func__, command);
 
     if (!is_locked())
@@ -478,7 +493,7 @@ bool KXRadio::get_from_kx_string (const char * command, int tries, char * respon
     char command_buff[8] = {0};
     snprintf (command_buff, sizeof (command_buff), "%s;", command);
 
-    return uart_get_command (command_buff, response, response_size, tries, KX_TIMEOUT_MS_SHORT_COMMANDS);
+    return uart_get_command (command_buff, response, response_size, tries, wait_ms);
 }
 
 /**
@@ -513,19 +528,17 @@ bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
  *
  *   DELEGATE_BOOL(name, PARAMS, ...)
  *     Generates: bool KXRadio::name PARAMS
- *     Preconditions: radio must be locked (logged error if not), m_driver must be set.
- *     Returns false if m_driver is null; otherwise returns the driver result.
+ *     Preconditions: radio must be locked (logged error if not).
  *
  *   DELEGATE_BOOL_CONST(name)
- *     Generates: bool KXRadio::name() const
- *     Preconditions: m_driver must be set (no lock required).
- *     Returns false if m_driver is null; otherwise returns the driver result.
+ *     Generates: bool KXRadio::name() const  (no lock required)
  *
  *   DELEGATE_VOID(name, PARAMS, ...)
  *     Generates: void KXRadio::name PARAMS
- *     Preconditions: radio must be locked (logged error if not), m_driver must be set.
- *     Does nothing if m_driver is null.
+ *     Preconditions: radio must be locked (logged error if not).
  *
+ * m_driver is always valid: the constructor selects the KX driver and
+ * select_driver() only ever swaps between the two drivers.
  * All three variants add LOGV tracing; the non-const variants also check is_locked().
  */
 #define DELEGATE_BOOL(name, PARAMS, ...)                                   \
@@ -533,20 +546,19 @@ bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
         ESP_LOGV (TAG8, "trace: %s()", __func__);                          \
         if (!is_locked())                                                  \
             ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)"); \
-        return m_driver && m_driver->name (*this, ##__VA_ARGS__);          \
+        return m_driver->name (*this, ##__VA_ARGS__);                     \
     }
 #define DELEGATE_BOOL_CONST(name)                 \
     bool KXRadio::name() const {                  \
         ESP_LOGV (TAG8, "trace: %s()", __func__); \
-        return m_driver && m_driver->name();      \
+        return m_driver->name();                  \
     }
 #define DELEGATE_VOID(name, PARAMS, ...)                                   \
     void KXRadio::name PARAMS {                                            \
         ESP_LOGV (TAG8, "trace: %s()", __func__);                          \
         if (!is_locked())                                                  \
             ESP_LOGE (TAG8, "RADIO NOT LOCKED! (coding error in caller)"); \
-        if (m_driver)                                                      \
-            m_driver->name (*this, ##__VA_ARGS__);                         \
+        m_driver->name (*this, ##__VA_ARGS__);                             \
     }
 // clang-format off
 DELEGATE_BOOL (ft8_prepare,         (long base_freq),                         base_freq)

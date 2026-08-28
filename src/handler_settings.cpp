@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "kx_radio.h"
+#include "json_scan.h"
 #include "settings.h"
 #include "webserver.h"
 
@@ -329,6 +330,23 @@ esp_err_t handler_settings_get (httpd_req_t * req) {
 }
 
 /**
+ * Read a POST body into a NUL-terminated heap buffer. On failure the HTTP
+ * reply (408 on timeout) has already been sent where applicable and nullptr
+ * is returned; the caller just returns ESP_FAIL.
+ */
+static std::unique_ptr<char[]> read_post_body (httpd_req_t * req) {
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    int                     ret = httpd_req_recv (req, buf.get(), req->content_len);
+    if (ret <= 0) {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT)
+            httpd_resp_send_408 (req);
+        return nullptr;
+    }
+    buf[req->content_len] = '\0';
+    return buf;
+}
+
+/**
  * Respond to the POST request by parsing the incoming JSON key/value pairs,
  * storing those in NVS.  Subsequently, return those values as confirmation.
  */
@@ -337,20 +355,11 @@ esp_err_t handler_settings_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    std::unique_ptr<char[]> buf (new char[req->content_len + 1]);
+    auto buf = read_post_body (req);
     if (!buf)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
+        return ESP_FAIL;
 
-    char * unsafe_buf = buf.get();  // reference to an ephemeral buffer
-
-    // Get the content
-    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
-    if (ret <= 0)
-        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "post content not received");
-
-    unsafe_buf[req->content_len] = '\0';  // Null-terminate for string operations
-
-    parse_and_process_json (unsafe_buf);
+    parse_and_process_json (buf.get());
 
     if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
@@ -410,23 +419,11 @@ esp_err_t handler_gps_settings_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    auto buf = read_post_body (req);
     if (!buf)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
-
-    char * unsafe_buf = buf.get();
-
-    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
-    if (ret <= 0) {
-        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
-            httpd_resp_send_408 (req);
-        }
         return ESP_FAIL;
-    }
 
-    unsafe_buf[req->content_len] = '\0';
-
-    parse_and_process_json (unsafe_buf);
+    parse_and_process_json (buf.get());
 
     if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
@@ -472,23 +469,11 @@ esp_err_t handler_callsign_settings_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    auto buf = read_post_body (req);
     if (!buf)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
-
-    char * unsafe_buf = buf.get();
-
-    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
-    if (ret <= 0) {
-        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
-            httpd_resp_send_408 (req);
-        }
         return ESP_FAIL;
-    }
 
-    unsafe_buf[req->content_len] = '\0';
-
-    parse_and_process_json (unsafe_buf);
+    parse_and_process_json (buf.get());
 
     if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
@@ -538,23 +523,11 @@ esp_err_t handler_license_settings_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    auto buf = read_post_body (req);
     if (!buf)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
-
-    char * unsafe_buf = buf.get();
-
-    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
-    if (ret <= 0) {
-        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
-            httpd_resp_send_408 (req);
-        }
         return ESP_FAIL;
-    }
 
-    unsafe_buf[req->content_len] = '\0';
-
-    parse_and_process_json (unsafe_buf);
+    parse_and_process_json (buf.get());
 
     if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
@@ -605,40 +578,26 @@ esp_err_t handler_tune_targets_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    auto buf = read_post_body (req);
     if (!buf)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
-
+        return ESP_FAIL;
     char * unsafe_buf = buf.get();
 
-    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
-    if (ret <= 0) {
-        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
-            httpd_resp_send_408 (req);
-        }
-        return ESP_FAIL;
-    }
-
-    unsafe_buf[req->content_len] = '\0';
-
-    // Parse JSON to extract "targets" array and "mobile" boolean
+    // Extract the "targets" array; the scanner is string-aware, so bracketed
+    // URLs (IPv6 hosts) never truncate it.
     // Expected format: {"targets": ["url1", "url2"], "mobile": true}
-
-    // Find targets array
-    char * targets_start = strstr (unsafe_buf, "\"targets\"");
-    if (targets_start) {
-        char * array_start = strchr (targets_start, '[');
-        if (array_start) {
-            char * array_end = strchr (array_start, ']');
-            if (array_end) {
-                size_t array_len = array_end - array_start + 1;
-                if (array_len < sizeof (g_tune_targets)) {
-                    snprintf (g_tune_targets, sizeof (g_tune_targets), "%.*s", (int)array_len, array_start);
-                    nvs_set_str (s_nvs_settings_handle, s_tune_targets_key, g_tune_targets);
-                    ESP_LOGI (TAG8, "Stored tune targets: %s", g_tune_targets);
-                }
-            }
+    size_t       array_len     = 0;
+    const char * array_start   = json_find_array (unsafe_buf, "targets", &array_len);
+    if (array_start) {
+        if (json_array_count (array_start, array_len) > MAX_TUNE_TARGETS)
+            REPLY_WITH_FAILURE (req, HTTPD_400_BAD_REQUEST, "too many tune targets");
+        if (array_len < sizeof (g_tune_targets)) {
+            snprintf (g_tune_targets, sizeof (g_tune_targets), "%.*s", (int)array_len, array_start);
+            nvs_set_str (s_nvs_settings_handle, s_tune_targets_key, g_tune_targets);
+            ESP_LOGI (TAG8, "Stored tune targets: %s", g_tune_targets);
         }
+        else
+            REPLY_WITH_FAILURE (req, HTTPD_400_BAD_REQUEST, "tune targets too large");
     }
 
     // Find mobile boolean
@@ -696,51 +655,24 @@ esp_err_t handler_cw_macros_post (httpd_req_t * req) {
 
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    auto buf = read_post_body (req);
     if (!buf)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "heap allocation failed");
-
-    char * unsafe_buf = buf.get();
-
-    int ret = httpd_req_recv (req, unsafe_buf, req->content_len);
-    if (ret <= 0) {
-        if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
-            httpd_resp_send_408 (req);
-        }
         return ESP_FAIL;
-    }
 
-    unsafe_buf[req->content_len] = '\0';
-
-    // Parse JSON to extract "macros" array
+    // Extract the "macros" array (string-aware and depth-counting).
     // Expected format: {"macros": [{"label":"...","template":"..."},...]  }
-    char * macros_start = strstr (unsafe_buf, "\"macros\"");
-    if (macros_start) {
-        char * array_start = strchr (macros_start, '[');
-        if (array_start) {
-            // Find matching closing bracket (handles nested objects)
-            int    depth     = 0;
-            char * array_end = nullptr;
-            for (char * p = array_start; *p; ++p) {
-                if (*p == '[')
-                    depth++;
-                else if (*p == ']') {
-                    depth--;
-                    if (depth == 0) {
-                        array_end = p;
-                        break;
-                    }
-                }
-            }
-            if (array_end) {
-                size_t array_len = array_end - array_start + 1;
-                if (array_len < sizeof (g_cw_macros)) {
-                    snprintf (g_cw_macros, sizeof (g_cw_macros), "%.*s", (int)array_len, array_start);
-                    nvs_set_str (s_nvs_settings_handle, s_cw_macros_key, g_cw_macros);
-                    ESP_LOGI (TAG8, "Stored CW macros: %s", g_cw_macros);
-                }
-            }
+    size_t       array_len   = 0;
+    const char * array_start = json_find_array (buf.get(), "macros", &array_len);
+    if (array_start) {
+        if (json_array_count (array_start, array_len) > MAX_CW_MACROS)
+            REPLY_WITH_FAILURE (req, HTTPD_400_BAD_REQUEST, "too many CW macros");
+        if (array_len < sizeof (g_cw_macros)) {
+            snprintf (g_cw_macros, sizeof (g_cw_macros), "%.*s", (int)array_len, array_start);
+            nvs_set_str (s_nvs_settings_handle, s_cw_macros_key, g_cw_macros);
+            ESP_LOGI (TAG8, "Stored CW macros: %s", g_cw_macros);
         }
+        else
+            REPLY_WITH_FAILURE (req, HTTPD_400_BAD_REQUEST, "CW macros too large");
     }
 
     if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
