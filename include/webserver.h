@@ -170,7 +170,9 @@ static inline void http_send_service_unavailable (httpd_req_t * req, const char 
 
 /**
  * Log an error and send 503 Service Unavailable with a JSON error body, then
- * exit the handler with ESP_FAIL. Used when the radio link is known-down.
+ * exit the handler with ESP_FAIL. Used when a required resource is
+ * transiently unavailable (the radio link is known-down, a data mutex
+ * timed out).
  */
 #define REPLY_WITH_SERVICE_UNAVAILABLE(req, message)  \
     do {                                              \
