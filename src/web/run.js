@@ -943,8 +943,11 @@ function setFrequency(frequencyHz) {
 function adjustFrequency(deltaHz) {
     const newFrequency = (AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ) + deltaHz;
 
-    // Basic bounds checking for HF range
-    if (newFrequency >= HF_MIN_FREQUENCY_HZ && newFrequency <= HF_MAX_FREQUENCY_HZ) {
+    // Bounds come from the connected radio's capability table (a KX3
+    // reaches 6 m; a KH1 tunes only 40-15 m). A null span means the user
+    // opted out of band filtering (transverter use): only sanity applies.
+    const span = getRadioFrequencySpanHz();
+    if (newFrequency > 0 && (!span || (newFrequency >= span.min && newFrequency <= span.max))) {
         setFrequency(newFrequency);
     } else {
         Log.warn("Spot")("Frequency out of bounds:", newFrequency);
@@ -955,25 +958,27 @@ function adjustFrequency(deltaHz) {
 async function setMode(mode) {
     suppressVfoPolling(VFO_ACTION_SUPPRESS_MS);
 
-    let actualMode = mode;
-
-    // Handle SSB mode selection based on frequency
-    if (mode === "SSB") {
-        actualMode = (AppState.vfoFrequencyHz || DEFAULT_FREQUENCY_HZ) < LSB_USB_BOUNDARY_HZ ? "LSB" : "USB";
-    }
-
-    const url = `/api/v1/mode?mode=${actualMode}`;
+    // "SSB" goes to the firmware verbatim: it resolves the sideband at
+    // apply time against the actual radio frequency (RADIO_MODE_SSB_AUTO),
+    // which the client cannot do reliably when the VFO is not yet known.
+    const url = `/api/v1/mode?mode=${mode}`;
 
     try {
         const response = await fetch(url, { method: "PUT" });
 
         if (response.ok) {
-            AppState.vfoMode = actualMode;
+            if (mode === "SSB") {
+                // The radio picked LSB or USB; re-read rather than guess.
+                resyncVfoFromRadio();
+                Log.debug("Spot")("Mode SSB applied; re-reading resolved sideband");
+                return;
+            }
+            AppState.vfoMode = mode;
             AppState.vfoLastUpdated = Date.now();
             updateModeDisplay();
             updatePrivilegeDisplay();
             notifyVfoSubscribers();
-            Log.debug("Spot")("Mode updated:", actualMode);
+            Log.debug("Spot")("Mode updated:", mode);
         } else {
             Log.error("Spot")("Mode update failed");
             // Revert display on error

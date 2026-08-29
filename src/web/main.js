@@ -34,9 +34,8 @@ const VFO_TIMEOUT_MS = 2000;                // < 3 sec polling interval
 
 const LSB_USB_BOUNDARY_HZ = 10000000; // 10 MHz - below is LSB, above is USB
 const DEFAULT_FREQUENCY_HZ = 14225000; // 20m band - fallback when VFO state unknown
-const HF_MIN_FREQUENCY_HZ = 1800000;  // 160m band lower edge (1.8 MHz)
-const HF_MAX_FREQUENCY_HZ = 29700000; // 10m band upper edge (29.7 MHz) - KX2 limit
-// const HF_MAX_FREQUENCY_HZ = 54000000; // 6m band upper edge (54 MHz) - KX3 limit
+const HF_MIN_FREQUENCY_HZ = 1800000;  // 160m band lower edge; fallback span when the radio type is unknown
+const HF_MAX_FREQUENCY_HZ = 29700000; // 10m band upper edge; fallback span when the radio type is unknown
 
 // ============================================================================
 // Reference Patterns (used by qrx.js and run.js)
@@ -495,6 +494,29 @@ function getRadioBands(radioType, requireTx = false) {
     return Object.entries(cap.bands)
         .filter(([, v]) => requireTx ? v === "TXRX" : true)
         .map(([k]) => k);
+}
+
+// Frequency span the current radio can tune, derived from its capability
+// table and BAND_PLAN (RX-only bands count: tuning there is legitimate).
+// Unknown radios fall back to the full HF span rather than blocking tuning.
+// Returns null (no restriction) when the user has opted out of band
+// filtering: transverter setups report frequencies far outside the radio's
+// native span, and the driver stays the authority on what it accepts.
+function getRadioFrequencySpanHz() {
+    if (!AppState.filterBandsEnabled)
+        return null;
+    const bands = getRadioBands(AppState.radioType);
+    let min = Infinity;
+    let max = -Infinity;
+    for (const band of bands || []) {
+        const range = BAND_PLAN[band];
+        if (!range) continue;
+        min = Math.min(min, range.min);
+        max = Math.max(max, range.max);
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max))
+        return { min: HF_MIN_FREQUENCY_HZ, max: HF_MAX_FREQUENCY_HZ };
+    return { min, max };
 }
 
 // Load radio type from device into AppState

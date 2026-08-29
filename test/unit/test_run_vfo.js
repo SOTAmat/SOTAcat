@@ -196,6 +196,51 @@ if (fetchVfoMatch && suppressMatch) {
     });
 }
 
+// ============================================================================
+// setMode: "SSB" goes to the firmware verbatim (RADIO_MODE_SSB_AUTO picks
+// the sideband against the actual radio frequency); the client must not
+// guess from a possibly-unknown VFO.
+// ============================================================================
+
+const setModeMatch = runJs.match(/async function setMode\([\s\S]*?\n\}/);
+
+function makeSetModeSandbox() {
+    const calls = [];
+    const sandbox = {
+        fetch: async (url) => { calls.push(String(url)); return { ok: true }; },
+        suppressVfoPolling: () => {},
+        VFO_ACTION_SUPPRESS_MS: 2000,
+        AppState: { vfoFrequencyHz: null, vfoMode: 'CW', vfoLastUpdated: 0 },
+        resyncVfoFromRadio: () => calls.push('resync'),
+        updateModeDisplay: () => {},
+        updatePrivilegeDisplay: () => {},
+        notifyVfoSubscribers: () => {},
+        Date: Date,
+        Log: { debug: () => () => {}, error: () => () => {} },
+        _calls: calls,
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(setModeMatch[0], sandbox);
+    return sandbox;
+}
+
+if (setModeMatch) {
+    itAsync('setMode sends SSB verbatim and re-reads the resolved sideband', async () => {
+        const sb = makeSetModeSandbox();
+        await vm.runInContext('setMode("SSB")', sb);
+        assertTrue(sb._calls[0].includes('mode=SSB'), `SSB sent verbatim, got ${sb._calls[0]}`);
+        assertTrue(sb._calls.includes('resync'), 'resolved sideband re-read from the radio');
+        assertEqual(sb.AppState.vfoMode, 'CW', 'no client-side sideband guess written');
+    });
+
+    itAsync('setMode applies a plain mode optimistically', async () => {
+        const sb = makeSetModeSandbox();
+        await vm.runInContext('setMode("CW")', sb);
+        assertTrue(sb._calls[0].includes('mode=CW'), 'mode sent');
+        assertEqual(sb.AppState.vfoMode, 'CW', 'mode written optimistically');
+    });
+}
+
 (async () => {
     if (asyncTests.length) console.log('\nAsync tests');
     for (const t of asyncTests) {
