@@ -65,8 +65,8 @@ trigger not fully constructible).
 | UR-15 | Table refresh detaches tuned row; stale detached row drives PoLo deep links           | chase.js:864,280-308,589-591                      | V   | 2   | 2    | 2   | 2   | U8    | fixed 881e8a2 |
 | UR-16 | tuneRadioHz never calls suppressVfoPolling; in-flight poll reverts optimistic state   | main.js:1182-1226,871,823                         | V   | 1   | 3    | 2   | 2   | U8    | fixed 881e8a2 |
 | UR-17 | Rejected tune-target/CW-macro saves (400/500) alert "saved"; caches clobbered on next load | settings.js:427-453,700-720; handler_settings.cpp:600,675,611 | V | 2 | 2 | 2 | 1 | U9 | fixed e1e4d9f |
-| UR-18 | Genuine 0° coordinate treated as missing (post-parseFloat falsy checks)               | qrx.js:307; chase_api.js:127                      | V(narrowed) | 2 | 3 | 3 | 1 | U10 | open |
-| UR-19 | VFO poll `parseInt` unguarded vs NaN (trigger needs non-firmware responder)           | main.js:837                                       | P   | 1   | 3    | 3   | 1   | U10   | open |
+| UR-18 | Genuine 0° coordinate treated as missing (post-parseFloat falsy checks)               | qrx.js:307; chase_api.js:127                      | V(narrowed) | 2 | 3 | 3 | 1 | U10 | fixed cf6dbf3 |
+| UR-19 | VFO poll `parseInt` unguarded vs NaN (trigger needs non-firmware responder)           | main.js:837                                       | P   | 1   | 3    | 3   | 1   | U10   | fixed cf6dbf3 |
 
 ## Master table — cleanup (all verified factually)
 
