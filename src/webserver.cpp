@@ -409,5 +409,9 @@ esp_err_t schedule_deferred_reboot (httpd_req_t * req) {
         return timer_start_result;
     }
 
+    // The armed timer must outlive this scope; its callback is esp_restart,
+    // so nothing ever needs to free it.
+    timer.release();
+
     return ESP_OK;
 }

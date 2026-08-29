@@ -114,12 +114,13 @@ static TaskHandle_t showUserActivityBlinkTaskHandle = NULL;
  */
 void activityLedBlinkTask (void * _param) {
     while (true) {
-        // Wait for the signal to turn off the LED with after a timeout
-        if (ulTaskNotifyTake (pdTRUE, pdMS_TO_TICKS (LED_FLASH_MSEC)) == pdTRUE) {
-            // If we received a notification, it means the timer was reset
-            // Continue to wait again for 50ms or for another reset
-            continue;
-        }
+        // Sleep until showActivity() signals; no periodic wakeups while idle.
+        ulTaskNotifyTake (pdTRUE, portMAX_DELAY);
+
+        // The LED is on. Keep it on while activity keeps arriving, then turn
+        // it off after LED_FLASH_MSEC of quiet (a retriggerable one-shot).
+        while (ulTaskNotifyTake (pdTRUE, pdMS_TO_TICKS (LED_FLASH_MSEC)) == pdTRUE)
+            ;
 
         gpio_set_level (LED_RED, LED_OFF);
     }

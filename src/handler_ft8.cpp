@@ -634,6 +634,8 @@ static bool ft8_parse_sequence_number_from_query (const char * unsafe_buf, uint3
         return false;
     }
 
+    // Private strict parse rather than parse_long_param: sequence numbers
+    // span the full uint32 range, which the 32-bit signed long cannot hold.
     char *        end_ptr = NULL;
     unsigned long parsed  = strtoul (sequence_number_str, &end_ptr, 10);
     if (parsed == 0 || end_ptr == sequence_number_str || *end_ptr != '\0' || parsed > UINT32_MAX) {
@@ -693,17 +695,21 @@ static bool ft8_parse_prepare_request_from_query (const char * unsafe_buf, ft8_p
         return false;
     }
 
+    long audio_freq_long = 0;
+    // timeNow stays strtoll: a millisecond epoch does not fit the 32-bit
+    // long that parse_long_param yields on this target.
     if (!(httpd_query_key_value (unsafe_buf, "messageText", out.messageText, sizeof (out.messageText)) == ESP_OK &&
           url_decode_in_place (out.messageText) &&
           strnlen (out.messageText, sizeof (out.messageText)) <= 13 &&
           httpd_query_key_value (unsafe_buf, "timeNow", nowTimeUTCms_str, sizeof (nowTimeUTCms_str)) == ESP_OK &&
           (out.nowTimeUTCms = strtoll (nowTimeUTCms_str, &timeStringEndChar, 10)) > 0 &&
           httpd_query_key_value (unsafe_buf, "rfFrequency", rfFreq_str, sizeof (rfFreq_str)) == ESP_OK &&
-          (out.rfFreq = atol (rfFreq_str)) > 0 &&
+          parse_long_param (rfFreq_str, out.rfFreq) && out.rfFreq > 0 &&
           httpd_query_key_value (unsafe_buf, "audioFrequency", audioFreq_str, sizeof (audioFreq_str)) == ESP_OK &&
-          (out.audioFreq = atoi (audioFreq_str)) > 0)) {
+          parse_long_param (audioFreq_str, audio_freq_long) && audio_freq_long > 0)) {
         return false;
     }
+    out.audioFreq = static_cast<int> (audio_freq_long);
 
     return true;
 }
@@ -913,13 +919,13 @@ esp_err_t handler_ft8_post (httpd_req_t * req) {
     char rfFreq_str[32];
     long rfFreq = 0;
     char audioFreq_str[16];
-    int  audioFreq = 0;
+    long audioFreq = 0;
 
     // Parse the 'messageText' parameter from the query
     if (!(httpd_query_key_value (unsafe_buf, "rfFrequency", rfFreq_str, sizeof (rfFreq_str)) == ESP_OK &&
-          (rfFreq = atol (rfFreq_str)) > 0 &&
+          parse_long_param (rfFreq_str, rfFreq) && rfFreq > 0 &&
           httpd_query_key_value (unsafe_buf, "audioFrequency", audioFreq_str, sizeof (audioFreq_str)) == ESP_OK &&
-          (audioFreq = atoi (audioFreq_str)) > 0)) {
+          parse_long_param (audioFreq_str, audioFreq) && audioFreq > 0)) {
         CommandInProgress.store (false, std::memory_order_release);
         REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "parameter parsing error");
     }
