@@ -72,7 +72,7 @@ trigger not fully constructible).
 
 | ID    | Finding                                                                               | Where                                             | Ver | Sev | Ease | Iso | Imp | Batch | Status |
 |-------|---------------------------------------------------------------------------------------|---------------------------------------------------|-----|-----|------|-----|-----|-------|--------|
-| UR-20 | LED/idle task wakes every 25 ms forever, re-setting LED_OFF with no activity          | idle_status_task.cpp:118-124; settings.h:11       | V   | 1   | 2    | 3   | 1   | U12   | open |
+| UR-20 | LED/idle task wakes every 25 ms forever, re-setting LED_OFF with no activity          | idle_status_task.cpp:118-124; settings.h:11       | V   | 1   | 2    | 3   | 1   | U12   | fixed fc4d105 |
 | UR-21 | Mouse drag rebuilds full band chart (incl. per-spot ticks) every pointermove          | run.js:631-639,563,267,372,423-434                | V   | 1   | 2    | 3   | 2   | U11   | open |
 | UR-22 | loadCwMacrosAsync refetches unconditionally; Run-appear awaits serialized             | run.js:1510-1527; main.js:232                     | V   | 1   | 3    | 2   | 1   | U11   | open |
 | UR-23 | Spots auto-refresh (500-spot fetch + full localStorage serialize) runs with tab hidden | spots.js:191-201,11-12,30-33                     | V   | 1   | 3    | 3   | 2   | U11   | open |
@@ -80,10 +80,10 @@ trigger not fully constructible).
 | UR-25 | QRX appear fetches /api/v1/gps twice (loadGpsLocation + getLocation)                  | qrx.js:587-591,73; main.js:1640-1656              | V   | 1   | 3    | 2   | 1   | U11   | open |
 | UR-26 | settings.js twin editor stacks: Tune Targets (15 fns) mirrors CW Macros (14 fns)      | settings.js:133-460 vs 468-727                    | V   | 1   | 1    | 1   | 1   | U9    | declined: 2 instances, generic editor nets ~0 LOC; revisit at a third list editor |
 | UR-27 | handler_settings triplicated gps/callsign/license stacks (POST bodies token-identical) | handler_settings.cpp:385-538                     | V   | 1   | 2    | 1   | 1   | U4    | fixed a840e58 |
-| UR-28 | Reboot timer unique_ptr never release()d; deleter runs esp_timer_delete on armed timer | webserver.cpp:378-412                            | V   | 1   | 3    | 3   | 1   | U12   | open |
+| UR-28 | Reboot timer unique_ptr never release()d; deleter runs esp_timer_delete on armed timer | webserver.cpp:378-412                            | V   | 1   | 3    | 3   | 1   | U12   | fixed fc4d105 |
 | UR-29 | main.js loader triads duplicated (tuneTargets vs cwMacros fetch/save/load)            | main.js:174-224 vs 232-273                        | V   | 1   | 2    | 1   | 1   | U9    | declined: 2 instances, generic editor nets ~0 LOC; revisit at a third list editor |
 | UR-30 | loadTabScriptIfNeeded fetches script then re-requests via script tag (no-cache)       | main.js:1244-1267; webserver.cpp:230              | V   | 1   | 2    | 3   | 1   | U11   | open |
-| UR-31 | handler_ft8 bypasses parse_long_param (atol/atoi + private strtoul block)             | handler_ft8.cpp:~637-643,~701-704,~919-922        | V   | 1   | 3    | 3   | 1   | U12   | open |
+| UR-31 | handler_ft8 bypasses parse_long_param (atol/atoi + private strtoul block)             | handler_ft8.cpp:~637-643,~701-704,~919-922        | V   | 1   | 3    | 3   | 1   | U12   | fixed fc4d105 |
 | UR-32 | WWFF regex duplicated with drift: run.js inlines case-insensitive, qrx uses case-sensitive shared pattern | run.js:1299-1310 vs qrx.js:473-479, main.js:46 | V | 2 | 3 | 2 | 1 | U7 | fixed 258a2c4 |
 | UR-33 | dataModes lists diverge: chase_api omits DIG/DIGI that main.js normalizes             | chase_api.js:112-117 vs main.js:1175              | V   | 1   | 2    | 2   | 1   | U7    | fixed 258a2c4 |
 | UR-34 | about.js refreshVersion re-implements fetchAndUpdateElement scaffolding               | about.js:~51 vs main.js:950-973                   | V   | 1   | 3    | 3   | 1   | U11   | open |
