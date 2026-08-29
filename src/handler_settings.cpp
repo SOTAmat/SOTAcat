@@ -8,6 +8,7 @@
 #include <esp_mac.h>
 #include <nvs_flash.h>
 
+#include <cstring>
 #include <memory>
 
 #include <esp_log.h>
@@ -172,36 +173,83 @@ void init_settings () {
  *
  * @return std::shared_ptr<char[]> A shared pointer to a character array containing the JSON string of settings.
  */
+/**
+ * Copy src into dst as the body of a JSON string, escaping backslash and
+ * double-quote. Values are stored raw in NVS (a WiFi password may contain
+ * either character); escaping belongs to the JSON boundary. dst must hold
+ * up to 2*strlen(src)+1 bytes.
+ */
+static void json_escape_into (char * dst, size_t dst_size, const char * src) {
+    size_t o = 0;
+    for (const char * p = src; *p && o + 2 < dst_size; ++p) {
+        if (*p == '"' || *p == '\\')
+            dst[o++] = '\\';
+        dst[o++] = *p;
+    }
+    dst[o] = '\0';
+}
+
+// One key/value JSON field; value is a NUL-terminated global string.
+struct KvField {
+    const char * key;
+    const char * value;
+};
+
+/**
+ * Build {"key":"value",...} from fields, JSON-escaping each value.
+ * raw_tail, when given, is pre-formed JSON appended as the final members
+ * (used for the boolean fields of the main settings object).
+ */
+static std::shared_ptr<char[]> build_kv_json (const KvField fields[], size_t field_count, const char * raw_tail = nullptr) {
+    size_t required_size = 2 + 1;  // braces + NUL
+    for (size_t i = 0; i < field_count; ++i)
+        required_size += strlen (fields[i].key) + 2 * strlen (fields[i].value) + 6;  // quotes, colon, comma
+    if (raw_tail)
+        required_size += strlen (raw_tail) + 1;
+
+    std::shared_ptr<char[]> buf (new char[required_size]);
+    char *                  out = buf.get();
+    size_t                  o   = 0;
+    out[o++]                    = '{';
+    for (size_t i = 0; i < field_count; ++i) {
+        if (i)
+            out[o++] = ',';
+        o += snprintf (out + o, required_size - o, "\"%s\":\"", fields[i].key);
+        json_escape_into (out + o, required_size - o, fields[i].value);
+        o += strlen (out + o);
+        out[o++] = '"';
+    }
+    if (raw_tail) {
+        if (field_count)
+            out[o++] = ',';
+        o += snprintf (out + o, required_size - o, "%s", raw_tail);
+    }
+    out[o++] = '}';
+    out[o]   = '\0';
+    return buf;
+}
+
 static std::shared_ptr<char[]> get_settings_json () {
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
-    // It is critically important that the
-    // required_size, format, and sprintf varargs
-    // are all in close correspondence.
+    const KvField string_fields[] = {
+        {s_sta1_ssid_key, g_sta1_ssid},
+        {s_sta1_pass_key, g_sta1_pass},
+        {s_sta2_ssid_key, g_sta2_ssid},
+        {s_sta2_pass_key, g_sta2_pass},
+        {s_sta3_ssid_key, g_sta3_ssid},
+        {s_sta3_pass_key, g_sta3_pass},
+        {s_ap_ssid_key, g_ap_ssid},
+        {s_ap_pass_key, g_ap_pass},
+    };
 
-    // {              // 1
-    // "foo":"bar",   // sizeof(foo) + sizeof(bar) + 6 for extras
-    // "foo":false,   // sizeof(foo) + sizeof(false) + 4 for extras
-    // }              // 1
-    size_t required_size = 1 +
-                           sizeof (s_sta1_ssid_key) + sizeof (g_sta1_ssid) + 6 +
-                           sizeof (s_sta1_pass_key) + sizeof (g_sta1_pass) + 6 +
-                           sizeof (s_sta2_ssid_key) + sizeof (g_sta2_ssid) + 6 +
-                           sizeof (s_sta2_pass_key) + sizeof (g_sta2_pass) + 6 +
-                           sizeof (s_sta3_ssid_key) + sizeof (g_sta3_ssid) + 6 +
-                           sizeof (s_sta3_pass_key) + sizeof (g_sta3_pass) + 6 +
-                           sizeof (s_ap_ssid_key) + sizeof (g_ap_ssid) + 6 +
-                           sizeof (s_ap_pass_key) + sizeof (g_ap_pass) + 6 +
-                           sizeof (s_sta1_ip_pin_key) + 5 + 4 +
-                           sizeof (s_sta2_ip_pin_key) + 5 + 4 +
-                           sizeof (s_sta3_ip_pin_key) + 5 + 4 +
-                           1;
-    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":\"%s\",\"%s\":%s,\"%s\":%s,\"%s\":%s}";
+    char bools[128];
+    snprintf (bools, sizeof (bools), "\"%s\":%s,\"%s\":%s,\"%s\":%s",
+              s_sta1_ip_pin_key, g_sta1_ip_pin ? "true" : "false",
+              s_sta2_ip_pin_key, g_sta2_ip_pin ? "true" : "false",
+              s_sta3_ip_pin_key, g_sta3_ip_pin ? "true" : "false");
 
-    std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_sta1_ssid_key, g_sta1_ssid, s_sta1_pass_key, g_sta1_pass, s_sta2_ssid_key, g_sta2_ssid, s_sta2_pass_key, g_sta2_pass, s_sta3_ssid_key, g_sta3_ssid, s_sta3_pass_key, g_sta3_pass, s_ap_ssid_key, g_ap_ssid, s_ap_pass_key, g_ap_pass, s_sta1_ip_pin_key, g_sta1_ip_pin ? "true" : "false", s_sta2_ip_pin_key, g_sta2_ip_pin ? "true" : "false", s_sta3_ip_pin_key, g_sta3_ip_pin ? "true" : "false");
-
-    return buf;
+    return build_kv_json (string_fields, sizeof (string_fields) / sizeof (string_fields[0]), bools);
 }
 
 /**
@@ -224,14 +272,29 @@ static esp_err_t process (const char * key, bool value) {
 }
 
 /**
- * Parse the JSON string in content and call the process function for each key-value pair.
+ * True when key is one of the allowed[] names. Every settings endpoint owns
+ * an explicit key set; anything outside it is logged and dropped, so one
+ * endpoint's POST can never write another endpoint's keys (or arbitrary
+ * NVS entries).
+ */
+static bool key_allowed (const char * key, const char * const allowed[], size_t allowed_count) {
+    for (size_t i = 0; i < allowed_count; ++i)
+        if (strcmp (key, allowed[i]) == 0)
+            return true;
+    ESP_LOGW (TAG8, "ignoring unknown settings key: %s", key);
+    return false;
+}
+
+/**
+ * Parse the JSON string in content and store each allowed key-value pair.
  * Incoming string will look like:
  *   {"sta1_ssid":"foo","sta1_pass":"barbarbar","sta2_ssid":"baz","sta2_pass":"quuxquux","ap_ssid":"SOTAcat-A480","ap_pass":"12345678"}
  * Also handles boolean values (unquoted true/false):
  *   {"sta1_ip_pin":true,"sta2_ip_pin":false}
+ * Keys outside allowed[] are dropped (see key_allowed).
  * NOTE: incoming json variable's content is modified during this operation
  */
-static void parse_and_process_json (char * json) {
+static void parse_and_process_json (char * json, const char * const allowed[], size_t allowed_count) {
     char * keyStart  = nullptr;
     char * valStart  = nullptr;
     bool   isKey     = true;   // Start by assuming the first token will be a key.
@@ -259,9 +322,10 @@ static void parse_and_process_json (char * json) {
             else {               // Processing a value.
                 if (valStart) {  // If we already have a start, this is the end.
                     *p = '\0';
-                    process (keyStart, valStart);   // Process the current key-value pair.
-                    keyStart = valStart = nullptr;  // Reset for the next pair.
-                    isKey               = true;     // Next token will be a key.
+                    if (key_allowed (keyStart, allowed, allowed_count))
+                        process (keyStart, valStart);  // Process the current key-value pair.
+                    keyStart = valStart = nullptr;     // Reset for the next pair.
+                    isKey               = true;        // Next token will be a key.
                     isBoolVal           = false;
                 }
                 else  // This is the start of a value.
@@ -288,11 +352,13 @@ static void parse_and_process_json (char * json) {
         }
         else if (*p == ',' || *p == '}') {
             if (keyStart && valStart) {
-                if (isBoolVal) {
-                    process (keyStart, boolValue);  // Boolean overload
-                }
-                else {
-                    process (keyStart, valStart);  // String overload
+                if (key_allowed (keyStart, allowed, allowed_count)) {
+                    if (isBoolVal) {
+                        process (keyStart, boolValue);  // Boolean overload
+                    }
+                    else {
+                        process (keyStart, valStart);  // String overload
+                    }
                 }
                 keyStart = valStart = nullptr;
                 isBoolVal           = false;
@@ -330,17 +396,34 @@ esp_err_t handler_settings_get (httpd_req_t * req) {
 }
 
 /**
- * Read a POST body into a NUL-terminated heap buffer. On failure the HTTP
- * reply (408 on timeout) has already been sent where applicable and nullptr
- * is returned; the caller just returns ESP_FAIL.
+ * Read a POST body into a NUL-terminated heap buffer, looping until the
+ * full content length arrives (a single recv may deliver a partial body,
+ * which would otherwise parse as truncated-but-valid JSON). On failure the
+ * HTTP error (400 oversize, 408 timeout) has already been sent where
+ * applicable and nullptr is returned; the caller just returns ESP_FAIL.
  */
 static std::unique_ptr<char[]> read_post_body (httpd_req_t * req) {
-    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
-    int                     ret = httpd_req_recv (req, buf.get(), req->content_len);
-    if (ret <= 0) {
-        if (ret == HTTPD_SOCK_ERR_TIMEOUT)
-            httpd_resp_send_408 (req);
+    // The largest legitimate body is the tune-targets JSON
+    // (MAX_TUNE_TARGETS_JSON, 1600 bytes) plus escaping headroom; an
+    // unchecked content_len would size an unbounded heap allocation, and
+    // ESP-IDF aborts on a failed new.
+    static const size_t MAX_POST_BODY = 4096;
+    if (req->content_len > MAX_POST_BODY) {
+        ESP_LOGE (TAG8, "refusing oversize POST body (%d bytes)", (int)req->content_len);
+        http_send_error_json (req, HTTPD_400_BAD_REQUEST, "request body too large");
         return nullptr;
+    }
+
+    std::unique_ptr<char[]> buf (new char[req->content_len + 1]());
+    size_t                  received = 0;
+    while (received < req->content_len) {
+        int ret = httpd_req_recv (req, buf.get() + received, req->content_len - received);
+        if (ret <= 0) {
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT)
+                httpd_resp_send_408 (req);
+            return nullptr;
+        }
+        received += ret;
     }
     buf[req->content_len] = '\0';
     return buf;
@@ -359,182 +442,105 @@ esp_err_t handler_settings_post (httpd_req_t * req) {
     if (!buf)
         return ESP_FAIL;
 
-    parse_and_process_json (buf.get());
+    static const char * const SETTINGS_KEYS[] = {
+        s_sta1_ssid_key, s_sta1_pass_key,
+        s_sta2_ssid_key, s_sta2_pass_key,
+        s_sta3_ssid_key, s_sta3_pass_key,
+        s_ap_ssid_key, s_ap_pass_key,
+        s_sta1_ip_pin_key, s_sta2_ip_pin_key, s_sta3_ip_pin_key};
+    parse_and_process_json (buf.get(), SETTINGS_KEYS, sizeof (SETTINGS_KEYS) / sizeof (SETTINGS_KEYS[0]));
 
     if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
         REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
 
     populate_settings();
 
+    // The settings JSON is this request's one and only response; the
+    // deferred reboot fires afterwards and can only be logged if it fails.
     esp_err_t result = retrieve_and_send_settings (req);
 
     if (result == ESP_OK) {
-        // Reboot with the new settings
         ESP_LOGI (TAG8, "rebooting to apply new settings");
-
-        result = schedule_deferred_reboot (req);
-        if (result != ESP_OK)
-            REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to schedule reboot");
-
-        REPLY_WITH_SUCCESS();
+        if (schedule_deferred_reboot (req) != ESP_OK)
+            ESP_LOGE (TAG8, "failed to schedule reboot; new settings apply on next power cycle");
     }
 
     return result;
 }
 
-static std::shared_ptr<char[]> get_gps_settings_json () {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
+// ====================================================================================================
+// Small key-value settings endpoints (gps, callsign, license)
+//
+// Each endpoint is a field table; the GET echoes it as JSON and the POST
+// stores exactly those keys (the table doubles as the whitelist), commits,
+// refreshes the globals, and echoes the endpoint's current values.
+// ====================================================================================================
 
-    size_t required_size = 1 +
-                           sizeof (s_gps_lat_key) + sizeof (g_gps_lat) + 6 +
-                           sizeof (s_gps_lon_key) + sizeof (g_gps_lon) + 6 +
-                           1;
-    const char format[] = "{\"%s\":\"%s\",\"%s\":\"%s\"}";
+static const KvField GPS_FIELDS[]      = {{s_gps_lat_key, g_gps_lat}, {s_gps_lon_key, g_gps_lon}};
+static const KvField CALLSIGN_FIELDS[] = {{s_callsign_key, g_callsign}};
+static const KvField LICENSE_FIELDS[]  = {{s_license_class_key, g_license_class}};
 
-    std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_gps_lat_key, g_gps_lat, s_gps_lon_key, g_gps_lon);
-
-    return buf;
-}
-
-static esp_err_t retrieve_and_send_gps_settings (httpd_req_t * req) {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-
+static esp_err_t send_kv_settings (httpd_req_t * req, const KvField fields[], size_t field_count) {
     httpd_resp_set_type (req, "application/json");
     httpd_resp_set_hdr (req, "Cache-Control", "no-store");
-    auto settings_json = get_gps_settings_json();
+    auto settings_json = build_kv_json (fields, field_count);
     return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
 }
 
+static esp_err_t handle_kv_settings_post (httpd_req_t * req, const KvField fields[], size_t field_count) {
+    auto buf = read_post_body (req);
+    if (!buf)
+        return ESP_FAIL;
+
+    const char * allowed[8];
+    for (size_t i = 0; i < field_count && i < 8; ++i)
+        allowed[i] = fields[i].key;
+    parse_and_process_json (buf.get(), allowed, field_count);
+
+    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
+        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
+
+    populate_settings();
+
+    return send_kv_settings (req, fields, field_count);
+}
+
+#define KV_FIELD_COUNT(fields) (sizeof (fields) / sizeof (fields[0]))
+
 esp_err_t handler_gps_settings_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    return retrieve_and_send_gps_settings (req);
+    return send_kv_settings (req, GPS_FIELDS, KV_FIELD_COUNT (GPS_FIELDS));
 }
 
 esp_err_t handler_gps_settings_post (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    auto buf = read_post_body (req);
-    if (!buf)
-        return ESP_FAIL;
-
-    parse_and_process_json (buf.get());
-
-    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
-
-    populate_settings();
-
-    return retrieve_and_send_gps_settings (req);
-}
-
-static std::shared_ptr<char[]> get_callsign_settings_json () {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    size_t required_size = 1 +
-                           sizeof (s_callsign_key) + sizeof (g_callsign) + 6 +
-                           1;
-    const char format[] = "{\"%s\":\"%s\"}";
-
-    std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_callsign_key, g_callsign);
-
-    return buf;
-}
-
-static esp_err_t retrieve_and_send_callsign_settings (httpd_req_t * req) {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    httpd_resp_set_type (req, "application/json");
-    httpd_resp_set_hdr (req, "Cache-Control", "no-store");
-    auto settings_json = get_callsign_settings_json();
-    return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
+    return handle_kv_settings_post (req, GPS_FIELDS, KV_FIELD_COUNT (GPS_FIELDS));
 }
 
 esp_err_t handler_callsign_settings_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    return retrieve_and_send_callsign_settings (req);
+    return send_kv_settings (req, CALLSIGN_FIELDS, KV_FIELD_COUNT (CALLSIGN_FIELDS));
 }
 
 esp_err_t handler_callsign_settings_post (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    auto buf = read_post_body (req);
-    if (!buf)
-        return ESP_FAIL;
-
-    parse_and_process_json (buf.get());
-
-    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
-
-    populate_settings();
-
-    return retrieve_and_send_callsign_settings (req);
-}
-
-// ====================================================================================================
-// License Class Settings
-// ====================================================================================================
-
-static std::shared_ptr<char[]> get_license_settings_json () {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    size_t required_size = 1 +
-                           sizeof (s_license_class_key) + sizeof (g_license_class) + 6 +
-                           1;
-    const char format[] = "{\"%s\":\"%s\"}";
-
-    std::shared_ptr<char[]> buf (new char[required_size]);
-    snprintf (buf.get(), required_size, format, s_license_class_key, g_license_class);
-
-    return buf;
-}
-
-static esp_err_t retrieve_and_send_license_settings (httpd_req_t * req) {
-    ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    httpd_resp_set_type (req, "application/json");
-    httpd_resp_set_hdr (req, "Cache-Control", "no-store");
-    auto settings_json = get_license_settings_json();
-    return httpd_resp_send (req, settings_json.get(), HTTPD_RESP_USE_STRLEN);
+    return handle_kv_settings_post (req, CALLSIGN_FIELDS, KV_FIELD_COUNT (CALLSIGN_FIELDS));
 }
 
 esp_err_t handler_license_settings_get (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    return retrieve_and_send_license_settings (req);
+    return send_kv_settings (req, LICENSE_FIELDS, KV_FIELD_COUNT (LICENSE_FIELDS));
 }
 
 esp_err_t handler_license_settings_post (httpd_req_t * req) {
     showActivity();
-
     ESP_LOGV (TAG8, "trace: %s()", __func__);
-
-    auto buf = read_post_body (req);
-    if (!buf)
-        return ESP_FAIL;
-
-    parse_and_process_json (buf.get());
-
-    if (nvs_commit (s_nvs_settings_handle) != ESP_OK)
-        REPLY_WITH_FAILURE (req, HTTPD_500_INTERNAL_SERVER_ERROR, "failed commit settings to nvs");
-
-    populate_settings();
-
-    return retrieve_and_send_license_settings (req);
+    return handle_kv_settings_post (req, LICENSE_FIELDS, KV_FIELD_COUNT (LICENSE_FIELDS));
 }
 
 // ====================================================================================================
