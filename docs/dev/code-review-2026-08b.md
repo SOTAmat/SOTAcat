@@ -87,8 +87,8 @@ trigger not fully constructible).
 | UR-32 | WWFF regex duplicated with drift: run.js inlines case-insensitive, qrx uses case-sensitive shared pattern | run.js:1299-1310 vs qrx.js:473-479, main.js:46 | V | 2 | 3 | 2 | 1 | U7 | fixed 258a2c4 |
 | UR-33 | dataModes lists diverge: chase_api omits DIG/DIGI that main.js normalizes             | chase_api.js:112-117 vs main.js:1175              | V   | 1   | 2    | 2   | 1   | U7    | fixed 258a2c4 |
 | UR-34 | about.js refreshVersion re-implements fetchAndUpdateElement scaffolding               | about.js:~51 vs main.js:950-973                   | V   | 1   | 3    | 3   | 1   | U11   | declined: platform throttling / marginal gain; see #141 |
-| UR-35 | Frequency clamps hardcode KX2 limits despite per-radio RADIO_CAPABILITIES tables      | main.js:36-38; run.js:930-938 vs main.js:444-479  | V   | 1   | 2    | 2   | 1   | U13   | open |
-| UR-36 | Client resolves SSB→LSB/USB itself (null VFO → wrong sideband); firmware SSB_AUTO exists | run.js:942-950; main.js:34-35; handler_mode.cpp:75-77 | V | 2 | 3 | 2 | 1 | U13 | open |
+| UR-35 | Frequency clamps hardcode KX2 limits despite per-radio RADIO_CAPABILITIES tables      | main.js:36-38; run.js:930-938 vs main.js:444-479  | V   | 1   | 2    | 2   | 1   | U13   | fixed b916b21 |
+| UR-36 | Client resolves SSB→LSB/USB itself (null VFO → wrong sideband); firmware SSB_AUTO exists | run.js:942-950; main.js:34-35; handler_mode.cpp:75-77 | V | 2 | 3 | 2 | 1 | U13 | fixed b916b21 |
 
 ## Refuted during verification (do not fix)
 
