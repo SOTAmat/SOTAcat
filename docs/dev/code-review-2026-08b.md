@@ -54,10 +54,10 @@ trigger not fully constructible).
 | UR-04 | set_power treats readback −1 (comms failure) as success; snapshot records wish        | radio_driver_kx.cpp:104                           | V   | 2   | 3    | 3   | 1   | U2    | fixed b8968c0 |
 | UR-05 | radio_connection_task starves task-WDT forever with no radio (log spam every 20 s)    | setup.cpp:50; kx_radio.cpp:209-267                | V   | 1   | 3    | 3   | 2   | U1    | fixed c5d98af |
 | UR-06 | API dispatch matches any strict prefix (`/api/v1/reb` reboots; empty name matches)    | webserver.cpp:149-153,261                         | V   | 3   | 3    | 3   | 2   | U3    | fixed 0241a7c |
-| UR-07 | read_post_body: single recv accepts truncated body; unbounded `new char[len+1]`       | handler_settings.cpp:337-347                      | V   | 3   | 2    | 2   | 2   | U4    | open |
-| UR-08 | Settings GET emits raw NVS strings unescaped; POST parser strips escapes — a stored quote breaks every subsequent GET | handler_settings.cpp:202,395,445,242-249 | V | 2 | 2 | 2 | 2 | U4 | open |
-| UR-09 | gps/callsign/license POSTs commit *any* key to settings NVS (no whitelist)            | handler_settings.cpp:234,417-434,467-484,521-538  | V   | 2   | 2    | 2   | 1   | U4    | open |
-| UR-10 | settings POST sends 2 (failure: 3) responses on one request                           | handler_settings.cpp:369-379                      | V   | 2   | 3    | 2   | 1   | U4    | open |
+| UR-07 | read_post_body: single recv accepts truncated body; unbounded `new char[len+1]`       | handler_settings.cpp:337-347                      | V   | 3   | 2    | 2   | 2   | U4    | fixed a840e58 |
+| UR-08 | Settings GET emits raw NVS strings unescaped; POST parser strips escapes — a stored quote breaks every subsequent GET | handler_settings.cpp:202,395,445,242-249 | V | 2 | 2 | 2 | 2 | U4 | fixed a840e58 |
+| UR-09 | gps/callsign/license POSTs commit *any* key to settings NVS (no whitelist)            | handler_settings.cpp:234,417-434,467-484,521-538  | V   | 2   | 2    | 2   | 1   | U4    | fixed a840e58 |
+| UR-10 | settings POST sends 2 (failure: 3) responses on one request                           | handler_settings.cpp:369-379                      | V   | 2   | 3    | 2   | 1   | U4    | fixed a840e58 |
 | UR-11 | Battery mutex timeout falls through to sending uninitialized stack buffer as 200 JSON | handler_battery.cpp:38,58-73                      | V   | 3   | 3    | 3   | 2   | U5    | fixed 3e1419c |
 | UR-12 | toggleXmit flips UI optimistically; 503 never reverts; state inverted until reload    | main.js:753-770; radio_http.cpp:80-93             | V   | 2   | 2    | 3   | 3   | U6    | fixed 3d789c2 |
 | UR-13 | chase.js `normalizeRadioMode` clobbers main.js's; synonym/data modes 404 after Chase visit | chase.js:258 vs main.js:1168                 | V   | 2   | 3    | 2   | 2   | U7    | fixed 258a2c4 |
@@ -79,7 +79,7 @@ trigger not fully constructible).
 | UR-24 | VFO poll issues 2 GETs (frequency + mode) per 3 s tick                                | main.js:828-831                                   | V   | 1   | 1    | 2   | 1   | U11   | open |
 | UR-25 | QRX appear fetches /api/v1/gps twice (loadGpsLocation + getLocation)                  | qrx.js:587-591,73; main.js:1640-1656              | V   | 1   | 3    | 2   | 1   | U11   | open |
 | UR-26 | settings.js twin editor stacks: Tune Targets (15 fns) mirrors CW Macros (14 fns)      | settings.js:133-460 vs 468-727                    | V   | 1   | 1    | 1   | 1   | U9    | open |
-| UR-27 | handler_settings triplicated gps/callsign/license stacks (POST bodies token-identical) | handler_settings.cpp:385-538                     | V   | 1   | 2    | 1   | 1   | U4    | open |
+| UR-27 | handler_settings triplicated gps/callsign/license stacks (POST bodies token-identical) | handler_settings.cpp:385-538                     | V   | 1   | 2    | 1   | 1   | U4    | fixed a840e58 |
 | UR-28 | Reboot timer unique_ptr never release()d; deleter runs esp_timer_delete on armed timer | webserver.cpp:378-412                            | V   | 1   | 3    | 3   | 1   | U12   | open |
 | UR-29 | main.js loader triads duplicated (tuneTargets vs cwMacros fetch/save/load)            | main.js:174-224 vs 232-273                        | V   | 1   | 2    | 1   | 1   | U9    | open |
 | UR-30 | loadTabScriptIfNeeded fetches script then re-requests via script tag (no-cache)       | main.js:1244-1267; webserver.cpp:230              | V   | 1   | 2    | 3   | 1   | U11   | open |
