@@ -27,8 +27,7 @@ const RunState = {
 const VISUAL_FEEDBACK_DURATION_MS = 200;
 const FREQUENCY_UPDATE_DEBOUNCE_MS = 300;
 const MODE_CHECK_DELAY_MS = 400;
-// VFO_POLLING_INTERVAL_MS is defined in main.js
-const VFO_ACTION_SUPPRESS_MS = 2000; // pause shared VFO polling after a user action
+// VFO_POLLING_INTERVAL_MS and VFO_ACTION_SUPPRESS_MS are defined in main.js
 const ATU_FEEDBACK_DURATION_MS = 1000;
 
 // Frequency constants defined in main.js: BAND_PLAN, DEFAULT_FREQUENCY_HZ,

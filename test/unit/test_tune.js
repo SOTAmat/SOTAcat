@@ -31,6 +31,8 @@ function makeSandbox() {
         },
         // Stubs for things tuneRadioHz calls in main.js
         openTuneTargets: (freq, mode) => calls.push(['openTuneTargets', freq, mode]),
+        suppressVfoPolling: (ms) => calls.push(['suppressVfoPolling', ms]),
+        VFO_ACTION_SUPPRESS_MS: 2000,
         LSB_USB_BOUNDARY_HZ: 10000000,
         // fetch stub records calls and resolves OK
         fetch: async (url, opts) => {
@@ -73,6 +75,17 @@ it('CW stays CW', async () => {
     const sb = makeSandbox();
     await sb.tuneRadioHz(14025000, 'CW');
     assertEqual(sb.AppState.vfoMode, 'CW');
+});
+
+it('suppresses VFO polling before the PUTs land', async () => {
+    // A poll landing between the PUTs and the optimistic AppState write
+    // reads pre-tune values and reverts highlight/PoLo until the next tick.
+    const sb = makeSandbox();
+    await sb.tuneRadioHz(14025000, 'CW');
+    const idxSuppress = sb._calls.findIndex((c) => c[0] === 'suppressVfoPolling');
+    const idxFetch = sb._calls.findIndex((c) => c[0] === 'fetch');
+    assertEqual(idxSuppress >= 0, true, 'suppressVfoPolling called');
+    assertEqual(idxSuppress < idxFetch, true, 'suppression precedes the first PUT');
 });
 
 setTimeout(() => {

@@ -82,6 +82,8 @@ if (normMatch && tuneMatch) {
             AppState: { vfoFrequencyHz: null, vfoMode: null, vfoLastUpdated: 0 },
             LSB_USB_BOUNDARY_HZ: 10000000,
             openTuneTargets: () => {},
+            suppressVfoPolling: () => {},
+            VFO_ACTION_SUPPRESS_MS: 2000,
             Date: Date,
             _puts: puts,
         };

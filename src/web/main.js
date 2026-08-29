@@ -13,6 +13,7 @@ const UTC_CLOCK_UPDATE_INTERVAL_MS = 10000;
 const BATTERY_INFO_UPDATE_INTERVAL_MS = 60000;
 const CONNECTION_STATUS_UPDATE_INTERVAL_MS = 2000; // header glyph; server detects link-down in ~0.5 s and recovers in <=5 s, so this bounds what the user sees
 const VFO_POLLING_INTERVAL_MS = 3000;
+const VFO_ACTION_SUPPRESS_MS = 2000; // pause shared VFO polling after a user action
 
 // ============================================================================
 // Connection Loss Detection Constants
@@ -1196,6 +1197,10 @@ async function tuneRadioHz(frequency, mode) {
 
     // Open tune targets (WebSDR, KiwiSDR, etc.) - don't await, run in parallel
     openTuneTargets(frequency, useMode);
+
+    // A poll landing between the PUTs and the optimistic AppState write
+    // below would read pre-tune values and revert highlight/PoLo state.
+    suppressVfoPolling(VFO_ACTION_SUPPRESS_MS);
 
     try {
         const freqResponse = await fetch(`/api/v1/frequency?frequency=${frequency}`, { method: "PUT" });

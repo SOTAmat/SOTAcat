@@ -122,11 +122,13 @@ function spothole_transformSpots(spotsData, location) {
             }
         }
 
-        // Calculate distance if we have coordinates
+        // Calculate distance if we have coordinates. calculateDistance
+        // returns kilometers; the chase table's column is labeled Miles.
+        const KM_TO_MILES = 0.621371;
         let distance = 99999; // Default to large number if no location
         if (location && spot.dx_latitude && spot.dx_longitude) {
             distance = Math.round(
-                calculateDistance(location.latitude, location.longitude, spot.dx_latitude, spot.dx_longitude)
+                calculateDistance(location.latitude, location.longitude, spot.dx_latitude, spot.dx_longitude) * KM_TO_MILES
             );
         }
 
