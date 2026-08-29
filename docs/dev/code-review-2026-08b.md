@@ -64,7 +64,7 @@ trigger not fully constructible).
 | UR-14 | Chase distance computed in km, rendered under "Miles" header                          | chase.html:58; chase_api.js:128; main.js:1592     | V   | 2   | 3    | 3   | 3   | U8    | fixed 881e8a2 |
 | UR-15 | Table refresh detaches tuned row; stale detached row drives PoLo deep links           | chase.js:864,280-308,589-591                      | V   | 2   | 2    | 2   | 2   | U8    | fixed 881e8a2 |
 | UR-16 | tuneRadioHz never calls suppressVfoPolling; in-flight poll reverts optimistic state   | main.js:1182-1226,871,823                         | V   | 1   | 3    | 2   | 2   | U8    | fixed 881e8a2 |
-| UR-17 | Rejected tune-target/CW-macro saves (400/500) alert "saved"; caches clobbered on next load | settings.js:427-453,700-720; handler_settings.cpp:600,675,611 | V | 2 | 2 | 2 | 1 | U9 | open |
+| UR-17 | Rejected tune-target/CW-macro saves (400/500) alert "saved"; caches clobbered on next load | settings.js:427-453,700-720; handler_settings.cpp:600,675,611 | V | 2 | 2 | 2 | 1 | U9 | fixed e1e4d9f |
 | UR-18 | Genuine 0° coordinate treated as missing (post-parseFloat falsy checks)               | qrx.js:307; chase_api.js:127                      | V(narrowed) | 2 | 3 | 3 | 1 | U10 | open |
 | UR-19 | VFO poll `parseInt` unguarded vs NaN (trigger needs non-firmware responder)           | main.js:837                                       | P   | 1   | 3    | 3   | 1   | U10   | open |
 
@@ -78,10 +78,10 @@ trigger not fully constructible).
 | UR-23 | Spots auto-refresh (500-spot fetch + full localStorage serialize) runs with tab hidden | spots.js:191-201,11-12,30-33                     | V   | 1   | 3    | 3   | 2   | U11   | open |
 | UR-24 | VFO poll issues 2 GETs (frequency + mode) per 3 s tick                                | main.js:828-831                                   | V   | 1   | 1    | 2   | 1   | U11   | open |
 | UR-25 | QRX appear fetches /api/v1/gps twice (loadGpsLocation + getLocation)                  | qrx.js:587-591,73; main.js:1640-1656              | V   | 1   | 3    | 2   | 1   | U11   | open |
-| UR-26 | settings.js twin editor stacks: Tune Targets (15 fns) mirrors CW Macros (14 fns)      | settings.js:133-460 vs 468-727                    | V   | 1   | 1    | 1   | 1   | U9    | open |
+| UR-26 | settings.js twin editor stacks: Tune Targets (15 fns) mirrors CW Macros (14 fns)      | settings.js:133-460 vs 468-727                    | V   | 1   | 1    | 1   | 1   | U9    | declined: 2 instances, generic editor nets ~0 LOC; revisit at a third list editor |
 | UR-27 | handler_settings triplicated gps/callsign/license stacks (POST bodies token-identical) | handler_settings.cpp:385-538                     | V   | 1   | 2    | 1   | 1   | U4    | fixed a840e58 |
 | UR-28 | Reboot timer unique_ptr never release()d; deleter runs esp_timer_delete on armed timer | webserver.cpp:378-412                            | V   | 1   | 3    | 3   | 1   | U12   | open |
-| UR-29 | main.js loader triads duplicated (tuneTargets vs cwMacros fetch/save/load)            | main.js:174-224 vs 232-273                        | V   | 1   | 2    | 1   | 1   | U9    | open |
+| UR-29 | main.js loader triads duplicated (tuneTargets vs cwMacros fetch/save/load)            | main.js:174-224 vs 232-273                        | V   | 1   | 2    | 1   | 1   | U9    | declined: 2 instances, generic editor nets ~0 LOC; revisit at a third list editor |
 | UR-30 | loadTabScriptIfNeeded fetches script then re-requests via script tag (no-cache)       | main.js:1244-1267; webserver.cpp:230              | V   | 1   | 2    | 3   | 1   | U11   | open |
 | UR-31 | handler_ft8 bypasses parse_long_param (atol/atoi + private strtoul block)             | handler_ft8.cpp:~637-643,~701-704,~919-922        | V   | 1   | 3    | 3   | 1   | U12   | open |
 | UR-32 | WWFF regex duplicated with drift: run.js inlines case-insensitive, qrx uses case-sensitive shared pattern | run.js:1299-1310 vs qrx.js:473-479, main.js:46 | V | 2 | 3 | 2 | 1 | U7 | fixed 258a2c4 |
