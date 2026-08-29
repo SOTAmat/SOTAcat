@@ -60,7 +60,7 @@ trigger not fully constructible).
 | UR-10 | settings POST sends 2 (failure: 3) responses on one request                           | handler_settings.cpp:369-379                      | V   | 2   | 3    | 2   | 1   | U4    | open |
 | UR-11 | Battery mutex timeout falls through to sending uninitialized stack buffer as 200 JSON | handler_battery.cpp:38,58-73                      | V   | 3   | 3    | 3   | 2   | U5    | fixed 3e1419c |
 | UR-12 | toggleXmit flips UI optimistically; 503 never reverts; state inverted until reload    | main.js:753-770; radio_http.cpp:80-93             | V   | 2   | 2    | 3   | 3   | U6    | fixed 3d789c2 |
-| UR-13 | chase.js `normalizeRadioMode` clobbers main.js's; synonym/data modes 404 after Chase visit | chase.js:258 vs main.js:1168                 | V   | 2   | 3    | 2   | 2   | U7    | open |
+| UR-13 | chase.js `normalizeRadioMode` clobbers main.js's; synonym/data modes 404 after Chase visit | chase.js:258 vs main.js:1168                 | V   | 2   | 3    | 2   | 2   | U7    | fixed 258a2c4 |
 | UR-14 | Chase distance computed in km, rendered under "Miles" header                          | chase.html:58; chase_api.js:128; main.js:1592     | V   | 2   | 3    | 3   | 3   | U8    | fixed 881e8a2 |
 | UR-15 | Table refresh detaches tuned row; stale detached row drives PoLo deep links           | chase.js:864,280-308,589-591                      | V   | 2   | 2    | 2   | 2   | U8    | fixed 881e8a2 |
 | UR-16 | tuneRadioHz never calls suppressVfoPolling; in-flight poll reverts optimistic state   | main.js:1182-1226,871,823                         | V   | 1   | 3    | 2   | 2   | U8    | fixed 881e8a2 |
@@ -85,7 +85,7 @@ trigger not fully constructible).
 | UR-30 | loadTabScriptIfNeeded fetches script then re-requests via script tag (no-cache)       | main.js:1244-1267; webserver.cpp:230              | V   | 1   | 2    | 3   | 1   | U11   | open |
 | UR-31 | handler_ft8 bypasses parse_long_param (atol/atoi + private strtoul block)             | handler_ft8.cpp:~637-643,~701-704,~919-922        | V   | 1   | 3    | 3   | 1   | U12   | open |
 | UR-32 | WWFF regex duplicated with drift: run.js inlines case-insensitive, qrx uses case-sensitive shared pattern | run.js:1299-1310 vs qrx.js:473-479, main.js:46 | V | 2 | 3 | 2 | 1 | U7 | open |
-| UR-33 | dataModes lists diverge: chase_api omits DIG/DIGI that main.js normalizes             | chase_api.js:112-117 vs main.js:1175              | V   | 1   | 2    | 2   | 1   | U7    | open |
+| UR-33 | dataModes lists diverge: chase_api omits DIG/DIGI that main.js normalizes             | chase_api.js:112-117 vs main.js:1175              | V   | 1   | 2    | 2   | 1   | U7    | fixed 258a2c4 |
 | UR-34 | about.js refreshVersion re-implements fetchAndUpdateElement scaffolding               | about.js:~51 vs main.js:950-973                   | V   | 1   | 3    | 3   | 1   | U11   | open |
 | UR-35 | Frequency clamps hardcode KX2 limits despite per-radio RADIO_CAPABILITIES tables      | main.js:36-38; run.js:930-938 vs main.js:444-479  | V   | 1   | 2    | 2   | 1   | U13   | open |
 | UR-36 | Client resolves SSB→LSB/USB itself (null VFO → wrong sideband); firmware SSB_AUTO exists | run.js:942-950; main.js:34-35; handler_mode.cpp:75-77 | V | 2 | 3 | 2 | 1 | U13 | open |
