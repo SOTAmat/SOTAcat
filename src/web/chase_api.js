@@ -85,6 +85,17 @@ async function fetchSpots(options = {}) {
 // ============================================================================
 
 /**
+ * A spot coordinate that may arrive as a number or a numeric string;
+ * returns NaN for anything absent or non-numeric. 0 is a real coordinate
+ * (equator, Greenwich), so callers gate on Number.isFinite, never truthiness.
+ */
+function spotCoordinate(v) {
+    if (typeof v === "number") return v;
+    if (typeof v === "string" && v.trim() !== "") return Number(v);
+    return NaN;
+}
+
+/**
  * Collapse a raw spot mode into its family for filtering/styling: CW, SSB,
  * AM, FM, DATA, or OTHER. The DATA family is whatever the shared
  * normalizeRadioMode (main.js) maps into a digital firmware mode, so a
@@ -120,10 +131,12 @@ function spothole_transformSpots(spotsData, location) {
         // Calculate distance if we have coordinates. calculateDistance
         // returns kilometers; the chase table's column is labeled Miles.
         const KM_TO_MILES = 0.621371;
+        const dxLat = spotCoordinate(spot.dx_latitude);
+        const dxLon = spotCoordinate(spot.dx_longitude);
         let distance = 99999; // Default to large number if no location
-        if (location && spot.dx_latitude && spot.dx_longitude) {
+        if (location && Number.isFinite(dxLat) && Number.isFinite(dxLon)) {
             distance = Math.round(
-                calculateDistance(location.latitude, location.longitude, spot.dx_latitude, spot.dx_longitude) * KM_TO_MILES
+                calculateDistance(location.latitude, location.longitude, dxLat, dxLon) * KM_TO_MILES
             );
         }
 

@@ -304,7 +304,7 @@ async function loadReference() {
 
     // Display cached summit info for current location
     if (summitInfoDiv) {
-        if (location && location.latitude && location.longitude) {
+        if (hasValidLocation(location)) {
             const cacheKey = buildLocationKey("summitInfo", location.latitude, location.longitude);
             summitInfoDiv.textContent = localStorage.getItem(cacheKey) || "";
         } else {
@@ -400,7 +400,7 @@ async function clearReference() {
     // Clear reference and summit info for current location
     const location = await getLocation();
     setLocationBasedReference("");
-    if (location && location.latitude && location.longitude) {
+    if (hasValidLocation(location)) {
         const cacheKey = buildLocationKey("summitInfo", location.latitude, location.longitude);
         localStorage.removeItem(cacheKey);
     }

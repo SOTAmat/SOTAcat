@@ -161,6 +161,37 @@ if (fetchVfoMatch && suppressMatch) {
         await vm.runInContext('fetchVfoState()', sandbox);
         assertTrue(fetches > 0, 'polling resumes after the window');
     });
+
+    itAsync('a non-numeric frequency payload never enters AppState', async () => {
+        const notified = [];
+        const sandbox = {
+            fetch: async (url) => ({
+                ok: true,
+                text: async () => (String(url).includes('frequency') ? 'garbage' : 'cw'),
+            }),
+            AbortController: class { constructor() { this.signal = {}; } abort() {} },
+            setTimeout: () => 0,
+            clearTimeout: () => {},
+            Date: Date,
+            Promise: Promise,
+            pollingPaused: false,
+            isLocalhost: false,
+            vfoController: null,
+            Log: { debug: () => () => {}, warn: () => () => {}, error: () => () => {} },
+            AppState: {
+                vfoFrequencyHz: 14000000, vfoMode: 'CW', vfoLastUpdated: 0,
+                vfoChangeCallbacks: [(f, m) => notified.push([f, m])],
+                vfoPollSuppressedUntil: 0,
+            },
+            VFO_TIMEOUT_MS: 1000,
+        };
+        vm.createContext(sandbox);
+        vm.runInContext(fetchVfoMatch[0], sandbox);
+        await vm.runInContext('fetchVfoState()', sandbox);
+        assertEqual(sandbox.AppState.vfoFrequencyHz, 14000000,
+                    'frequency unchanged on a garbage payload');
+        assertEqual(notified.length, 0, 'no subscriber churn on a garbage payload');
+    });
 }
 
 (async () => {
