@@ -50,8 +50,8 @@ trigger not fully constructible).
 |-------|---------------------------------------------------------------------------------------|---------------------------------------------------|-----|-----|------|-----|-----|-------|--------|
 | UR-01 | KH1 DS1 reads write `response[20]` — one past the stack buffer, every successful poll | kx_radio.cpp:69; radio_driver_kh1.cpp:25,37,55,75,229 | V | 3 | 3 | 3 | 2 | U1 | fixed c5d98af |
 | UR-02 | connect() writes `buffer[256]` — one past the array on a full RX read (×2 sites)      | kx_radio.cpp:221,242                              | V   | 3   | 3    | 3   | 1   | U1    | fixed c5d98af |
-| UR-03 | Keyer `1200 / kh_wpm` with no zero guard; div-by-0 → −1 → task hangs with TX keyed    | radio_driver_kh1.cpp:260-279                      | V   | 3   | 3    | 3   | 2   | U2    | open |
-| UR-04 | set_power treats readback −1 (comms failure) as success; snapshot records wish        | radio_driver_kx.cpp:104                           | V   | 2   | 3    | 3   | 1   | U2    | open |
+| UR-03 | Keyer `1200 / kh_wpm` with no zero guard; div-by-0 → −1 → task hangs with TX keyed    | radio_driver_kh1.cpp:260-279                      | V   | 3   | 3    | 3   | 2   | U2    | fixed b8968c0 |
+| UR-04 | set_power treats readback −1 (comms failure) as success; snapshot records wish        | radio_driver_kx.cpp:104                           | V   | 2   | 3    | 3   | 1   | U2    | fixed b8968c0 |
 | UR-05 | radio_connection_task starves task-WDT forever with no radio (log spam every 20 s)    | setup.cpp:50; kx_radio.cpp:209-267                | V   | 1   | 3    | 3   | 2   | U1    | fixed c5d98af |
 | UR-06 | API dispatch matches any strict prefix (`/api/v1/reb` reboots; empty name matches)    | webserver.cpp:149-153,261                         | V   | 3   | 3    | 3   | 2   | U3    | fixed 0241a7c |
 | UR-07 | read_post_body: single recv accepts truncated body; unbounded `new char[len+1]`       | handler_settings.cpp:337-347                      | V   | 3   | 2    | 2   | 2   | U4    | open |
