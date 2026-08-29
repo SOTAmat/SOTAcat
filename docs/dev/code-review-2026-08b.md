@@ -58,7 +58,7 @@ trigger not fully constructible).
 | UR-08 | Settings GET emits raw NVS strings unescaped; POST parser strips escapes — a stored quote breaks every subsequent GET | handler_settings.cpp:202,395,445,242-249 | V | 2 | 2 | 2 | 2 | U4 | open |
 | UR-09 | gps/callsign/license POSTs commit *any* key to settings NVS (no whitelist)            | handler_settings.cpp:234,417-434,467-484,521-538  | V   | 2   | 2    | 2   | 1   | U4    | open |
 | UR-10 | settings POST sends 2 (failure: 3) responses on one request                           | handler_settings.cpp:369-379                      | V   | 2   | 3    | 2   | 1   | U4    | open |
-| UR-11 | Battery mutex timeout falls through to sending uninitialized stack buffer as 200 JSON | handler_battery.cpp:38,58-73                      | V   | 3   | 3    | 3   | 2   | U5    | open |
+| UR-11 | Battery mutex timeout falls through to sending uninitialized stack buffer as 200 JSON | handler_battery.cpp:38,58-73                      | V   | 3   | 3    | 3   | 2   | U5    | fixed 3e1419c |
 | UR-12 | toggleXmit flips UI optimistically; 503 never reverts; state inverted until reload    | main.js:753-770; radio_http.cpp:80-93             | V   | 2   | 2    | 3   | 3   | U6    | open |
 | UR-13 | chase.js `normalizeRadioMode` clobbers main.js's; synonym/data modes 404 after Chase visit | chase.js:258 vs main.js:1168                 | V   | 2   | 3    | 2   | 2   | U7    | open |
 | UR-14 | Chase distance computed in km, rendered under "Miles" header                          | chase.html:58; chase_api.js:128; main.js:1592     | V   | 2   | 3    | 3   | 3   | U8    | open |
