@@ -289,11 +289,13 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         ok = kxRadio.set_volume (arg);
         // Volume is a delta; the absolute value is unknown until re-read.
         break;
-    case RadioCmdType::SET_POWER:
-        ok = kxRadio.set_power (arg);
+    case RadioCmdType::SET_POWER: {
+        long achieved = 0;
+        ok            = kxRadio.set_power (arg, achieved);
         if (ok)
-            radio_snapshot::set_power (arg, now);
+            radio_snapshot::set_power (achieved, now);
         break;
+    }
     case RadioCmdType::SET_ATU:
         ok = kxRadio.tune_atu();
         break;

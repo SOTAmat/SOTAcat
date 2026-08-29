@@ -204,7 +204,8 @@ bool KH1RadioDriver::get_power (KXRadio & radio, long & out_power) {
     return get_kh1_display_power (radio, out_power);
 }
 
-bool KH1RadioDriver::set_power (KXRadio & radio, long power) {
+bool KH1RadioDriver::set_power (KXRadio & radio, long power, long & out_achieved) {
+    out_achieved = power > 0 ? 15 : 0;  // the KH1 power toggle offers only LOW (0) / HIGH (15)
     return set_kh1_power_level (radio, power);
 }
 
@@ -263,7 +264,13 @@ bool KH1RadioDriver::send_keyer_message (KXRadio & radio, const char * message) 
         buf[sizeof (buf) - 1] = '\0';
         char speed_char[3];
         snprintf (speed_char, sizeof (speed_char), "%.*s", 2, buf + 3);  // Characters 4-5 represent speed as a string
-        kh_wpm = atoi (speed_char);
+        long parsed = atoi (speed_char);
+        // The display can hold something other than "XX WPM" here (a menu is
+        // open, or another flash is on screen), and atoi of non-digits is 0.
+        // Accept only a sane keyer speed; otherwise keep the default, which
+        // also guards the division below.
+        if (parsed >= 5 && parsed <= 60)
+            kh_wpm = parsed;
     }
 
     int ditPeriod = 1200 / kh_wpm;  // dit period in ms

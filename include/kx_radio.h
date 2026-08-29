@@ -98,7 +98,7 @@ class KXRadio {
     bool get_mode (radio_mode_t & out_mode);
     bool set_mode (radio_mode_t mode, int tries);
     bool get_power (long & out_power);
-    bool set_power (long power);
+    bool set_power (long power, long & out_achieved);
     bool get_volume (long & out_volume);
     bool set_volume (long volume);
     bool get_xmit_state (long & out_state);
