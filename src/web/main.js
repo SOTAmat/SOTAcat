@@ -749,24 +749,32 @@ function buildXotaDeepLink(params) {
 // Transmit Control Functions
 // ============================================================================
 
-// Send transmit state change request to radio (state: 0=RX, 1=TX)
+// Send transmit state change request to radio (state: 0=RX, 1=TX).
+// Resolves true only when the radio accepted the change.
 function sendXmitRequest(state) {
     const url = `/api/v1/xmit?state=${state}`;
-    fetchQuiet(url, { method: "PUT" }, "Xmit");
+    return fetchQuiet(url, { method: "PUT" }, "Xmit").then((r) => !!(r && r.ok));
 }
 
-// Toggle transmit state on/off (shared between Spot and Chase pages)
-function toggleXmit() {
-    const xmitButton = document.getElementById("xmit-button");
-    AppState.isXmitActive = !AppState.isXmitActive;
+// Distinguishes the newest toggle from stale in-flight replies.
+let xmitToggleSeq = 0;
 
-    if (AppState.isXmitActive) {
-        if (xmitButton) xmitButton.classList.add("active");
-        sendXmitRequest(1);
-    } else {
-        if (xmitButton) xmitButton.classList.remove("active");
-        sendXmitRequest(0);
-    }
+// Toggle transmit state on/off (shared between Spot and Chase pages).
+// Optimistic: the button flips immediately and reverts if the radio
+// refuses (503 while the keyer or FT8 owns the radio, or the link is
+// down). Only the newest toggle's failure reverts; a stale reply must
+// not clobber a later toggle's state.
+function toggleXmit() {
+    const requested = !AppState.isXmitActive;
+    const seq = ++xmitToggleSeq;
+    AppState.isXmitActive = requested;
+    syncXmitButtonState();
+    sendXmitRequest(requested ? 1 : 0).then((ok) => {
+        if (!ok && seq === xmitToggleSeq) {
+            AppState.isXmitActive = !requested;
+            syncXmitButtonState();
+        }
+    });
 }
 
 // Sync xmit button UI with current state (call on page appearing)
