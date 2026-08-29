@@ -884,6 +884,21 @@ function updateChaseTable() {
     });
 
     tbody.parentNode.replaceChild(newTbody, tbody);
+
+    // The old tbody is detached now; a stale clickedTunedRow would keep its
+    // tuned-row class forever (the highlight updater only reaches attached
+    // rows) and feed old spot data to navigation and PoLo links. Remap it
+    // to the rebuilt row for the same spot, or drop it.
+    if (clickedTunedRow) {
+        const d = clickedTunedRow.dataset;
+        clickedTunedRow = Array.from(newTbody.rows).find(
+            (row) =>
+                row.dataset.activatorCallsign === d.activatorCallsign &&
+                row.dataset.hertz === d.hertz &&
+                row.dataset.modeType === d.modeType
+        ) || null;
+    }
+
     Log.info("Chase")("table updated");
 
     setTimeout(applyTableFilters, 0);
