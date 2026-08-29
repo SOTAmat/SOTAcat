@@ -61,9 +61,9 @@ trigger not fully constructible).
 | UR-11 | Battery mutex timeout falls through to sending uninitialized stack buffer as 200 JSON | handler_battery.cpp:38,58-73                      | V   | 3   | 3    | 3   | 2   | U5    | fixed 3e1419c |
 | UR-12 | toggleXmit flips UI optimistically; 503 never reverts; state inverted until reload    | main.js:753-770; radio_http.cpp:80-93             | V   | 2   | 2    | 3   | 3   | U6    | fixed 3d789c2 |
 | UR-13 | chase.js `normalizeRadioMode` clobbers main.js's; synonym/data modes 404 after Chase visit | chase.js:258 vs main.js:1168                 | V   | 2   | 3    | 2   | 2   | U7    | open |
-| UR-14 | Chase distance computed in km, rendered under "Miles" header                          | chase.html:58; chase_api.js:128; main.js:1592     | V   | 2   | 3    | 3   | 3   | U8    | open |
-| UR-15 | Table refresh detaches tuned row; stale detached row drives PoLo deep links           | chase.js:864,280-308,589-591                      | V   | 2   | 2    | 2   | 2   | U8    | open |
-| UR-16 | tuneRadioHz never calls suppressVfoPolling; in-flight poll reverts optimistic state   | main.js:1182-1226,871,823                         | V   | 1   | 3    | 2   | 2   | U8    | open |
+| UR-14 | Chase distance computed in km, rendered under "Miles" header                          | chase.html:58; chase_api.js:128; main.js:1592     | V   | 2   | 3    | 3   | 3   | U8    | fixed 881e8a2 |
+| UR-15 | Table refresh detaches tuned row; stale detached row drives PoLo deep links           | chase.js:864,280-308,589-591                      | V   | 2   | 2    | 2   | 2   | U8    | fixed 881e8a2 |
+| UR-16 | tuneRadioHz never calls suppressVfoPolling; in-flight poll reverts optimistic state   | main.js:1182-1226,871,823                         | V   | 1   | 3    | 2   | 2   | U8    | fixed 881e8a2 |
 | UR-17 | Rejected tune-target/CW-macro saves (400/500) alert "saved"; caches clobbered on next load | settings.js:427-453,700-720; handler_settings.cpp:600,675,611 | V | 2 | 2 | 2 | 1 | U9 | open |
 | UR-18 | Genuine 0° coordinate treated as missing (post-parseFloat falsy checks)               | qrx.js:307; chase_api.js:127                      | V(narrowed) | 2 | 3 | 3 | 1 | U10 | open |
 | UR-19 | VFO poll `parseInt` unguarded vs NaN (trigger needs non-firmware responder)           | main.js:837                                       | P   | 1   | 3    | 3   | 1   | U10   | open |
