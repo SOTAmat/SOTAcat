@@ -554,12 +554,26 @@ function computeDragFrequency(clientX, state) {
     return clampFrequencyHz(snapFrequencyHz(raw, state.snapHz), state.bandMin, state.bandMax);
 }
 
+// The privilege/band chart redraw rebuilds every row and spot tick, and a
+// mouse drag delivers pointermoves far faster than frames. Coalesce the
+// rebuild to one per animation frame; it reads AppState, so the latest
+// frequency always wins.
+let privilegeRedrawQueued = false;
+function queuePrivilegeRedraw() {
+    if (privilegeRedrawQueued) return;
+    privilegeRedrawQueued = true;
+    requestAnimationFrame(() => {
+        privilegeRedrawQueued = false;
+        updatePrivilegeDisplay();
+    });
+}
+
 function applyDragFrequency(hz, state) {
     AppState.vfoFrequencyHz = hz;
     AppState.vfoLastUpdated = Date.now();
     suppressVfoPolling(VFO_ACTION_SUPPRESS_MS);
     updateFrequencyDisplay();
-    updatePrivilegeDisplay();   // redraws the tick at the new position
+    queuePrivilegeRedraw();   // redraws the tick at the new position
     notifyVfoSubscribers();
 
     const now = Date.now();
@@ -865,7 +879,7 @@ function onRunVfoChanged(frequency, mode) {
     updateFrequencyDisplay();
     updateBandDisplay();
     updateModeDisplay();
-    updatePrivilegeDisplay();
+    queuePrivilegeRedraw();   // fires per drag move and per poll tick; coalesce
     updateSpotButtonStates(); // PoLo enables once a frequency is known
 }
 
@@ -1488,12 +1502,16 @@ async function onSpotAppearing() {
     Log.info("Spot")("tab appearing");
     loadCollapsibleStates();
 
-    // Ensure callsign, location, and macros are loaded before rendering buttons.
-    // Without these awaits, {MYCALL} and {MYREF} resolve to "" on first visit,
-    // and macro buttons may render empty before AppState.cwMacros loads.
-    await ensureCallSignLoaded();
-    await getLocation();
-    await loadCwMacrosAsync();
+    // Ensure callsign, location, macros, and license are loaded before
+    // rendering. Without these, {MYCALL} and {MYREF} resolve to "" on first
+    // visit and macro buttons may render empty. The four loads are
+    // independent, so they run concurrently.
+    await Promise.all([
+        ensureCallSignLoaded(),
+        getLocation(),
+        loadCwMacrosAsync(),
+        ensureLicenseClassLoaded(),
+    ]);
 
     // Render CW macro buttons from AppState (empty until configured in Settings)
     renderCwMacroButtons();
@@ -1506,9 +1524,6 @@ async function onSpotAppearing() {
 
     // Update spot action buttons based on reference validity
     updateSpotButtonStates();
-
-    // Ensure license class is loaded before VFO updates (needed for privilege badges)
-    await ensureLicenseClassLoaded();
 
     // Render whatever shared state exists now, then ride the shared poller.
     onRunVfoChanged(AppState.vfoFrequencyHz, AppState.vfoMode);
