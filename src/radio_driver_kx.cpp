@@ -90,23 +90,29 @@ bool KXRadioDriver::get_power (KXRadio & radio, long & out_power) {
     return true;
 }
 
-bool KXRadioDriver::set_power (KXRadio & radio, long power) {
+bool KXRadioDriver::set_power (KXRadio & radio, long power, long & out_achieved) {
     // first set it to a known value, zero
     if (!radio.put_to_kx ("PC", 3, 0, SC_KX_COMMUNICATION_RETRIES))
         return false;
 
+    out_achieved = 0;
     if (!power)
         return true;
 
+    // Fire the target without put_to_kx's strict write-verify: the radio
+    // clamps a request above its maximum (KX2 answers 10 for a requested
+    // 15), which the strict verify would count as failure. The tolerant
+    // readback below is the verification instead.
     radio.put_to_kx ("PC", 3, power, 0);
 
     long readback = radio.get_from_kx ("PC", SC_KX_COMMUNICATION_RETRIES, 3);
-    if (readback == 0)
+    if (readback <= 0)  // 0: the value write was lost; negative: readback failed
         return false;
 
     if (readback != power)
         ESP_LOGI (TAG8, "requested power %ld, acquired %ld", power, readback);
 
+    out_achieved = readback;
     return true;
 }
 

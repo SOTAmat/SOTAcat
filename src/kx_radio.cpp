@@ -573,7 +573,7 @@ DELEGATE_BOOL (restore_radio_state, (const kx_state_t * in_state, int tries), in
 DELEGATE_BOOL (send_keyer_message,  (const char * message),                   message)
 DELEGATE_BOOL (set_frequency,       (long hz, int tries),                     hz, tries)
 DELEGATE_BOOL (set_mode,            (radio_mode_t mode, int tries),           mode, tries)
-DELEGATE_BOOL (set_power,           (long power),                             power)
+DELEGATE_BOOL (set_power,           (long power, long & out_achieved),        power, out_achieved)
 DELEGATE_BOOL (set_volume,          (long volume),                            volume)
 DELEGATE_BOOL (set_xmit_state,      (bool on),                                on)
 DELEGATE_BOOL (sync_time,           (const RadioTimeHms & client_time),       client_time)
