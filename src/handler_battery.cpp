@@ -56,7 +56,9 @@ esp_err_t handler_batteryInfo_get (httpd_req_t * req) {
             }
         }
         else {
-            ESP_LOGE (TAG8, "timed out getting bat_info mutex");
+            // Fail loudly: falling through would send the uninitialized
+            // buffer below as a successful JSON reply.
+            REPLY_WITH_SERVICE_UNAVAILABLE (req, "timed out getting bat_info mutex");
         }
     }
     else {  // analog battery
