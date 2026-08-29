@@ -396,7 +396,7 @@ class MockSOTAcatServer:
             if "callsign" in data:
                 self.state["callsign"] = data["callsign"].upper()
                 print(f"[MOCK] Callsign set to {self.state['callsign']}")
-            return "", 200
+            return jsonify({"callsign": self.state["callsign"]})
 
         # License class
         @self.app.route("/api/v1/license", methods=["GET"])
@@ -409,7 +409,7 @@ class MockSOTAcatServer:
             if "license" in data:
                 self.state["license"] = data["license"].upper()
                 print(f"[MOCK] License set to {self.state['license']}")
-            return "", 200
+            return jsonify({"license": self.state["license"]})
 
         # GPS
         @self.app.route("/api/v1/gps", methods=["GET"])
@@ -426,7 +426,9 @@ class MockSOTAcatServer:
             if "gps_lon" in data:
                 self.state["gps_lon"] = data["gps_lon"]
             print(f"[MOCK] GPS set to {self.state['gps_lat']}, {self.state['gps_lon']}")
-            return "", 200
+            return jsonify(
+                {"gps_lat": self.state["gps_lat"], "gps_lon": self.state["gps_lon"]}
+            )
 
         # Tune Targets
         @self.app.route("/api/v1/tuneTargets", methods=["GET"])

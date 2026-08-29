@@ -179,6 +179,57 @@ class ContractTest:
                         f"query string must not break the match: got {r.status_code}")
         self.check("GET dispatch: exact name match only (prefix/empty -> 404)", exact)
 
+    # -- settings contract -------------------------------------------------
+    def test_settings_endpoints(self):
+        def post(ep, payload, timeout=8.0):
+            return requests.post(f"{self.base}/{ep}", json=payload, timeout=timeout)
+
+        def gps_roundtrip():
+            r, _ = self.get("gps")
+            self.expect(r.status_code == 200, f"GET gps: HTTP {r.status_code}")
+            orig = r.json()
+            try:
+                weird = {"gps_lat": 'lat"quote', "gps_lon": "lon\\slash"}
+                pr = post("gps", weird)
+                self.expect(pr.status_code == 200, f"POST gps: HTTP {pr.status_code}")
+                echoed = pr.json()  # must stay valid JSON despite quote/backslash
+                self.expect(echoed.get("gps_lat") == weird["gps_lat"],
+                            f"lat round-trip: {echoed.get('gps_lat')!r}")
+                self.expect(echoed.get("gps_lon") == weird["gps_lon"],
+                            f"lon round-trip: {echoed.get('gps_lon')!r}")
+                g, _ = self.get("gps")
+                self.expect(g.json().get("gps_lat") == weird["gps_lat"], "lat persisted")
+            finally:
+                post("gps", orig)
+
+        def whitelist():
+            c, _ = self.get("callsign")
+            self.expect(c.status_code == 200, f"GET callsign: HTTP {c.status_code}")
+            orig_callsign = c.json().get("callsign")
+            g, _ = self.get("gps")
+            orig_gps = g.json()
+            try:
+                post("gps", {"gps_lat": "1.0", "callsign": "ZZ9ZZZ"})
+                c2, _ = self.get("callsign")
+                self.expect(c2.json().get("callsign") == orig_callsign,
+                            f"gps POST wrote the callsign key: {c2.json()!r}")
+            finally:
+                post("gps", orig_gps)
+                post("callsign", {"callsign": orig_callsign})
+
+        def oversize():
+            r = requests.post(f"{self.base}/gps", data=b"x" * 8192, timeout=10)
+            self.expect(r.status_code == 400, f"expected 400, got {r.status_code}")
+            v, _ = self.get("version")
+            self.expect(v.status_code == 200, "device must stay up after oversize POST")
+
+        self.check("GET/POST gps: quote and backslash round-trip valid JSON", gps_roundtrip)
+        self.check("POST gps: unknown keys dropped (whitelist)", whitelist)
+        if self.mock:
+            self.skip("oversize POST body -> 400", "firmware-specific cap (mock is Flask)")
+        else:
+            self.check("oversize POST body -> 400", oversize)
+
     def test_read_your_write(self):
         if self.expect_radio == "dead":
             return self._test_sets_when_dead()
@@ -494,6 +545,7 @@ class ContractTest:
         self.test_get_shapes_and_bounds()
         self.test_bad_params()
         self.test_dispatch_exact_match()
+        self.test_settings_endpoints()
         self.test_read_your_write()
         self.test_sotamat_sequences()
         self.test_concurrency()
