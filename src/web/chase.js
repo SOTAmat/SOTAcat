@@ -51,8 +51,11 @@ function loadSortState() {
     const savedSortDescending = localStorage.getItem("chaseSortDescending");
 
     if (savedSortField !== null) {
-        ChaseState.sortField = savedSortField;
-        ChaseState.lastSortField = savedSortField;
+        // The distance sort key was renamed when spots switched to canonical
+        // kilometers; migrate persisted state so sorting keeps working.
+        const sortField = savedSortField === "distance" ? "distanceKm" : savedSortField;
+        ChaseState.sortField = sortField;
+        ChaseState.lastSortField = sortField;
     } else {
         ChaseState.sortField = "timestamp";
         ChaseState.lastSortField = "timestamp";
@@ -850,8 +853,9 @@ function buildChaseRow(spot, isMySpot) {
     const refCell = row.insertCell();
     refCell.appendChild(buildReferenceLink(spot));
 
-    // 7. Distance
-    row.insertCell().textContent = spot.distance.toLocaleString();
+    // 7. Distance (canonical kilometers, formatted for the selected unit;
+    // the column header names the unit)
+    row.insertCell().textContent = formatChaseDistance(spot.distanceKm);
 
     // 8. Details
     row.insertCell().textContent = spot.details;
@@ -864,6 +868,11 @@ function buildChaseRow(spot, isMySpot) {
 
 // Update chase table display with sorted spots from Spots module
 function updateChaseTable() {
+    const distanceHeading = document.getElementById("chase-distance-heading");
+    if (distanceHeading) {
+        distanceHeading.textContent = getDistanceUnitsLabel();
+    }
+
     const data = Spots.getAll();
     if (data === null) {
         Log.info("Chase")("Json is null");
@@ -1202,6 +1211,7 @@ async function onChaseAppearing() {
     await loadRadioType();
     loadFilterBandsSetting();
     loadScanDwellTime();
+    loadUnitsSetting();
     ensureLicenseClassLoaded();
 
     // Subscribe to VFO changes and start polling for row highlighting

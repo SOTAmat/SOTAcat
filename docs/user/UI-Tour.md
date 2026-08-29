@@ -28,7 +28,7 @@ Hunt activators from the spot list.
 
 - Tap any spot → radio tunes automatically
 - Filter by mode (CW, SSB, DATA) or type (SOTA, POTA, WWFF)
-- Distance shown based on your saved location
+- Distance shown based on your saved location, in miles or kilometers (SETTINGS → Display → Units)
 - Opens WebSDR/KiwiSDR if tune targets configured
 
 <img src="../images/chase-spots.png" alt="CHASE page with spots" width="300">
@@ -102,7 +102,7 @@ One-time setup and preferences.
 <img src="../images/settings-tune-targets.png" alt="Tune targets settings" width="300">
 
 - CW/Data macros (configurable keyer buttons with placeholders; sent as CW in CW/CW-R, as RTTY in DATA + FSK-D, as PSK31 in DATA + PSK-D)
-- Display settings (compact mode, scan dwell time)
+- Display settings (compact mode, imperial/metric units, scan dwell time)
 - "Show only bands my radio can access" — when enabled (default), the CHASE list hides spots outside your radio's native band coverage. Turn it off if you operate with a transverter so VHF/UHF spots stay visible.
 
 <img src="../images/settings-display-and-chase-filters.png" alt="Display and chase filter settings" width="300">

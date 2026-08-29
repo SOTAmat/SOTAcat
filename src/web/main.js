@@ -123,6 +123,7 @@ const AppState = {
     // UI density
     uiCompactMode: true,       // Compact mode for denser table display
     scanDwellTimeMs: 7000,     // Scan dwell time per spot in milliseconds (default 7s)
+    units: "imperial",         // "imperial" (mi/ft) or "metric" (km/m) for distance and altitude displays
 
     // Version checking
     versionCheckRetryTimer: null,
@@ -566,6 +567,56 @@ function loadScanDwellTime() {
         }
     }
     return AppState.scanDwellTimeMs;
+}
+
+// ============================================================================
+// Imperial/Metric display helpers
+// ============================================================================
+// Distances are canonically kilometers everywhere internally (calculateDistance,
+// spot.distanceKm, the SOTA API); these helpers convert at the display edge.
+
+const MILES_PER_KM = 0.621371;
+const FEET_PER_MILE = 5280;
+
+// Load unit preference from localStorage. Anything but "metric" means imperial.
+function loadUnitsSetting() {
+    AppState.units = localStorage.getItem("sotacat_units") === "metric" ? "metric" : "imperial";
+    return AppState.units;
+}
+
+// Chase table distance column header; the cells carry no suffix.
+function getDistanceUnitsLabel() {
+    return AppState.units === "metric" ? "km" : "Miles";
+}
+
+// Prose distance for QRX-style "… away" text. Sub-0.1 in the major unit
+// switches to the minor unit (feet or meters).
+function formatDistanceAway(distanceKm) {
+    if (AppState.units === "metric") {
+        if (distanceKm < 0.1) {
+            return `${Math.round(distanceKm * 1000)}m away`;
+        }
+        return `${distanceKm.toFixed(1)}km away`;
+    }
+    const distanceMiles = distanceKm * MILES_PER_KM;
+    if (distanceMiles < 0.1) {
+        return `${Math.round(distanceMiles * FEET_PER_MILE)}ft away`;
+    }
+    return `${distanceMiles.toFixed(1)}mi away`;
+}
+
+// Whole-number distance for the chase table.
+function formatChaseDistance(distanceKm) {
+    if (!Number.isFinite(distanceKm)) {
+        return "-";
+    }
+    const value = AppState.units === "metric" ? distanceKm : distanceKm * MILES_PER_KM;
+    return Math.round(value).toLocaleString();
+}
+
+// Summit altitude from the SOTA API, which supplies both altM and altFt.
+function formatSummitAltitude(summit) {
+    return AppState.units === "metric" ? `${summit.altM}m` : `${summit.altFt}ft`;
 }
 
 // Determine which amateur band a frequency falls into (returns '40m', '20m', etc., or null)
@@ -1430,9 +1481,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // Preload CW macros at startup so RUN page can render buttons immediately
     loadCwMacrosAsync();
 
-    // Apply UI density preference from localStorage
+    // Apply display preferences from localStorage
     loadUiCompactMode();
     applyUiCompactMode();
+    loadUnitsSetting();
 
     // Ensure all tab buttons use the same click handler
     document.querySelectorAll(".tabBar button").forEach((button) => {

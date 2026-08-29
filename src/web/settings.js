@@ -794,6 +794,24 @@ function onUiCompactModeChange() {
     Log.info("Settings")(`Compact mode: ${enabled ? "enabled" : "disabled"}`);
 }
 
+// Load unit preference into the segmented control
+function loadUnitsSettingUI() {
+    loadUnitsSetting(); // From main.js - loads into AppState
+    const input = document.querySelector(`input[name="units"][value="${AppState.units}"]`);
+    if (input) {
+        input.checked = true;
+    }
+}
+
+// Persist the selected unit preference. Every page renders distances when
+// its tab opens, so the next CHASE/QRX view picks this up automatically.
+function onUnitsChange(event) {
+    const units = event.target.value === "metric" ? "metric" : "imperial";
+    localStorage.setItem("sotacat_units", units);
+    AppState.units = units;
+    Log.info("Settings")(`Units: ${units}`);
+}
+
 // ============================================================================
 // Scan Dwell Time Functions
 // ============================================================================
@@ -1409,6 +1427,11 @@ function attachSettingsEventListeners() {
         compactModeCheckbox.addEventListener("change", onUiCompactModeChange);
     }
 
+    // Display settings - units segmented control
+    document.querySelectorAll('input[name="units"]').forEach((input) => {
+        input.addEventListener("change", onUnitsChange);
+    });
+
     // Display settings - scan dwell time input
     const scanDwellInput = document.getElementById("scan-dwell-time");
     if (scanDwellInput) {
@@ -1429,6 +1452,7 @@ function onSettingsAppearing() {
     loadCwMacros();
     loadFilterBandsSettingUI();
     loadUiCompactModeSettingUI();
+    loadUnitsSettingUI();
     loadScanDwellTimeSettingUI();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }

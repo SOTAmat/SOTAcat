@@ -171,6 +171,31 @@ const SOTA_DISTANCE_API_URL = "https://api-db2.sota.org.uk/api/summits/distance"
 // Iterating a fixed list terminates by construction.
 const SOTA_SEARCH_RANGES_KM = [0.1, 1, 10, 50, 100];
 
+// Render the summit-info line from raw values in the current unit preference.
+function formatSummitInfoLine(info) {
+    return `${info.name} • ${formatSummitAltitude(info)} • ${info.points}pt • ${formatDistanceAway(info.distanceKm)}`;
+}
+
+// Read the cached summit info for a location and render it in the current
+// unit preference. The cache holds raw values (JSON) so a preference change
+// re-renders correctly; an unparsable entry (e.g. a pre-preference formatted
+// string) is dropped.
+function readCachedSummitInfo(latitude, longitude) {
+    const cacheKey = buildLocationKey("summitInfo", latitude, longitude);
+    const raw = localStorage.getItem(cacheKey);
+    if (!raw) return "";
+    try {
+        const info = JSON.parse(raw);
+        if (!info || typeof info !== "object" || !Number.isFinite(info.distanceKm)) {
+            throw new Error("not a summit-info record");
+        }
+        return formatSummitInfoLine(info);
+    } catch (e) {
+        localStorage.removeItem(cacheKey);
+        return "";
+    }
+}
+
 // A location is valid only with finite numeric coordinates; 0 is a real
 // latitude (equator) and longitude (Greenwich), not "unset".
 function hasValidLocation(location) {
@@ -228,7 +253,9 @@ async function fetchNearestSota() {
         const summits = await searchSotaSummitsExpanding(latitude, longitude);
 
         if (!summits || summits.length === 0) {
-            alert("No SOTA summits found within 100km of your location.");
+            const limitKm = SOTA_SEARCH_RANGES_KM[SOTA_SEARCH_RANGES_KM.length - 1];
+            const limitStr = AppState.units === "metric" ? `${limitKm}km` : `${Math.round(limitKm * MILES_PER_KM)}mi`;
+            alert(`No SOTA summits found within ${limitStr} of your location.`);
             return;
         }
 
@@ -240,20 +267,19 @@ async function fetchNearestSota() {
         referenceInput.value = nearest.summitCode;
         onReferenceInputChange(); // Trigger change handler to enable save button
 
-        // Display summit info with distance (convert km to miles/feet)
+        // Display summit info in the current unit preference and cache the
+        // raw values so a later preference change re-renders correctly.
         if (summitInfoDiv) {
-            const distanceMiles = nearest.distance * 0.621371;
-            let distanceStr;
-            if (distanceMiles < 0.1) {
-                const distanceFeet = Math.round(distanceMiles * 5280);
-                distanceStr = `${distanceFeet}ft away`;
-            } else {
-                distanceStr = `${distanceMiles.toFixed(1)}mi away`;
-            }
-            summitInfoDiv.textContent = `${nearest.name} • ${nearest.altFt}ft • ${nearest.points}pt • ${distanceStr}`;
-            // Cache with location-based key
+            const summitInfo = {
+                name: nearest.name,
+                altM: nearest.altM,
+                altFt: nearest.altFt,
+                points: nearest.points,
+                distanceKm: nearest.distance, // SOTA API distance is kilometers
+            };
+            summitInfoDiv.textContent = formatSummitInfoLine(summitInfo);
             const cacheKey = buildLocationKey("summitInfo", latitude, longitude);
-            localStorage.setItem(cacheKey, summitInfoDiv.textContent);
+            localStorage.setItem(cacheKey, JSON.stringify(summitInfo));
         }
 
         Log.info("QRX")(`Nearest SOTA: ${nearest.summitCode} - ${nearest.name}`);
@@ -305,8 +331,7 @@ async function loadReference() {
     // Display cached summit info for current location
     if (summitInfoDiv) {
         if (hasValidLocation(location)) {
-            const cacheKey = buildLocationKey("summitInfo", location.latitude, location.longitude);
-            summitInfoDiv.textContent = localStorage.getItem(cacheKey) || "";
+            summitInfoDiv.textContent = readCachedSummitInfo(location.latitude, location.longitude);
         } else {
             summitInfoDiv.textContent = "";
         }
@@ -348,8 +373,7 @@ function onReferenceInputChange() {
             if (hasChanged) {
                 summitInfoDiv.textContent = "";
             } else if (!summitInfoDiv.textContent && AppState.gpsOverride) {
-                const cacheKey = buildLocationKey("summitInfo", AppState.gpsOverride.latitude, AppState.gpsOverride.longitude);
-                summitInfoDiv.textContent = localStorage.getItem(cacheKey) || "";
+                summitInfoDiv.textContent = readCachedSummitInfo(AppState.gpsOverride.latitude, AppState.gpsOverride.longitude);
             }
         }
     }
@@ -578,6 +602,7 @@ function attachQrxEventListeners() {
 // Called when QRX tab becomes visible
 async function onQrxAppearing() {
     Log.info("QRX")("tab appearing");
+    loadUnitsSetting();
     attachQrxEventListeners();
     loadGpsLocation();
     await loadReference();

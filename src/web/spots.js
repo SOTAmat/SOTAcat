@@ -5,7 +5,10 @@
 // or refresh from a single source of truth. Replaces the equivalent
 // localStorage + fetch + auto-refresh logic that previously lived in chase.js.
 
-const SPOTS_CACHE_KEY = "chaseSpotCache";   // reused so existing caches keep working
+// v2: spots carry distanceKm (canonical kilometers). The unversioned key held
+// pre-converted miles in `distance` and must never be read as kilometers.
+const SPOTS_CACHE_KEY = "chaseSpotCache.v2";
+const SPOTS_LEGACY_CACHE_KEY = "chaseSpotCache";
 const SPOTS_CACHE_TTL_SECONDS = 3600;        // matches CHASE_HISTORY_DURATION_SECONDS
 const SPOTS_MIN_REFRESH_INTERVAL_MS = 60000;   // Rate-limit gate: minimum gap between API calls
 const SPOTS_AUTO_REFRESH_INTERVAL_MS = 60000;  // Auto-refresh timer interval
@@ -38,6 +41,7 @@ var Spots = {
 
     _restoreCache() {
         try {
+            localStorage.removeItem(SPOTS_LEGACY_CACHE_KEY);
             const cached = localStorage.getItem(SPOTS_CACHE_KEY);
             if (!cached) return false;
 

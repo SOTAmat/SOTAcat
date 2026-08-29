@@ -63,62 +63,55 @@ function assertApproxEqual(actual, expected, tolerance = 0.01, msg = '') {
 }
 
 // ============================================================================
-// Distance Formatting Logic (extracted from qrx.js for testing)
+// Real-code extraction: shared unit formatters (main.js) and the QRX
+// summit-info renderer + cache reader (qrx.js)
 // ============================================================================
 
-/**
- * Format distance from km to miles/feet for display
- * @param {number} distanceKm - Distance in kilometers
- * @returns {string} Formatted distance string
- */
-function formatDistance(distanceKm) {
-    const distanceMiles = distanceKm * 0.621371;
-    if (distanceMiles < 0.1) {
-        const distanceFeet = Math.round(distanceMiles * 5280);
-        return `${distanceFeet}ft away`;
-    } else {
-        return `${distanceMiles.toFixed(1)}mi away`;
-    }
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const qrxJsCode = fs.readFileSync(path.join(__dirname, '../../src/web/qrx.js'), 'utf8');
+const mainJsCode = fs.readFileSync(path.join(__dirname, '../../src/web/main.js'), 'utf8');
+
+const unitSandbox = {
+    AppState: { units: 'imperial' },
+    localStorage: {
+        _store: {},
+        getItem(k) { return Object.prototype.hasOwnProperty.call(this._store, k) ? this._store[k] : null; },
+        setItem(k, v) { this._store[k] = String(v); },
+        removeItem(k) { delete this._store[k]; },
+    },
+    buildLocationKey: (prefix, lat, lon) => `${prefix}_${lat}_${lon}`,
+};
+vm.createContext(unitSandbox);
+for (const [source, file, pattern] of [
+    [null, 'main.js', /const MILES_PER_KM = [^;]+;/],
+    [null, 'main.js', /const FEET_PER_MILE = [^;]+;/],
+    [null, 'main.js', /function formatDistanceAway\([\s\S]*?\n\}/],
+    [null, 'main.js', /function formatSummitAltitude\([\s\S]*?\n\}/],
+    [null, 'qrx.js', /function formatSummitInfoLine\([\s\S]*?\n\}/],
+    [null, 'qrx.js', /function readCachedSummitInfo\([\s\S]*?\n\}/],
+]) {
+    const code = file === 'main.js' ? mainJsCode : qrxJsCode;
+    const match = code.match(pattern);
+    if (!match) throw new Error(`Could not extract ${pattern} from ${file}`);
+    vm.runInContext(match[0], unitSandbox);
 }
 
-/**
- * Format summit info string
- * @param {object} summit - Summit object from SOTA API
- * @returns {string} Formatted summit info
- */
+// Imperial-mode wrappers preserving this file's historical expectations.
+function formatDistance(distanceKm) {
+    unitSandbox.AppState.units = 'imperial';
+    return unitSandbox.formatDistanceAway(distanceKm);
+}
+
 function formatSummitInfo(summit) {
-    const distanceKm = summit.distance;
-    const distanceMiles = distanceKm * 0.621371;
-    let distanceStr;
-    if (distanceMiles < 0.1) {
-        const distanceFeet = Math.round(distanceMiles * 5280);
-        distanceStr = `${distanceFeet}ft away`;
-    } else {
-        distanceStr = `${distanceMiles.toFixed(1)}mi away`;
-    }
-    return `${summit.name} • ${summit.altFt}ft • ${summit.points}pt • ${distanceStr}`;
+    unitSandbox.AppState.units = 'imperial';
+    return unitSandbox.formatSummitInfoLine({ ...summit, distanceKm: summit.distance });
 }
 
 // ============================================================================
 // Tests
 // ============================================================================
-
-describe('Distance Conversion (km to miles)', () => {
-    it('converts 1 km to approximately 0.62 miles', () => {
-        const miles = 1 * 0.621371;
-        assertApproxEqual(miles, 0.621, 0.001, '1 km should be ~0.621 miles');
-    });
-
-    it('converts 10 km to approximately 6.2 miles', () => {
-        const miles = 10 * 0.621371;
-        assertApproxEqual(miles, 6.21, 0.01, '10 km should be ~6.21 miles');
-    });
-
-    it('converts 100 km to approximately 62 miles', () => {
-        const miles = 100 * 0.621371;
-        assertApproxEqual(miles, 62.1, 0.1, '100 km should be ~62.1 miles');
-    });
-});
 
 describe('Distance Formatting', () => {
     describe('Short distances (< 0.1 miles) shown in feet', () => {
@@ -240,6 +233,36 @@ describe('Summit Info Formatting', () => {
         };
         const result = formatSummitInfo(summit);
         assertEqual(result, 'Tall Peak • 14000ft • 10pt • 62.1mi away');
+    });
+
+    it('renders metric altitude and distance under the metric preference', () => {
+        unitSandbox.AppState.units = 'metric';
+        const info = { name: 'Mount Diablo', altM: 1173, altFt: 3849, points: 4, distanceKm: 25 };
+        assertEqual(unitSandbox.formatSummitInfoLine(info), 'Mount Diablo • 1173m • 4pt • 25.0km away');
+        unitSandbox.AppState.units = 'imperial';
+    });
+});
+
+describe('Cached Summit Info (raw values, formatted on read)', () => {
+    const info = { name: 'Black Mountain', altM: 860, altFt: 2820, points: 2, distanceKm: 25 };
+
+    it('renders cached raw values in the current unit preference', () => {
+        unitSandbox.localStorage.setItem('summitInfo_37.3176_-122.1476', JSON.stringify(info));
+        unitSandbox.AppState.units = 'imperial';
+        assertEqual(unitSandbox.readCachedSummitInfo(37.3176, -122.1476), 'Black Mountain • 2820ft • 2pt • 15.5mi away');
+        unitSandbox.AppState.units = 'metric';
+        assertEqual(unitSandbox.readCachedSummitInfo(37.3176, -122.1476), 'Black Mountain • 860m • 2pt • 25.0km away');
+        unitSandbox.AppState.units = 'imperial';
+    });
+
+    it('drops a legacy pre-formatted string cache entry', () => {
+        unitSandbox.localStorage.setItem('summitInfo_1_2', 'Black Mountain • 2820ft • 2pt • 15.5mi away');
+        assertEqual(unitSandbox.readCachedSummitInfo(1, 2), '');
+        assertEqual(unitSandbox.localStorage.getItem('summitInfo_1_2'), null, 'legacy entry removed');
+    });
+
+    it('returns empty for a missing cache entry', () => {
+        assertEqual(unitSandbox.readCachedSummitInfo(9, 9), '');
     });
 });
 
@@ -532,10 +555,6 @@ describe('SOTA API Response Handling', () => {
 // ============================================================================
 // These extract the SHIPPED functions from src/web/qrx.js and exercise them,
 // rather than testing a local copy.
-
-const fs = require('fs');
-const path = require('path');
-const qrxJsCode = fs.readFileSync(path.join(__dirname, '../../src/web/qrx.js'), 'utf8');
 
 const rangesMatch = qrxJsCode.match(/const SOTA_SEARCH_RANGES_KM = \[[^\]]*\];/);
 const searchFnMatch = qrxJsCode.match(/async function searchSotaSummitsExpanding\([\s\S]*?\n\}/);

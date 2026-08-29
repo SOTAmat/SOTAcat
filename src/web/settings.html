@@ -563,6 +563,15 @@
     <div class="settings-card">
         <h2>Display</h2>
         <p class="settings-info">Adjust how information is displayed</p>
+        <div class="units-control" role="group" aria-labelledby="units-label">
+            <span id="units-label">Units:</span>
+            <div class="segmented-toggle">
+                <input type="radio" id="units-imperial" name="units" value="imperial" />
+                <label for="units-imperial">Imperial (mi, ft)</label>
+                <input type="radio" id="units-metric" name="units" value="metric" />
+                <label for="units-metric">Metric (km, m)</label>
+            </div>
+        </div>
         <label class="checkbox-label">
             <input type="checkbox" id="ui-compact-mode" />
             <span>Compact 'CHASE' table display</span>

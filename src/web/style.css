@@ -1154,11 +1154,59 @@ input.frequency-display {
     align-items: center;
     gap: var(--space-sm);
     margin-top: var(--space-sm);
+    font-size: var(--text-sm);
+    font-weight: 500;
 }
 
 .text-input-narrow {
     width: 4em;
     text-align: center;
+}
+
+.units-control {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin: var(--space-sm) 0;
+    font-size: var(--text-sm);
+    font-weight: 500;
+}
+
+.segmented-toggle {
+    display: inline-flex;
+    border: 2px solid var(--gray-3);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.segmented-toggle input {
+    position: absolute;
+    opacity: 0;
+}
+
+.segmented-toggle label {
+    min-height: var(--touch-target-sm);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-md);
+    cursor: pointer;
+    background: var(--white);
+    border-left: 1px solid var(--gray-3);
+}
+
+.segmented-toggle label:first-of-type {
+    border-left: 0;
+}
+
+.segmented-toggle input:checked + label {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.segmented-toggle input:focus-visible + label {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
 }
 
 /* =========================== Tables */
@@ -1448,9 +1496,14 @@ tbody tr:active {
     text-align: right;
 }
 
-/* Miles column - right aligned */
+/* Distance column - compact, right-aligned numeric values */
+#chase-table th:nth-child(7),
 #chase-table td:nth-child(7) {
+    width: 1%;
+    white-space: nowrap;
     text-align: right;
+    padding-left: var(--space-xs);
+    padding-right: var(--space-xs);
 }
 
 /* Frequency display styling - emphasize MHz, de-emphasize fractional KHz */

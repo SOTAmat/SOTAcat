@@ -128,16 +128,14 @@ function spothole_transformSpots(spotsData, location) {
         // Determine mode type for filtering/styling
         const modeType = spotModeFamily(mode);
 
-        // Calculate distance if we have coordinates. calculateDistance
-        // returns kilometers; the chase table's column is labeled Miles.
-        const KM_TO_MILES = 0.621371;
+        // Calculate distance if we have coordinates. Stored canonically in
+        // kilometers, unrounded; conversion happens at render time so the
+        // display always follows the current unit preference.
         const dxLat = spotCoordinate(spot.dx_latitude);
         const dxLon = spotCoordinate(spot.dx_longitude);
-        let distance = 99999; // Default to large number if no location
+        let distanceKm = 99999; // Default to large number if no location
         if (location && Number.isFinite(dxLat) && Number.isFinite(dxLon)) {
-            distance = Math.round(
-                calculateDistance(location.latitude, location.longitude, dxLat, dxLon) * KM_TO_MILES
-            );
+            distanceKm = calculateDistance(location.latitude, location.longitude, dxLat, dxLon);
         }
 
         // Convert timestamp to Date object
@@ -174,7 +172,7 @@ function spothole_transformSpots(spotsData, location) {
             modeType: modeType,
             locationID: locationID,
             sig: spot.sig || "Cluster", // Source type (SOTA, POTA, or Cluster for DX spots)
-            distance: distance,
+            distanceKm: distanceKm,
             timestamp: timestamp,
             comments: spot.comment || "",
 

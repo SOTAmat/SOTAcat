@@ -53,6 +53,7 @@ function makeSandbox(spots) {
         loadRadioType: async () => {},
         loadFilterBandsSetting: () => {},
         loadScanDwellTime: () => {},
+        loadUnitsSetting: () => {},
         subscribeToVfo: () => {},
         startGlobalVfoPolling: () => {},
         updateMyCallButton: () => {},
