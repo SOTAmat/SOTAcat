@@ -201,6 +201,67 @@ describe('getRadioBands', () => {
 // ============================================================================
 
 console.log('\n' + '='.repeat(60));
+// ============================================================================
+// getRadioFrequencySpanHz: per-radio tunable span derived from the
+// capability table + BAND_PLAN, replacing hardcoded KX2-only limits.
+// ============================================================================
+
+describe('getRadioFrequencySpanHz', () => {
+    const spanMatch = mainJsCode.match(/function getRadioFrequencySpanHz\([\s\S]*?\n\}/);
+    const bandPlanMatch = mainJsCode.match(/const BAND_PLAN = \{[\s\S]*?\n\};/);
+    const bandsFnMatch = mainJsCode.match(/function getRadioBands\([\s\S]*?\n\}/);
+
+    it('main.js defines getRadioFrequencySpanHz', () => {
+        assertTrue(!!spanMatch, 'getRadioFrequencySpanHz not found in main.js');
+    });
+
+    function spanFor(radioType, filterBandsEnabled = true) {
+        const sb = {
+            console,
+            AppState: { radioType, filterBandsEnabled },
+            HF_MIN_FREQUENCY_HZ: 1800000,
+            HF_MAX_FREQUENCY_HZ: 29700000,
+        };
+        vm.createContext(sb);
+        // consts live in script scope, not on the context; run all pieces
+        // as ONE script so the function closes over them.
+        vm.runInContext(
+            [bandPlanMatch[0], radioCapMatch[0], bandsFnMatch[0], spanMatch[0],
+             'globalThis.__span = getRadioFrequencySpanHz;'].join('\n'),
+            sb
+        );
+        return sb.__span();
+    }
+
+    it('KX2 span is 160m..10m (1.8-29.7 MHz)', () => {
+        assertEqual(spanFor('KX2'), { min: 1800000, max: 29700000 });
+    });
+
+    it('KX3 span reaches 6m (54 MHz)', () => {
+        assertEqual(spanFor('KX3'), { min: 1800000, max: 54000000 });
+    });
+
+    it('KH1 span is 40m..15m (7-21.45 MHz)', () => {
+        assertEqual(spanFor('KH1'), { min: 7000000, max: 21450000 });
+    });
+
+    it('unknown radio falls back to the full HF span', () => {
+        assertEqual(spanFor('Unknown'), { min: 1800000, max: 29700000 });
+    });
+
+    it('band-filter opt-out (transverter use) removes the restriction', () => {
+        assertNull(spanFor('KX2', false), 'opted-out span must be null (no clamp)');
+    });
+
+    it('run.js adjustFrequency clamps via the derived span', () => {
+        const runJsCode = fs.readFileSync(path.join(__dirname, '../../src/web/run.js'), 'utf8');
+        const adjMatch = runJsCode.match(/function adjustFrequency\([\s\S]*?\n\}/);
+        assertTrue(!!adjMatch, 'adjustFrequency not found in run.js');
+        assertTrue(/getRadioFrequencySpanHz\(\)/.test(adjMatch[0]),
+                   'adjustFrequency must derive its bounds from the radio capabilities');
+    });
+});
+
 console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
 if (failures.length > 0) {
     console.log('\nFailures:');
