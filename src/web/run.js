@@ -1293,21 +1293,6 @@ function sendQrtSms() {
 // ============================================================================
 // Note: buildXotaDeepLink() and mapModeForPolo() are defined in main.js
 
-// Derive sig (activation type) from reference format
-// Returns lowercase sig for Polo: 'sota', 'pota', 'wwff', etc.
-function getSigFromReference(ref) {
-    if (!ref) return null;
-    // SOTA: XX/YY-NNN (e.g., W6/HC-298, VK3/VE-123)
-    if (SOTA_REF_PATTERN.test(ref)) return "sota";
-    // POTA: XX-NNNN (e.g., US-1234, VE-0001)
-    if (POTA_REF_PATTERN.test(ref)) return "pota";
-    // WWFF: XXFF-NNNN (e.g., VKFF-0001, ONFF-0123)
-    if (/^[A-Z]{2,4}FF-\d{4}$/i.test(ref)) return "wwff";
-    // GMA: XX/YY-NNN (same format as SOTA but different program)
-    // Note: We can't distinguish GMA from SOTA by format alone
-    return null;
-}
-
 // Build Polo deep link telling PoLo the current VFO (frequency + mode).
 // Spotting itself is handled by SOTAcat/SOTAmat/RBN; PoLo only needs its
 // log to follow the radio, via the /vfo route.

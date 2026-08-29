@@ -254,8 +254,10 @@ function onTuneRadioComplete() {
 // VFO Row Highlighting Functions
 // ============================================================================
 
-// Normalize radio mode for comparison with spot modeType
-function normalizeRadioMode(mode) {
+// Collapse a radio mode into its family for comparison with spot modeType.
+// (Deliberately not named normalizeRadioMode: main.js owns that name for
+// the firmware-mode mapper, and tab scripts share one global scope.)
+function normalizeModeFamily(mode) {
     if (!mode) return null;
     const m = mode.toUpperCase();
     if (m === "USB" || m === "LSB") return "SSB";
@@ -283,7 +285,7 @@ function updateTunedRowHighlight() {
         return;
     }
 
-    const normalizedVfoMode = normalizeRadioMode(vfoMode);
+    const normalizedVfoMode = normalizeModeFamily(vfoMode);
 
     document.querySelectorAll("#chase-table tbody tr").forEach((row) => {
         const rowHz = parseInt(row.dataset.hertz, 10);

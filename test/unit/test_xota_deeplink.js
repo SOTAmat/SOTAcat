@@ -107,19 +107,21 @@ function buildXotaDeepLink(params) {
 
 const SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;
 const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;
+const WWFF_REF_PATTERN = /^[A-Z]{2,4}FF-\d{4}$/;
 
 function isValidSpotReference(ref) {
     if (!ref) return false;
     return SOTA_REF_PATTERN.test(ref) || POTA_REF_PATTERN.test(ref);
 }
 
-function getSigFromReference(ref) {
-    if (!ref) return null;
-    if (SOTA_REF_PATTERN.test(ref)) return "sota";
-    if (POTA_REF_PATTERN.test(ref)) return "pota";
-    if (/^[A-Z]{2,4}FF-\d{4}$/i.test(ref)) return "wwff";
-    return null;
-}
+// The real shared implementation, extracted from main.js (a hand-kept
+// mirror here once drifted out of sync with the shipped regex).
+const fs = require('fs');
+const path = require('path');
+const _mainJsSrc = fs.readFileSync(path.join(__dirname, '../../src/web/main.js'), 'utf8');
+const _sigMatch = _mainJsSrc.match(/function getSigFromReference\([\s\S]*?\n\}/);
+if (!_sigMatch) throw new Error('getSigFromReference not found in main.js');
+eval(_sigMatch[0]);
 
 // Mirror of src/web/run.js launchSOTAmat — builder only, no window.location.href side effect.
 function buildSotamatLink(state) {
@@ -185,6 +187,8 @@ describe('getSigFromReference', () => {
     it('POTA US-12345 (5-digit) → pota', () => assertEqual(getSigFromReference("US-12345"), "pota"));
     it('POTA VE-0001 → pota', () => assertEqual(getSigFromReference("VE-0001"), "pota"));
     it('WWFF VKFF-0001 → wwff', () => assertEqual(getSigFromReference("VKFF-0001"), "wwff"));
+    it('lowercase vkff-0001 → null (refs are uppercased upstream; qrx agrees)', () =>
+        assertEqual(getSigFromReference("vkff-0001"), null));
     it('WWFF ONFF-0123 → wwff', () => assertEqual(getSigFromReference("ONFF-0123"), "wwff"));
     it('null → null', () => assertEqual(getSigFromReference(null), null));
     it('empty string → null', () => assertEqual(getSigFromReference(""), null));

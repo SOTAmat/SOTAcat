@@ -469,20 +469,12 @@ function isValidPoloReference(ref) {
     return SOTA_REF_PATTERN.test(ref) || POTA_REF_PATTERN.test(ref) || WWFF_REF_PATTERN.test(ref);
 }
 
-// Derive sig from reference format
-function getPoloSigFromReference(ref) {
-    if (!ref) return null;
-    if (SOTA_REF_PATTERN.test(ref)) return "sota";
-    if (POTA_REF_PATTERN.test(ref)) return "pota";
-    if (WWFF_REF_PATTERN.test(ref)) return "wwff";
-    return null;
-}
 
 // Build Polo deep link for operation setup (myRef + mySig only)
 function buildPoloSetupLink() {
     const myRef = getLocationBasedReference();
     if (!isValidPoloReference(myRef)) return null;
-    const mySig = getPoloSigFromReference(myRef);
+    const mySig = getSigFromReference(myRef);
     if (!mySig) return null;
     return buildXotaDeepLink({ baseUrl: POLO_DEEP_LINK_OPERATION_BASE, myRef: myRef, mySig: mySig });
 }
