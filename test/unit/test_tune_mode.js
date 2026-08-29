@@ -126,6 +126,61 @@ if (normMatch && tuneMatch) {
     });
 }
 
+// ============================================================================
+// Cross-file mode coherence (chase family classification)
+// ============================================================================
+
+const chaseJs = fs.readFileSync(path.join(__dirname, '../../src/web/chase.js'), 'utf8');
+const chaseApiJs = fs.readFileSync(path.join(__dirname, '../../src/web/chase_api.js'), 'utf8');
+const digitalMatch = mainJs.match(/const DIGITAL_FIRMWARE_MODES = \[[^\]]*\];/);
+const familyMatch = chaseApiJs.match(/function spotModeFamily\([\s\S]*?\n\}/);
+
+console.log('\nCross-file mode coherence');
+
+it('chase.js does not shadow the shared normalizeRadioMode', () => {
+    // Tab scripts share one global scope; a second declaration silently
+    // clobbers main.js's firmware-mode mapper once the Chase tab loads.
+    assertEqual(/function normalizeRadioMode\s*\(/.test(chaseJs), false,
+                'chase.js declares a clashing global normalizeRadioMode');
+});
+
+function familySandbox() {
+    assertTrue(!!digitalMatch, 'DIGITAL_FIRMWARE_MODES not found in main.js');
+    assertTrue(!!familyMatch, 'spotModeFamily not found in chase_api.js');
+    const sandbox = { String };
+    vm.createContext(sandbox);
+    vm.runInContext(normMatch[0], sandbox);
+    vm.runInContext(digitalMatch[0], sandbox);
+    vm.runInContext(familyMatch[0], sandbox);
+    return sandbox;
+}
+
+it('DIGI and DIG spots classify as the DATA family', () => {
+    const sb = familySandbox();
+    assertEqual(vm.runInContext('spotModeFamily("DIGI")', sb), 'DATA', 'DIGI');
+    assertEqual(vm.runInContext('spotModeFamily("DIG")', sb), 'DATA', 'DIG');
+});
+
+it('native digital firmware modes classify as DATA', () => {
+    const sb = familySandbox();
+    for (const m of ['RTTY', 'FT8', 'FT4', 'JS8', 'PSK31']) {
+        assertEqual(vm.runInContext(`spotModeFamily(${JSON.stringify(m)})`, sb), 'DATA', m);
+    }
+});
+
+it('phone and CW families are preserved', () => {
+    const sb = familySandbox();
+    assertEqual(vm.runInContext('spotModeFamily("USB")', sb), 'SSB', 'USB');
+    assertEqual(vm.runInContext('spotModeFamily("LSB")', sb), 'SSB', 'LSB');
+    assertEqual(vm.runInContext('spotModeFamily("CW")', sb), 'CW', 'CW');
+    assertEqual(vm.runInContext('spotModeFamily("FM")', sb), 'FM', 'FM');
+});
+
+it('unknown modes classify as OTHER', () => {
+    const sb = familySandbox();
+    assertEqual(vm.runInContext('spotModeFamily("GIBBERISH")', sb), 'OTHER', 'GIBBERISH');
+});
+
 (async () => {
     if (asyncTests.length) console.log('\nAsync tests');
     for (const t of asyncTests) {

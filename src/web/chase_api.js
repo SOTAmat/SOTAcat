@@ -85,6 +85,21 @@ async function fetchSpots(options = {}) {
 // ============================================================================
 
 /**
+ * Collapse a raw spot mode into its family for filtering/styling: CW, SSB,
+ * AM, FM, DATA, or OTHER. The DATA family is whatever the shared
+ * normalizeRadioMode (main.js) maps into a digital firmware mode, so a
+ * mode that tunes as digital always filters as digital.
+ */
+function spotModeFamily(mode) {
+    let family = String(mode || "").toUpperCase();
+    if (family === "USB" || family === "LSB") family = "SSB";
+    if (["CW", "SSB", "AM", "FM", "DATA"].includes(family)) return family;
+    const mapped = normalizeRadioMode(family);
+    if (mapped && DIGITAL_FIRMWARE_MODES.includes(mapped)) return "DATA";
+    return "OTHER";
+}
+
+/**
  * Transform Spothole spot data into our internal format
  * This normalizes the data structure and adds computed fields
  * @param {Array} spotsData - Raw spots from Spothole API
@@ -100,27 +115,7 @@ function spothole_transformSpots(spotsData, location) {
         const mode = (spot.mode || "UNKNOWN").toUpperCase();
 
         // Determine mode type for filtering/styling
-        let modeType = mode;
-
-        // USB and LSB are members of the SSB mode family
-        if (["USB", "LSB"].includes(modeType)) {
-            modeType = "SSB";
-        }
-
-        if (!["CW", "SSB", "AM", "FM", "DATA"].includes(modeType)) {
-            // Check for data modes (from Spothole /api/v1/options + legacy WSJT modes)
-            const dataModes = [
-                "RTTY", "PSK", "PSK31", "BPSK", "BPSK31",  // RTTY and PSK variants
-                "FT8", "FT4", "JT65", "JT9", "JS8",        // WSJT-X and JS8Call
-                "MFSK", "MFSK32", "OLIVIA",                // MFSK variants
-                "HELL", "SSTV", "PKT", "MSK144",           // Other digital modes
-            ];
-            if (dataModes.includes(modeType)) {
-                modeType = "DATA";
-            } else {
-                modeType = "OTHER";
-            }
-        }
+        const modeType = spotModeFamily(mode);
 
         // Calculate distance if we have coordinates. calculateDistance
         // returns kilometers; the chase table's column is labeled Miles.

@@ -47,6 +47,18 @@ const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;             // US-1234
 const WWFF_REF_PATTERN = /^[A-Z]{2,4}FF-\d{4}$/;             // VKFF-0001
 const IOTA_REF_PATTERN = /^(AF|AN|AS|EU|NA|OC|SA)-\d{3}$/;   // EU-123
 
+// Derive the activation program ("sig", lowercase for PoLo/SOTAmat links)
+// from a reference's format. References are uppercased at every input
+// point, so the patterns are deliberately case-sensitive. GMA shares
+// SOTA's format and cannot be distinguished by format alone.
+function getSigFromReference(ref) {
+    if (!ref) return null;
+    if (SOTA_REF_PATTERN.test(ref)) return "sota";
+    if (POTA_REF_PATTERN.test(ref)) return "pota";
+    if (WWFF_REF_PATTERN.test(ref)) return "wwff";
+    return null;
+}
+
 // ============================================================================
 // Polling Control
 // ============================================================================
@@ -1170,6 +1182,10 @@ function loadActiveTab() {
 function saveActiveTab(tabName) {
     localStorage.setItem("activeTab", tabName.toLowerCase());
 }
+
+// Firmware modes that key a digital transmission; the chase page treats
+// anything normalizeRadioMode maps into this set as the DATA family.
+const DIGITAL_FIRMWARE_MODES = ["DATA", "DATA_R", "FT8", "JS8", "PK31", "FT4", "RTTY"];
 
 // Map a raw spot/source mode string onto the set the firmware's mode PUT
 // accepts. Returns the normalized mode, or null when there is no sensible
