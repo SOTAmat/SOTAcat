@@ -34,6 +34,7 @@ class IRadioDriver {
 
     virtual bool play_message_bank (KXRadio & radio, int bank) = 0;
     virtual bool tune_atu (KXRadio & radio)                    = 0;
+    virtual bool manual_tune (KXRadio & radio, bool active)     = 0;
 
     virtual bool send_keyer_message (KXRadio & radio, const char * message) = 0;
 

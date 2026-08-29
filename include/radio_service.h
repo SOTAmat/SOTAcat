@@ -24,6 +24,7 @@ enum class RadioCmdType {
     SET_VOLUME,  // arg = delta
     SET_POWER,   // arg = power (watts)
     SET_ATU,     // arg unused
+    SET_MANUAL_TUNE, // arg = 1 to start, 0 to stop
     SET_XMIT,    // arg = 0 (RX) / non-zero (TX)
     SET_MSG,     // arg = message bank
     SET_TIME,    // arg = UTC seconds since midnight (0..86399)

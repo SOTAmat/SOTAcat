@@ -578,6 +578,7 @@ DELEGATE_BOOL (set_volume,          (long volume),                            vo
 DELEGATE_BOOL (set_xmit_state,      (bool on),                                on)
 DELEGATE_BOOL (sync_time,           (const RadioTimeHms & client_time),       client_time)
 DELEGATE_BOOL (tune_atu,            ())
+DELEGATE_BOOL (manual_tune,         (bool active),                             active)
 
 DELEGATE_BOOL_CONST (supports_keyer)
 DELEGATE_BOOL_CONST (supports_volume)

@@ -134,6 +134,8 @@ function loadLifecycleSandbox() {
         window: {},
         RunState: { spotsRebuildPending: false },
         AppState: {},
+        manualTuneTimer: null,
+        manualTuneActive: false,
         Spots: {
             subscribe(cb) { subscribeCalls.push(cb); },
             unsubscribe(cb) { unsubscribeCalls.push(cb); },

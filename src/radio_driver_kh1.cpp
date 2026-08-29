@@ -251,6 +251,12 @@ bool KH1RadioDriver::play_message_bank (KXRadio & radio, int bank) {
     return radio.put_to_kx_command_string (command, 1);
 }
 
+bool KH1RadioDriver::manual_tune (KXRadio & radio, bool active) {
+    (void)radio;
+    (void)active;
+    return false;  // KH1 does not implement the KX SWH16 command.
+}
+
 bool KH1RadioDriver::tune_atu (KXRadio & radio) {
     return radio.put_to_kx_command_string ("SW3T;", 1);
 }

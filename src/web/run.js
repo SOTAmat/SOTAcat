@@ -1062,6 +1062,49 @@ async function tuneAtu() {
 }
 
 // ============================================================================
+// Manual Tune Functions
+// ============================================================================
+
+const MANUAL_TUNE_TIMEOUT_MS = 5000;
+let manualTuneActive = false;
+let manualTuneTimer = null;
+
+function renderManualTuneState(button) {
+    if (!button) return;
+    button.classList.toggle("active", manualTuneActive);
+    button.setAttribute("aria-pressed", manualTuneActive ? "true" : "false");
+    button.textContent = manualTuneActive ? "Stop Tune" : "Manual Tune";
+}
+
+async function toggleManualTune() {
+    const button = document.getElementById("manual-tune-button");
+    if (!button || button.disabled) return;
+
+    const requestedState = !manualTuneActive;
+    button.disabled = true;
+    try {
+        const response = await fetch(`/api/v1/manualTune?state=${requestedState ? 1 : 0}`, { method: "PUT" });
+        if (!response.ok) {
+            Log.error("Spot")("Manual tune failed");
+            return;
+        }
+
+        manualTuneActive = requestedState;
+        if (manualTuneTimer) clearTimeout(manualTuneTimer);
+        manualTuneTimer = requestedState ? setTimeout(() => {
+            manualTuneActive = false;
+            manualTuneTimer = null;
+            renderManualTuneState(document.getElementById("manual-tune-button"));
+        }, MANUAL_TUNE_TIMEOUT_MS) : null;
+        renderManualTuneState(button);
+    } catch (error) {
+        Log.error("Spot")("Manual tune fetch error:", error);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+// ============================================================================
 // CW Macro Button Functions
 // ============================================================================
 
@@ -1417,6 +1460,12 @@ function attachSpotEventListeners() {
         tuneAtuBtn.addEventListener("click", tuneAtu);
     }
 
+    const manualTuneBtn = document.getElementById("manual-tune-button");
+    if (manualTuneBtn) {
+        renderManualTuneState(manualTuneBtn);
+        manualTuneBtn.addEventListener("click", toggleManualTune);
+    }
+
     // Volume control buttons
     const volDownBtn = document.getElementById("vol-down-button");
     if (volDownBtn) {
@@ -1545,6 +1594,11 @@ function onSpotLeaving() {
         RunState.pendingFrequencyUpdate = null;
     }
     AppState.vfoPollSuppressedUntil = 0;
+    if (manualTuneTimer) {
+        clearTimeout(manualTuneTimer);
+        manualTuneTimer = null;
+    }
+    manualTuneActive = false;
 
     // Unsubscribe from spot updates. No need to rebuild while the tab is hidden.
     Spots.unsubscribe(onSpotsChanged);

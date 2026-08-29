@@ -55,6 +55,7 @@ Then open http://localhost:8080 in your browser.
 | PUT | `/api/v1/msg?bank=X` | Play CW message (1, 2, or 3) |
 | PUT | `/api/v1/keyer?message=X` | Send CW text |
 | PUT | `/api/v1/atu` | Trigger ATU tune → 204 / 202 / 503 |
+| PUT | `/api/v1/manualTune?state=0|1` | Stop/start manual tune → 204 / 202 / 503 |
 | PUT | `/api/v1/volume?delta=X` | Adjust volume → 204 / 202 / 503 |
 
 The radio endpoints follow the firmware's async-handler contract

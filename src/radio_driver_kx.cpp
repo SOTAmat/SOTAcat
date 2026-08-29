@@ -167,6 +167,11 @@ bool KXRadioDriver::play_message_bank (KXRadio & radio, int bank) {
     return radio.put_to_kx_command_string (command, 1);
 }
 
+bool KXRadioDriver::manual_tune (KXRadio & radio, bool active) {
+    (void)active;  // SWH16 toggles tune mode on both start and stop.
+    return radio.put_to_kx_command_string ("SWH16;", 1);
+}
+
 bool KXRadioDriver::tune_atu (KXRadio & radio) {
     const char * command = nullptr;
     switch (radio.get_radio_type()) {

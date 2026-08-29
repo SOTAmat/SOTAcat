@@ -105,6 +105,7 @@ class KXRadio {
     bool set_xmit_state (bool on);
     bool play_message_bank (int bank);
     bool tune_atu ();
+    bool manual_tune (bool active);
     bool supports_keyer () const;
     bool supports_volume () const;
     bool send_keyer_message (const char * message);
