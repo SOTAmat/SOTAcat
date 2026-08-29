@@ -7,9 +7,16 @@ independent agent (one verdict per candidate). Follows the completed
 [2026-08 review](code-review-2026-08.md); IDs here are `UR-nn` to avoid
 collision with that review's `CR-nn`.
 
-**Status: OPEN.** Tally: 17 correctness/contract findings CONFIRMED,
-2 PLAUSIBLE (narrowed under verification), 17 cleanup findings confirmed
-factually, 3 candidates REFUTED with constructive proofs.
+**Status: COMPLETE (2026-08-28).** All 36 findings resolved: every
+correctness finding (17 confirmed + 2 plausible) fixed; 10 cleanup findings
+fixed; 7 declined for documented cause with revival conditions (see the
+Status column); 3 candidates refuted at review time. Every batch passed the
+full gate (host unit, JS unit, UI vs mock and hardware, contract vs mocks
+and hardware, performance/mutex/cache, OTA-flashed bytes). KH1-touching
+fixes (UR-01 callers, UR-03) are code-proved and host-tested only; issues
+#131/#132 carry the Please Test label for the next KH1 bench session.
+Related work landed alongside: #144 (UI suite contract drift), the
+test-ui-mock target, and the cube.zt hardware-test workflow.
 
 This document is the **plan and evidence archive**. The **burndown lives in
 GitHub issues** (milestone: `2026-08 ultra review`): one issue per batch below.
