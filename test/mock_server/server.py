@@ -673,6 +673,13 @@ def main():
         help="Start with the radio unreachable (CAT never answers): link goes "
              "down after a few failures; GETs stay fast, PUTs 503.",
     )
+    parser.add_argument(
+        "--no-debug", action="store_true",
+        help="Disable Flask debug mode and its reloader. The reloader forks a "
+             "child process that survives a kill of the recorded pid, so "
+             "automated runs (Makefile targets) must pass this to be cleanly "
+             "stoppable; interactive development keeps hot-reload by default.",
+    )
     args = parser.parse_args()
 
     # Resolve web directory relative to script location
@@ -690,7 +697,7 @@ def main():
     server = MockSOTAcatServer(str(web_dir))
     server.state["radio_latency_ms"] = args.radio_latency
     server.state["radio_dead"] = args.radio_dead
-    server.run(host=args.host, port=args.port)
+    server.run(host=args.host, port=args.port, debug=not args.no_debug)
 
 
 if __name__ == "__main__":
