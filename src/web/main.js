@@ -859,6 +859,14 @@ async function fetchVfoState() {
         const newFrequency = parseInt(await freqResponse.text(), 10);
         const newMode = (await modeResponse.text()).toUpperCase().trim();
 
+        // A non-numeric payload (a captive portal or proxy answering 200)
+        // must not enter shared state: NaN !== NaN would re-notify every
+        // subscriber on every poll.
+        if (!Number.isFinite(newFrequency)) {
+            Log.warn("VFO")("Ignoring non-numeric frequency payload");
+            return;
+        }
+
         // Check if state changed
         const freqChanged = AppState.vfoFrequencyHz !== newFrequency;
         const modeChanged = AppState.vfoMode !== newMode;

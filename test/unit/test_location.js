@@ -35,6 +35,36 @@ if (!saveMatch || !guardMatch) {
 }
 const hasValidLocation = new Function(`${guardMatch[0]}\nreturn hasValidLocation;`)();
 
+// ============================================================================
+// Zero-coordinate hardening: every location/coordinate check must accept 0
+// (equator, Greenwich) and reject absent values. qrx.js owns
+// hasValidLocation; chase_api.js coerces spot coordinates that may arrive
+// as numbers or numeric strings.
+// ============================================================================
+
+const chaseApiJs = fs.readFileSync(path.join(__dirname, '../../src/web/chase_api.js'), 'utf8');
+const spotCoordMatch = chaseApiJs.match(/function spotCoordinate\([\s\S]*?\n\}/);
+
+itAsync('no falsy zero-coordinate checks remain in qrx.js or chase_api.js', async () => {
+    assertTrue(!/location\.latitude && location\.longitude/.test(qrxJs),
+               'qrx.js still treats a 0 coordinate as missing');
+    assertTrue(!/dx_latitude && spot\.dx_longitude/.test(chaseApiJs),
+               'chase_api.js still treats a 0 coordinate as missing');
+});
+
+itAsync('spotCoordinate accepts 0 and numeric strings, rejects absent values', async () => {
+    assertTrue(!!spotCoordMatch, 'spotCoordinate not found in chase_api.js');
+    const spotCoordinate = new Function(`${spotCoordMatch[0]}\nreturn spotCoordinate;`)();
+    assertEqual(spotCoordinate(0), 0, 'numeric 0 is a real coordinate');
+    assertEqual(spotCoordinate('0'), 0, 'string "0" is a real coordinate');
+    assertEqual(spotCoordinate(47.5), 47.5, 'plain number passes');
+    assertEqual(spotCoordinate('47.5'), 47.5, 'numeric string coerces');
+    assertTrue(Number.isNaN(spotCoordinate(null)), 'null is absent');
+    assertTrue(Number.isNaN(spotCoordinate(undefined)), 'undefined is absent');
+    assertTrue(Number.isNaN(spotCoordinate('')), 'empty string is absent');
+    assertTrue(Number.isNaN(spotCoordinate('abc')), 'garbage is absent');
+});
+
 function makeSandbox() {
     const sandbox = {
         console,
