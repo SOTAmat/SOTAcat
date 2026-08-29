@@ -323,6 +323,61 @@ describe('MODE_SNAP_HZ table consistency', () => {
 // Summary
 // ============================================================================
 
+// ============================================================================
+// Drag redraw coalescing: a mouse drag delivers pointermoves far faster
+// than frames; the full band-chart rebuild must run at most once per
+// animation frame, with the latest frequency winning.
+// ============================================================================
+
+describe('drag redraw coalescing', () => {
+    const runJsSrc = fs.readFileSync(path.join(__dirname, '../../src/web/run.js'), 'utf8');
+    const queueFlagMatch = runJsSrc.match(/let privilegeRedrawQueued = false;/);
+    const queueMatch = runJsSrc.match(/function queuePrivilegeRedraw\([\s\S]*?\n\}/);
+    const applyMatch = runJsSrc.match(/function applyDragFrequency\([\s\S]*?\n\}/);
+
+    it('run.js defines queuePrivilegeRedraw and applyDragFrequency uses it', () => {
+        assertEqual(!!queueMatch, true, 'queuePrivilegeRedraw not found in run.js');
+        assertEqual(/queuePrivilegeRedraw\(\)/.test(applyMatch[0]), true,
+                    'applyDragFrequency must queue the redraw, not call updatePrivilegeDisplay directly');
+    });
+
+    it('a burst of drag moves produces one redraw per frame, latest frequency wins', () => {
+        const frames = [];
+        let redraws = 0;
+        const sandbox = {
+            requestAnimationFrame: (cb) => frames.push(cb),
+            updatePrivilegeDisplay: () => { redraws++; },
+            updateFrequencyDisplay: () => {},
+            notifyVfoSubscribers: () => {},
+            suppressVfoPolling: () => {},
+            setFrequencyImmediate: () => {},
+            Date: Date,
+            VFO_ACTION_SUPPRESS_MS: 2000,
+            DRAG_WRITE_THROTTLE_MS: 66,
+            AppState: { vfoFrequencyHz: 0, vfoLastUpdated: 0 },
+        };
+        vm.createContext(sandbox);
+        assertEqual(!!queueFlagMatch, true, 'privilegeRedrawQueued declaration not found in run.js');
+        vm.runInContext(queueFlagMatch[0], sandbox);
+        vm.runInContext(queueMatch[0], sandbox);
+        vm.runInContext(applyMatch[0], sandbox);
+
+        const state = { lastWriteAt: 0 };
+        for (const hz of [14000000, 14001000, 14002000, 14003000, 14004000]) {
+            vm.runInContext(`applyDragFrequency(${hz}, ${JSON.stringify(state)})`, sandbox);
+        }
+        assertEqual(redraws, 0, 'no synchronous rebuild during the burst');
+        assertEqual(frames.length, 1, 'exactly one animation frame queued for the burst');
+
+        frames[0]();
+        assertEqual(redraws, 1, 'one rebuild when the frame fires');
+        assertEqual(sandbox.AppState.vfoFrequencyHz, 14004000, 'latest frequency won');
+
+        vm.runInContext('applyDragFrequency(14005000, {lastWriteAt: 0})', sandbox);
+        assertEqual(frames.length, 2, 'a new move after the frame queues again');
+    });
+});
+
 console.log('\n' + '='.repeat(60));
 console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
 if (failures.length > 0) {

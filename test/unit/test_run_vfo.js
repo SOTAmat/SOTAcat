@@ -65,7 +65,9 @@ if (subMatch) {
             updateFrequencyDisplay: () => calls.push('freq'),
             updateBandDisplay: () => calls.push('band'),
             updateModeDisplay: () => calls.push('mode'),
-            updatePrivilegeDisplay: () => calls.push('priv'),
+            // The privilege redraw is queued (coalesced per animation frame),
+            // not called directly; a queue request counts as the update.
+            queuePrivilegeRedraw: () => calls.push('priv'),
             updateSpotButtonStates: () => calls.push('buttons'),
             _calls: calls,
         };
