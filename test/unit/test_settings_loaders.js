@@ -86,6 +86,78 @@ itAsync('a failed device read leaves the caches untouched', async () => {
     assertEqual(sb._calls.savedMacros, null, 'no cache write without device data');
 });
 
+// ============================================================================
+// Truthful saves: a device REJECTION (4xx/5xx) must not be reported as
+// saved, and must not clobber the caches; only a genuine offline failure
+// falls back to session-only storage.
+// ============================================================================
+
+const saveTargetsMatch = settingsJs.match(/async function saveTuneTargets\(\)[\s\S]*?\n\}/);
+const saveMacrosMatch = settingsJs.match(/async function saveCwMacros\(\)[\s\S]*?\n\}/);
+const postSettingMatch = settingsJs.match(/async function postSettingToDevice\([\s\S]*?\n\}/);
+
+function makeSaveSandbox(fetchImpl) {
+    const calls = { savedTargets: null, savedMacros: null, alerts: [] };
+    const sandbox = {
+        console,
+        fetch: fetchImpl,
+        alert: (m) => calls.alerts.push(m),
+        Log: { debug: () => () => {}, warn: () => () => {}, error: () => () => {} },
+        AppState: { tuneTargets: null, tuneTargetsMobile: false, cwMacros: null },
+        normalizeTuneTargets: (t) => t || [],
+        saveTuneTargetsToLocalStorage: (t, m) => { calls.savedTargets = { t, m }; },
+        saveCwMacrosToLocalStorage: (m) => { calls.savedMacros = m; },
+        getCurrentTuneTargets: () => [{ url: 'http://sdr.example/', enabled: true }],
+        getCurrentCwMacros: () => [{ label: 'CQ', template: 'CQ CQ' }],
+        document: { getElementById: () => null },
+        _calls: calls,
+    };
+    vm.createContext(sandbox);
+    if (postSettingMatch) vm.runInContext(postSettingMatch[0], sandbox);
+    vm.runInContext(saveTargetsMatch[0], sandbox);
+    vm.runInContext(saveMacrosMatch[0], sandbox);
+    return sandbox;
+}
+
+itAsync('a rejected tune-targets save is reported as refused and caches stay untouched', async () => {
+    assertTrue(!!saveTargetsMatch && !!saveMacrosMatch, 'save extraction failed');
+    const sb = makeSaveSandbox(async () => ({
+        ok: false, status: 400,
+        json: async () => ({ error: 'tune targets too large' }),
+    }));
+    await vm.runInContext('saveTuneTargets()', sb);
+    assertEqual(sb._calls.savedTargets, null, 'no cache write on rejection');
+    assertEqual(sb.AppState.tuneTargets, null, 'AppState untouched on rejection');
+    assertEqual(sb._calls.alerts.length, 1, 'operator told once');
+    assertTrue(/not saved|refused/i.test(sb._calls.alerts[0]), `alert says refused: ${sb._calls.alerts[0]}`);
+    assertTrue(sb._calls.alerts[0].includes('tune targets too large'), 'server reason shown');
+});
+
+itAsync('a rejected CW-macros save is reported as refused and caches stay untouched', async () => {
+    const sb = makeSaveSandbox(async () => ({
+        ok: false, status: 500,
+        json: async () => ({ error: 'failed commit settings to nvs' }),
+    }));
+    await vm.runInContext('saveCwMacros()', sb);
+    assertEqual(sb._calls.savedMacros, null, 'no cache write on rejection');
+    assertEqual(sb.AppState.cwMacros, null, 'AppState untouched on rejection');
+    assertTrue(/not saved|refused/i.test(sb._calls.alerts[0] || ''), 'alert says refused');
+});
+
+itAsync('an accepted save updates the caches and says saved', async () => {
+    const sb = makeSaveSandbox(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    await vm.runInContext('saveTuneTargets()', sb);
+    assertTrue(!!sb._calls.savedTargets, 'cache written on success');
+    assertTrue(/saved\.$/i.test(sb._calls.alerts[0] || ''), `alert says saved: ${sb._calls.alerts[0]}`);
+});
+
+itAsync('an offline save falls back to session-only storage and says so', async () => {
+    const sb = makeSaveSandbox(async () => { throw new Error('net down'); });
+    await vm.runInContext('saveTuneTargets()', sb);
+    assertTrue(!!sb._calls.savedTargets, 'session cache written when offline');
+    assertTrue(/device unavailable/i.test(sb._calls.alerts[0] || ''), 'alert says device unavailable');
+});
+
 (async () => {
     console.log('\nSettings loaders refresh shared caches');
     for (const t of asyncTests) {
