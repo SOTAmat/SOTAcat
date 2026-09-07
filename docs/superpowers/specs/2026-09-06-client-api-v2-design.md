@@ -103,8 +103,10 @@ carrying poll-suppression hacks:
   it and are not ours to update.
 - Authentication. SOTAcat runs on a private AP or a hotspot; the threat model
   has not changed.
-- WebSockets. SSE meets the need with one chunked GET on the server already
-  running; see §Why SSE.
+- WebSockets for the v2 event stream. SSE meets the need with one chunked
+  GET on the server already running; see §Why SSE. This non-goal is
+  conditional on the TCI open question below, since a TCI facade would need
+  a WebSocket server regardless.
 - The `rigctld` facade on `feature/rigctld-server`. It is a separate audience
   (hamlib desktop apps) and is discussed only where its service-layer work
   is a prerequisite here.
@@ -268,6 +270,12 @@ data: {"battery":{...},"rssi":-58}
   `/vfo` deep link.
 - `id` is the snapshot generation, so `Last-Event-ID` on reconnect lets the
   server send the current document once and resume.
+- The first event on every connection is `hello`, carrying the `/device`
+  document and the full `/radio` document, so a client has complete state
+  before the first change arrives. With `Last-Event-ID` the `hello` still
+  comes first, then any generations since.
+- Events caused by one write are delivered before events caused by a later
+  write.
 - Heartbeat comment every 15 s. Idle streams are dropped after a bound (see
   §Resource budget).
 - A client that PATCHes and then sees its own generation echoed back needs no
@@ -465,3 +473,64 @@ own.
 - Retention window for finished operations and idempotency keys: 30 s is a
   guess sized to SOTAmat's retry loop (150 ms gaps) and SOTALog's 30 s keyer
   timeout. Tune after the mock tests.
+
+### TCI facade instead of, or alongside, v2 events
+
+Surveyed 2026-09-06 against FlexRadio's SmartSDR TCP/IP API wiki and the TCI
+protocol PDF in `github.com/ExpertSDR3/TCI`. Both vendors arrived at the same
+model this document proposes: an ack per write, push on every change, the
+originating client named in the push, a hello with version and full state on
+connect, a keyer with a queue that can be drained or cancelled, and the ATU as
+an operation. The v2 design is not idiosyncratic on the model.
+
+Both differ from this document on transport. Each uses one persistent
+bidirectional socket with commands and status multiplexed: SmartSDR on raw
+TCP 4992 with `C<seq>|...` commands, `R<seq>|<hex>|` responses and
+`S<handle>|...` status; TCI on a WebSocket with text commands echoed to all
+clients. This document splits writes into HTTP and pushes into SSE, which is
+REST-idiomatic and browser-simple, but is a dialect no existing client
+speaks.
+
+TCI is the one that changes the calculus. It is published, runs over
+WebSocket so a browser page can reach it, and Expert Electronics lists client
+implementations in loggers and digital-mode software: Log4OM, RUMlog,
+MacLoggerDX, SWISSLOG, LogHX, OCLog, 5MContest, JTDX, MSHV, and WSJT-X
+Improved. Hamlib ships a TCI driver, so hamlib-based apps could reach a TCI
+server too. Thetis and AetherSDR implement TCI servers, so it is no longer a
+single-vendor protocol.
+
+The alternative: a TCI facade over the radio service, the same shape as the
+`feature/rigctld-server` branch, serving `VFO`, `MODULATION`, `TRX`, `TUNE`,
+`DRIVE`, `VOLUME` and `CW_MACROS` (with `cw_macros_empty` and
+`cw_macros_stop`), the init commands (`VFO_LIMITS`, `MODULATIONS_LIST`,
+`PROTOCOL`, `READY`) derived from the capability model, and every client
+write echoed to all clients. It would give SOTAcat a dozen existing clients
+for one server, and could make both the v2 event stream and the rigctld
+facade unnecessary for third parties (hamlib apps via the TCI driver).
+
+What stays in v2 either way, because no standard covers it: `/device`,
+operations for FT8, OpenAPI, and CORS.
+
+Decision deferred until two things are verified:
+
+1. Whether the listed TCI clients tolerate a server that omits the audio and
+   IQ stream commands entirely, and which subset of init commands each
+   requires before it considers the connection usable. Test against at least
+   Log4OM and one of JTDX or WSJT-X Improved, with a mock TCI server first.
+2. Whether `esp_http_server`'s WebSocket support (`CONFIG_HTTPD_WS_SUPPORT`)
+   fits the socket budget in §Resource budget alongside v1 polling and the
+   phone's tab, and whether it can be driven from the HTTP server task the
+   way parked completions are.
+
+If both hold, phases 3 and 4 of §Phasing are re-planned: the TCI facade
+replaces `GET /api/v2/events` as the push channel for third parties, the web
+UI chooses between SSE and the same WebSocket, and the rigctld branch is
+re-evaluated against Hamlib's TCI driver before merge. If either fails, this
+document stands as written and TCI is declined with that finding recorded
+here.
+
+Independent of the decision, two amendments are adopted now from the survey:
+the SSE stream opens with a `hello` event carrying the `/device` document and
+the full `/radio` document before any change event; and events caused by
+command A are delivered before events caused by command B, which the
+operation table must preserve.
