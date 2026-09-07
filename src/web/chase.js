@@ -1247,7 +1247,7 @@ async function onChaseAppearing() {
     }
 
     if (Spots.loadAutoRefreshPref()) {
-        Spots.startAutoRefresh();
+        startAutoRefresh(); // chase-level wrapper: also updates the button label
     }
 
     if (Spots.getAll() !== null) {

@@ -3,8 +3,10 @@
  * Tab re-entry rebuild + subscriber-leak regression for chase.js.
  *
  * Validates that re-entering the CHASE tab rebuilds the table from the
- * current spots snapshot, and that the Spots subscriber count stays bounded
- * across attach/leave cycles (no leak from repeated tab switches).
+ * current spots snapshot, that the Spots subscriber count stays bounded
+ * across attach/leave cycles (no leak from repeated tab switches), and that
+ * a saved auto-refresh preference restored on tab appear is reflected by the
+ * Refresh button label.
  *
  * Usage:
  *   node test/unit/test_chase_tab_reentry.js
@@ -40,13 +42,16 @@ function makeDomNode() {
     };
 }
 
-function loadSandbox() {
+function loadSandbox(opts = {}) {
     // Tracks Spots.subscribe / Spots.unsubscribe interleaved with their argument
     // so we can compute the effective subscriber count after any sequence of
     // attach/leave calls.
     const subscribeArgs = [];
     const unsubscribeArgs = [];
     const updateChaseTableCalls = [];
+    // isAutoRefreshEnabled() as seen by each updateRefreshButtonLabel() call
+    const labelSawAutoRefresh = [];
+    let autoRefreshOn = false;
 
     const sandbox = {
         console: console,
@@ -82,18 +87,31 @@ function loadSandbox() {
             subscribe(cb) { subscribeArgs.push(cb); },
             unsubscribe(cb) { unsubscribeArgs.push(cb); },
             getAll() { return this._spots; },
-            isAutoRefreshEnabled() { return false; },
-            loadAutoRefreshPref() { return false; },
-            startAutoRefresh() {},
+            getLastFetchCompleteTime() { return 1; },
+            isAutoRefreshEnabled() { return autoRefreshOn; },
+            loadAutoRefreshPref() { return !!opts.autoRefreshPref; },
+            startAutoRefresh() { autoRefreshOn = true; },
             _restoreCache() { return false; },
         },
         updateChaseTable() { updateChaseTableCalls.push(true); },
+        // onChaseAppearing references:
+        ensureCallSignLoaded() { return Promise.resolve(); },
+        loadRadioType() { return Promise.resolve(); },
+        loadFilterBandsSetting() {},
+        loadScanDwellTime() {},
+        loadUnitsSetting() {},
+        ensureLicenseClassLoaded() {},
+        subscribeToVfo() {},
+        startGlobalVfoPolling() {},
+        startRefreshTimer() {},
+        updateRefreshTimer() {},
+        refreshChaseJson() {},
         loadSortState() {},
         loadGlobalModeFilter() {},
         loadTypeFilter() {},
         saveSortState() {},
         updateSortIndicators() {},
-        updateRefreshButtonLabel() {},
+        updateRefreshButtonLabel() { labelSawAutoRefresh.push(sandbox.Spots.isAutoRefreshEnabled()); },
         stopAutoRefresh() {},
         clearTimeout() {},
         onChaseKeydown() {},
@@ -117,7 +135,9 @@ function loadSandbox() {
         _subscribeArgs: subscribeArgs,
         _unsubscribeArgs: unsubscribeArgs,
         _updateChaseTableCalls: updateChaseTableCalls,
+        _labelSawAutoRefresh: labelSawAutoRefresh,
     };
+    if (opts.spots !== undefined) sandbox.Spots._spots = opts.spots;
     vm.createContext(sandbox);
 
     const code = fs.readFileSync(path.join(__dirname, '../../src/web/chase.js'), 'utf8');
@@ -126,6 +146,8 @@ function loadSandbox() {
         /function stopScan\(\)\s*\{[\s\S]*?\n\}/,
         /function attachChaseEventListeners\(\)\s*\{[\s\S]*?\n\}/,
         /function onChaseLeaving\(\)\s*\{[\s\S]*?\n\}/,
+        /async function onChaseAppearing\(\)\s*\{[\s\S]*?\n\}/,
+        /function startAutoRefresh\(\)\s*\{[\s\S]*?\n\}/,
     ];
     for (const re of tests) {
         const m = code.match(re);
@@ -203,5 +225,23 @@ it('onChaseSpotsChanged invokes updateChaseTable (tab re-entry rebuild via subsc
     assertEqual(sb._updateChaseTableCalls.length, 1, 'table rebuild triggered');
 });
 
-console.log(`\n${testsPassed} passed, ${testsFailed} failed`);
-if (testsFailed > 0) process.exit(1);
+(async () => {
+    console.log('\nAuto-refresh preference restored on tab appear');
+
+    // Restoring the saved pref must leave the Refresh button reading
+    // "Disable Auto-Refresh": some label update has to run after the timer
+    // is (re)started, not only before it.
+    const sb = loadSandbox({ autoRefreshPref: true, spots: [] });
+    await sb.onChaseAppearing();
+    try {
+        assertEqual(sb.Spots.isAutoRefreshEnabled(), true, 'auto-refresh restored');
+        assertEqual(sb._labelSawAutoRefresh.includes(true), true,
+            'no updateRefreshButtonLabel() call observed auto-refresh enabled');
+        testsPassed++; console.log('  ✓ cached spots + saved pref: button label reflects auto-refresh');
+    } catch (e) {
+        testsFailed++; console.log(`  ✗ cached spots + saved pref: button label reflects auto-refresh\n    ${e.message}`);
+    }
+
+    console.log(`\n${testsPassed} passed, ${testsFailed} failed`);
+    if (testsFailed > 0) process.exit(1);
+})();
