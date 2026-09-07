@@ -92,6 +92,19 @@ class Rigctl:
             raise Failure(f"{line!r}: expected RPRT, got {reply!r}")
         return int(reply[0].split()[1])
 
+    def cmd_ext(self, line):
+        """Send an extended-protocol command (+ prefix). Return
+        (header, {label: value}, rprt_code) reading lines until RPRT."""
+        self.sock.sendall((line + "\n").encode())
+        header = self._readline()
+        fields = {}
+        while True:
+            ln = self._readline()
+            if ln.startswith("RPRT "):
+                return header, fields, int(ln.split()[1])
+            label, _, value = ln.partition(": ")
+            fields[label] = value
+
 
 class RigctldTest:
     def __init__(self, host, port, http_port, expect_radio):
@@ -217,6 +230,32 @@ class RigctldTest:
             af = float(c.cmd("l AF")[0])
             self.expect(c.rprt(f"L AF {af:.4f}") == 0, "AF no-op set RPRT != 0")
             self.expect(abs(float(c.cmd("l AF")[0]) - af) < 1e-3, "AF moved on a no-op set")
+        finally:
+            c.close()
+
+    def t_extended_protocol(self):
+        # Ham2K and other Hamlib clients poll with the '+' extended-response
+        # protocol: a "name:" header, "Label: value" fields, trailing RPRT 0.
+        c = Rigctl(self.host, self.port)
+        try:
+            hdr, f, rc = c.cmd_ext("+t")
+            self.expect(hdr == "get_ptt:", f"+t header {hdr!r}")
+            self.expect(f.get("PTT") in ("0", "1"), f"+t fields {f!r}")
+            self.expect(rc == 0, f"+t rprt {rc}")
+
+            hdr, f, rc = c.cmd_ext("+f")
+            self.expect(hdr == "get_freq:", f"+f header {hdr!r}")
+            self.expect(f.get("Frequency", "").isdigit() and int(f["Frequency"]) > 0, f"+f fields {f!r}")
+            self.expect(rc == 0, f"+f rprt {rc}")
+
+            hdr, f, rc = c.cmd_ext("+m")
+            self.expect(hdr == "get_mode:", f"+m header {hdr!r}")
+            self.expect(f.get("Mode") in MODES, f"+m Mode {f!r}")
+            self.expect("Passband" in f, f"+m Passband missing {f!r}")
+            self.expect(rc == 0, f"+m rprt {rc}")
+
+            # Terse still works alongside extended on the same session.
+            self.expect(int(c.cmd("f")[0]) > 0, "terse f after ext failed")
         finally:
             c.close()
 
@@ -403,6 +442,7 @@ class RigctldTest:
             self.check("set_freq round-trip, HTTP face agrees", self.t_set_freq_roundtrip)
             self.check("set_mode to current mode", self.t_set_mode_same)
             self.check("set AF to current value is a no-op", self.t_set_af_noop)
+            self.check("extended response protocol (+t/+f/+m)", self.t_extended_protocol)
             self.check("protocol polish (powerstat/vfo/func)", self.t_protocol_polish)
             self.check("error codes (-1 bad args, -4 unknown)", self.t_errors)
             self.check("sequential sessions and quit", self.t_sessions)

@@ -229,6 +229,44 @@ static void test_strength_from_bars () {
     assert (rigctld_strength_db_from_bars (15) == 36);  // S9+36 (meter max)
 }
 
+static void test_ext_prefix () {
+    bool         ext = true;
+    char         sep = 'x';
+    const char * p;
+    // '+' selects extended, newline-separated.
+    p = rigctld_ext_prefix ("+t", &ext, &sep);
+    assert (ext && sep == '\n' && !strcmp (p, "t"));
+    // Punctuation separators pass through as the separator char.
+    p = rigctld_ext_prefix (";f", &ext, &sep);
+    assert (ext && sep == ';' && !strcmp (p, "f"));
+    p = rigctld_ext_prefix ("|m", &ext, &sep);
+    assert (ext && sep == '|' && !strcmp (p, "m"));
+    p = rigctld_ext_prefix (",f", &ext, &sep);
+    assert (ext && sep == ',' && !strcmp (p, "f"));
+    // '+' before a long form strips only the '+'.
+    p = rigctld_ext_prefix ("+\\chk_vfo", &ext, &sep);
+    assert (ext && sep == '\n' && !strcmp (p, "\\chk_vfo"));
+    // Real commands are never treated as separators.
+    p = rigctld_ext_prefix ("f", &ext, &sep);
+    assert (!ext && sep == '\n' && !strcmp (p, "f"));
+    p = rigctld_ext_prefix ("\\dump_state", &ext, &sep);
+    assert (!ext && !strcmp (p, "\\dump_state"));
+    p = rigctld_ext_prefix ("_", &ext, &sep);
+    assert (!ext && !strcmp (p, "_"));
+    // Null-safe; out-params optional.
+    assert (rigctld_ext_prefix (nullptr, &ext, &sep) == nullptr);
+    assert (!strcmp (rigctld_ext_prefix ("+f", nullptr, nullptr), "f"));
+    // The stripped remainder still classifies correctly.
+    const char * arg = nullptr;
+    p = rigctld_ext_prefix ("+t", &ext, &sep);
+    assert (rigctld_parse_line (p, &arg) == RigctlCmd::GET_PTT);
+    p = rigctld_ext_prefix ("+\\chk_vfo", &ext, &sep);
+    assert (rigctld_parse_line (p, &arg) == RigctlCmd::CHK_VFO);
+    p = rigctld_ext_prefix ("+l RFPOWER_METER_WATTS", &ext, &sep);
+    assert (rigctld_parse_line (p, &arg) == RigctlCmd::GET_LEVEL);
+    assert (arg && !strcmp (arg, "RFPOWER_METER_WATTS"));
+}
+
 int main () {
     test_mode_to_hamlib();
     test_hamlib_to_mode();
@@ -240,6 +278,7 @@ int main () {
     test_af_conversions();
     test_af_step_delta();
     test_strength_from_bars();
+    test_ext_prefix();
     printf ("test_rigctld_proto: OK\n");
     return 0;
 }

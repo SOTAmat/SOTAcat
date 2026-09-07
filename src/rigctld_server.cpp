@@ -76,6 +76,67 @@ static void rigctld_rprt (int sock, int code) {
     rigctld_send (sock, resp);
 }
 
+// Per-command response context. Ham2K and other Hamlib clients poll in the
+// extended-response protocol (a '+' or punctuation prefix, see
+// rigctld_ext_prefix): the reply is then a "name:<sep>" header, one or more
+// "Label: value<sep>" fields, and a trailing "RPRT <code><sep>". Terse mode
+// (no prefix) is unchanged: bare values for GETs, "RPRT <code>" for SETs and
+// errors. One command runs at a time on the server task, so this is built
+// per command and passed by reference to the handler.
+struct Resp {
+    int          sock;
+    bool         ext         = false;
+    char         sep         = '\n';
+    const char * name        = nullptr;  // long command name for the ext header
+    const char * hdrarg      = nullptr;  // echoed after "name:" (level/func name)
+    bool         header_done = false;
+    bool         valued      = false;  // a GET field was emitted
+};
+
+// Emit the "name:[ hdrarg]<sep>" header once, extended mode only.
+static void resp_hdr (Resp & r) {
+    if (!r.ext || r.header_done || !r.name)
+        return;
+    r.header_done = true;
+    char h[64];
+    if (r.hdrarg)
+        snprintf (h, sizeof (h), "%s: %s%c", r.name, r.hdrarg, r.sep);
+    else
+        snprintf (h, sizeof (h), "%s:%c", r.name, r.sep);
+    rigctld_send (r.sock, h);
+}
+
+// One GET result field. Terse: the bare value on its own line. Extended:
+// "Label: value<sep>" under the once-emitted header.
+static void resp_field (Resp & r, const char * label, const char * value) {
+    r.valued = true;
+    char line[96];
+    if (r.ext) {
+        resp_hdr (r);
+        snprintf (line, sizeof (line), "%s: %s%c", label, value, r.sep);
+    }
+    else
+        snprintf (line, sizeof (line), "%s\n", value);
+    rigctld_send (r.sock, line);
+}
+
+// Terminate. Extended: header (if not yet) then "RPRT <code><sep>", plus a
+// closing newline when the separator is not itself a newline. Terse: a GET
+// that produced a value needs no RPRT; SETs and every error send "RPRT
+// <code>".
+static void resp_end (Resp & r, int code) {
+    if (r.ext) {
+        resp_hdr (r);
+        char e[24];
+        snprintf (e, sizeof (e), "RPRT %d%c", code, r.sep);
+        rigctld_send (r.sock, e);
+        if (r.sep != '\n')
+            rigctld_send (r.sock, "\n");
+    }
+    else if (!(r.valued && code == RIG_OK))
+        rigctld_rprt (r.sock, code);
+}
+
 // Fetch a fresh snapshot for `which`'s field, blocking briefly while the
 // service refreshes it. During FT8 the service does no CAT work, so serve
 // the (possibly stale) snapshot instead of blocking out the transmission —
@@ -102,44 +163,45 @@ static int rigctld_apply (RadioCmdType type, long arg) {
     }
 }
 
-static void cmd_get_freq (int sock) {
+static void cmd_get_freq (Resp & r) {
     RadioSnapshotData s;
     int               rc = rigctld_fetch (RadioCmdType::REFRESH_FREQUENCY, s);
     if (rc == RIG_OK && s.has_frequency()) {
-        char resp[32];
-        snprintf (resp, sizeof (resp), "%ld\n", s.frequency_hz);
-        rigctld_send (sock, resp);
+        char v[24];
+        snprintf (v, sizeof (v), "%ld", s.frequency_hz);
+        resp_field (r, "Frequency", v);
+        resp_end (r, RIG_OK);
     }
     else
-        rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
+        resp_end (r, rc == RIG_OK ? RIG_EIO : rc);
 }
 
-static void cmd_set_freq (int sock, const char * arg) {
+static void cmd_set_freq (Resp & r, const char * arg) {
     // Hamlib sends frequency as a float ("14074000.000000"); atol takes
     // the integer prefix.
     long freq = arg ? atol (arg) : 0;
     if (freq <= 0) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
-    rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_FREQUENCY, freq));
+    resp_end (r, rigctld_apply (RadioCmdType::SET_FREQUENCY, freq));
 }
 
-static void cmd_get_mode (int sock) {
+static void cmd_get_mode (Resp & r) {
     RadioSnapshotData s;
     int               rc = rigctld_fetch (RadioCmdType::REFRESH_MODE, s);
     if (rc == RIG_OK && s.has_mode()) {
-        char resp[32];
-        snprintf (resp, sizeof (resp), "%s\n0\n", rigctld_mode_to_hamlib (s.mode));
-        rigctld_send (sock, resp);
+        resp_field (r, "Mode", rigctld_mode_to_hamlib (s.mode));
+        resp_field (r, "Passband", "0");
+        resp_end (r, RIG_OK);
     }
     else
-        rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
+        resp_end (r, rc == RIG_OK ? RIG_EIO : rc);
 }
 
-static void cmd_set_mode (int sock, const char * arg) {
+static void cmd_set_mode (Resp & r, const char * arg) {
     if (!arg || !*arg) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
 
@@ -152,104 +214,110 @@ static void cmd_set_mode (int sock, const char * arg) {
 
     long mode = rigctld_hamlib_to_mode (mode_name);
     if (mode == RIGCTLD_MODE_UNKNOWN) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
-    rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_MODE, mode));
+    resp_end (r, rigctld_apply (RadioCmdType::SET_MODE, mode));
 }
 
-static void cmd_get_ptt (int sock) {
+static void cmd_get_ptt (Resp & r) {
     // The CW keyer holds the radio outside the service (sanctioned direct
     // path), so the snapshot can't see that TX; the claim flag can.
     if (kxRadio.is_keyer_active()) {
-        rigctld_send (sock, "1\n");
+        resp_field (r, "PTT", "1");
+        resp_end (r, RIG_OK);
         return;
     }
     RadioSnapshotData s;
     int               rc = rigctld_fetch (RadioCmdType::REFRESH_XMIT, s);
     if (rc == RIG_OK && s.has_xmit()) {
-        char resp[16];
-        snprintf (resp, sizeof (resp), "%ld\n", s.xmit_state);
-        rigctld_send (sock, resp);
+        resp_field (r, "PTT", s.xmit_state ? "1" : "0");
+        resp_end (r, RIG_OK);
     }
     else
-        rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
+        resp_end (r, rc == RIG_OK ? RIG_EIO : rc);
 }
 
-static void cmd_set_ptt (int sock, const char * arg) {
+static void cmd_set_ptt (Resp & r, const char * arg) {
     if (!arg || !*arg) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
-    rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_XMIT, atol (arg)));
+    resp_end (r, rigctld_apply (RadioCmdType::SET_XMIT, atol (arg)));
 }
 
-static void cmd_get_vfo (int sock) {
-    rigctld_send (sock, "VFOA\n");
+static void cmd_get_vfo (Resp & r) {
+    resp_field (r, "VFO", "VFOA");
+    resp_end (r, RIG_OK);
 }
 
-static void cmd_get_split_vfo (int sock) {
-    rigctld_send (sock, "0\nVFOA\n");
+static void cmd_get_split_vfo (Resp & r) {
+    resp_field (r, "Split", "0");
+    resp_field (r, "TX VFO", "VFOA");
+    resp_end (r, RIG_OK);
 }
 
 // Hamlib probes power status at session start; the link state is the honest
 // answer (a dead link most often IS the radio powered off). set_powerstat is
 // deliberately unimplemented: PS0 would power the radio OFF.
-static void cmd_get_powerstat (int sock) {
-    rigctld_send (sock, radio_service_link_up() ? "1\n" : "0\n");
+static void cmd_get_powerstat (Resp & r) {
+    resp_field (r, "Power Status", radio_service_link_up() ? "1" : "0");
+    resp_end (r, RIG_OK);
 }
 
 // Single-VFO server (until split lands): selecting VFOA is a no-op success,
 // anything else is unimplemented.
-static void cmd_set_vfo (int sock, const char * arg) {
+static void cmd_set_vfo (Resp & r, const char * arg) {
     if (!arg || !*arg) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
     if (!strcasecmp (arg, "VFOA") || !strcasecmp (arg, "Main") || !strcasecmp (arg, "currVFO"))
-        rigctld_rprt (sock, RIG_OK);
+        resp_end (r, RIG_OK);
     else
-        rigctld_rprt (sock, RIG_ENIMPL);
+        resp_end (r, RIG_ENIMPL);
 }
 
 // TUNER is the only func: the ATU tune is a momentary switch press, never
 // latched, so get always reads 0 and "set 0" has nothing to do.
-static void cmd_get_func (int sock, const char * arg) {
+static void cmd_get_func (Resp & r, const char * arg) {
     char func[16];
     if (!rigctld_split_level (arg, func, sizeof (func), nullptr)) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
-    if (!strcmp (func, "TUNER"))
-        rigctld_send (sock, "0\n");
+    if (!strcmp (func, "TUNER")) {
+        resp_field (r, "Func Status", "0");
+        resp_end (r, RIG_OK);
+    }
     else
-        rigctld_rprt (sock, RIG_ENIMPL);
+        resp_end (r, RIG_ENIMPL);
 }
 
-static void cmd_set_func (int sock, const char * arg) {
+static void cmd_set_func (Resp & r, const char * arg) {
     char         func[16];
     const char * val_str = nullptr;
     if (!rigctld_split_level (arg, func, sizeof (func), &val_str) || !val_str) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
     if (strcmp (func, "TUNER") != 0) {
-        rigctld_rprt (sock, RIG_ENIMPL);
+        resp_end (r, RIG_ENIMPL);
         return;
     }
     if (atol (val_str) == 0) {
-        rigctld_rprt (sock, RIG_OK);  // nothing to disengage
+        resp_end (r, RIG_OK);  // nothing to disengage
         return;
     }
     // RPRT 0 means "tune started": the KX ATU tune is fire-and-forget at the
     // CAT level (a switch press with no completion readback).
-    rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_ATU, 0));
+    resp_end (r, rigctld_apply (RadioCmdType::SET_ATU, 0));
 }
 
-static void cmd_get_level (int sock, const char * arg) {
-    char level[16];
+static void cmd_get_level (Resp & r, const char * arg) {
+    char level[24];
     if (!rigctld_split_level (arg, level, sizeof (level), nullptr)) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
 
@@ -257,64 +325,67 @@ static void cmd_get_level (int sock, const char * arg) {
         RadioSnapshotData s;
         int               rc = rigctld_fetch (RadioCmdType::REFRESH_POWER, s);
         if (rc == RIG_OK && s.has_power()) {
-            char resp[32];
-            snprintf (resp, sizeof (resp), "%.4f\n", rigctld_rfpower_from_watts (s.power));
-            rigctld_send (sock, resp);
+            char v[16];
+            snprintf (v, sizeof (v), "%.4f", rigctld_rfpower_from_watts (s.power));
+            resp_field (r, "Level Value", v);
+            resp_end (r, RIG_OK);
         }
         else
-            rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
+            resp_end (r, rc == RIG_OK ? RIG_EIO : rc);
     }
     else if (!strcmp (level, "AF")) {
         if (!kxRadio.supports_volume()) {
-            rigctld_rprt (sock, RIG_ENIMPL);
+            resp_end (r, RIG_ENIMPL);
             return;
         }
         RadioSnapshotData s;
         int               rc = rigctld_fetch (RadioCmdType::REFRESH_VOLUME, s);
         if (rc == RIG_OK && s.has_volume()) {
-            char resp[32];
-            snprintf (resp, sizeof (resp), "%.4f\n", rigctld_af_from_volume (s.volume));
-            rigctld_send (sock, resp);
+            char v[16];
+            snprintf (v, sizeof (v), "%.4f", rigctld_af_from_volume (s.volume));
+            resp_field (r, "Level Value", v);
+            resp_end (r, RIG_OK);
         }
         else
-            rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
+            resp_end (r, rc == RIG_OK ? RIG_EIO : rc);
     }
     else if (!strcmp (level, "STRENGTH") || !strcmp (level, "RAWSTR")) {
         if (!kxRadio.supports_smeter()) {
-            rigctld_rprt (sock, RIG_ENIMPL);
+            resp_end (r, RIG_ENIMPL);
             return;
         }
         RadioSnapshotData s;
         int               rc = rigctld_fetch (RadioCmdType::REFRESH_SMETER, s);
         if (rc == RIG_OK && s.has_smeter()) {
-            char resp[32];
+            char v[16];
             // RAWSTR: the raw KX bar count. STRENGTH: calibrated dB rel S9.
-            snprintf (resp, sizeof (resp), "%ld\n", level[0] == 'R' ? s.smeter : rigctld_strength_db_from_bars (s.smeter));
-            rigctld_send (sock, resp);
+            snprintf (v, sizeof (v), "%ld", level[0] == 'R' ? s.smeter : rigctld_strength_db_from_bars (s.smeter));
+            resp_field (r, "Level Value", v);
+            resp_end (r, RIG_OK);
         }
         else
-            rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
+            resp_end (r, rc == RIG_OK ? RIG_EIO : rc);
     }
     else
-        rigctld_rprt (sock, RIG_ENIMPL);
+        resp_end (r, RIG_ENIMPL);
 }
 
-static void cmd_set_level (int sock, const char * arg) {
-    char         level[16];
+static void cmd_set_level (Resp & r, const char * arg) {
+    char         level[24];
     const char * val_str = nullptr;
     if (!rigctld_split_level (arg, level, sizeof (level), &val_str) || !val_str) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
 
     float val = strtof (val_str, nullptr);
 
     if (!strcmp (level, "RFPOWER")) {
-        rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_POWER, rigctld_watts_from_rfpower (val)));
+        resp_end (r, rigctld_apply (RadioCmdType::SET_POWER, rigctld_watts_from_rfpower (val)));
     }
     else if (!strcmp (level, "AF")) {
         if (!kxRadio.supports_volume()) {
-            rigctld_rprt (sock, RIG_ENIMPL);
+            resp_end (r, RIG_ENIMPL);
             return;
         }
         // Hamlib AF is absolute, but SET_VOLUME's arg is a delta in web-UI
@@ -322,31 +393,31 @@ static void cmd_set_level (int sock, const char * arg) {
         RadioSnapshotData s;
         int               rc = rigctld_fetch (RadioCmdType::REFRESH_VOLUME, s);
         if (rc != RIG_OK || !s.has_volume()) {
-            rigctld_rprt (sock, rc == RIG_OK ? RIG_EIO : rc);
+            resp_end (r, rc == RIG_OK ? RIG_EIO : rc);
             return;
         }
         long delta = rigctld_af_step_delta (rigctld_af_target (val), s.volume);
         if (delta == 0) {
-            rigctld_rprt (sock, RIG_OK);  // nearest step is where we already are
+            resp_end (r, RIG_OK);  // nearest step is where we already are
             return;
         }
-        rigctld_rprt (sock, rigctld_apply (RadioCmdType::SET_VOLUME, delta));
+        resp_end (r, rigctld_apply (RadioCmdType::SET_VOLUME, delta));
     }
     else
-        rigctld_rprt (sock, RIG_ENIMPL);
+        resp_end (r, RIG_ENIMPL);
 }
 
-static void cmd_send_morse (int sock, const char * arg) {
+static void cmd_send_morse (Resp & r, const char * arg) {
     if (!arg || !*arg) {
-        rigctld_rprt (sock, RIG_EINVAL);
+        resp_end (r, RIG_EINVAL);
         return;
     }
     if (!kxRadio.supports_keyer()) {
-        rigctld_rprt (sock, RIG_ENIMPL);
+        resp_end (r, RIG_ENIMPL);
         return;
     }
     if (Ft8RadioExclusive) {
-        rigctld_rprt (sock, RIG_ERJCTED);
+        resp_end (r, RIG_ERJCTED);
         return;
     }
     // Keying takes the radio mutex directly — the sanctioned keyer path
@@ -355,7 +426,7 @@ static void cmd_send_morse (int sock, const char * arg) {
     // hold the mutex for the whole transmission. rigctld has its own
     // task, so unlike the HTTP handler no helper task is needed.
     if (!kxRadio.try_begin_keyer_operation()) {
-        rigctld_rprt (sock, RIG_ERJCTED);  // keyer busy
+        resp_end (r, RIG_ERJCTED);  // keyer busy
         return;
     }
     bool ok = false;
@@ -367,13 +438,14 @@ static void cmd_send_morse (int sock, const char * arg) {
         }
     }
     kxRadio.end_keyer_operation();
-    rigctld_rprt (sock, ok ? RIG_OK : RIG_EIO);
+    resp_end (r, ok ? RIG_OK : RIG_EIO);
 }
 
-static void cmd_get_info (int sock) {
-    char resp[64];
-    snprintf (resp, sizeof (resp), "SOTAcat %s\n", kxRadio.get_radio_type_string());
-    rigctld_send (sock, resp);
+static void cmd_get_info (Resp & r) {
+    char info[48];
+    snprintf (info, sizeof (info), "SOTAcat %s", kxRadio.get_radio_type_string());
+    resp_field (r, "Info", info);
+    resp_end (r, RIG_OK);
 }
 
 static void cmd_dump_state (int sock) {
@@ -408,6 +480,8 @@ static void cmd_dump_state (int sock) {
     rigctld_send (sock, dump);
 }
 
+// chk_vfo (Hamlib 0xf0) is excluded from the extended header/RPRT wrapping
+// even under a '+' prefix, so it always replies with the bare VFO-mode flag.
 static void cmd_chk_vfo (int sock) {
     rigctld_send (sock, "0\n");
 }
@@ -419,33 +493,89 @@ static void cmd_chk_vfo (int sock) {
 static bool rigctld_handle_command (int sock, const char * line) {
     ESP_LOGI (TAG8, "rigctld cmd: '%s'", line);
 
-    const char * arg = nullptr;
-    switch (rigctld_parse_line (line, &arg)) {
+    Resp r;
+    r.sock               = sock;
+    const char * cmdline = rigctld_ext_prefix (line, &r.ext, &r.sep);
+    const char * arg     = nullptr;
+    switch (rigctld_parse_line (cmdline, &arg)) {
     case RigctlCmd::NONE: break;  // empty line, keep connection
-    case RigctlCmd::GET_FREQ: cmd_get_freq (sock); break;
-    case RigctlCmd::SET_FREQ: cmd_set_freq (sock, arg); break;
-    case RigctlCmd::GET_MODE: cmd_get_mode (sock); break;
-    case RigctlCmd::SET_MODE: cmd_set_mode (sock, arg); break;
-    case RigctlCmd::GET_PTT: cmd_get_ptt (sock); break;
-    case RigctlCmd::SET_PTT: cmd_set_ptt (sock, arg); break;
-    case RigctlCmd::GET_VFO: cmd_get_vfo (sock); break;
-    case RigctlCmd::GET_SPLIT_VFO: cmd_get_split_vfo (sock); break;
-    case RigctlCmd::GET_LEVEL: cmd_get_level (sock, arg); break;
-    case RigctlCmd::SET_LEVEL: cmd_set_level (sock, arg); break;
-    case RigctlCmd::SEND_MORSE: cmd_send_morse (sock, arg); break;
-    case RigctlCmd::GET_INFO: cmd_get_info (sock); break;
+    case RigctlCmd::GET_FREQ:
+        r.name = "get_freq";
+        cmd_get_freq (r);
+        break;
+    case RigctlCmd::SET_FREQ:
+        r.name = "set_freq";
+        cmd_set_freq (r, arg);
+        break;
+    case RigctlCmd::GET_MODE:
+        r.name = "get_mode";
+        cmd_get_mode (r);
+        break;
+    case RigctlCmd::SET_MODE:
+        r.name = "set_mode";
+        cmd_set_mode (r, arg);
+        break;
+    case RigctlCmd::GET_PTT:
+        r.name = "get_ptt";
+        cmd_get_ptt (r);
+        break;
+    case RigctlCmd::SET_PTT:
+        r.name = "set_ptt";
+        cmd_set_ptt (r, arg);
+        break;
+    case RigctlCmd::GET_VFO:
+        r.name = "get_vfo";
+        cmd_get_vfo (r);
+        break;
+    case RigctlCmd::GET_SPLIT_VFO:
+        r.name = "get_split_vfo";
+        cmd_get_split_vfo (r);
+        break;
+    case RigctlCmd::GET_LEVEL:
+        r.name   = "get_level";
+        r.hdrarg = arg;
+        cmd_get_level (r, arg);
+        break;
+    case RigctlCmd::SET_LEVEL:
+        r.name   = "set_level";
+        r.hdrarg = arg;
+        cmd_set_level (r, arg);
+        break;
+    case RigctlCmd::SEND_MORSE:
+        r.name = "send_morse";
+        cmd_send_morse (r, arg);
+        break;
+    case RigctlCmd::GET_INFO:
+        r.name = "get_info";
+        cmd_get_info (r);
+        break;
     case RigctlCmd::DUMP_STATE: cmd_dump_state (sock); break;
     case RigctlCmd::CHK_VFO: cmd_chk_vfo (sock); break;
-    case RigctlCmd::GET_POWERSTAT: cmd_get_powerstat (sock); break;
-    case RigctlCmd::SET_VFO: cmd_set_vfo (sock, arg); break;
-    case RigctlCmd::GET_FUNC: cmd_get_func (sock, arg); break;
-    case RigctlCmd::SET_FUNC: cmd_set_func (sock, arg); break;
+    case RigctlCmd::GET_POWERSTAT:
+        r.name = "get_powerstat";
+        cmd_get_powerstat (r);
+        break;
+    case RigctlCmd::SET_VFO:
+        r.name = "set_vfo";
+        cmd_set_vfo (r, arg);
+        break;
+    case RigctlCmd::GET_FUNC:
+        r.name   = "get_func";
+        r.hdrarg = arg;
+        cmd_get_func (r, arg);
+        break;
+    case RigctlCmd::SET_FUNC:
+        r.name   = "set_func";
+        r.hdrarg = arg;
+        cmd_set_func (r, arg);
+        break;
     case RigctlCmd::QUIT:
-        rigctld_send (sock, "RPRT 0\n");
+        r.name = "quit";
+        resp_end (r, RIG_OK);
         return false;  // close the connection
     case RigctlCmd::UNKNOWN:
     default:
-        rigctld_rprt (sock, RIG_ENIMPL);
+        resp_end (r, RIG_ENIMPL);
         break;
     }
     return true;

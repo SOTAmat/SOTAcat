@@ -343,18 +343,68 @@ class MockRigctld:
                     return
 
     # -- protocol ---------------------------------------------------------
+    # Canonical long name for the ext-response header, keyed by the short
+    # char or the long word.
+    NAME = {
+        "f": "get_freq", "get_freq": "get_freq",
+        "F": "set_freq", "set_freq": "set_freq",
+        "m": "get_mode", "get_mode": "get_mode",
+        "M": "set_mode", "set_mode": "set_mode",
+        "t": "get_ptt", "get_ptt": "get_ptt",
+        "T": "set_ptt", "set_ptt": "set_ptt",
+        "v": "get_vfo", "get_vfo": "get_vfo",
+        "s": "get_split_vfo", "get_split_vfo": "get_split_vfo",
+        "l": "get_level", "get_level": "get_level",
+        "L": "set_level", "set_level": "set_level",
+        "b": "send_morse", "send_morse": "send_morse",
+        "_": "get_info", "get_info": "get_info",
+        "V": "set_vfo", "set_vfo": "set_vfo",
+        "u": "get_func", "get_func": "get_func",
+        "U": "set_func", "set_func": "set_func",
+        "get_powerstat": "get_powerstat", "\x88": "get_powerstat",
+    }
+
+    def _begin(self, sock, name, hdrarg, ext, sep):
+        self._sock, self._name, self._hdrarg = sock, name, hdrarg
+        self._ext, self._sep = ext, sep
+        self._hdr_done = self._valued = False
+
+    def _hdr(self):
+        if not self._ext or self._hdr_done or not self._name:
+            return
+        self._hdr_done = True
+        h = f"{self._name}: {self._hdrarg}{self._sep}" if self._hdrarg else f"{self._name}:{self._sep}"
+        self._sock.sendall(h.encode())
+
+    def _field(self, label, value):
+        self._valued = True
+        if self._ext:
+            self._hdr()
+            self._sock.sendall(f"{label}: {value}{self._sep}".encode())
+        else:
+            self._sock.sendall(f"{value}\n".encode())
+
+    def _end(self, code):
+        if self._ext:
+            self._hdr()
+            self._sock.sendall(f"RPRT {code}{self._sep}".encode())
+            if self._sep != "\n":
+                self._sock.sendall(b"\n")
+        elif not (self._valued and code == self.RIG_OK):
+            self._sock.sendall(f"RPRT {code}\n".encode())
+
     def _rprt(self, sock, code):
         sock.sendall(f"RPRT {code}\n".encode())
 
-    def _fetch(self, sock, key):
-        """Firmware rigctld_fetch: None -> an RPRT error was sent."""
+    def _fetch(self, key):
+        """Firmware rigctld_fetch: None -> an RPRT error was emitted."""
         if not self.radio.link_up:
             self.radio._start_refresh()  # probe stays armed, like the firmware
-            self._rprt(sock, self.RIG_EIO)
+            self._end(self.RIG_EIO)
             return None
         value = self.radio.get_value(key)  # stale during FT8, like the firmware
         if value is None:
-            self._rprt(sock, self.RIG_EIO)
+            self._end(self.RIG_EIO)
             return None
         return value
 
@@ -373,134 +423,164 @@ class MockRigctld:
         line = line.lstrip(" \t")
         if not line:
             return True
+        # Extended-response prefix ('+' newline-separated, or ; | , as the
+        # separator): strip it and format the reply with header + labels.
+        ext, sep = False, "\n"
+        if line and line[0] in "+;|,":
+            ext, sep = True, ("\n" if line[0] == "+" else line[0])
+            line = line[1:]
+        if not line:
+            return True
         if line[0] == "\\":
             word, _, rest = line[1:].partition(" ")
             cmd, arg = word.lower(), (rest or None)
         else:
             cmd, arg = line[0], (line[1:].lstrip(" ") or None)
 
+        # chk_vfo (0xf0) and dump_state are bare even under '+' (Hamlib
+        # excludes them from ext wrapping); handle before _begin.
+        if cmd in ("\x8f", "dump_state"):
+            sock.sendall(self.DUMP_STATE.encode())
+            return True
+        if cmd in ("\xf0", "chk_vfo"):
+            sock.sendall(b"0\n")
+            return True
         if cmd in ("q", "Q", "quit"):
-            self._rprt(sock, self.RIG_OK)
+            self._begin(sock, "quit", None, ext, sep)
+            self._end(self.RIG_OK)
             return False
+
+        hdrarg = arg if cmd in ("l", "get_level", "L", "set_level", "u", "get_func", "U", "set_func") else None
+        self._begin(sock, self.NAME.get(cmd), hdrarg, ext, sep)
+
         if cmd in ("\x88", "get_powerstat"):
-            sock.sendall(b"1\n" if self.radio.link_up else b"0\n")
+            self._field("Power Status", "1" if self.radio.link_up else "0")
+            self._end(self.RIG_OK)
         elif cmd in ("V", "set_vfo"):
             if not arg:
-                self._rprt(sock, self.RIG_EINVAL)
+                self._end(self.RIG_EINVAL)
             elif arg.strip().upper() in ("VFOA", "MAIN", "CURRVFO"):
-                self._rprt(sock, self.RIG_OK)
+                self._end(self.RIG_OK)
             else:
-                self._rprt(sock, self.RIG_ENIMPL)
+                self._end(self.RIG_ENIMPL)
         elif cmd in ("u", "get_func"):
             name = (arg or "").split(" ")[0].upper()
             if not name:
-                self._rprt(sock, self.RIG_EINVAL)
+                self._end(self.RIG_EINVAL)
             elif name == "TUNER":
-                sock.sendall(b"0\n")  # ATU tune is momentary, never latched
+                self._field("Func Status", "0")  # ATU tune is momentary, never latched
+                self._end(self.RIG_OK)
             else:
-                self._rprt(sock, self.RIG_ENIMPL)
+                self._end(self.RIG_ENIMPL)
         elif cmd in ("U", "set_func"):
             name, _, val = (arg or "").partition(" ")
             name = name.upper()
             if not name or not val.strip():
-                self._rprt(sock, self.RIG_EINVAL)
+                self._end(self.RIG_EINVAL)
             elif name != "TUNER":
-                self._rprt(sock, self.RIG_ENIMPL)
+                self._end(self.RIG_ENIMPL)
             elif val.strip() == "0":
-                self._rprt(sock, self.RIG_OK)  # nothing to disengage
+                self._end(self.RIG_OK)  # nothing to disengage
             else:
-                self._rprt(sock, self._apply("atu tune", lambda: True))
-        elif cmd in ("\x8f", "dump_state"):
-            sock.sendall(self.DUMP_STATE.encode())
-        elif cmd in ("\xf0", "chk_vfo"):
-            sock.sendall(b"0\n")
+                self._end(self._apply("atu tune", lambda: True))
         elif cmd in ("f", "get_freq"):
-            v = self._fetch(sock, "frequency")
+            v = self._fetch("frequency")
             if v is not None:
-                sock.sendall(f"{v}\n".encode())
+                self._field("Frequency", v)
+                self._end(self.RIG_OK)
         elif cmd in ("F", "set_freq"):
             try:
                 freq = int(float(arg))
             except (TypeError, ValueError):
                 freq = 0
             if freq <= 0:
-                self._rprt(sock, self.RIG_EINVAL)
+                self._end(self.RIG_EINVAL)
             else:
                 def mutate():
                     self.state["frequency"] = freq
                     return True
-                self._rprt(sock, self._apply("frequency change", mutate))
+                self._end(self._apply("frequency change", mutate))
         elif cmd in ("m", "get_mode"):
-            v = self._fetch(sock, "mode")
+            v = self._fetch("mode")
             if v is not None:
-                sock.sendall(f"{self.TO_HAMLIB.get(v, v)}\n0\n".encode())
+                self._field("Mode", self.TO_HAMLIB.get(v, v))
+                self._field("Passband", "0")
+                self._end(self.RIG_OK)
         elif cmd in ("M", "set_mode"):
             name = (arg or "").split(" ")[0].upper()
             if name not in self.HAMLIB_MODES:
-                self._rprt(sock, self.RIG_EINVAL)
+                self._end(self.RIG_EINVAL)
             else:
                 def mutate():
                     self.state["mode"] = self.FROM_HAMLIB.get(name, name)
                     return True
-                self._rprt(sock, self._apply("mode change", mutate))
+                self._end(self._apply("mode change", mutate))
         elif cmd in ("t", "get_ptt"):
-            v = self._fetch(sock, "xmit")
+            v = self._fetch("xmit")
             if v is not None:
-                sock.sendall(f"{v}\n".encode())
+                self._field("PTT", v)
+                self._end(self.RIG_OK)
         elif cmd in ("T", "set_ptt"):
             try:
                 ptt = 1 if int(arg) else 0
             except (TypeError, ValueError):
-                self._rprt(sock, self.RIG_EINVAL)
+                self._end(self.RIG_EINVAL)
             else:
                 def mutate():
                     self.state["xmit"] = ptt
                     return True
-                self._rprt(sock, self._apply("xmit change", mutate))
+                self._end(self._apply("xmit change", mutate))
         elif cmd in ("v", "get_vfo"):
-            sock.sendall(b"VFOA\n")
+            self._field("VFO", "VFOA")
+            self._end(self.RIG_OK)
         elif cmd in ("s", "get_split_vfo"):
-            sock.sendall(b"0\nVFOA\n")
+            self._field("Split", "0")
+            self._field("TX VFO", "VFOA")
+            self._end(self.RIG_OK)
         elif cmd in ("l", "get_level"):
-            self._get_level(sock, arg)
+            self._get_level(arg)
         elif cmd in ("L", "set_level"):
-            self._set_level(sock, arg)
+            self._set_level(arg)
         elif cmd in ("b", "send_morse"):
             if not arg:
-                self._rprt(sock, self.RIG_EINVAL)
+                self._end(self.RIG_EINVAL)
             elif self.state.get("ft8"):
-                self._rprt(sock, self.RIG_ERJCTED)
+                self._end(self.RIG_ERJCTED)
             else:  # sanctioned direct path: one CAT for the whole keying
-                self._rprt(sock, self.RIG_OK if self.radio._cat() else self.RIG_EIO)
+                self._end(self.RIG_OK if self.radio._cat() else self.RIG_EIO)
         elif cmd in ("_", "get_info"):
-            sock.sendall(f"SOTAcat {self.state.get('radio_type', 'Unknown')}\n".encode())
+            self._field("Info", f"SOTAcat {self.state.get('radio_type', 'Unknown')}")
+            self._end(self.RIG_OK)
         else:
-            self._rprt(sock, self.RIG_ENIMPL)
+            self._end(self.RIG_ENIMPL)
         return True
 
-    def _get_level(self, sock, arg):
+    def _get_level(self, arg):
         name, _, _ = (arg or "").partition(" ")
         name = name.upper()
         if name == "RFPOWER":
-            v = self._fetch(sock, "power")
+            v = self._fetch("power")
             if v is not None:
-                sock.sendall(f"{min(max(v / self.MAX_WATTS, 0.0), 1.0):.4f}\n".encode())
+                self._field("Level Value", f"{min(max(v / self.MAX_WATTS, 0.0), 1.0):.4f}")
+                self._end(self.RIG_OK)
         elif name == "AF":
-            v = self._fetch(sock, "volume")
+            v = self._fetch("volume")
             if v is not None:
-                sock.sendall(f"{min(max(v / self.AF_SCALE, 0.0), 1.0):.4f}\n".encode())
+                self._field("Level Value", f"{min(max(v / self.AF_SCALE, 0.0), 1.0):.4f}")
+                self._end(self.RIG_OK)
         elif name in ("STRENGTH", "RAWSTR"):
-            v = self._fetch(sock, "smeter")
+            v = self._fetch("smeter")
             if v is not None:
-                sock.sendall(f"{v if name == 'RAWSTR' else (v - 9) * 6}\n".encode())
+                self._field("Level Value", f"{v if name == 'RAWSTR' else (v - 9) * 6}")
+                self._end(self.RIG_OK)
         else:
-            self._rprt(sock, self.RIG_ENIMPL)
+            self._end(self.RIG_ENIMPL)
 
-    def _set_level(self, sock, arg):
+    def _set_level(self, arg):
         name, _, val_str = (arg or "").partition(" ")
         name = name.upper()
         if not name or not val_str.strip():
-            self._rprt(sock, self.RIG_EINVAL)
+            self._end(self.RIG_EINVAL)
             return
         try:
             val = float(val_str)
@@ -512,29 +592,29 @@ class MockRigctld:
             def mutate():
                 self.state["power"] = watts
                 return True
-            self._rprt(sock, self._apply("power change", mutate))
+            self._end(self._apply("power change", mutate))
         elif name == "AF":
             if not self.radio.link_up:
-                self._rprt(sock, self.RIG_EIO)
+                self._end(self.RIG_EIO)
                 return
             current = self.radio.get_value("volume")
             if current is None:
-                self._rprt(sock, self.RIG_EIO)
+                self._end(self.RIG_EIO)
                 return
             target = min(max(int(val * self.AF_SCALE + 0.5), 0), self.AF_SCALE)
             diff = target - current
             half = self.AF_STEP // 2
             delta = int((diff + (half if diff >= 0 else -half)) / self.AF_STEP)  # trunc toward 0, like the firmware
             if delta == 0:
-                self._rprt(sock, self.RIG_OK)
+                self._end(self.RIG_OK)
                 return
 
             def mutate():
                 self.state["volume"] = min(max(self.state.get("volume", 0) + delta * self.AF_STEP, 0), self.AF_SCALE)
                 return True
-            self._rprt(sock, self._apply("volume change", mutate))
+            self._end(self._apply("volume change", mutate))
         else:
-            self._rprt(sock, self.RIG_ENIMPL)
+            self._end(self.RIG_ENIMPL)
 
 
 class MockSOTAcatServer:

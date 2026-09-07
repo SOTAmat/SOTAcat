@@ -98,6 +98,33 @@ inline bool cmd_is (const char * cmd, const char * name) {
 }
 }  // namespace rigctld_detail
 
+// Consume an optional extended-response-protocol prefix at the head of a
+// command line (rigctld feature: Hamlib clients like Ham2K poll in this
+// mode). Returns the command pointer past the prefix and reports the mode:
+//   '+'            -> extended, newline-separated fields (*sep = '\n')
+//   ';' '|' ','    -> extended, that char separates fields (*sep = the char)
+//   anything else  -> not extended (*ext = false), line returned unchanged
+// '\' (long form) and '_' (get_info) are real commands, never separators.
+// In extended mode the reply is a "name:<sep>" header, "Label: value<sep>"
+// fields, and a trailing "RPRT <code><sep>"; terse mode is bare values.
+inline const char * rigctld_ext_prefix (const char * line, bool * ext, char * sep) {
+    if (ext)
+        *ext = false;
+    if (sep)
+        *sep = '\n';
+    if (!line)
+        return line;
+    char c = line[0];
+    if (c == '+' || c == ';' || c == '|' || c == ',') {
+        if (ext)
+            *ext = true;
+        if (sep)
+            *sep = (c == '+') ? '\n' : c;
+        return line + 1;
+    }
+    return line;
+}
+
 // Classify one protocol line. Skips leading whitespace. For commands that
 // take arguments, *arg_out points into `line` at the argument text (nullptr
 // when absent); short-form args may but need not be space-separated
