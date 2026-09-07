@@ -19,8 +19,9 @@ Prepare for your activation before operating.
 <img src="../images/qrx-location-reference.png" alt="Location and reference fields" width="300">
 
 - **Nearest SOTA** — Find closest summits to your location
+- **Setup Ham2K** — Open your activation reference as a new operation in the [Ham2K](https://ham2k.com/) logger, either PoLo or Logger (Next). If both are installed, Android asks once which to use.
 
-<img src="../images/qrx-setup-polo.png" alt="QRX setup" width="300">
+<img src="../images/qrx-setup-ham2k.png" alt="QRX setup" width="300">
 
 ## CHASE — Click-to-Pounce
 
@@ -28,12 +29,12 @@ Hunt activators from the spot list.
 
 - Tap any spot → radio tunes automatically
 - Filter by mode (CW, SSB, DATA) or type (SOTA, POTA, WWFF)
-- Distance shown based on your saved location
+- Distance shown based on your saved location, in miles or kilometers (SETTINGS → Display → Units)
 - Opens WebSDR/KiwiSDR if tune targets configured
 
 <img src="../images/chase-spots.png" alt="CHASE page with spots" width="300">
 
-**Scan** — Press the Scan button to automatically cycle through visible spots. The radio tunes to each spot in turn and the row scrolls into view. The button changes to "Stop" while scanning. Any other interaction (refresh, filter change, column sort, row click, MyCall, or Log in PoLo) stops the scan.
+**Scan** — Press the Scan button to automatically cycle through visible spots. The radio tunes to each spot in turn and the row scrolls into view. The button changes to "Stop" while scanning. Any other interaction (refresh, filter change, column sort, row click, MyCall, or Log in Ham2K) stops the scan.
 
 Scan resumes from where you left off: if you've stopped a scan, clicked a row, used arrow keys, or the radio is already tuned to a spot in the list, pressing Scan continues from the row *after* that one. If nothing is selected or tuned, scan begins at the top.
 
@@ -72,7 +73,7 @@ Control your radio during activation.
 **Spot section:**
 - SOTAmāt button (FT8 self-spot, works offline with gateway coverage)
 - Spot SMS / QRT SMS (requires cell service)
-- **Tell PoLo** — hand off the current frequency, mode, and (when set) your activation reference to the [Ham2K PoLo](https://ham2k.com/) logging app via a deep-link. Useful after self-spotting: tap to switch to PoLo with the QSO row pre-filled.
+- **Tell Ham2K** — hand off the current frequency and mode to the Ham2K logger via a deep-link, so its log follows the radio. Useful after self-spotting: tap to switch to the logger with the frequency and mode already set.
 
 <img src="../images/run-spot.png" alt="Spot controls" width="300">
 
@@ -84,9 +85,9 @@ Control your radio during activation.
 
 <img src="../images/run-transmit.png" alt="Transmit controls" width="300">
 
-**Tip:** After self-spotting, use split-screen mode with PoLo (or your preferred logging app) on top and SOTAcat's Transmit section on the bottom. This gives you one-tap access to TX, CW macro buttons, and your log — ideal for working a pileup right after spotting yourself.
+**Tip:** After self-spotting, use split-screen mode with your Ham2K logger (or your preferred logging app) on top and SOTAcat's Transmit section on the bottom. This gives you one-tap access to TX, CW macro buttons, and your log, ideal for working a pileup right after spotting yourself.
 
-<img src="../images/splitscreen-polo-sotacat-run.png" alt="Split-screen with PoLo logging and SOTAcat Transmit" width="300">
+<img src="../images/splitscreen-ham2k-sotacat-run.png" alt="Split-screen with Ham2K logging and SOTAcat Transmit" width="300">
 
 ## Settings — Configuration
 
@@ -102,7 +103,7 @@ One-time setup and preferences.
 <img src="../images/settings-tune-targets.png" alt="Tune targets settings" width="300">
 
 - CW/Data macros (configurable keyer buttons with placeholders; sent as CW in CW/CW-R, as RTTY in DATA + FSK-D, as PSK31 in DATA + PSK-D)
-- Display settings (compact mode, scan dwell time)
+- Display settings (compact mode, imperial/metric units, scan dwell time)
 - "Show only bands my radio can access" — when enabled (default), the CHASE list hides spots outside your radio's native band coverage. Turn it off if you operate with a transverter so VHF/UHF spots stay visible.
 
 <img src="../images/settings-display-and-chase-filters.png" alt="Display and chase filter settings" width="300">

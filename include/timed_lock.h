@@ -38,7 +38,7 @@ constexpr TickType_t RADIO_LOCK_TIMEOUT_FT8_MS      = 20000;  // FT8: Long trans
  *
  * 1. TIMED_LOCK_OR_FAIL macro (recommended for most cases):
  *   ```
- *   TIMED_LOCK_OR_FAIL(req, kxRadio, RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET") {
+ *   TIMED_LOCK_OR_FAIL(req, kxRadio.timed_lock(RADIO_LOCK_TIMEOUT_FAST_MS, "connection status GET")) {
  *       transmitting = kxRadio.get_from_kx("TQ", SC_KX_COMMUNICATION_RETRIES, 1);
  *   }
  *   // Auto unlocks and auto-returns HTTP 500 "radio busy" on timeout

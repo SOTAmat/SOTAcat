@@ -1,5 +1,7 @@
 #pragma once
 
+#include "radio_mode.h"
+
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
@@ -7,23 +9,14 @@
 #include <freertos/semphr.h>
 #include <freertos/task.h>
 
+
 #define SC_KX_COMMUNICATION_RETRIES 3
 
-/**
- * Enumeration of radio operation modes.
- */
-typedef enum {
-    MODE_UNKNOWN = 0,
-    MODE_LSB     = 1,
-    MODE_USB     = 2,
-    MODE_CW      = 3,
-    MODE_FM      = 4,
-    MODE_AM      = 5,
-    MODE_DATA    = 6,
-    MODE_CW_R    = 7,
-    MODE_DATA_R  = 9,
-    MODE_LAST    = 9
-} radio_mode_t;
+// UART reply waits. Band, frequency and mode changes retune radio hardware
+// and can take seconds to acknowledge; KH1 display reads (DS1/DS2) render
+// the display before replying; everything else answers fast.
+#define KX_TIMEOUT_MS_SHORT_COMMANDS 100
+#define KX_TIMEOUT_MS_LONG_COMMANDS  2000
 
 enum class RadioType {
     UNKNOWN,
@@ -95,7 +88,9 @@ class KXRadio {
     bool put_to_kx (const char * command, int num_digits, long value, int tries);
     long get_from_kx_menu_item (uint8_t menu_item, int tries);
     bool put_to_kx_menu_item (uint8_t menu_item, long value, int tries);
-    bool get_from_kx_string (const char * command, int tries, char * result, int result_size);
+    // result_size is the expected reply length; result must have room for
+    // result_size + 1 bytes (callers pass sizeof(buf) - 1).
+    bool get_from_kx_string (const char * command, int tries, char * result, int result_size, int wait_ms = KX_TIMEOUT_MS_SHORT_COMMANDS);
     bool put_to_kx_command_string (const char * command, int tries);
 
     bool get_frequency (long & out_hz);
@@ -103,7 +98,7 @@ class KXRadio {
     bool get_mode (radio_mode_t & out_mode);
     bool set_mode (radio_mode_t mode, int tries);
     bool get_power (long & out_power);
-    bool set_power (long power);
+    bool set_power (long power, long & out_achieved);
     bool get_smeter (long & out_bars);
     bool get_volume (long & out_volume);
     bool set_volume (long volume);

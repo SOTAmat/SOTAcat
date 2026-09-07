@@ -31,7 +31,7 @@ Android's mDNS support varies by device and OS version. Use `http://192.168.4.1`
 
 ## Where do firmware updates come from?
 
-The Firmware card in Settings checks [SOTAcat's GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases) directly. That's the only authoritative source. Don't trust mirrors or side-channel binaries.
+The Firmware section in Settings checks [SOTAcat's GitHub Releases](https://github.com/SOTAmat/SOTAcat/releases) directly. That's the only authoritative source. Don't trust mirrors or side-channel binaries.
 
 ## What does the colored circle in the header mean?
 

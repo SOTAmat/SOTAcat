@@ -5,7 +5,10 @@
 // or refresh from a single source of truth. Replaces the equivalent
 // localStorage + fetch + auto-refresh logic that previously lived in chase.js.
 
-const SPOTS_CACHE_KEY = "chaseSpotCache";   // reused so existing caches keep working
+// v2: spots carry distanceKm (canonical kilometers). The unversioned key held
+// pre-converted miles in `distance` and must never be read as kilometers.
+const SPOTS_CACHE_KEY = "chaseSpotCache.v2";
+const SPOTS_LEGACY_CACHE_KEY = "chaseSpotCache";
 const SPOTS_CACHE_TTL_SECONDS = 3600;        // matches CHASE_HISTORY_DURATION_SECONDS
 const SPOTS_MIN_REFRESH_INTERVAL_MS = 60000;   // Rate-limit gate: minimum gap between API calls
 const SPOTS_AUTO_REFRESH_INTERVAL_MS = 60000;  // Auto-refresh timer interval
@@ -38,6 +41,7 @@ var Spots = {
 
     _restoreCache() {
         try {
+            localStorage.removeItem(SPOTS_LEGACY_CACHE_KEY);
             const cached = localStorage.getItem(SPOTS_CACHE_KEY);
             if (!cached) return false;
 
@@ -73,7 +77,7 @@ var Spots = {
     },
 
     async refresh({ force = false, location = undefined, fetchOptions = undefined } = {}) {
-        // Dedupe concurrent calls — return whichever fetch is already in flight.
+        // Dedupe concurrent calls. Return whichever fetch is already in flight.
         // Note: force=true does NOT bypass this dedup; running two parallel
         // fetches is wasteful, and a force-after-in-flight caller already gets
         // the freshest data when the in-flight call resolves.
@@ -105,7 +109,7 @@ var Spots = {
                 const loc = location !== undefined
                     ? location
                     : (typeof getLocation === "function" ? await getLocation() : null);
-                const spots = await fetchAndProcessSpots(opts, loc, true);
+                const spots = await fetchAndProcessSpots(opts, loc);
                 SpotsState.spots = spots;
                 SpotsState.lastFetchCompleteTime = Date.now();
                 this._saveCache(spots);

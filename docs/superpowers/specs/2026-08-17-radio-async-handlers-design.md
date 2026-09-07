@@ -13,7 +13,7 @@ the end were resolved: `SET_WAIT_MS` stays 1500, no keep-warm needed, `/power`
 (and volume GET, xmit, msg, time) converted. Current mechanism:
 `docs/dev/Radio-Access.md`.
 **Builds on:** `feature/radio-web-decoupling` (radio service task, snapshot,
-link health, request slots) — see `docs/dev/Radio-Access.md`.
+link health, request slots); see `docs/dev/Radio-Access.md`.
 **Supersedes:** the "pure fire-and-forget SET (202)" and "GET returns stale,
 never waits" decisions in `2026-05-15-radio-decoupling-design.md` §SET
 handlers / §Cache-only GET handlers.
@@ -51,14 +51,14 @@ or the link-health/throttle machinery.
 Concretely, when the radio is healthy:
 
 - `GET /frequency|/mode|/connectionStatus` returns a value no older than
-  ~`GET_WAIT_MS` (target 300 ms) — i.e. effectively live.
+  ~`GET_WAIT_MS` (target 300 ms), i.e. effectively live.
 - `PUT /frequency|/mode|/volume|/atu` returns `204` after the radio confirmed
   the change (as `main` did), `500` if the radio refused it, and `202` only
   if confirmation genuinely outran the bound.
 - A `PUT` followed immediately by a `GET` returns the new value.
 
 When the radio is dead, off, or held by FT8: every one of those endpoints
-still returns within a small bound and the server task never stalls — the
+still returns within a small bound and the server task never stalls. The
 branch's core property is preserved unchanged.
 
 ## Non-goals
@@ -137,7 +137,7 @@ Entry: `{ httpd_req_t* async; uint32_t gen; int64_t deadline_us; }`.
   armed; the parked SET records it. `on_op_done(kind, gen_applied, ok)`
   completes a parked SET only if `gen_applied >= parked.gen` (a completion
   for an op that started before this request was armed must not satisfy
-  it). GETs complete on *any* refresh completion of their kind — a refresh
+  it). GETs complete on *any* refresh completion of their kind. A refresh
   that started ≤300 ms before the park is still fresher than the bound.
 - **Pure core.** `ParkTable` (park / supersede / on_done / expire) is written
   without IDF types (`void*` handle, `int64_t` clock), like
@@ -167,7 +167,7 @@ Two work functions:
   `deadline_us` has passed with its timeout answer.
 
 `httpd_queue_work` failure handling: the worker retries once after
-`vTaskDelay(1)`; if it still fails it drops the message — the tick will
+`vTaskDelay(1)`; if it still fails it drops the message, and the tick will
 complete the request at its deadline. The tick itself, if its post fails,
 simply fires again 100 ms later. **Nothing can leave a request parked past
 `deadline + ~200 ms`.**
@@ -207,7 +207,7 @@ Completion by `on_op_done(gen_applied ≥ gen)`:
 `ok` → **204 No Content** (restores `main`'s success contract);
 `!ok` → 500 "failed to set …" (as `main`). Timeout → 202 "accepted,
 applying" (branch behaviour, now only when confirmation truly outran
-1.5 s — e.g. a KX2 band change ≈1.5 s CAT queued behind another op).
+1.5 s; e.g. a KX2 band change ≈1.5 s CAT queued behind another op).
 Superseded → 202 "superseded".
 
 The mode handler's `SSB` case moves its LSB/USB resolution into the worker
@@ -219,8 +219,8 @@ can no longer pick a sideband from a frequency the client just replaced.
 - After each `do_refresh`/`do_set` (lock already released) post
   `on_op_done`. `do_set` returns the applied generation.
 - Slots carry a `gen` counter incremented on every arm; the drain copies it.
-- Everything else — slot model, FT8 skip, bounded lock acquire, re-arm,
-  link-down throttle, WDT resets, deadline expiry — is unchanged. Note that
+- Everything else (slot model, FT8 skip, bounded lock acquire, re-arm,
+  link-down throttle, WDT resets, deadline expiry) is unchanged. Note that
   with `SET_WAIT_MS` = 1.5 s and `SET_APPLY_DEADLINE_MS` = 5 s, an expired
   SET can never still be parked; expiry only ever affects requests that
   already received a 202.
@@ -246,16 +246,16 @@ table.
 
 ## Concurrency model (summary)
 
-- Radio mutex: worker (plus FT8 and the keyer task) — unchanged.
-- Snapshot mutex: leaf — unchanged.
+- Radio mutex: worker (plus FT8 and the keyer task); unchanged.
+- Snapshot mutex: leaf; unchanged.
 - Slot mutex (`s_req_mutex`): unchanged; slots gain a `gen`.
-- Park table: **no lock** — server-task-only. Worker and timer communicate
+- Park table: **no lock**; server-task-only. Worker and timer communicate
   through `httpd_queue_work` messages (POD by value; static ring of ≤16
-  message structs since `httpd_queue_work` takes a pointer — the worker
+  message structs since `httpd_queue_work` takes a pointer; the worker
   posts at most one message per op and ops are serialized, the timer at most
   one per tick; both mark a message free once consumed).
 - Sends happen on the server task, so a stalled client can delay other
-  requests by at most `send_wait_timeout` — identical to today for every
+  requests by at most `send_wait_timeout`, identical to today for every
   synchronous reply.
 
 ## Resource budget
@@ -325,11 +325,11 @@ Steps 1–3 are inert (nothing parks yet) and can land first for review.
   on most KX2 band changes (~1.5 s CAT). Parked sockets cost nothing on the
   server task, so the longer bound seems free; confirm the client's
   2 s post-action poll suppression still comfortably covers it (yes on
-  paper — verify on hardware).
+  paper; verify on hardware).
 - Should a GET that parks *also* count as "client active" for a keep-warm
   refresh cadence? With parking, keep-warm is no longer needed for latency;
   leaving it out preserves the on-demand/battery goal. Revisit only if
   300 ms waits show up as UI jank.
 - Convert `/power` in this series or the next? Run's max-power toggle uses
-  it; it is one more `SET_POWER` kind (already in the enum) — cheap, but
+  it; it is one more `SET_POWER` kind (already in the enum); cheap, but
   keeps this change focused if deferred.

@@ -1,6 +1,6 @@
 # Decoupling the Web UI from Radio Link State — Design
 
-**Status:** Approved for planning — *superseded in part.* The SET-handler and
+**Status:** Approved for planning; *superseded in part.* The SET-handler and
 cache-only-GET decisions below were replaced by parked async handlers (honest
 204/500 SETs, live GETs) in
 `2026-08-17-radio-async-handlers-design.md`; the mechanism as built is documented
@@ -30,8 +30,8 @@ Two independent couplings combine:
    per `uart_read_bytes`, and `uart_get_command`'s retry path
    (read + `empty_kx_input_buffer` + 30 ms + retry) blocks **~6 s
    while holding the radio mutex**. Because the server is
-   single-tasked, every other request — tab HTML/JS, settings,
-   callsign/gps/cwMacros — is starved.
+   single-tasked, every other request (tab HTML/JS, settings,
+   callsign/gps/cwMacros) is starved.
 
 2. **Client-side — client-only actions gated on device round-trips.**
    `#sms-qrt-button` ships `disabled` (`run.html:93`) and is enabled
@@ -39,13 +39,13 @@ Two independent couplings combine:
    `onSpotAppearing()` *after* `await ensureCallSignLoaded()`,
    `await getLocation()`, `await loadCwMacrosAsync()` (each an
    un-timed backend fetch). When the server is starved, that await
-   chain never resolves, so the QRT button — which needs neither the
-   radio nor the server (`sendQrtSms()` only builds an `sms:` URI) —
+   chain never resolves, so the QRT button, which needs neither the
+   radio nor the server (`sendQrtSms()` only builds an `sms:` URI),
    stays greyed out.
 
 Chase data refresh is already decoupled: `chase_api.js` fetches
 directly from `https://spothole.app`, not the ESP32. Only *navigating
-to* the Chase tab (a device asset fetch) is affected — i.e. coupling 1.
+to* the Chase tab (a device asset fetch) is affected, i.e. coupling 1.
 
 ## Goal
 
@@ -125,16 +125,16 @@ Owns UART + the existing radio mutex. Responsibilities:
 
 - Maintain a **snapshot** struct: `frequency`, `mode`, `xmit_state`,
   `link_health`, and per-field `last_updated` timestamps. Protected by
-  its own lightweight lock (or atomics) — *distinct from the radio
+  its own lightweight lock (or atomics), *distinct from the radio
   mutex*, so cache reads never contend on UART.
 - Drain a **bounded request queue** of: GET-refresh requests
-  (coalesced — duplicates collapse to one) and SET commands
+  (coalesced: duplicates collapse to one) and SET commands
   (frequency newest-wins, matching today's debounce intent).
 - Update snapshot + link-health after every CAT exchange.
 - Signal per-request completion so SET handlers can wait for an ack.
 
 **Decision (resolves brainstorm open point 1):** the radio mutex's
-contention surface *shrinks* — only the radio task ever takes it.
+contention surface *shrinks*. Only the radio task ever takes it.
 Handlers take only the small snapshot lock (reads) or enqueue (SETs).
 This is the clean model without a scary "rip out all handler locking"
 diff, because handler radio-locking is replaced by snapshot-locking,
@@ -191,7 +191,7 @@ In `onSpotAppearing()`:
   un-`await`ed; when they resolve, opportunistically refresh button
   state. `updateSpotButtonStates()` runs immediately, not behind the
   await chain.
-- No fetch-timeout work needed — the awaits are removed from the path,
+- No fetch-timeout work needed. The awaits are removed from the path,
   not made resilient.
 
 #### Gate VFO polling on link health (`run.js` / `main.js`)
@@ -271,7 +271,7 @@ the integration harness plus a manual hardware checklist:
   feels identical. Validated by `test_webserver_performance.py`
   baselines.
 - **Irreversibility:** firmware controls a physical radio. Phase
-  rollout — server-side first (parity-tested with radio present),
+  rollout: server-side first (parity-tested with radio present),
   client-side second.
 
 ## Phasing

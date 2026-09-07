@@ -12,7 +12,7 @@ static const char * TAG8 = "sc:snapshot";
 
 static RadioSnapshotData s_data;
 
-// Function-local magic static — C++11 guarantees thread-safe one-time
+// Function-local magic static. C++11 guarantees thread-safe one-time
 // initialization, eliminating the TOCTOU race a lazy "if (!s_mutex) create"
 // pattern would have. Mirrors KXRadio::getInstance() at src/kx_radio.cpp:129-132.
 static SemaphoreHandle_t get_mutex () {

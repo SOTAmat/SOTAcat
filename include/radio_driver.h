@@ -23,7 +23,9 @@ class IRadioDriver {
     virtual bool set_mode (KXRadio & radio, radio_mode_t mode, int tries) = 0;
 
     virtual bool get_power (KXRadio & radio, long & out_power) = 0;
-    virtual bool set_power (KXRadio & radio, long power)       = 0;
+    // out_achieved: the power the radio actually settled on (radios clamp a
+    // request above their maximum, e.g. KX2 answers 10 for a requested 15).
+    virtual bool set_power (KXRadio & radio, long power, long & out_achieved) = 0;
 
     virtual bool get_smeter (KXRadio & radio, long & out_bars) = 0;
 

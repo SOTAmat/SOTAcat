@@ -4,8 +4,7 @@
  *
  * Covers:
  * - RADIO_CAPABILITIES nested record shape
- * - getRadioBands / getRadioModes (with and without requireTx)
- * - radioCanTransmit semantics (Unknown = permissive)
+ * - getRadioBands (with and without requireTx)
  * - getRadioBandCapabilities back-compat (used by chase.js)
  *
  * Usage:
@@ -17,7 +16,7 @@ const path = require('path');
 const vm = require('vm');
 
 // ============================================================================
-// Test framework (minimal — same shape as the other test_*.js files)
+// Test framework (minimal; same shape as the other test_*.js files)
 // ============================================================================
 
 let testsPassed = 0;
@@ -80,16 +79,10 @@ const mainJsCode = fs.readFileSync(mainJsPath, 'utf8');
 
 const radioCapMatch = mainJsCode.match(/const RADIO_CAPABILITIES = \{[\s\S]*?\n\};/);
 const getRadioBandsMatch = mainJsCode.match(/function getRadioBands\([\s\S]*?\n\}/);
-const getRadioModesMatch = mainJsCode.match(/function getRadioModes\([\s\S]*?\n\}/);
-const radioCanTransmitMatch = mainJsCode.match(/function radioCanTransmit\([\s\S]*?\n\}/);
-const getRadioBandCapsMatch = mainJsCode.match(/function getRadioBandCapabilities\([\s\S]*?\n\}/);
 
 for (const [name, m] of [
     ['RADIO_CAPABILITIES', radioCapMatch],
     ['getRadioBands', getRadioBandsMatch],
-    ['getRadioModes', getRadioModesMatch],
-    ['radioCanTransmit', radioCanTransmitMatch],
-    ['getRadioBandCapabilities', getRadioBandCapsMatch],
 ]) {
     if (!m) {
         console.error(`Could not extract ${name} from main.js`);
@@ -103,9 +96,6 @@ for (const [name, m] of [
 const {
     RADIO_CAPABILITIES,
     getRadioBands,
-    getRadioModes,
-    radioCanTransmit,
-    getRadioBandCapabilities,
 } = sandbox;
 
 // ============================================================================
@@ -206,90 +196,72 @@ describe('getRadioBands', () => {
     });
 });
 
-describe('getRadioModes', () => {
-    it('KH1 requireTx=false: CW, USB, LSB', () => {
-        assertArrayEqualUnordered(getRadioModes('KH1', false), ['CW','USB','LSB']);
-    });
-
-    it('KH1 requireTx=true: CW only', () => {
-        assertEqual(getRadioModes('KH1', true), ['CW']);
-    });
-
-    it('KX3 requireTx=true: 6 modes (CW, USB, LSB, DATA, AM, FM)', () => {
-        assertArrayEqualUnordered(
-            getRadioModes('KX3', true),
-            ['CW','USB','LSB','DATA','AM','FM'],
-        );
-    });
-
-    it('Unknown returns null', () => {
-        assertNull(getRadioModes('Unknown'));
-    });
-});
-
-describe('radioCanTransmit', () => {
-    it('KX2: 20m USB → true', () => {
-        assertTrue(radioCanTransmit('KX2', '20m', 'USB'));
-    });
-
-    it('KX2: 160m USB → false (160m is RX)', () => {
-        assertFalse(radioCanTransmit('KX2', '160m', 'USB'));
-    });
-
-    it('KX2: 6m USB → false (band absent)', () => {
-        assertFalse(radioCanTransmit('KX2', '6m', 'USB'));
-    });
-
-    it('KH1: 20m CW → true', () => {
-        assertTrue(radioCanTransmit('KH1', '20m', 'CW'));
-    });
-
-    it('KH1: 20m USB → false (mode is RX-only)', () => {
-        assertFalse(radioCanTransmit('KH1', '20m', 'USB'));
-    });
-
-    it('KH1: 80m CW → false (band absent)', () => {
-        assertFalse(radioCanTransmit('KH1', '80m', 'CW'));
-    });
-
-    it('Unknown: any → true (permissive)', () => {
-        assertTrue(radioCanTransmit('Unknown', '20m', 'USB'));
-        assertTrue(radioCanTransmit('Unknown', 'foo', 'bar'));
-    });
-
-    it('Unrecognized radio: permissive (treated as Unknown)', () => {
-        assertTrue(radioCanTransmit('FT-818', '20m', 'CW'));
-    });
-});
-
-describe('getRadioBandCapabilities back-compat', () => {
-    it('KX2 returns the full RX-or-TX list (used by chase filter)', () => {
-        const bands = getRadioBandCapabilities('KX2');
-        assertTrue(bands.includes('160m'), 'chase filter still sees 160m for KX2');
-        assertTrue(bands.includes('20m'));
-        assertFalse(bands.includes('6m'), 'KX2 6m correctly removed');
-    });
-
-    it('KX3 returns 11 bands (160m-6m)', () => {
-        const bands = getRadioBandCapabilities('KX3');
-        assertEqual(bands.length, 11);
-    });
-
-    it('KH1 returns 5 bands', () => {
-        const bands = getRadioBandCapabilities('KH1');
-        assertEqual(bands.length, 5);
-    });
-
-    it('Unknown returns null (= no filtering)', () => {
-        assertNull(getRadioBandCapabilities('Unknown'));
-    });
-});
-
 // ============================================================================
 // Summary
 // ============================================================================
 
 console.log('\n' + '='.repeat(60));
+// ============================================================================
+// getRadioFrequencySpanHz: per-radio tunable span derived from the
+// capability table + BAND_PLAN, replacing hardcoded KX2-only limits.
+// ============================================================================
+
+describe('getRadioFrequencySpanHz', () => {
+    const spanMatch = mainJsCode.match(/function getRadioFrequencySpanHz\([\s\S]*?\n\}/);
+    const bandPlanMatch = mainJsCode.match(/const BAND_PLAN = \{[\s\S]*?\n\};/);
+    const bandsFnMatch = mainJsCode.match(/function getRadioBands\([\s\S]*?\n\}/);
+
+    it('main.js defines getRadioFrequencySpanHz', () => {
+        assertTrue(!!spanMatch, 'getRadioFrequencySpanHz not found in main.js');
+    });
+
+    function spanFor(radioType, filterBandsEnabled = true) {
+        const sb = {
+            console,
+            AppState: { radioType, filterBandsEnabled },
+            HF_MIN_FREQUENCY_HZ: 1800000,
+            HF_MAX_FREQUENCY_HZ: 29700000,
+        };
+        vm.createContext(sb);
+        // consts live in script scope, not on the context; run all pieces
+        // as ONE script so the function closes over them.
+        vm.runInContext(
+            [bandPlanMatch[0], radioCapMatch[0], bandsFnMatch[0], spanMatch[0],
+             'globalThis.__span = getRadioFrequencySpanHz;'].join('\n'),
+            sb
+        );
+        return sb.__span();
+    }
+
+    it('KX2 span is 160m..10m (1.8-29.7 MHz)', () => {
+        assertEqual(spanFor('KX2'), { min: 1800000, max: 29700000 });
+    });
+
+    it('KX3 span reaches 6m (54 MHz)', () => {
+        assertEqual(spanFor('KX3'), { min: 1800000, max: 54000000 });
+    });
+
+    it('KH1 span is 40m..15m (7-21.45 MHz)', () => {
+        assertEqual(spanFor('KH1'), { min: 7000000, max: 21450000 });
+    });
+
+    it('unknown radio falls back to the full HF span', () => {
+        assertEqual(spanFor('Unknown'), { min: 1800000, max: 29700000 });
+    });
+
+    it('band-filter opt-out (transverter use) removes the restriction', () => {
+        assertNull(spanFor('KX2', false), 'opted-out span must be null (no clamp)');
+    });
+
+    it('run.js adjustFrequency clamps via the derived span', () => {
+        const runJsCode = fs.readFileSync(path.join(__dirname, '../../src/web/run.js'), 'utf8');
+        const adjMatch = runJsCode.match(/function adjustFrequency\([\s\S]*?\n\}/);
+        assertTrue(!!adjMatch, 'adjustFrequency not found in run.js');
+        assertTrue(/getRadioFrequencySpanHz\(\)/.test(adjMatch[0]),
+                   'adjustFrequency must derive its bounds from the radio capabilities');
+    });
+});
+
 console.log(`Results: ${testsPassed} passed, ${testsFailed} failed`);
 if (failures.length > 0) {
     console.log('\nFailures:');

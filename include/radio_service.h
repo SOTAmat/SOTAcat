@@ -1,7 +1,7 @@
 #pragma once
 // The radio service task owns radio CAT I/O for the HTTP handlers (FT8
 // and a few unconverted handlers still take the radio mutex directly).
-// Handlers never call kxRadio.* — they enqueue work here and either reply
+// Handlers never call kxRadio.*. They enqueue work here and either reply
 // at once or park the request (radio_park_httpd.h) until the worker
 // reports completion. See docs/dev/Radio-Access.md (design rationale in
 // docs/superpowers/specs/2026-05-15-radio-decoupling-design.md and
@@ -43,14 +43,14 @@ void radio_service_start ();
 bool radio_service_link_up ();
 
 // Fire-and-forget: request a refresh of one cached field. Sets a
-// per-type slot (newest-wins coalescing — a burst of identical refresh
+// per-type slot (newest-wins coalescing: a burst of identical refresh
 // requests collapses to one) and wakes the radio service task. Never
 // blocks. Used by GET handlers when the snapshot is stale.
 void radio_service_request_refresh (RadioCmdType which);
 
 // Fire-and-forget SET. Stores the command in a per-type slot (newest-
 // wins; volume deltas accumulate) and wakes the radio service task,
-// then returns immediately — it NEVER blocks the HTTP server task.
+// then returns immediately. It NEVER blocks the HTTP server task.
 // Returns:
 //    0 = accepted; will apply asynchronously
 //   -1 = rejected: link known-down, or service not started (handler 503)

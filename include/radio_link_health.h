@@ -4,7 +4,7 @@
 // No ESP-IDF / FreeRTOS dependencies so it is host-unit-testable.
 //
 // Semantics (see docs/dev/Radio-Access.md, link-health state machine):
-//   * Starts "down" — the link is not considered up until a CAT
+//   * Starts "down". The link is not considered up until a CAT
 //     exchange has actually succeeded.
 //   * record_failure(): N consecutive failures (LINK_DOWN_FAIL_THRESHOLD)
 //     flips up->down. Failures below threshold while up keep it up.

@@ -142,6 +142,11 @@ async function loadTuneTargets() {
             originalTuneTargets = normalizeTuneTargets(data.targets);
             originalTuneTargetsMobile = data.mobile || false;
             loadedFromDevice = true;
+            // Refresh the app-wide caches too, so values edited from another
+            // client reach every consumer, not just this page.
+            AppState.tuneTargets = [...originalTuneTargets];
+            AppState.tuneTargetsMobile = originalTuneTargetsMobile;
+            saveTuneTargetsToLocalStorage(AppState.tuneTargets, AppState.tuneTargetsMobile);
         }
     } catch (error) {
         Log.warn("Settings")("Device unavailable for tune targets load:", error);
@@ -400,6 +405,34 @@ function updateExampleButtonStates() {
     });
 }
 
+// POST a settings payload to the device and classify the outcome:
+// "saved" (2xx), "rejected" (the device answered with an error, reason
+// taken from its error JSON), or "offline" (the request never completed).
+// A rejection means nothing was stored anywhere; only offline falls back
+// to session-only storage.
+async function postSettingToDevice(url, payload, context) {
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        if (response.ok) return { outcome: "saved" };
+        let reason = `HTTP ${response.status}`;
+        try {
+            const data = await response.json();
+            if (data && data.error) reason = data.error;
+        } catch (parseError) {
+            // Non-JSON error body; the status code is the best reason we have.
+        }
+        Log.error("Settings")(`${context} save rejected:`, reason);
+        return { outcome: "rejected", reason };
+    } catch (error) {
+        Log.warn("Settings")(`Device unavailable for ${context} save:`, error);
+        return { outcome: "offline" };
+    }
+}
+
 // Save tune targets to device (falls back to session-only if device unavailable)
 async function saveTuneTargets() {
     const targets = getCurrentTuneTargets().filter((t) => t.url.trim() !== "");
@@ -411,19 +444,12 @@ async function saveTuneTargets() {
         mobile: mobile,
     };
 
-    let savedToDevice = false;
-    try {
-        const response = await fetch("/api/v1/tuneTargets", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-
-        if (response.ok) {
-            savedToDevice = true;
-        }
-    } catch (error) {
-        Log.warn("Settings")("Device unavailable for tune targets save:", error);
+    const result = await postSettingToDevice("/api/v1/tuneTargets", payload, "tune targets");
+    if (result.outcome === "rejected") {
+        // The device refused and stored nothing; keep the edits pending so
+        // the user can correct and retry.
+        alert(`Tune targets NOT saved: the device refused (${result.reason}).`);
+        return;
     }
 
     // Always update session state (AppState) so targets work for this session
@@ -442,7 +468,7 @@ async function saveTuneTargets() {
         saveBtn.className = "btn btn-secondary";
     }
 
-    if (savedToDevice) {
+    if (result.outcome === "saved") {
         alert("Tune targets saved.");
     } else {
         alert("Tune targets saved for this session (device unavailable).");
@@ -470,6 +496,10 @@ async function loadCwMacros() {
             const data = await response.json();
             originalCwMacros = data.macros || [];
             loadedFromDevice = true;
+            // Refresh the app-wide caches too, so values edited from another
+            // client reach every consumer, not just this page.
+            AppState.cwMacros = [...originalCwMacros];
+            saveCwMacrosToLocalStorage(AppState.cwMacros);
         }
     } catch (error) {
         Log.warn("Settings")("Device unavailable for CW macros load:", error);
@@ -680,19 +710,12 @@ async function saveCwMacros() {
 
     const payload = { macros };
 
-    let savedToDevice = false;
-    try {
-        const response = await fetch("/api/v1/cwMacros", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-
-        if (response.ok) {
-            savedToDevice = true;
-        }
-    } catch (error) {
-        Log.warn("Settings")("Device unavailable for CW macros save:", error);
+    const result = await postSettingToDevice("/api/v1/cwMacros", payload, "CW macros");
+    if (result.outcome === "rejected") {
+        // The device refused and stored nothing; keep the edits pending so
+        // the user can correct and retry.
+        alert(`CW macros NOT saved: the device refused (${result.reason}).`);
+        return;
     }
 
     originalCwMacros = [...macros];
@@ -705,7 +728,7 @@ async function saveCwMacros() {
         saveBtn.className = "btn btn-secondary";
     }
 
-    if (savedToDevice) {
+    if (result.outcome === "saved") {
         alert("CW macros saved.");
     } else {
         alert("CW macros saved for this session (device unavailable).");
@@ -769,6 +792,24 @@ function onUiCompactModeChange() {
     AppState.uiCompactMode = enabled;
     applyUiCompactMode();
     Log.info("Settings")(`Compact mode: ${enabled ? "enabled" : "disabled"}`);
+}
+
+// Load unit preference into the segmented control
+function loadUnitsSettingUI() {
+    loadUnitsSetting(); // From main.js - loads into AppState
+    const input = document.querySelector(`input[name="units"][value="${AppState.units}"]`);
+    if (input) {
+        input.checked = true;
+    }
+}
+
+// Persist the selected unit preference. Every page renders distances when
+// its tab opens, so the next CHASE/QRX view picks this up automatically.
+function onUnitsChange(event) {
+    const units = event.target.value === "metric" ? "metric" : "imperial";
+    localStorage.setItem("sotacat_units", units);
+    AppState.units = units;
+    Log.info("Settings")(`Units: ${units}`);
 }
 
 // ============================================================================
@@ -1386,6 +1427,11 @@ function attachSettingsEventListeners() {
         compactModeCheckbox.addEventListener("change", onUiCompactModeChange);
     }
 
+    // Display settings - units segmented control
+    document.querySelectorAll('input[name="units"]').forEach((input) => {
+        input.addEventListener("change", onUnitsChange);
+    });
+
     // Display settings - scan dwell time input
     const scanDwellInput = document.getElementById("scan-dwell-time");
     if (scanDwellInput) {
@@ -1406,6 +1452,7 @@ function onSettingsAppearing() {
     loadCwMacros();
     loadFilterBandsSettingUI();
     loadUiCompactModeSettingUI();
+    loadUnitsSettingUI();
     loadScanDwellTimeSettingUI();
     fetchAndUpdateElement("/api/v1/version", "build-version");
 }

@@ -1,3 +1,4 @@
+#include "chunked_send.h"
 #include "webserver.h"
 #include "globals.h"
 #include "hardware_specific.h"  // get_version_string()
@@ -149,7 +150,8 @@ static int find_and_execute_api_handler (int method, const char * api_name, cons
 
     for (const api_handler_t * handler = handlers; handler->api_name != NULL; ++handler)
         if (method == handler->method &&
-            strncmp (api_name, handler->api_name, compare_length) == 0) {
+            strncmp (api_name, handler->api_name, compare_length) == 0 &&
+            handler->api_name[compare_length] == '\0') {  // exact match only: a prefix like "reb" must not dispatch "reboot"
             if (kxRadio.is_connected() || !handler->requires_radio)
                 return handler->handler_func (req);
             else
@@ -169,46 +171,17 @@ static const size_t CHUNK_SIZE = 8192;  // Increased from 1KB to 8KB for efficie
  * @return ESP_OK on successful transmission, or an error code if the send fails.
  */
 static esp_err_t send_file_chunked (httpd_req_t * req, const uint8_t * start, const uint8_t * end) {
-    const int MAX_RETRIES    = 3;
-    const int RETRY_DELAY_MS = 10;
-    size_t    total_size     = end - start;
-    size_t    sent           = 0;
-
-    while (sent < total_size) {
-        size_t to_send = MIN (CHUNK_SIZE, total_size - sent);
-        int    ret     = ESP_FAIL;
-
-        // Retry loop for EAGAIN/EWOULDBLOCK errors
-        for (int retry = 0; retry <= MAX_RETRIES; retry++) {
-            ret = httpd_resp_send_chunk (req, (const char *)(start + sent), to_send);
-
-            if (ret == ESP_OK) {
-                break;  // Success, continue with next chunk
-            }
-
-            // If error is not EAGAIN or we've exhausted retries, give up
-            if (ret != ESP_ERR_HTTPD_RESP_SEND && retry >= MAX_RETRIES) {
-                ESP_LOGW (TAG8, "Failed to send chunk after %d retries, error: %d", MAX_RETRIES, ret);
-                httpd_resp_send_chunk (req, NULL, 0);  // Terminate chunked response
-                return ret;
-            }
-
-            // EAGAIN error - wait and retry
-            if (retry < MAX_RETRIES) {
-                vTaskDelay (pdMS_TO_TICKS (RETRY_DELAY_MS));
-            }
-        }
-
-        sent += to_send;
-
-        // Cooperative yield every 4 chunks to allow other tasks to run
-        if (sent < total_size && (sent % (CHUNK_SIZE * 4)) == 0) {
-            taskYIELD();
-        }
-    }
-
-    // Send final chunk
-    return httpd_resp_send_chunk (req, NULL, 0);
+    esp_err_t ret = send_region_chunked (
+        [req] (const unsigned char * p, size_t n) {
+            return (int)httpd_resp_send_chunk (req, (const char *)p, n);
+        },
+        [] { taskYIELD (); },
+        start,
+        end,
+        CHUNK_SIZE);
+    if (ret != ESP_OK)
+        ESP_LOGW (TAG8, "chunked send aborted, error: %d", ret);
+    return ret;
 }
 
 /**
@@ -236,7 +209,7 @@ static esp_err_t dynamic_file_handler (httpd_req_t * req) {
         return ESP_FAIL;
 
     // ETag = firmware version. It changes on every OTA, so a browser's whole
-    // cached asset set revalidates together after an update — no stale-mix (#110).
+    // cached asset set revalidates together after an update, never a stale mix (#110).
     char etag[80];
     snprintf (etag, sizeof (etag), "\"%s\"", get_version_string());
 
@@ -290,13 +263,9 @@ static esp_err_t my_http_request_handler (httpd_req_t * req) {
         return find_and_execute_api_handler (req->method, api_name, api_handlers, req);
     }
 
-    // 2. Check for Web Page Assets
-    if (starts_with (requested_uri, "/"))
-        return dynamic_file_handler (req);
-
-    // 3. Default / Not Found - should not be possible to reach this code.
-    //    Not found errors would happen in the dynamic_file_handler in step 2.
-    return ESP_FAIL;
+    // 2. Everything else is a web page asset; unknown paths fail inside
+    //    dynamic_file_handler.
+    return dynamic_file_handler (req);
 }
 
 /**
@@ -317,7 +286,7 @@ void start_webserver () {
     ESP_LOGV (TAG8, "trace: %s", __func__);
 
     httpd_config_t config      = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers    = 6;
+    config.max_uri_handlers    = 3;  // GET/PUT/POST, all routed through my_http_request_handler
     config.uri_match_fn        = custom_uri_matcher;
     config.server_port         = 80;  // Explicitly set port 80 for mobile compatibility
     config.lru_purge_enable    = true;
@@ -348,7 +317,7 @@ void start_webserver () {
         uri_api.method = HTTP_POST;
         httpd_register_uri_handler (server, &uri_api);
 
-        // Async radio GET/SET completion (parked requests) — inert until a
+        // Async radio GET/SET completion (parked requests). Inert until a
         // handler registers a completer and calls radio_park_request().
         radio_park_init (server);
 
@@ -408,7 +377,7 @@ bool url_decode_in_place (char * str) {
  *   - ESP_ERR_* code on failure, indicating the specific error that occurred.
  */
 esp_err_t schedule_deferred_reboot (httpd_req_t * req) {
-    const uint64_t REBOOT_DELAY_US = 2000000;  // 1.5 seconds in microseconds
+    const uint64_t REBOOT_DELAY_US = 2000000;  // 2 seconds in microseconds
 
     // use a unique_ptr with a custom deleter for proper resource management
     auto deleter = [] (esp_timer_handle_t * t) {
@@ -439,6 +408,10 @@ esp_err_t schedule_deferred_reboot (httpd_req_t * req) {
         ESP_LOGE (TAG8, "Failed to start timer: %s", esp_err_to_name (timer_start_result));
         return timer_start_result;
     }
+
+    // The armed timer must outlive this scope; its callback is esp_restart,
+    // so nothing ever needs to free it.
+    timer.release();
 
     return ESP_OK;
 }

@@ -1,12 +1,12 @@
 # Radio service vs. FT8: mutex contention defect (and fix)
 
-**Status:** Fixed in commit `8d101e3` (Task 7.12) — radio service worker
+**Status:** Fixed in commit `8d101e3` (Task 7.12). The radio service worker
 yields the radio to FT8 (skips all CAT work while `Ft8RadioExclusive` is set)
 and bounds its lock-acquire with slot re-arm. Hardware-verified: an FT8
 transmission overlapping VFO polls produces no `radio_service` watchdog
 warning and FT8 timing is undisturbed.
 **Date:** 2026-05-21 (found) / 2026-05-22 (fixed)
-**Severity:** Medium — task-watchdog timeout on every FT8 transmission that
+**Severity:** Medium. Task-watchdog timeout on every FT8 transmission that
 overlaps a VFO poll. Not a reboot (`CONFIG_ESP_TASK_WDT_PANIC` is unset), but
 a real defect that had to be fixed before `radio-web-decoupling` merges.
 **Hard constraint:** FT8 transmission timing takes precedence over all other
@@ -23,7 +23,7 @@ worker task is meant to be the sole owner of the radio mutex
 (`kxRadio.timed_lock`).
 
 FT8 transmission (`src/handler_ft8.cpp`) is driven by the SOTAmat mobile app
-via `/prepareft8`, `/ft8`, `/cancelft8` — never by the web UI. FT8 is
+via `/prepareft8`, `/ft8`, `/cancelft8`, never by the web UI. FT8 is
 time-synced to 15 s windows with a 160 ms tone cadence; any disturbance
 corrupts a transmission.
 
@@ -61,7 +61,7 @@ The radio service worker:
 
 - is registered with the **task watchdog** (`esp_task_wdt_add(NULL)`) and
   resets it only at the top of its loop (`esp_task_wdt_reset()`);
-- drains its slots unconditionally on each wake — `do_refresh()` / `do_set()`
+- drains its slots unconditionally on each wake: `do_refresh()` / `do_set()`
   both call `kxRadio.timed_lock(portMAX_DELAY, ...)` with **no FT8 awareness**.
 
 So when a refresh or SET slot is pending while FT8 holds the mutex, the worker
@@ -79,7 +79,7 @@ t~=27    xmit_ft8_task releases mutex -> worker unblocks ───────�
 
 `CONFIG_ESP_TASK_WDT_TIMEOUT_S = 20` in `sdkconfig.seeed_xiao_esp32c3_*`.
 `CONFIG_ESP_TASK_WDT_PANIC` is **not** set, so the result is a watchdog
-warning + backtrace dumped to the console — not a reboot. But it spams on
+warning + backtrace dumped to the console, not a reboot. But it spams on
 essentially every FT8 transmission that overlaps a VFO poll, and the watchdog
 ISR's backtrace print on the single-core ESP32-C3 is a plausible (if small)
 timing perturbation near a tone boundary.
@@ -94,9 +94,9 @@ any radio SET, arriving while FT8 holds the mutex. With the Run page open
 On `main`, `handler_frequency_get` and `get_radio_mode` (in
 `handler_mode.cpp`) checked the global `Ft8RadioExclusive` flag and did **zero**
 radio work during FT8. The branch dropped that check, so those GETs now enqueue
-background refreshes during FT8 — which is what feeds the worker the slot it
+background refreshes during FT8, which is what feeds the worker the slot it
 then blocks on. (`handler_status.cpp` *kept* its `Ft8RadioExclusive` guard, so
-`connectionStatus` is fine — the inconsistency is itself a tell.)
+`connectionStatus` is fine; the inconsistency is itself a tell.)
 
 ## What is NOT broken
 
@@ -130,7 +130,7 @@ t~27.5   next stale GET → arm refresh + park (≤300 ms) → worker CAT →
 ```
 
 Hardware, 2026-08-17: three back-to-back transmissions with two browsers polling
-and a 1 Hz PUT probe — every PUT 503 in ~14 ms, `ft8 transmission time: 12480 ms`
+and a 1 Hz PUT probe: every PUT 503 in ~14 ms, `ft8 transmission time: 12480 ms`
 on all three, no `radio_service` watchdog. Full model: `docs/dev/Radio-Access.md`.
 
 ## The solution
@@ -150,7 +150,7 @@ global `Ft8RadioExclusive` flag (declared `extern bool` in `globals.h`):
   is fed every <=1 s.
 - When FT8 clears (`cleanup_ft8_task` sets `Ft8RadioExclusive = false`), the
   next wake drains normally. A refresh slot simply runs late. A SET slot is
-  re-evaluated by `do_set()`'s existing `expires_at_us` check — a SET older
+  re-evaluated by `do_set()`'s existing `expires_at_us` check. A SET older
   than `SET_APPLY_DEADLINE_MS` (5 s) is correctly skipped rather than applied
   long after the user's click.
 
@@ -160,7 +160,7 @@ precedence constraint: the radio service performs no CAT I/O during FT8.
 ### 2. Bounded lock wait with slot re-arm (safety net)
 
 Replace `kxRadio.timed_lock(portMAX_DELAY, ...)` in `do_refresh()` and
-`do_set()` with a bounded timeout (a few seconds — well under the 20 s
+`do_set()` with a bounded timeout (a few seconds, well under the 20 s
 watchdog; do **not** use `RADIO_LOCK_TIMEOUT_FT8_MS`). On failure to acquire:
 
 - `do_refresh`: re-arm the refresh slot (`s_refresh_pending[idx] = true`) and
@@ -175,7 +175,7 @@ and hardens the worker against any other long-duration mutex holder.
 ### 3. Fix the misleading comment
 
 Delete/replace the "only this task ever takes the radio mutex, so it is never
-actually contended" comment — it is factually wrong and led to the defect.
+actually contended" comment. It is factually wrong and led to the defect.
 
 ### Optional: restore the GET-handler guard — *done*
 
@@ -188,7 +188,7 @@ restores parity with `handler_status.cpp` and avoids needless slot churn.
 ## Notes / caveats for the implementer
 
 - `Ft8RadioExclusive` is a plain `bool` in `globals.h`, written by the FT8
-  tasks and read here from the worker — a benign data race in practice on this
+  tasks and read here from the worker: a benign data race in practice on this
   MCU (single-core, aligned bool), and consistent with how `handler_status.cpp`
   already reads it. Making it `std::atomic<bool>` would be a clean, optional
   hardening but is not required for the fix.
@@ -213,7 +213,7 @@ restores parity with `handler_status.cpp` and avoids needless slot churn.
      refresh normally (snapshot updates resume).
   4. Issue a `PUT /api/v1/frequency` *during* an FT8 transmission; confirm it
      is refused synchronously with `503 "radio busy (FT8)"` (async-handler
-     phase — it is not even enqueued), nothing is applied late, and FT8 is
+     phase; it is not even enqueued), nothing is applied late, and FT8 is
      undisturbed.
 - **Integration:** `test/integration/test_mutex_stress.py` asserts non-radio
   endpoint responsiveness; `test/integration/test_radio_contract.py` exercises

@@ -167,7 +167,60 @@ async function saveGpsLocation() {
 // ============================================================================
 
 const SOTA_DISTANCE_API_URL = "https://api-db2.sota.org.uk/api/summits/distance";
-const SOTA_SEARCH_RANGE_KM = 0.1;
+// Expanding search ladder; the final entry is the hard search limit.
+// Iterating a fixed list terminates by construction.
+const SOTA_SEARCH_RANGES_KM = [0.1, 1, 10, 50, 100];
+
+// Render the summit-info line from raw values in the current unit preference.
+function formatSummitInfoLine(info) {
+    return `${info.name} • ${formatSummitAltitude(info)} • ${info.points}pt • ${formatDistanceAway(info.distanceKm)}`;
+}
+
+// Read the cached summit info for a location and render it in the current
+// unit preference. The cache holds raw values (JSON) so a preference change
+// re-renders correctly; an unparsable entry (e.g. a pre-preference formatted
+// string) is dropped.
+function readCachedSummitInfo(latitude, longitude) {
+    const cacheKey = buildLocationKey("summitInfo", latitude, longitude);
+    const raw = localStorage.getItem(cacheKey);
+    if (!raw) return "";
+    try {
+        const info = JSON.parse(raw);
+        if (!info || typeof info !== "object" || !Number.isFinite(info.distanceKm)) {
+            throw new Error("not a summit-info record");
+        }
+        return formatSummitInfoLine(info);
+    } catch (e) {
+        localStorage.removeItem(cacheKey);
+        return "";
+    }
+}
+
+// A location is valid only with finite numeric coordinates; 0 is a real
+// latitude (equator) and longitude (Greenwich), not "unset".
+function hasValidLocation(location) {
+    return !!location && Number.isFinite(location.latitude) && Number.isFinite(location.longitude);
+}
+
+// Search each range in turn; returns the first non-empty summit list, or []
+// after the final range. fetchFn is injectable for tests.
+async function searchSotaSummitsExpanding(latitude, longitude, fetchFn = fetch) {
+    for (const range of SOTA_SEARCH_RANGES_KM) {
+        const url = `${SOTA_DISTANCE_API_URL}/${latitude}/${longitude}/${range}`;
+        Log.debug("QRX")(`Fetching SOTA summits: ${url}`);
+
+        const response = await fetchFn(url);
+        if (!response.ok) {
+            throw new Error(`SOTA API error: ${response.status}`);
+        }
+
+        const summits = await response.json();
+        if (summits.length > 0) {
+            return summits;
+        }
+    }
+    return [];
+}
 
 // Fetch nearest SOTA summit and populate reference input
 async function fetchNearestSota() {
@@ -189,7 +242,7 @@ async function fetchNearestSota() {
     try {
         // Get current location
         const location = await getLocation();
-        if (!location || !location.latitude || !location.longitude) {
+        if (!hasValidLocation(location)) {
             alert("No location available. Please set your location first.");
             return;
         }
@@ -197,27 +250,12 @@ async function fetchNearestSota() {
         const { latitude, longitude } = location;
 
         // Fetch summits near the location, starting with small range and expanding if needed
-        let summits = [];
-        let range = SOTA_SEARCH_RANGE_KM;
-        const maxRange = 100; // Max 100km search radius
-
-        while (summits.length === 0 && range <= maxRange) {
-            const url = `${SOTA_DISTANCE_API_URL}/${latitude}/${longitude}/${range}`;
-            Log.debug("QRX")(`Fetching SOTA summits: ${url}`);
-
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`SOTA API error: ${response.status}`);
-            }
-
-            summits = await response.json();
-            if (summits.length === 0) {
-                range = range < 1 ? 1 : range < 10 ? 10 : range < 50 ? 50 : 100;
-            }
-        }
+        const summits = await searchSotaSummitsExpanding(latitude, longitude);
 
         if (!summits || summits.length === 0) {
-            alert("No SOTA summits found within 100km of your location.");
+            const limitKm = SOTA_SEARCH_RANGES_KM[SOTA_SEARCH_RANGES_KM.length - 1];
+            const limitStr = AppState.units === "metric" ? `${limitKm}km` : `${Math.round(limitKm * MILES_PER_KM)}mi`;
+            alert(`No SOTA summits found within ${limitStr} of your location.`);
             return;
         }
 
@@ -229,20 +267,19 @@ async function fetchNearestSota() {
         referenceInput.value = nearest.summitCode;
         onReferenceInputChange(); // Trigger change handler to enable save button
 
-        // Display summit info with distance (convert km to miles/feet)
+        // Display summit info in the current unit preference and cache the
+        // raw values so a later preference change re-renders correctly.
         if (summitInfoDiv) {
-            const distanceMiles = nearest.distance * 0.621371;
-            let distanceStr;
-            if (distanceMiles < 0.1) {
-                const distanceFeet = Math.round(distanceMiles * 5280);
-                distanceStr = `${distanceFeet}ft away`;
-            } else {
-                distanceStr = `${distanceMiles.toFixed(1)}mi away`;
-            }
-            summitInfoDiv.textContent = `${nearest.name} • ${nearest.altFt}ft • ${nearest.points}pt • ${distanceStr}`;
-            // Cache with location-based key
+            const summitInfo = {
+                name: nearest.name,
+                altM: nearest.altM,
+                altFt: nearest.altFt,
+                points: nearest.points,
+                distanceKm: nearest.distance, // SOTA API distance is kilometers
+            };
+            summitInfoDiv.textContent = formatSummitInfoLine(summitInfo);
             const cacheKey = buildLocationKey("summitInfo", latitude, longitude);
-            localStorage.setItem(cacheKey, summitInfoDiv.textContent);
+            localStorage.setItem(cacheKey, JSON.stringify(summitInfo));
         }
 
         Log.info("QRX")(`Nearest SOTA: ${nearest.summitCode} - ${nearest.name}`);
@@ -293,9 +330,8 @@ async function loadReference() {
 
     // Display cached summit info for current location
     if (summitInfoDiv) {
-        if (location && location.latitude && location.longitude) {
-            const cacheKey = buildLocationKey("summitInfo", location.latitude, location.longitude);
-            summitInfoDiv.textContent = localStorage.getItem(cacheKey) || "";
+        if (hasValidLocation(location)) {
+            summitInfoDiv.textContent = readCachedSummitInfo(location.latitude, location.longitude);
         } else {
             summitInfoDiv.textContent = "";
         }
@@ -307,7 +343,7 @@ async function loadReference() {
     }
 
     updateNearestSotaButtonState();
-    updatePoloSetupButtonState();
+    updateHam2kSetupButtonState();
 }
 
 // Handle reference input changes - auto-uppercase and filter invalid chars
@@ -337,8 +373,7 @@ function onReferenceInputChange() {
             if (hasChanged) {
                 summitInfoDiv.textContent = "";
             } else if (!summitInfoDiv.textContent && AppState.gpsOverride) {
-                const cacheKey = buildLocationKey("summitInfo", AppState.gpsOverride.latitude, AppState.gpsOverride.longitude);
-                summitInfoDiv.textContent = localStorage.getItem(cacheKey) || "";
+                summitInfoDiv.textContent = readCachedSummitInfo(AppState.gpsOverride.latitude, AppState.gpsOverride.longitude);
             }
         }
     }
@@ -373,7 +408,7 @@ function saveReference() {
         saveBtn.className = "btn btn-secondary";
     }
 
-    updatePoloSetupButtonState();
+    updateHam2kSetupButtonState();
 }
 
 // Clear reference from input and localStorage
@@ -389,7 +424,7 @@ async function clearReference() {
     // Clear reference and summit info for current location
     const location = await getLocation();
     setLocationBasedReference("");
-    if (location && location.latitude && location.longitude) {
+    if (hasValidLocation(location)) {
         const cacheKey = buildLocationKey("summitInfo", location.latitude, location.longitude);
         localStorage.removeItem(cacheKey);
     }
@@ -406,11 +441,11 @@ async function clearReference() {
         saveBtn.className = "btn btn-secondary";
     }
 
-    updatePoloSetupButtonState();
+    updateHam2kSetupButtonState();
 }
 
 // ============================================================================
-// PoLo Integration Functions
+// Ham2K Integration Functions
 // ============================================================================
 
 // Reference patterns defined in main.js: SOTA_REF_PATTERN, POTA_REF_PATTERN,
@@ -452,38 +487,30 @@ function inferAndFormatReference(input) {
     return input.toUpperCase().replace(/[^A-Z0-9/@-]/g, "");
 }
 
-// Check if reference is valid for PoLo
-function isValidPoloReference(ref) {
+// Check if reference is valid for Ham2K
+function isValidHam2kReference(ref) {
     if (!ref) return false;
     return SOTA_REF_PATTERN.test(ref) || POTA_REF_PATTERN.test(ref) || WWFF_REF_PATTERN.test(ref);
 }
 
-// Derive sig from reference format
-function getPoloSigFromReference(ref) {
-    if (!ref) return null;
-    if (SOTA_REF_PATTERN.test(ref)) return "sota";
-    if (POTA_REF_PATTERN.test(ref)) return "pota";
-    if (WWFF_REF_PATTERN.test(ref)) return "wwff";
-    return null;
-}
 
-// Build Polo deep link for operation setup (myRef + mySig only)
-function buildPoloSetupLink() {
+// Build Ham2K deep link for operation setup (myRef + mySig only)
+function buildHam2kSetupLink() {
     const myRef = getLocationBasedReference();
-    if (!isValidPoloReference(myRef)) return null;
-    const mySig = getPoloSigFromReference(myRef);
+    if (!isValidHam2kReference(myRef)) return null;
+    const mySig = getSigFromReference(myRef);
     if (!mySig) return null;
-    return buildXotaDeepLink({ baseUrl: POLO_DEEP_LINK_OPERATION_BASE, myRef: myRef, mySig: mySig });
+    return buildXotaDeepLink({ baseUrl: HAM2K_DEEP_LINK_OPERATION_BASE, myRef: myRef, mySig: mySig });
 }
 
-// Launch Ham2K Polo app to setup operation
-function launchPoloSetup() {
-    const url = buildPoloSetupLink();
+// Launch Ham2K logger app to setup operation
+function launchHam2kSetup() {
+    const url = buildHam2kSetupLink();
     if (url) {
-        Log.info("QRX")("Launching Polo for operation setup:", url);
+        Log.info("QRX")("Launching Ham2K for operation setup:", url);
         window.location.href = url;
     } else {
-        Log.warn("QRX")("Cannot launch Polo - no valid reference set");
+        Log.warn("QRX")("Cannot launch Ham2K - no valid reference set");
     }
 }
 
@@ -497,12 +524,12 @@ function updateNearestSotaButtonState() {
     btn.disabled = !hasLocation;
 }
 
-// Update PoLo setup button state
-function updatePoloSetupButtonState() {
-    const btn = document.getElementById("setup-polo-button");
+// Update Ham2K setup button state
+function updateHam2kSetupButtonState() {
+    const btn = document.getElementById("setup-ham2k-button");
     if (!btn) return;
     const ref = getLocationBasedReference();
-    btn.disabled = !isValidPoloReference(ref);
+    btn.disabled = !isValidHam2kReference(ref);
 }
 
 // ============================================================================
@@ -561,10 +588,10 @@ function attachQrxEventListeners() {
         clearReferenceBtn.addEventListener("click", clearReference);
     }
 
-    // PoLo setup button
-    const setupPoloBtn = document.getElementById("setup-polo-button");
-    if (setupPoloBtn) {
-        setupPoloBtn.addEventListener("click", launchPoloSetup);
+    // Ham2K setup button
+    const setupHam2kBtn = document.getElementById("setup-ham2k-button");
+    if (setupHam2kBtn) {
+        setupHam2kBtn.addEventListener("click", launchHam2kSetup);
     }
 }
 
@@ -575,6 +602,7 @@ function attachQrxEventListeners() {
 // Called when QRX tab becomes visible
 async function onQrxAppearing() {
     Log.info("QRX")("tab appearing");
+    loadUnitsSetting();
     attachQrxEventListeners();
     loadGpsLocation();
     await loadReference();

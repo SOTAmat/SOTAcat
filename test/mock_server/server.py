@@ -52,6 +52,7 @@ DEFAULT_STATE = {
     "radio_latency_ms": 50,  # simulated CAT round-trip per operation
     "radio_dead": False,     # radio off / unplugged: CAT never answers
     "ft8": False,            # FT8 transmission in progress (radio exclusive)
+    "keyer": False,          # CW keyer transmission in progress (radio exclusive)
     # Device info (format: {HW}_{VER}:{YYMMDD}:{HHMM}-{R|D})
     "version": "TEST_1:260101:0101-D",
     "rssi": -62,
@@ -79,7 +80,7 @@ DEFAULT_STATE = {
         {"url": "http://rx.linkfanel.net/", "enabled": False},
     ],
     "tune_targets_mobile": False,
-    # CW macros (empty by default — must be configured in Settings)
+    # CW macros (empty by default; must be configured in Settings)
     "cw_macros": [],
     # WiFi settings
     "sta1_ssid": "HomeNetwork",
@@ -210,6 +211,8 @@ class MockRadio:
             return "⚫"
         if self.state.get("ft8"):
             return "⚪"
+        if self.state.get("keyer"):
+            return "🔴"  # keyer TX: firmware reports transmitting without a CAT poll
         self.get_value("xmit")
         return "🔴" if self.state.get("xmit") else "🟢"
 
@@ -219,6 +222,8 @@ class MockRadio:
         (radio accepted / refused). Returns (status, message)."""
         if self.state.get("ft8"):
             return 503, "radio busy (FT8)"
+        if self.state.get("keyer"):
+            return 503, "radio busy (keyer)"
         if not self.link_up:
             return 503, "radio link down"
         gen = self.set_gen.get(kind, 0) + 1
@@ -543,7 +548,7 @@ class MockSOTAcatServer:
 
     def _setup_routes(self):
         # ------------------------------------------------------------------
-        # Cache policy — mirrors the firmware (src/webserver.cpp
+        # Cache policy mirrors the firmware (src/webserver.cpp
         # dynamic_file_handler + the REPLY_WITH_* macros in webserver.h):
         #   * embedded web assets  -> ETag = firmware version + no-cache
         #                             (revalidate; honor If-None-Match -> 304)
@@ -592,7 +597,7 @@ class MockSOTAcatServer:
             return self.state["version"]
 
         # --- Radio endpoints: firmware-contract-faithful (bare text GETs,
-        # 204/500/202/503 PUTs, bounded waits) — see MockRadio.
+        # 204/500/202/503 PUTs, bounded waits); see MockRadio.
         def radio_reply(status, message):
             if status == 204:
                 return Response("", status=204, headers={"Cache-Control": "no-store"})
@@ -676,7 +681,7 @@ class MockSOTAcatServer:
             if "callsign" in data:
                 self.state["callsign"] = data["callsign"].upper()
                 print(f"[MOCK] Callsign set to {self.state['callsign']}")
-            return "", 200
+            return jsonify({"callsign": self.state["callsign"]})
 
         # License class
         @self.app.route("/api/v1/license", methods=["GET"])
@@ -689,7 +694,7 @@ class MockSOTAcatServer:
             if "license" in data:
                 self.state["license"] = data["license"].upper()
                 print(f"[MOCK] License set to {self.state['license']}")
-            return "", 200
+            return jsonify({"license": self.state["license"]})
 
         # GPS
         @self.app.route("/api/v1/gps", methods=["GET"])
@@ -706,7 +711,9 @@ class MockSOTAcatServer:
             if "gps_lon" in data:
                 self.state["gps_lon"] = data["gps_lon"]
             print(f"[MOCK] GPS set to {self.state['gps_lat']}, {self.state['gps_lon']}")
-            return "", 200
+            return jsonify(
+                {"gps_lat": self.state["gps_lat"], "gps_lon": self.state["gps_lon"]}
+            )
 
         # Tune Targets
         @self.app.route("/api/v1/tuneTargets", methods=["GET"])
@@ -924,10 +931,7 @@ class MockSOTAcatServer:
         print(f"Debug:      http://localhost:{port}/api/v1/_debug/state")
         print(f"Web Dir:    {self.web_dir}")
         print(f"{'='*60}\n")
-        # No reloader: it re-executes this script in a child process, which
-        # would crash re-binding the (already bound) rigctld TCP port. Web
-        # assets are read from disk per request, so UI edits need no reload.
-        self.app.run(host=host, port=port, debug=debug, use_reloader=False)
+        self.app.run(host=host, port=port, debug=debug)
 
 
 def main():
@@ -958,6 +962,13 @@ def main():
         help="Start with the radio unreachable (CAT never answers): link goes "
              "down after a few failures; GETs stay fast, PUTs 503.",
     )
+    parser.add_argument(
+        "--no-debug", action="store_true",
+        help="Disable Flask debug mode and its reloader. The reloader forks a "
+             "child process that survives a kill of the recorded pid, so "
+             "automated runs (Makefile targets) must pass this to be cleanly "
+             "stoppable; interactive development keeps hot-reload by default.",
+    )
     args = parser.parse_args()
 
     # Resolve web directory relative to script location
@@ -975,9 +986,13 @@ def main():
     server = MockSOTAcatServer(str(web_dir))
     server.state["radio_latency_ms"] = args.radio_latency
     server.state["radio_dead"] = args.radio_dead
-    if args.rigctld_port:
+    # With the reloader active (debug mode), main() runs twice: once in the
+    # supervisor and again in the serving child it re-execs. Bind the rigctld
+    # port only in the process that serves, or the second bind crashes.
+    reloader_active = not args.no_debug
+    if args.rigctld_port and (not reloader_active or os.environ.get("WERKZEUG_RUN_MAIN") == "true"):
         MockRigctld(server.radio, server.state, args.rigctld_port).start()
-    server.run(host=args.host, port=args.port)
+    server.run(host=args.host, port=args.port, debug=not args.no_debug)
 
 
 if __name__ == "__main__":

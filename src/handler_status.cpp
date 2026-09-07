@@ -44,7 +44,7 @@ static void status_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
  * Never touches the radio: reads the cached xmit state the service task
  * maintains. If that is stale and the link is up, arms a refresh and parks
  * the request (up to RADIO_PARK_GET_WAIT_MS) so the glyph reflects the
- * refreshed state — the HTTP server task is never blocked.
+ * refreshed state. The HTTP server task is never blocked.
  *
  * @param req Pointer to the HTTP request structure.
  * @return ESP_OK if the status is successfully retrieved and sent; otherwise, an error code.

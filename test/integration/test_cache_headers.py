@@ -13,7 +13,7 @@ after firmware update breaks UI"). Verifies, over real HTTP:
        (the #110 regression guard: a browser holding an old cache is forced
        to refetch once the firmware version, hence the ETag, changes);
     4. all assets share ONE ETag, so a firmware update re-keys the whole set
-       atomically (no cross-file skew — the root cause of #110).
+       atomically (no cross-file skew, the root cause of #110).
 
   Dynamic API endpoints (/api/v1/*)
     5. carry Cache-Control: no-store (live device state, never cached).

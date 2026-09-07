@@ -16,7 +16,7 @@ class KH1RadioDriver : public IRadioDriver {
 
     bool get_power (KXRadio & radio, long & out_power) override;
     bool get_smeter (KXRadio & radio, long & out_bars) override;
-    bool set_power (KXRadio & radio, long power) override;
+    bool set_power (KXRadio & radio, long power, long & out_achieved) override;
 
     bool get_volume (KXRadio & radio, long & out_volume) override;
     bool set_volume (KXRadio & radio, long volume) override;

@@ -13,6 +13,7 @@ const UTC_CLOCK_UPDATE_INTERVAL_MS = 10000;
 const BATTERY_INFO_UPDATE_INTERVAL_MS = 60000;
 const CONNECTION_STATUS_UPDATE_INTERVAL_MS = 2000; // header glyph; server detects link-down in ~0.5 s and recovers in <=5 s, so this bounds what the user sees
 const VFO_POLLING_INTERVAL_MS = 3000;
+const VFO_ACTION_SUPPRESS_MS = 2000; // pause shared VFO polling after a user action
 
 // ============================================================================
 // Connection Loss Detection Constants
@@ -33,9 +34,8 @@ const VFO_TIMEOUT_MS = 2000;                // < 3 sec polling interval
 
 const LSB_USB_BOUNDARY_HZ = 10000000; // 10 MHz - below is LSB, above is USB
 const DEFAULT_FREQUENCY_HZ = 14225000; // 20m band - fallback when VFO state unknown
-const HF_MIN_FREQUENCY_HZ = 1800000;  // 160m band lower edge (1.8 MHz)
-const HF_MAX_FREQUENCY_HZ = 29700000; // 10m band upper edge (29.7 MHz) - KX2 limit
-// const HF_MAX_FREQUENCY_HZ = 54000000; // 6m band upper edge (54 MHz) - KX3 limit
+const HF_MIN_FREQUENCY_HZ = 1800000;  // 160m band lower edge; fallback span when the radio type is unknown
+const HF_MAX_FREQUENCY_HZ = 29700000; // 10m band upper edge; fallback span when the radio type is unknown
 
 // ============================================================================
 // Reference Patterns (used by qrx.js and run.js)
@@ -45,6 +45,18 @@ const SOTA_REF_PATTERN = /^[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}$/;  // W6/NC-298
 const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;             // US-1234
 const WWFF_REF_PATTERN = /^[A-Z]{2,4}FF-\d{4}$/;             // VKFF-0001
 const IOTA_REF_PATTERN = /^(AF|AN|AS|EU|NA|OC|SA)-\d{3}$/;   // EU-123
+
+// Derive the activation program ("sig", lowercase for Ham2K/SOTAmat links)
+// from a reference's format. References are uppercased at every input
+// point, so the patterns are deliberately case-sensitive. GMA shares
+// SOTA's format and cannot be distinguished by format alone.
+function getSigFromReference(ref) {
+    if (!ref) return null;
+    if (SOTA_REF_PATTERN.test(ref)) return "sota";
+    if (POTA_REF_PATTERN.test(ref)) return "pota";
+    if (WWFF_REF_PATTERN.test(ref)) return "wwff";
+    return null;
+}
 
 // ============================================================================
 // Polling Control
@@ -68,9 +80,20 @@ const Log = {
     error: (ctx) => console.error.bind(console, `[${ctx}]`),
 };
 
-// Fire-and-forget fetch for commands that don't need response handling
+// Fire-and-forget fetch for commands that don't need response handling.
+// HTTP-level failures are logged (a 4xx/5xx resolves normally and would
+// otherwise vanish); the response is returned so callers that DO care can
+// check it. Resolves undefined when the request never completed.
 function fetchQuiet(url, options = {}, context = "Fetch") {
-    return fetch(url, options).catch((err) => Log.error(context)(url, err.message));
+    return fetch(url, options)
+        .then((response) => {
+            if (!response.ok) Log.error(context)(url, `HTTP ${response.status}`);
+            return response;
+        })
+        .catch((err) => {
+            Log.error(context)(url, err.message);
+            return undefined;
+        });
 }
 
 // ============================================================================
@@ -100,6 +123,7 @@ const AppState = {
     // UI density
     uiCompactMode: true,       // Compact mode for denser table display
     scanDwellTimeMs: 7000,     // Scan dwell time per spot in milliseconds (default 7s)
+    units: "imperial",         // "imperial" (mi/ft) or "metric" (km/m) for distance and altitude displays
 
     // Version checking
     versionCheckRetryTimer: null,
@@ -110,6 +134,8 @@ const AppState = {
     vfoLastUpdated: 0,
     vfoUpdateInterval: null,
     vfoChangeCallbacks: [], // subscribers for VFO change notifications
+    vfoPollSuppressedUntil: 0, // suppressVfoPolling(): polls skipped until this time
+    tabSwitchInProgress: false, // openTab() re-entrancy guard
 
     // Tune targets (WebSDR, KiwiSDR URLs)
     tuneTargets: null,         // null = not loaded, [] = loaded but empty
@@ -269,7 +295,7 @@ function expandCwMacroTemplate(template) {
     // CW convention: drop the hyphen from the reference when keying it (the Morse
     // for "-" is long and rarely read). The slash is kept, so SOTA W6/NC-298 keys
     // as W6/NC298 and POTA US-1234 keys as US1234. Non-CW uses of the reference
-    // (PoLo deep-links, SMS spots) read getLocationBasedReference() directly and
+    // (Ham2K deep-links, SMS spots) read getLocationBasedReference() directly and
     // keep the hyphen.
     expanded = expanded.replace(/\{MYREF\}/gi, (getLocationBasedReference() || "").replace(/-/g, ""));
 
@@ -426,7 +452,7 @@ const BAND_PLAN = {
 //
 // Note: users may operate beyond this list via external transverters
 // (e.g. KX2 + 2 m transverter). UI gating that disables controls strictly
-// from this table would lock those users out — see chase.js for the
+// from this table would lock those users out. See chase.js for the
 // opt-out (filterBandsEnabled) pattern.
 const RADIO_CAPABILITIES = {
     "KX2": {
@@ -455,7 +481,7 @@ const RADIO_CAPABILITIES = {
             "17m": "TXRX", "15m": "TXRX",
         },
         // SSB on KH1 is selectable for FT8 receive but the radio cannot
-        // transmit SSB — flagged here as RX so future TX-aware UI can warn.
+        // transmit SSB. Flagged here as RX so future TX-aware UI can warn.
         modes: { "CW": "TXRX", "USB": "RX", "LSB": "RX" },
     },
     "Unknown": null,
@@ -471,26 +497,27 @@ function getRadioBands(radioType, requireTx = false) {
         .map(([k]) => k);
 }
 
-// List a radio's modes. requireTx=true filters to TX-capable modes.
-function getRadioModes(radioType, requireTx = false) {
-    const cap = RADIO_CAPABILITIES[radioType];
-    if (!cap) return null;
-    return Object.entries(cap.modes)
-        .filter(([, v]) => requireTx ? v === "TXRX" : true)
-        .map(([k]) => k);
-}
-
-// True iff the radio can transmit on (band, mode). Unknown radios are
-// treated as permissive (returns true) to avoid surprising restrictions.
-function radioCanTransmit(radioType, band, mode) {
-    const cap = RADIO_CAPABILITIES[radioType];
-    if (!cap) return true;
-    return cap.bands?.[band] === "TXRX" && cap.modes?.[mode] === "TXRX";
-}
-
-// Back-compat wrapper for chase.js; preserves prior behavior (RX or TX bands).
-function getRadioBandCapabilities(radioType) {
-    return getRadioBands(radioType, /*requireTx*/ false);
+// Frequency span the current radio can tune, derived from its capability
+// table and BAND_PLAN (RX-only bands count: tuning there is legitimate).
+// Unknown radios fall back to the full HF span rather than blocking tuning.
+// Returns null (no restriction) when the user has opted out of band
+// filtering: transverter setups report frequencies far outside the radio's
+// native span, and the driver stays the authority on what it accepts.
+function getRadioFrequencySpanHz() {
+    if (!AppState.filterBandsEnabled)
+        return null;
+    const bands = getRadioBands(AppState.radioType);
+    let min = Infinity;
+    let max = -Infinity;
+    for (const band of bands || []) {
+        const range = BAND_PLAN[band];
+        if (!range) continue;
+        min = Math.min(min, range.min);
+        max = Math.max(max, range.max);
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max))
+        return { min: HF_MIN_FREQUENCY_HZ, max: HF_MAX_FREQUENCY_HZ };
+    return { min, max };
 }
 
 // Load radio type from device into AppState
@@ -540,6 +567,56 @@ function loadScanDwellTime() {
         }
     }
     return AppState.scanDwellTimeMs;
+}
+
+// ============================================================================
+// Imperial/Metric display helpers
+// ============================================================================
+// Distances are canonically kilometers everywhere internally (calculateDistance,
+// spot.distanceKm, the SOTA API); these helpers convert at the display edge.
+
+const MILES_PER_KM = 0.621371;
+const FEET_PER_MILE = 5280;
+
+// Load unit preference from localStorage. Anything but "metric" means imperial.
+function loadUnitsSetting() {
+    AppState.units = localStorage.getItem("sotacat_units") === "metric" ? "metric" : "imperial";
+    return AppState.units;
+}
+
+// Chase table distance column header; the cells carry no suffix.
+function getDistanceUnitsLabel() {
+    return AppState.units === "metric" ? "km" : "Miles";
+}
+
+// Prose distance for QRX-style "… away" text. Sub-0.1 in the major unit
+// switches to the minor unit (feet or meters).
+function formatDistanceAway(distanceKm) {
+    if (AppState.units === "metric") {
+        if (distanceKm < 0.1) {
+            return `${Math.round(distanceKm * 1000)}m away`;
+        }
+        return `${distanceKm.toFixed(1)}km away`;
+    }
+    const distanceMiles = distanceKm * MILES_PER_KM;
+    if (distanceMiles < 0.1) {
+        return `${Math.round(distanceMiles * FEET_PER_MILE)}ft away`;
+    }
+    return `${distanceMiles.toFixed(1)}mi away`;
+}
+
+// Whole-number distance for the chase table.
+function formatChaseDistance(distanceKm) {
+    if (!Number.isFinite(distanceKm)) {
+        return "-";
+    }
+    const value = AppState.units === "metric" ? distanceKm : distanceKm * MILES_PER_KM;
+    return Math.round(value).toLocaleString();
+}
+
+// Summit altitude from the SOTA API, which supplies both altM and altFt.
+function formatSummitAltitude(summit) {
+    return AppState.units === "metric" ? `${summit.altM}m` : `${summit.altFt}ft`;
 }
 
 // Determine which amateur band a frequency falls into (returns '40m', '20m', etc., or null)
@@ -693,14 +770,14 @@ function parseMultiPeriodFrequency(multiPeriod) {
 }
 
 // ============================================================================
-// Ham2K Polo Deep Link Utilities (shared across CAT and Chase pages)
+// Ham2K Deep Link Utilities (shared across CAT and Chase pages)
 // ============================================================================
 
-// Map SOTAcat mode to Polo-compatible mode string
-function mapModeForPolo(mode) {
+// Map SOTAcat mode to Ham2K-compatible mode string
+function mapModeForHam2k(mode) {
     if (!mode) return null;
     const upperMode = mode.toUpperCase();
-    // Map USB/LSB to SSB for Polo
+    // Map USB/LSB to SSB for Ham2K
     if (upperMode === "USB" || upperMode === "LSB") return "SSB";
     // CW modes
     if (upperMode === "CW" || upperMode === "CW_R") return "CW";
@@ -709,16 +786,18 @@ function mapModeForPolo(mode) {
     return upperMode; // Default: pass through as-is
 }
 
-// Deep-link bases for buildXotaDeepLink. PoLo routes on the URL *path*, hence
-// three slashes (path-form; the host is reserved): /operation opens or creates
-// an operation, /vfo sets the logging frequency/mode, /qso presents a QSO.
-const POLO_DEEP_LINK_OPERATION_BASE = "com.ham2k.polo:///operation";
-const POLO_DEEP_LINK_VFO_BASE = "com.ham2k.polo:///vfo";
-const POLO_DEEP_LINK_QSO_BASE = "com.ham2k.polo:///qso";
+// Deep-link bases for buildXotaDeepLink. The bare com.ham2k scheme is claimed
+// by both PoLo and Logger (next); Android offers a chooser when both are
+// installed. Ham2k apps route on the URL *path*, hence three slashes
+// (path-form; the host is reserved): /operation opens or creates an
+// operation, /vfo sets the logging frequency/mode, /qso presents a QSO.
+const HAM2K_DEEP_LINK_OPERATION_BASE = "com.ham2k:///operation";
+const HAM2K_DEEP_LINK_VFO_BASE = "com.ham2k:///vfo";
+const HAM2K_DEEP_LINK_QSO_BASE = "com.ham2k:///qso";
 const SOTAMAT_DEEP_LINK_BASE = "sotamat://api/v1?app=sotacat&appversion=2.2";
 
-// Build xOTA-style deep link URL (Polo, SOTAmat) from parameters.
-// All other caller params are optional — only non-empty values are emitted.
+// Build xOTA-style deep link URL (Ham2K, SOTAmat) from parameters.
+// All other caller params are optional. Only non-empty values are emitted.
 // params.baseUrl is REQUIRED: callers pass the target app's scheme explicitly.
 // The separator before our query parts is auto-detected: "&" when the
 // baseUrl already contains "?", "?" otherwise.
@@ -758,24 +837,32 @@ function buildXotaDeepLink(params) {
 // Transmit Control Functions
 // ============================================================================
 
-// Send transmit state change request to radio (state: 0=RX, 1=TX)
+// Send transmit state change request to radio (state: 0=RX, 1=TX).
+// Resolves true only when the radio accepted the change.
 function sendXmitRequest(state) {
     const url = `/api/v1/xmit?state=${state}`;
-    fetchQuiet(url, { method: "PUT" }, "Xmit");
+    return fetchQuiet(url, { method: "PUT" }, "Xmit").then((r) => !!(r && r.ok));
 }
 
-// Toggle transmit state on/off (shared between Spot and Chase pages)
-function toggleXmit() {
-    const xmitButton = document.getElementById("xmit-button");
-    AppState.isXmitActive = !AppState.isXmitActive;
+// Distinguishes the newest toggle from stale in-flight replies.
+let xmitToggleSeq = 0;
 
-    if (AppState.isXmitActive) {
-        if (xmitButton) xmitButton.classList.add("active");
-        sendXmitRequest(1);
-    } else {
-        if (xmitButton) xmitButton.classList.remove("active");
-        sendXmitRequest(0);
-    }
+// Toggle transmit state on/off (shared between Spot and Chase pages).
+// Optimistic: the button flips immediately and reverts if the radio
+// refuses (503 while the keyer or FT8 owns the radio, or the link is
+// down). Only the newest toggle's failure reverts; a stale reply must
+// not clobber a later toggle's state.
+function toggleXmit() {
+    const requested = !AppState.isXmitActive;
+    const seq = ++xmitToggleSeq;
+    AppState.isXmitActive = requested;
+    syncXmitButtonState();
+    sendXmitRequest(requested ? 1 : 0).then((ok) => {
+        if (!ok && seq === xmitToggleSeq) {
+            AppState.isXmitActive = !requested;
+            syncXmitButtonState();
+        }
+    });
 }
 
 // Sync xmit button UI with current state (call on page appearing)
@@ -790,15 +877,32 @@ function syncXmitButtonState() {
     }
 }
 
-// Send CW message to radio keyer (message: string, up to ~128 characters)
-// Backend handles splitting into <=24-char KYW commands at whitespace boundaries.
-function sendKeys(message) {
+// The firmware copies the keyer message parameter into a 128-byte buffer
+// while it is still URL-encoded, so the ENCODED length is the limit that
+// matters (spaces cost 3 characters each).
+const KEYER_MESSAGE_ENCODED_LIMIT = 127;
+
+// Send CW message to radio keyer. Backend handles splitting into
+// <=24-char KYW commands at whitespace boundaries. The operator is told
+// whenever the message does not go out.
+async function sendKeys(message) {
     if (!message || message.length < 1) {
         return;
     }
 
-    const url = `/api/v1/keyer?message=${encodeURIComponent(message)}`;
-    fetchQuiet(url, { method: "PUT" }, "Spot");
+    const encoded = encodeURIComponent(message);
+    if (encoded.length > KEYER_MESSAGE_ENCODED_LIMIT) {
+        alert(
+            `CW message too long for the radio (${encoded.length} of ` +
+                `${KEYER_MESSAGE_ENCODED_LIMIT} encoded characters). Shorten the message.`
+        );
+        return;
+    }
+
+    const response = await fetchQuiet(`/api/v1/keyer?message=${encoded}`, { method: "PUT" }, "Spot");
+    if (!response || !response.ok) {
+        alert("CW message was not sent - the radio refused or the request failed.");
+    }
 }
 
 // ============================================================================
@@ -811,13 +915,15 @@ async function fetchVfoState() {
     if (isLocalhost) return;
     if (pollingPaused) return;
     if (vfoController) return; // Skip if previous request still in-flight
+    if (Date.now() < AppState.vfoPollSuppressedUntil) return; // user action in flight
 
-    vfoController = new AbortController();
-    const timeoutId = setTimeout(() => vfoController.abort(), VFO_TIMEOUT_MS);
+    const thisController = new AbortController();
+    vfoController = thisController;
+    const timeoutId = setTimeout(() => thisController.abort(), VFO_TIMEOUT_MS);
     try {
         const [freqResponse, modeResponse] = await Promise.all([
-            fetch("/api/v1/frequency", { signal: vfoController.signal }),
-            fetch("/api/v1/mode", { signal: vfoController.signal }),
+            fetch("/api/v1/frequency", { signal: thisController.signal }),
+            fetch("/api/v1/mode", { signal: thisController.signal }),
         ]);
 
         if (!freqResponse.ok || !modeResponse.ok) {
@@ -827,6 +933,14 @@ async function fetchVfoState() {
 
         const newFrequency = parseInt(await freqResponse.text(), 10);
         const newMode = (await modeResponse.text()).toUpperCase().trim();
+
+        // A non-numeric payload (a captive portal or proxy answering 200)
+        // must not enter shared state: NaN !== NaN would re-notify every
+        // subscriber on every poll.
+        if (!Number.isFinite(newFrequency)) {
+            Log.warn("VFO")("Ignoring non-numeric frequency payload");
+            return;
+        }
 
         // Check if state changed
         const freqChanged = AppState.vfoFrequencyHz !== newFrequency;
@@ -851,8 +965,26 @@ async function fetchVfoState() {
         Log.warn("VFO")("Error fetching VFO state:", error);
     } finally {
         clearTimeout(timeoutId);
-        vfoController = null;
+        if (vfoController === thisController) vfoController = null; // a newer request may own the slot
     }
+}
+
+// Suppress VFO polling for a window after a user action, so an optimistic
+// local set is not reverted by a poll that reads the radio before the set
+// applies.
+function suppressVfoPolling(ms) {
+    AppState.vfoPollSuppressedUntil = Date.now() + ms;
+}
+
+// Notify all VFO subscribers with the current shared state.
+function notifyVfoSubscribers() {
+    AppState.vfoChangeCallbacks.forEach((callback) => {
+        try {
+            callback(AppState.vfoFrequencyHz, AppState.vfoMode);
+        } catch (error) {
+            Log.error("VFO")("Callback error:", error);
+        }
+    });
 }
 
 // Start global VFO polling (if not already running)
@@ -974,12 +1106,13 @@ async function updateBatteryInfo() {
     if (pollingPaused) return;
     if (batteryController) return; // Skip if previous request still in-flight
 
-    batteryController = new AbortController();
-    const timeoutId = setTimeout(() => batteryController.abort(), BATTERY_INFO_TIMEOUT_MS);
+    const thisController = new AbortController();
+    batteryController = thisController;
+    const timeoutId = setTimeout(() => thisController.abort(), BATTERY_INFO_TIMEOUT_MS);
     try {
         const [batteryInfoResponse, rssiResponse] = await Promise.all([
-            fetch("/api/v1/batteryInfo", { signal: batteryController.signal }),
-            fetch("/api/v1/rssi", { signal: batteryController.signal }),
+            fetch("/api/v1/batteryInfo", { signal: thisController.signal }),
+            fetch("/api/v1/rssi", { signal: thisController.signal }),
         ]);
 
         if (batteryInfoResponse.ok) {
@@ -1012,7 +1145,7 @@ async function updateBatteryInfo() {
         if (timeEl) timeEl.textContent = "";
     } finally {
         clearTimeout(timeoutId);
-        batteryController = null;
+        if (batteryController === thisController) batteryController = null; // a newer request may own the slot
     }
 }
 
@@ -1022,11 +1155,12 @@ async function updateConnectionStatus() {
     if (pollingPaused) return;
     if (connectionStatusController) return; // Skip if previous request still in-flight
 
-    connectionStatusController = new AbortController();
-    const timeoutId = setTimeout(() => connectionStatusController.abort(), CONNECTION_STATUS_TIMEOUT_MS);
+    const thisController = new AbortController();
+    connectionStatusController = thisController;
+    const timeoutId = setTimeout(() => thisController.abort(), CONNECTION_STATUS_TIMEOUT_MS);
     try {
         const response = await fetch("/api/v1/connectionStatus", {
-            signal: connectionStatusController.signal,
+            signal: thisController.signal,
         });
 
         if (response.ok) {
@@ -1048,7 +1182,7 @@ async function updateConnectionStatus() {
         document.getElementById("connection-status").textContent = "??";
     } finally {
         clearTimeout(timeoutId);
-        connectionStatusController = null;
+        if (connectionStatusController === thisController) connectionStatusController = null; // a newer request may own the slot
     }
 }
 
@@ -1115,11 +1249,16 @@ function cleanupCurrentTab() {
     }
 }
 
-// Load previously active tab from localStorage (returns tab name string, defaults to 'chase')
+// Load previously active tab from localStorage. Historical tab names map to
+// their current successors, and anything unrecognized falls back to the
+// default so a stale stored value can never wedge startup on a missing page.
 function loadActiveTab() {
+    const KNOWN_TABS = ["run", "chase", "qrx", "settings", "about"];
+    const MIGRATED_TABS = { spot: "run", cat: "run", wrx: "qrx", sota: "chase", pota: "chase" };
     const activeTab = localStorage.getItem("activeTab");
-    if (activeTab === "spot") return "run";
-    return activeTab ? activeTab : "qrx"; // Default to 'qrx' if no tab is saved
+    if (!activeTab) return "qrx";
+    if (activeTab in MIGRATED_TABS) return MIGRATED_TABS[activeTab];
+    return KNOWN_TABS.includes(activeTab) ? activeTab : "qrx";
 }
 
 // Save currently active tab to localStorage (tabName: 'chase', 'cat', 'settings', 'about')
@@ -1127,9 +1266,29 @@ function saveActiveTab(tabName) {
     localStorage.setItem("activeTab", tabName.toLowerCase());
 }
 
-// Tune radio to specified frequency (Hz) and mode (adjusts SSB sideband based on frequency)
+// Firmware modes that key a digital transmission; the chase page treats
+// anything normalizeRadioMode maps into this set as the DATA family.
+const DIGITAL_FIRMWARE_MODES = ["DATA", "DATA_R", "FT8", "JS8", "PK31", "FT4", "RTTY"];
+
+// Map a raw spot/source mode string onto the set the firmware's mode PUT
+// accepts. Returns the normalized mode, or null when there is no sensible
+// mapping (the caller then tunes frequency-only).
+function normalizeRadioMode(mode) {
+    const up = String(mode || "").trim().toUpperCase();
+    const accepted = ["LSB", "USB", "CW", "FM", "AM", "DATA", "CW_R", "DATA_R", "FT8", "JS8", "PK31", "FT4", "RTTY", "SSB"];
+    if (accepted.includes(up)) return up;
+    const synonyms = { "PSK31": "PK31", "CW-R": "CW_R", "CWR": "CW_R", "DATA-R": "DATA_R", "PHONE": "SSB", "VOICE": "SSB" };
+    if (up in synonyms) return synonyms[up];
+    // Digital modes with no firmware alias of their own key the radio's DATA mode.
+    const dataModes = ["PSK", "BPSK", "BPSK31", "JT65", "JT9", "MFSK", "MFSK32", "OLIVIA", "HELL", "SSTV", "PKT", "MSK144", "DIG", "DIGI"];
+    if (dataModes.includes(up)) return "DATA";
+    return null;
+}
+
+// Tune radio to specified frequency (Hz) and mode (adjusts SSB sideband based
+// on frequency). An unmappable mode tunes frequency-only.
 async function tuneRadioHz(frequency, mode) {
-    let useMode = mode.toUpperCase();
+    let useMode = normalizeRadioMode(mode);
     if (useMode === "SSB") {
         if (frequency < LSB_USB_BOUNDARY_HZ) useMode = "LSB";
         else useMode = "USB";
@@ -1137,6 +1296,10 @@ async function tuneRadioHz(frequency, mode) {
 
     // Open tune targets (WebSDR, KiwiSDR, etc.) - don't await, run in parallel
     openTuneTargets(frequency, useMode);
+
+    // A poll landing between the PUTs and the optimistic AppState write
+    // below would read pre-tune values and revert highlight/Ham2K state.
+    suppressVfoPolling(VFO_ACTION_SUPPRESS_MS);
 
     try {
         const freqResponse = await fetch(`/api/v1/frequency?frequency=${frequency}`, { method: "PUT" });
@@ -1148,18 +1311,22 @@ async function tuneRadioHz(frequency, mode) {
 
         Log.debug("Tune")("Frequency updated:", frequency);
 
-        const modeResponse = await fetch(`/api/v1/mode?mode=${useMode}`, { method: "PUT" });
+        if (useMode) {
+            const modeResponse = await fetch(`/api/v1/mode?mode=${useMode}`, { method: "PUT" });
 
-        if (!modeResponse.ok) {
-            Log.error("Tune")("Mode update failed");
-            return;
+            if (!modeResponse.ok) {
+                Log.error("Tune")("Mode update failed");
+                return;
+            }
+
+            Log.debug("Tune")("Mode updated:", useMode);
+        } else {
+            Log.warn("Tune")(`No radio mode mapping for "${mode}"; tuned frequency only`);
         }
-
-        Log.debug("Tune")("Mode updated:", useMode);
 
         // Update global VFO state
         AppState.vfoFrequencyHz = frequency;
-        AppState.vfoMode = useMode;
+        if (useMode) AppState.vfoMode = useMode;
         AppState.vfoLastUpdated = Date.now();
 
         // Notify any page-specific listeners (chase row highlight, etc.).
@@ -1219,6 +1386,13 @@ async function loadTabScriptIfNeeded(tabName) {
 
 // Switch to a different tab (tabName: 'chase', 'cat', 'settings', 'about')
 async function openTab(tabName) {
+    // One switch at a time: a click landing while the previous switch still
+    // awaits its loaders must not run leave/enter hooks interleaved.
+    if (AppState.tabSwitchInProgress) {
+        Log.debug("Tab")(`Ignoring ${tabName}: switch already in flight`);
+        return;
+    }
+    AppState.tabSwitchInProgress = true;
     Log.debug("Tab")(`Switching to: ${tabName}`);
 
     // Pause polling during tab transition to prioritize page load
@@ -1269,7 +1443,7 @@ async function openTab(tabName) {
 
         if (typeof window[onAppearingFunctionName] === "function") {
             try {
-                window[onAppearingFunctionName]();
+                await window[onAppearingFunctionName]();
             } catch (error) {
                 Log.error("Tab")(`Error in ${onAppearingFunctionName}:`, error);
                 throw error;
@@ -1287,6 +1461,7 @@ async function openTab(tabName) {
     } finally {
         // Resume polling after tab transition completes (or fails)
         pollingPaused = false;
+        AppState.tabSwitchInProgress = false;
     }
 }
 
@@ -1308,9 +1483,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // Preload CW macros at startup so RUN page can render buttons immediately
     loadCwMacrosAsync();
 
-    // Apply UI density preference from localStorage
+    // Apply display preferences from localStorage
     loadUiCompactMode();
     applyUiCompactMode();
+    loadUnitsSetting();
 
     // Ensure all tab buttons use the same click handler
     document.querySelectorAll(".tabBar button").forEach((button) => {
@@ -1360,18 +1536,26 @@ setInterval(updateConnectionStatus, CONNECTION_STATUS_UPDATE_INTERVAL_MS);
 // ============================================================================
 // Mobile browsers throttle/freeze background tabs: setInterval ticks stop and
 // in-flight fetches get aborted. When the user returns to SOTAcat (e.g. after
-// switching to Polo and back), don't wait for the next polling tick;
+// switching to Ham2K and back), don't wait for the next polling tick;
 // refresh status immediately so a stale "disconnected" overlay clears and the
 // VFO display snaps back to live.
 
-document.addEventListener("visibilitychange", function () {
+function onVisibilityRefresh() {
     if (document.visibilityState !== "visible") return;
     if (pollingPaused) return; // a sub-tab switch is mid-flight; let its finally{} restart polling
-    Log.debug("Visibility")("Page visible — refreshing pollers");
+    Log.debug("Visibility")("Page visible; refreshing pollers");
+    // A request frozen mid-flight while the tab was backgrounded would make
+    // each poller's in-flight guard skip the refresh; abort and clear them.
+    for (const abortStale of [
+        () => { if (connectionStatusController) { connectionStatusController.abort(); connectionStatusController = null; } },
+        () => { if (vfoController) { vfoController.abort(); vfoController = null; } },
+        () => { if (batteryController) { batteryController.abort(); batteryController = null; } },
+    ]) abortStale();
     updateConnectionStatus();
     fetchVfoState();
     updateBatteryInfo();
-});
+}
+document.addEventListener("visibilitychange", onVisibilityRefresh);
 
 // ============================================================================
 // Geolocation Bridge Callback Handling
@@ -1388,7 +1572,7 @@ function processGeolocationCallback() {
 
     if (geoLat && geoLon) {
         Log.info("GPS")(`Received location from bridge: ${geoLat}, ${geoLon} (accuracy: ${geoAccuracy}m)`);
-        saveGeolocationFromBridge(geoLat, geoLon, geoAccuracy);
+        saveGeolocationFromBridge(parseFloat(geoLat), parseFloat(geoLon), geoAccuracy);
         cleanUrlParams();
         return true;
     }
@@ -1411,7 +1595,16 @@ function processGeolocationCallback() {
 
 // Save GPS coordinates to device and invalidate caches
 // Returns true on success, throws on failure
+// Sole writer of AppState.gpsOverride: coordinates are pinned to finite
+// numbers here no matter how callers deliver them (the geolocation bridge
+// hands them over as URL-parameter strings).
 async function saveGpsToDevice(lat, lon) {
+    lat = parseFloat(lat);
+    lon = parseFloat(lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        throw new Error(`Invalid coordinates: ${lat}, ${lon}`);
+    }
+
     const settings = {
         gps_lat: lat.toString(),
         gps_lon: lon.toString(),
@@ -1826,17 +2019,20 @@ async function checkFirmwareVersion(manualCheck = false) {
 
         // Handle different cases for manual vs automatic checks
         let shouldUpdateTimestamp = false;
+        let manualReport = null;
 
         if (manualCheck) {
-            // Manual check - always show popup with version strings and update timestamp
+            // Manual check - always report with version strings and update
+            // timestamp; the report returns AFTER the shared bookkeeping below.
             shouldUpdateTimestamp = true;
 
+            const versions = `\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
             if (latestVersion > currentBuildTime) {
-                return `A new firmware is available: please update using instructions on the Settings page.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
+                manualReport = `A new firmware is available: please update using instructions on the Settings page.${versions}`;
             } else if (latestVersion < currentBuildTime) {
-                return `Your firmware is newer than the official version on the server.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
+                manualReport = `Your firmware is newer than the official version on the server.${versions}`;
             } else {
-                return `You already have the current firmware. No update needed.\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
+                manualReport = `You already have the current firmware. No update needed.${versions}`;
             }
         } else {
             // Automatic check - only show popup if firmware is different
@@ -1875,6 +2071,8 @@ async function checkFirmwareVersion(manualCheck = false) {
 
         // Stop retry timer on successful check
         stopVersionCheckRetryTimer();
+
+        if (manualReport) return manualReport;
     } catch (error) {
         Log.debug("Version")("Error during version check:", error.message);
 

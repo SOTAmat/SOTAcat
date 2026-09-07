@@ -351,7 +351,13 @@ a {
     transition: border-color 0.2s ease;
 }
 
-/* Main frequency + mode row */
+/* Main frequency + mode row.
+
+   The row is centered, so the frequency's position depends on the width of
+   everything beside it. Nothing here is ever removed from the flow while a
+   frequency is being entered (the badges dim instead; see the editing state
+   below), and both .frequency-display elements carry the same fixed width,
+   so swapping the div for the input changes nothing either. Issue #111. */
 .vfo-main {
     display: flex;
     align-items: center;
@@ -364,6 +370,7 @@ a {
     display: flex;
     gap: var(--space-xs);
     margin-left: var(--space-md);
+    transition: opacity 0.12s ease;
 }
 
 .license-badge {
@@ -587,6 +594,7 @@ a {
     font-size: var(--text-xs);
     color: var(--warning);
     min-height: 1em;
+    transition: opacity 0.12s ease;
 }
 
 .vfo-warning:empty {
@@ -595,6 +603,19 @@ a {
 
 .vfo-display.warning-privilege .vfo-warning {
     color: var(--danger);
+}
+
+/* Frequency entry state.
+
+   The badges and the warning both describe the frequency being replaced, so
+   they stand down while a new one is typed rather than asserting privileges
+   the user is in the middle of leaving. Dimmed, not removed: the row keeps
+   its identity, nothing blinks out of the display, and nothing reflows. The
+   mode is left fully lit. Alone among the three, it stays true while typing.
+   Issue #111. */
+.vfo-display.editing .license-badges,
+.vfo-display.editing .vfo-warning {
+    opacity: 0.3;
 }
 
 .frequency-display {
@@ -608,6 +629,13 @@ a {
     margin: 0;
     border: none;
     line-height: 1.2;
+    /* Fixed box, shared by the display div and the edit input, so neither
+       the swap between them nor a change in digit count reflows the row.
+       Sized for 11 characters ("144.100.000") plus the 2px of letter
+       spacing each one carries; shorter values simply center inside it, and
+       longer ones overflow symmetrically. Without this the input falls back
+       to its default ~20-character width. */
+    width: calc(11ch + 22px);
 }
 
 /* Input for editing frequency - shares same styling as display */
@@ -957,8 +985,8 @@ input.frequency-display {
 
 /* Mode-reactive tint for keyer-path buttons.  CW-family modes (CW/CW_R, and
    SSB/LSB/AM/FM which the backend forces to CW) keep the default saturated
-   --primary blue.  DATA modes (DATA/DATA_R) — where the keyer will emit RTTY
-   or PSK31 depending on DT sub-mode — switch to saturated amber.  Dark text
+   --primary blue.  DATA modes (DATA/DATA_R), where the keyer will emit RTTY
+   or PSK31 depending on DT sub-mode, switch to saturated amber.  Dark text
    required on amber for contrast.  :disabled/:active/hover rules defined
    elsewhere take precedence in their respective states. */
 [data-keyer-family="data"] .btn-cw-macro,
@@ -1126,11 +1154,59 @@ input.frequency-display {
     align-items: center;
     gap: var(--space-sm);
     margin-top: var(--space-sm);
+    font-size: var(--text-sm);
+    font-weight: 500;
 }
 
 .text-input-narrow {
     width: 4em;
     text-align: center;
+}
+
+.units-control {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin: var(--space-sm) 0;
+    font-size: var(--text-sm);
+    font-weight: 500;
+}
+
+.segmented-toggle {
+    display: inline-flex;
+    border: 2px solid var(--gray-3);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.segmented-toggle input {
+    position: absolute;
+    opacity: 0;
+}
+
+.segmented-toggle label {
+    min-height: var(--touch-target-sm);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-md);
+    cursor: pointer;
+    background: var(--white);
+    border-left: 1px solid var(--gray-3);
+}
+
+.segmented-toggle label:first-of-type {
+    border-left: 0;
+}
+
+.segmented-toggle input:checked + label {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.segmented-toggle input:focus-visible + label {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
 }
 
 /* =========================== Tables */
@@ -1420,9 +1496,14 @@ tbody tr:active {
     text-align: right;
 }
 
-/* Miles column - right aligned */
+/* Distance column - compact, right-aligned numeric values */
+#chase-table th:nth-child(7),
 #chase-table td:nth-child(7) {
+    width: 1%;
+    white-space: nowrap;
     text-align: right;
+    padding-left: var(--space-xs);
+    padding-right: var(--space-xs);
 }
 
 /* Frequency display styling - emphasize MHz, de-emphasize fractional KHz */
@@ -2108,6 +2189,8 @@ button.password-visibility-toggle svg {
     .frequency-display {
         font-size: 24px;
         letter-spacing: 1px;
+        /* ch tracks font-size on its own; the letter-spacing term does not. */
+        width: calc(11ch + 11px);
     }
 
     input.frequency-display {
@@ -2209,7 +2292,7 @@ button.password-visibility-toggle svg {
         border-bottom: 1px solid var(--border);
     }
 
-    /* Chase page: first 3 controls on one row, PoLo on second row */
+    /* Chase page: first 3 controls on one row, Ham2K on second row */
     .controls-grid {
         display: grid;
         grid-template-columns: auto auto 1fr;
@@ -2232,7 +2315,7 @@ button.password-visibility-toggle svg {
         grid-template-columns: repeat(3, 1fr);
     }
 
-    /* Chase page: keep TX Toggle and PoLo buttons on same row */
+    /* Chase page: keep TX Toggle and Ham2K buttons on same row */
     .controls-grid .control-group:last-child .button-group {
         flex-direction: row;
     }

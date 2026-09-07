@@ -41,7 +41,7 @@ extern char g_gps_lon[MAX_GPS_LON_SIZE];
 #define MAX_CALLSIGN_SIZE 16
 extern char g_callsign[MAX_CALLSIGN_SIZE];
 
-#define MAX_LICENSE_CLASS_SIZE 4  // "T", "G", "E", or ""
+#define MAX_LICENSE_CLASS_SIZE 4  // "", "N", "T", "G", "A", or "E"
 extern char g_license_class[MAX_LICENSE_CLASS_SIZE];
 
 // Tune targets - URLs to open when tuning (e.g., WebSDR, KiwiSDR)

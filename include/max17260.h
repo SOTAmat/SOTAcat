@@ -39,17 +39,21 @@ typedef struct {
 
 class Max17620 {
   private:
-    smbus_info_t *          m_smb;
-    max17620_setup_t        m_setup;
-    max17260_saved_params_t m_saved_params;
-    uint16_t                devnum (uint16_t devname);
+    smbus_info_t *   m_smb;
+    max17620_setup_t m_setup;
+    bool             m_reconfigured = false;  // init() ran the from-scratch configuration (gauge had lost power)
+    uint16_t         devnum (uint16_t devname);
+    esp_err_t        write_and_verify (uint16_t reg, uint16_t value);
 
   public:
     void      default_setup (max17620_setup_t *);
     esp_err_t present (void);
     esp_err_t check_POR (void);
     esp_err_t init (smbus_info_t *, max17620_setup_t *);
+    bool      was_reconfigured (void) const { return m_reconfigured; }
+    void      clear_reconfigured (void) { m_reconfigured = false; }
+    esp_err_t read_cycles (uint16_t *);
     esp_err_t read_learned_params (max17260_saved_params_t *);
-    esp_err_t write_learned_params (max17260_saved_params_t *);
+    esp_err_t restore_learned_params (const max17260_saved_params_t *);
     esp_err_t poll (max17260_info_t *);
 };

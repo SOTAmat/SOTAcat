@@ -29,6 +29,8 @@ typedef enum {
     TEMPCO         = 0x39,
     VEMPTY         = 0x3A,
     FSTAT          = 0x3D,
+    DQACC          = 0x45,
+    DPACC          = 0x46,
     SOFTWKUP       = 0x60,
     HIBCFG         = 0xBA,
     POWER          = 0xB1,
@@ -149,6 +151,7 @@ esp_err_t Max17620::init (smbus_info_t * smb, max17620_setup_t * setup) {
         ESP_LOGV (TAG8, "Battery Monitor is already configured, skipping configuration");
         return ESP_OK;
     }
+    m_reconfigured = true;  // gauge lost power: caller may restore learned parameters
     ESP_LOGV (TAG8, "Battery Monitor needs configuration, configuring");
 
     // Wait for FSTAT.DNR == 0
@@ -225,9 +228,8 @@ esp_err_t Max17620::init (smbus_info_t * smb, max17620_setup_t * setup) {
     return ESP_OK;
 }
 
-// It is recommended saving the learned capacity parameters every time bit 6 of the Cycles register toggles
-// (so that it is saved every 64% change in the battery) so that if power is lost, the values can easily be
-// restored.  TODO
+// Snapshot the learned capacity parameters for persistence; the host saves
+// them per the policy in include/battery_learned_policy.h.
 esp_err_t Max17620::read_learned_params (max17260_saved_params_t * params) {
     smbus_read_word (m_smb, RCOMP0, &(params->RCOMP0));          // Read RCOMP0
     smbus_read_word (m_smb, TEMPCO, &(params->TempCo));          // Read TempCo
@@ -240,19 +242,45 @@ esp_err_t Max17620::read_learned_params (max17260_saved_params_t * params) {
     return ESP_OK;
 }
 
-// It is recommended saving the learned capacity parameters every time bit 6 of the Cycles register toggles
-// (so that it is saved every 64% change in the battery) so that if power is lost, the values can easily be
-// restored.  TODO
-esp_err_t Max17620::write_learned_params (max17260_saved_params_t * params) {
+// Lightweight read of just the Cycles register, for the host's save policy.
+esp_err_t Max17620::read_cycles (uint16_t * cycles) {
+    return smbus_read_word (m_smb, CYCLES, cycles);
+}
 
-    smbus_write_word (m_smb, RCOMP0, params->RCOMP0);          // Write RCOMP0
-    smbus_write_word (m_smb, TEMPCO, params->TempCo);          // Write TempCo
-    smbus_write_word (m_smb, FULLCAPREP, params->FullCapRep);  // Write FullCapRep
-    smbus_write_word (m_smb, CYCLES, params->Cycles);          // Write Cycles
-    smbus_write_word (m_smb, FULLCAPNOM, params->FullCapNom);  // Write FullCapNom
-    ESP_LOGV (TAG8, "Battery monitor Wrote saved params back to");
+// Write a register and read it back, retrying briefly: the gauge can be
+// mid-computation and drop a write (per the MAX1726x reference
+// implementation's WriteAndVerify pattern).
+esp_err_t Max17620::write_and_verify (uint16_t reg, uint16_t value) {
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        smbus_write_word (m_smb, (max17620_register_e)reg, value);
+        vTaskDelay (10 / portTICK_PERIOD_MS);
+        uint16_t readback = ~value;
+        smbus_read_word (m_smb, (max17620_register_e)reg, &readback);
+        if (readback == value)
+            return ESP_OK;
+    }
+    ESP_LOGE (TAG8, "write_and_verify failed for register 0x%02x", reg);
+    return ESP_FAIL;
+}
 
-    return ESP_OK;
+// Restore previously learned capacity parameters after the gauge lost
+// battery power, per the MAX1726x reference implementation: RCOMP0, TempCo
+// and FullCapRep load directly; dPacc/dQacc seed the model so the gauge
+// rebuilds FullCapNom as 2 x dQacc; Cycles loads last. Every write is
+// verified.
+esp_err_t Max17620::restore_learned_params (const max17260_saved_params_t * params) {
+    esp_err_t ret = ESP_OK;
+    if (write_and_verify (RCOMP0, params->RCOMP0) != ESP_OK) ret = ESP_FAIL;
+    if (write_and_verify (TEMPCO, params->TempCo) != ESP_OK) ret = ESP_FAIL;
+    if (write_and_verify (FULLCAPREP, params->FullCapRep) != ESP_OK) ret = ESP_FAIL;
+    if (write_and_verify (DPACC, 0x0C80) != ESP_OK) ret = ESP_FAIL;                        // 200% of capacity
+    if (write_and_verify (DQACC, params->FullCapNom / 2) != ESP_OK) ret = ESP_FAIL;        // gauge rebuilds FullCapNom = 2 x dQacc
+    if (write_and_verify (CYCLES, params->Cycles) != ESP_OK) ret = ESP_FAIL;
+
+    ESP_LOGI (TAG8, "Battery monitor learned parameters restored (FullCapNom %3.1f mAh, Cycles %3.2f)%s",
+              params->FullCapNom * mAh_per_bit, (float)params->Cycles * 0.01,
+              ret == ESP_OK ? "" : " with verify failures");
+    return ret;
 }
 
 esp_err_t Max17620::poll (max17260_info_t * info) {
@@ -312,8 +340,6 @@ esp_err_t Max17620::poll (max17260_info_t * info) {
     ESP_LOGV (TAG8, "RemCap: %3.1fmAh SOC: %2.1f%% TTE: %3.2fhr TTF: %3.2fhr", info->reported_capacity, info->reported_state_of_charge, info->time_to_empty, info->time_to_full);
     ESP_LOGV (TAG8, "V: %3.2fV Va: %3.2fV I: %3.2fmA Ia: %3.2fmA", info->voltage, info->voltage_average, info->current, info->current_average);
     ESP_LOGV (TAG8, "T: %2.1f Ta: %2.1f P: %3.2fmW Pa: %3.2fmW", info->temperature, info->temperature_average, info->power, info->power_average);
-
-    read_learned_params (&m_saved_params);
 
     return ESP_OK;
 }

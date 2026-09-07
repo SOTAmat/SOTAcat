@@ -354,8 +354,8 @@ static void wifi_attenuate_power () {
      * | [74, 75]  | level2            | 18.5 dBm |
      * | [68, 73]  | level3            | 17   dBm |
      * | [60, 67]  | level4            | 15   dBm |
-     * | [52, 59]  | level5            | 13   dBm |
-     * | [44, 51]  | level5 -  2.0 dBm | 11   dBm |  <-- currently using this
+     * | [52, 59]  | level5            | 13   dBm |  <-- currently using this
+     * | [44, 51]  | level5 -  2.0 dBm | 11   dBm |
      * | [34, 43]  | level5 -  4.5 dBm |  8.5 dBm |
      * | [28, 33]  | level5 -  6.0 dBm |  7   dBm |
      * | [20, 27]  | level5 -  8.0 dBm |  5   dBm |
@@ -789,34 +789,6 @@ void wifi_task (void * pvParameters) {
                 xTaskNotify (config->setup_task_handle, config->notification_bit, eSetBits);
                 previously_connected = true;
                 ESP_LOGI (TAG8, "Initial connection established, setup task notified");
-            }
-
-            // Configure TCP keepalive
-            if (s_sta_connected.load()) {
-                static uint32_t last_keepalive_config = 0;
-                uint32_t        now                   = xTaskGetTickCount();
-                // Only configure keepalive once per connection
-                if ((now - last_keepalive_config) * portTICK_PERIOD_MS >= 60000) {  // Every 60 seconds
-                    last_keepalive_config = now;
-                    int sock              = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
-                    if (sock >= 0) {
-                        int keepalive = 1;
-                        int keepidle  = 5;  // Idle time before starting keepalive (seconds)
-                        int keepintvl = 3;  // Interval between keepalive probes (seconds)
-                        int keepcnt   = 3;  // Number of keepalive probes before disconnect
-
-                        setsockopt (sock, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof (keepalive));
-                        setsockopt (sock, IPPROTO_TCP, TCP_KEEPIDLE, &keepidle, sizeof (keepidle));
-                        setsockopt (sock, IPPROTO_TCP, TCP_KEEPINTVL, &keepintvl, sizeof (keepintvl));
-                        setsockopt (sock, IPPROTO_TCP, TCP_KEEPCNT, &keepcnt, sizeof (keepcnt));
-
-                        close (sock);
-                        ESP_LOGV (TAG8, "TCP keepalive configured");
-                    }
-                    else {
-                        ESP_LOGW (TAG8, "Failed to create socket for keepalive configuration");
-                    }
-                }
             }
 
             break;

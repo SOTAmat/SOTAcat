@@ -53,7 +53,7 @@ function loadSandbox() {
         getVisibleRows() { return sandbox._mockRows; },
         tuneRadioHz(hz, mode) { tunes.push({ hz, mode }); },
         updateScanButtonLabel() {},
-        // Suppress the chain — tests drive advanceScan manually.
+        // Suppress the chain. Tests drive advanceScan manually.
         setTimeout() { return 0; },
         clearTimeout() {},
         _tunes: tunes,

@@ -70,12 +70,12 @@ SOTAcat/
 
 ## Adding a New Web Asset (dual-wiring rule)
 
-Any file added under `src/web/` must be registered in **both** of these places — both are required:
+Any file added under `src/web/` must be registered in **both** of these places; both are required:
 
 1. `src/CMakeLists.txt` — append it to the `EMBED_FILES` list so the build embeds it.
 2. `src/webserver.cpp` — add it to the `asset_map` so the HTTP server can serve it.
 
-If you skip #1 the build fails. If you skip #2 the file is in the binary but unreachable and the browser sees `ERR_EMPTY_RESPONSE`. The second failure is silent — always check both files.
+If you skip #1 the build fails. If you skip #2 the file is in the binary but unreachable and the browser sees `ERR_EMPTY_RESPONSE`. The second failure is silent. Always check both files.
 
 ## Build and Flash
 

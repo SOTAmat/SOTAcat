@@ -140,7 +140,9 @@ function loadLifecycleSandbox() {
         },
         tuneRadioHz(hz, mode) { tunes.push({ hz, mode }); },
         updateBandRangeDisplay() { updateCalls.push(true); },
-        stopVfoUpdates() {},
+        unsubscribeFromVfo() {},
+        onRunVfoChanged() {},
+        clearTimeout() {},
         Log: {
             info() { return () => {}; }, warn() { return () => {}; },
             error() { return () => {}; }, debug() { return () => {}; },

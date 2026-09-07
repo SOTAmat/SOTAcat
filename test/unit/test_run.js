@@ -17,7 +17,7 @@
  */
 
 // ============================================================================
-// Test Framework (minimal, no dependencies — same as test_qrx.js)
+// Test Framework (minimal, no dependencies; same as test_qrx.js)
 // ============================================================================
 
 let testsPassed = 0;
@@ -71,7 +71,7 @@ function getKeyerFamily(mode) {
     const m = (mode || "").toUpperCase();
     if (!m || m === "UNKNOWN") return null;
     if (m === "DATA" || m === "DATA_R") return "data";
-    return "cw"; // CW, CW_R, USB, LSB, AM, FM — all emit CW from the keyer
+    return "cw"; // CW, CW_R, USB, LSB, AM, FM all emit CW from the keyer
 }
 
 // ============================================================================
