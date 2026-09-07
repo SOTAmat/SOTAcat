@@ -79,7 +79,7 @@ it('CW stays CW', async () => {
 
 it('suppresses VFO polling before the PUTs land', async () => {
     // A poll landing between the PUTs and the optimistic AppState write
-    // reads pre-tune values and reverts highlight/PoLo until the next tick.
+    // reads pre-tune values and reverts highlight/Ham2K until the next tick.
     const sb = makeSandbox();
     await sb.tuneRadioHz(14025000, 'CW');
     const idxSuppress = sb._calls.findIndex((c) => c[0] === 'suppressVfoPolling');

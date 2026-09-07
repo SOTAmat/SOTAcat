@@ -8,7 +8,7 @@ const REFRESH_TIMER_UPDATE_INTERVAL_MS = 1000; // Update refresh timer every sec
 const AUTO_SUGGEST_PROMPT_MS = 3000; // Show "Auto-refresh?" prompt for 3 seconds after each manual refresh
 const VFO_FREQUENCY_TOLERANCE_HZ = 100; // +/- 100 Hz for matching radio to spots
 
-// Track which row the user explicitly clicked (for smart PoLo row selection)
+// Track which row the user explicitly clicked (for smart Ham2K row selection)
 let clickedTunedRow = null;
 
 // Chase page state encapsulated in a single object
@@ -247,7 +247,7 @@ function updateRefreshButtonLabel() {
 }
 
 // Hook called by the shared tuneRadioHz() in main.js after a tune completes.
-// Updates chase-only UI (row highlight + PoLo button enable state).
+// Updates chase-only UI (row highlight + Ham2K button enable state).
 function onTuneRadioComplete() {
     updateTunedRowHighlight();
     updateMyCallButton();
@@ -314,8 +314,8 @@ function updateTunedRowHighlight() {
         clickedTunedRow = null;
     }
 
-    // Update Polo button state based on whether a spot is tuned
-    updatePoloButtonState();
+    // Update Ham2K button state based on whether a spot is tuned
+    updateHam2kButtonState();
 }
 
 // ============================================================================
@@ -574,18 +574,18 @@ function onMyCallClick() {
 }
 
 // ============================================================================
-// Ham2K Polo Deep Link Integration
+// Ham2K Deep Link Integration
 // ============================================================================
-// Note: buildXotaDeepLink() and mapModeForPolo() are defined in main.js
+// Note: buildXotaDeepLink() and mapModeForHam2k() are defined in main.js
 
-// Valid Polo sig types (lowercase)
+// Valid Ham2K sig types (lowercase)
 // Note: PoLo does not yet support "iota" as a recognized activity type
-const VALID_POLO_SIGS = ["sota", "pota", "wwff", "gma", "wca", "zlota"];
+const VALID_HAM2K_SIGS = ["sota", "pota", "wwff", "gma", "wca", "zlota"];
 
-// Check if a sig type is valid for Polo
-function isValidPoloSig(sig) {
+// Check if a sig type is valid for Ham2K
+function isValidHam2kSig(sig) {
     if (!sig) return false;
-    return VALID_POLO_SIGS.includes(sig.toLowerCase());
+    return VALID_HAM2K_SIGS.includes(sig.toLowerCase());
 }
 
 // Get data from the currently tuned row (if any)
@@ -610,8 +610,8 @@ function getTunedSpotData() {
     return data;
 }
 
-// Check if tuned spot is valid for Polo logging (has freq, mode, callsign)
-function isTunedSpotValidForPolo() {
+// Check if tuned spot is valid for Ham2K logging (has freq, mode, callsign)
+function isTunedSpotValidForHam2k() {
     const tunedSpot = getTunedSpotData();
     if (!tunedSpot) return false;
 
@@ -623,20 +623,20 @@ function isTunedSpotValidForPolo() {
     return true;
 }
 
-// Update Polo button enabled state based on whether a valid xOTA spot is tuned
-function updatePoloButtonState() {
-    const poloBtn = document.getElementById("polo-chase-button");
-    if (!poloBtn) return;
+// Update Ham2K button enabled state based on whether a valid xOTA spot is tuned
+function updateHam2kButtonState() {
+    const ham2kBtn = document.getElementById("ham2k-chase-button");
+    if (!ham2kBtn) return;
 
-    poloBtn.disabled = !isTunedSpotValidForPolo();
+    ham2kBtn.disabled = !isTunedSpotValidForHam2k();
 }
 
-// Build Polo deep link for Chase page (their activation); PoLo presents the
+// Build Ham2K deep link for Chase page (their activation); Ham2K presents the
 // QSO in whatever operation is currently open, so S2S needs no our.refs.
-function buildPoloChaseLink() {
+function buildHam2kChaseLink() {
     const tunedSpot = getTunedSpotData();
     if (!tunedSpot) {
-        Log.debug("Chase")("buildPoloChaseLink: no tuned spot");
+        Log.debug("Chase")("buildHam2kChaseLink: no tuned spot");
         return null;
     }
 
@@ -654,14 +654,14 @@ function buildPoloChaseLink() {
     }
     const theirCall = callsigns.join(",");
     const freq = tunedSpot.hertz;
-    const mode = mapModeForPolo(tunedSpot.modeType);
+    const mode = mapModeForHam2k(tunedSpot.modeType);
 
     // Reference and sig are optional (only for x-OTA spots)
     const theirRef = tunedSpot.locationId && tunedSpot.locationId !== "-" ? tunedSpot.locationId : null;
-    const theirSig = isValidPoloSig(tunedSpot.sig) ? tunedSpot.sig.toLowerCase() : null;
+    const theirSig = isValidHam2kSig(tunedSpot.sig) ? tunedSpot.sig.toLowerCase() : null;
 
     const params = {
-        baseUrl: POLO_DEEP_LINK_QSO_BASE,
+        baseUrl: HAM2K_DEEP_LINK_QSO_BASE,
         theirCall: theirCall,
         theirRef: theirRef,
         theirSig: theirSig,
@@ -669,21 +669,21 @@ function buildPoloChaseLink() {
         mode: mode,
     };
 
-    Log.info("Chase")("Polo params:", JSON.stringify(params));
+    Log.info("Chase")("Ham2K params:", JSON.stringify(params));
     return buildXotaDeepLink(params);
 }
 
-// Launch Ham2K Polo app for logging chase QSO
-function launchPoloChase() {
+// Launch Ham2K logger app for logging chase QSO
+function launchHam2kChase() {
     stopScan();
-    const url = buildPoloChaseLink();
+    const url = buildHam2kChaseLink();
     if (url) {
-        Log.info("Chase")("Launching Polo for chase:", url);
+        Log.info("Chase")("Launching Ham2K for chase:", url);
         // Use location.href for mobile deep link compatibility
         window.location.href = url;
     } else {
-        Log.warn("Chase")("Cannot launch Polo - no valid xOTA spot tuned");
-        alert("Cannot launch Polo - tune to a SOTA/POTA spot first");
+        Log.warn("Chase")("Cannot launch Ham2K - no valid xOTA spot tuned");
+        alert("Cannot launch Ham2K logger - tune to a SOTA/POTA spot first");
     }
 }
 
@@ -755,7 +755,7 @@ function buildChaseRow(spot, isMySpot) {
     const row = document.createElement("tr");
     const modeType = spot.modeType;
 
-    // Add data attributes for VFO matching and Polo deep linking
+    // Add data attributes for VFO matching and Ham2K deep linking
     row.dataset.hertz = spot.hertz || 0;
     row.dataset.modeType = modeType;
     row.dataset.activatorCallsign = spot.activatorCallsign || "";
@@ -898,7 +898,7 @@ function updateChaseTable() {
 
     // The old tbody is detached now; a stale clickedTunedRow would keep its
     // tuned-row class forever (the highlight updater only reaches attached
-    // rows) and feed old spot data to navigation and PoLo links. Remap it
+    // rows) and feed old spot data to navigation and Ham2K links. Remap it
     // to the rebuilt row for the same spot, or drop it.
     if (clickedTunedRow) {
         const d = clickedTunedRow.dataset;
@@ -1117,10 +1117,10 @@ function attachChaseEventListeners() {
         myCallBtn.addEventListener("click", onMyCallClick);
     }
 
-    // Polo chase button
-    const poloChaseBtn = document.getElementById("polo-chase-button");
-    if (poloChaseBtn) {
-        poloChaseBtn.addEventListener("click", launchPoloChase);
+    // Ham2K chase button
+    const ham2kChaseBtn = document.getElementById("ham2k-chase-button");
+    if (ham2kChaseBtn) {
+        ham2kChaseBtn.addEventListener("click", launchHam2kChase);
     }
 
     // Scan button

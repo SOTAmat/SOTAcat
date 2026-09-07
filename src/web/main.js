@@ -46,7 +46,7 @@ const POTA_REF_PATTERN = /^[A-Z]{1,2}-\d{4,5}$/;             // US-1234
 const WWFF_REF_PATTERN = /^[A-Z]{2,4}FF-\d{4}$/;             // VKFF-0001
 const IOTA_REF_PATTERN = /^(AF|AN|AS|EU|NA|OC|SA)-\d{3}$/;   // EU-123
 
-// Derive the activation program ("sig", lowercase for PoLo/SOTAmat links)
+// Derive the activation program ("sig", lowercase for Ham2K/SOTAmat links)
 // from a reference's format. References are uppercased at every input
 // point, so the patterns are deliberately case-sensitive. GMA shares
 // SOTA's format and cannot be distinguished by format alone.
@@ -295,7 +295,7 @@ function expandCwMacroTemplate(template) {
     // CW convention: drop the hyphen from the reference when keying it (the Morse
     // for "-" is long and rarely read). The slash is kept, so SOTA W6/NC-298 keys
     // as W6/NC298 and POTA US-1234 keys as US1234. Non-CW uses of the reference
-    // (PoLo deep-links, SMS spots) read getLocationBasedReference() directly and
+    // (Ham2K deep-links, SMS spots) read getLocationBasedReference() directly and
     // keep the hyphen.
     expanded = expanded.replace(/\{MYREF\}/gi, (getLocationBasedReference() || "").replace(/-/g, ""));
 
@@ -770,14 +770,14 @@ function parseMultiPeriodFrequency(multiPeriod) {
 }
 
 // ============================================================================
-// Ham2K Polo Deep Link Utilities (shared across CAT and Chase pages)
+// Ham2K Deep Link Utilities (shared across CAT and Chase pages)
 // ============================================================================
 
-// Map SOTAcat mode to Polo-compatible mode string
-function mapModeForPolo(mode) {
+// Map SOTAcat mode to Ham2K-compatible mode string
+function mapModeForHam2k(mode) {
     if (!mode) return null;
     const upperMode = mode.toUpperCase();
-    // Map USB/LSB to SSB for Polo
+    // Map USB/LSB to SSB for Ham2K
     if (upperMode === "USB" || upperMode === "LSB") return "SSB";
     // CW modes
     if (upperMode === "CW" || upperMode === "CW_R") return "CW";
@@ -786,15 +786,17 @@ function mapModeForPolo(mode) {
     return upperMode; // Default: pass through as-is
 }
 
-// Deep-link bases for buildXotaDeepLink. PoLo routes on the URL *path*, hence
-// three slashes (path-form; the host is reserved): /operation opens or creates
-// an operation, /vfo sets the logging frequency/mode, /qso presents a QSO.
-const POLO_DEEP_LINK_OPERATION_BASE = "com.ham2k.polo:///operation";
-const POLO_DEEP_LINK_VFO_BASE = "com.ham2k.polo:///vfo";
-const POLO_DEEP_LINK_QSO_BASE = "com.ham2k.polo:///qso";
+// Deep-link bases for buildXotaDeepLink. The bare com.ham2k scheme is claimed
+// by both PoLo and Logger (next); Android offers a chooser when both are
+// installed. Ham2k apps route on the URL *path*, hence three slashes
+// (path-form; the host is reserved): /operation opens or creates an
+// operation, /vfo sets the logging frequency/mode, /qso presents a QSO.
+const HAM2K_DEEP_LINK_OPERATION_BASE = "com.ham2k:///operation";
+const HAM2K_DEEP_LINK_VFO_BASE = "com.ham2k:///vfo";
+const HAM2K_DEEP_LINK_QSO_BASE = "com.ham2k:///qso";
 const SOTAMAT_DEEP_LINK_BASE = "sotamat://api/v1?app=sotacat&appversion=2.2";
 
-// Build xOTA-style deep link URL (Polo, SOTAmat) from parameters.
+// Build xOTA-style deep link URL (Ham2K, SOTAmat) from parameters.
 // All other caller params are optional. Only non-empty values are emitted.
 // params.baseUrl is REQUIRED: callers pass the target app's scheme explicitly.
 // The separator before our query parts is auto-detected: "&" when the
@@ -1296,7 +1298,7 @@ async function tuneRadioHz(frequency, mode) {
     openTuneTargets(frequency, useMode);
 
     // A poll landing between the PUTs and the optimistic AppState write
-    // below would read pre-tune values and revert highlight/PoLo state.
+    // below would read pre-tune values and revert highlight/Ham2K state.
     suppressVfoPolling(VFO_ACTION_SUPPRESS_MS);
 
     try {
@@ -1534,7 +1536,7 @@ setInterval(updateConnectionStatus, CONNECTION_STATUS_UPDATE_INTERVAL_MS);
 // ============================================================================
 // Mobile browsers throttle/freeze background tabs: setInterval ticks stop and
 // in-flight fetches get aborted. When the user returns to SOTAcat (e.g. after
-// switching to Polo and back), don't wait for the next polling tick;
+// switching to Ham2K and back), don't wait for the next polling tick;
 // refresh status immediately so a stale "disconnected" overlay clears and the
 // VFO display snaps back to live.
 

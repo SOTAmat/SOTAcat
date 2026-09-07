@@ -2292,7 +2292,7 @@ button.password-visibility-toggle svg {
         border-bottom: 1px solid var(--border);
     }
 
-    /* Chase page: first 3 controls on one row, PoLo on second row */
+    /* Chase page: first 3 controls on one row, Ham2K on second row */
     .controls-grid {
         display: grid;
         grid-template-columns: auto auto 1fr;
@@ -2315,7 +2315,7 @@ button.password-visibility-toggle svg {
         grid-template-columns: repeat(3, 1fr);
     }
 
-    /* Chase page: keep TX Toggle and PoLo buttons on same row */
+    /* Chase page: keep TX Toggle and Ham2K buttons on same row */
     .controls-grid .control-group:last-child .button-group {
         flex-direction: row;
     }

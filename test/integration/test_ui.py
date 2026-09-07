@@ -839,8 +839,8 @@ class SOTAcatUITests:
         # JavaScript toFixed uses banker's rounding: 37.12345 -> 37.1234, -122.98765 -> -122.9877
         assert result == 'reference_37.1234_-122.9877', f"Key should be formatted correctly, got: {result}"
 
-    def test_polo_button_uses_location_based_reference(self):
-        """PoLo setup button state depends on location-based reference"""
+    def test_ham2k_button_uses_location_based_reference(self):
+        """Ham2K setup button state depends on location-based reference"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="qrx"]')
@@ -864,16 +864,16 @@ class SOTAcatUITests:
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="qrx"]')
         time.sleep(1)
-        polo_btn = self.page.locator('#setup-polo-button')
-        assert polo_btn.is_disabled(), "PoLo button should be disabled without reference"
+        ham2k_btn = self.page.locator('#setup-ham2k-button')
+        assert ham2k_btn.is_disabled(), "Ham2K button should be disabled without reference"
         # Now set a valid reference and reload
         self.page.evaluate(f"() => localStorage.setItem('{key}', 'W6/NC-001')")
         self.page.reload()
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="qrx"]')
         time.sleep(1)
-        polo_btn = self.page.locator('#setup-polo-button')
-        assert not polo_btn.is_disabled(), "PoLo button should be enabled with valid reference"
+        ham2k_btn = self.page.locator('#setup-ham2k-button')
+        assert not ham2k_btn.is_disabled(), "Ham2K button should be enabled with valid reference"
 
     def test_reference_cleared_only_for_current_location(self):
         """Clearing reference only affects current location (via localStorage)"""
@@ -941,8 +941,8 @@ class SOTAcatUITests:
         table = self.page.locator('#chase-table')
         assert table.count() > 0, "Chase table should exist"
 
-    def test_chase_polo_button_exists(self):
-        """Chase page has PoLo button that is disabled by default"""
+    def test_chase_ham2k_button_exists(self):
+        """Chase page has Ham2K button that is disabled by default"""
         # The tuned-row highlight is frequency-proximity based against live
         # spot data, so park the radio where no spot sits (a radio left on
         # 14.074 MHz FT8 by earlier tests legitimately enables the button).
@@ -952,12 +952,12 @@ class SOTAcatUITests:
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="chase"]')
         time.sleep(0.5)
-        polo_btn = self.page.locator('#polo-chase-button')
-        assert polo_btn.count() > 0, "PoLo button should exist"
-        assert polo_btn.is_disabled(), "PoLo button should be disabled when no spot is tuned"
+        ham2k_btn = self.page.locator('#ham2k-chase-button')
+        assert ham2k_btn.count() > 0, "Ham2K button should exist"
+        assert ham2k_btn.is_disabled(), "Ham2K button should be disabled when no spot is tuned"
 
-    def test_chase_polo_validates_cluster_spot(self):
-        """PoLo validation accepts Cluster spots with freq/mode/callsign (no sig/ref)"""
+    def test_chase_ham2k_validates_cluster_spot(self):
+        """Ham2K validation accepts Cluster spots with freq/mode/callsign (no sig/ref)"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
         self.page.click('[data-tab="chase"]')
@@ -978,7 +978,7 @@ class SOTAcatUITests:
             const hasCall = !!mockSpot.activatorCallsign;
             return hasFreq && hasMode && hasCall;
         }''')
-        assert result == True, "Cluster spot with freq/mode/callsign should be valid for PoLo"
+        assert result == True, "Cluster spot with freq/mode/callsign should be valid for Ham2K"
 
     # =========================================================================
     # Header/Status Tests
@@ -1208,7 +1208,7 @@ class SOTAcatUITests:
             self.run_test("Summit info cached with location", self.test_summit_info_cached_with_location_key)
             self.run_test("Locality cached with location", self.test_locality_cached_with_location_key)
             self.run_test("buildLocationKey function", self.test_build_location_key_function)
-            self.run_test("PoLo button uses location ref", self.test_polo_button_uses_location_based_reference)
+            self.run_test("Ham2K button uses location ref", self.test_ham2k_button_uses_location_based_reference)
             self.run_test("Clear ref only for current loc", self.test_reference_cleared_only_for_current_location)
 
             # Chase page elements
@@ -1217,8 +1217,8 @@ class SOTAcatUITests:
             self.run_test("Filter dropdowns", self.test_chase_filter_dropdowns)
             self.run_test("Mode filter SSB+CW option", self.test_chase_mode_filter_ssbcw_option)
             self.run_test("Chase table", self.test_chase_table)
-            self.run_test("PoLo button exists", self.test_chase_polo_button_exists)
-            self.run_test("PoLo validates Cluster spot", self.test_chase_polo_validates_cluster_spot)
+            self.run_test("Ham2K button exists", self.test_chase_ham2k_button_exists)
+            self.run_test("Ham2K validates Cluster spot", self.test_chase_ham2k_validates_cluster_spot)
 
             # Header elements
             print("\nHeader Elements:")

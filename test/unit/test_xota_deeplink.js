@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Unit tests for the shared xOTA deep-link encoder used by both Polo and
+ * Unit tests for the shared xOTA deep-link encoder used by both Ham2K and
  * SOTAmat launches.
  *
  * Covers:
- *   - mapModeForPolo (main.js): mode mapping for Polo / SOTAmat (uppercase, FT8/FT4 passthrough)
+ *   - mapModeForHam2k (main.js): mode mapping for Ham2K / SOTAmat (uppercase, FT8/FT4 passthrough)
  *   - getSigFromReference (run.js): SOTA/POTA/WWFF inference from ref pattern
  *   - buildXotaDeepLink (main.js): URL construction with optional baseUrl, separator detection,
  *     selective field emission
@@ -71,7 +71,7 @@ global.window = { location: { origin: "http://sotacat.local" } };
 
 // --- main.js ---
 
-function mapModeForPolo(mode) {
+function mapModeForHam2k(mode) {
     if (!mode) return null;
     const upperMode = mode.toUpperCase();
     if (upperMode === "USB" || upperMode === "LSB") return "SSB";
@@ -81,7 +81,7 @@ function mapModeForPolo(mode) {
 }
 
 function buildXotaDeepLink(params) {
-    const baseUrl = params.baseUrl || "com.ham2k.polo://qso";
+    const baseUrl = params.baseUrl || "com.ham2k://qso";
     const queryParts = [];
 
     if (params.mySig && params.myRef) {
@@ -133,7 +133,7 @@ function buildSotamatLink(state) {
         mySig:  validRef ? getSigFromReference(myRef) : null,
         myCall: state.callSign || null,
         freq:   state.vfoFrequencyHz || null,
-        mode:   mapModeForPolo(state.vfoMode),
+        mode:   mapModeForHam2k(state.vfoMode),
     });
 }
 
@@ -155,25 +155,25 @@ function getQueryParams(url) {
 }
 
 // ============================================================================
-// mapModeForPolo
+// mapModeForHam2k
 // ============================================================================
 
-describe('mapModeForPolo', () => {
-    it('maps USB to SSB', () => assertEqual(mapModeForPolo("USB"), "SSB"));
-    it('maps LSB to SSB', () => assertEqual(mapModeForPolo("LSB"), "SSB"));
-    it('upcases lowercase usb to SSB', () => assertEqual(mapModeForPolo("usb"), "SSB"));
-    it('maps CW to CW', () => assertEqual(mapModeForPolo("CW"), "CW"));
-    it('maps CW_R to CW', () => assertEqual(mapModeForPolo("CW_R"), "CW"));
-    it('passes FT8 through as FT8 (not folded to DATA)', () => assertEqual(mapModeForPolo("FT8"), "FT8"));
-    it('passes FT4 through as FT4 (not folded to DATA)', () => assertEqual(mapModeForPolo("FT4"), "FT4"));
-    it('passes lowercase ft8 through as FT8', () => assertEqual(mapModeForPolo("ft8"), "FT8"));
-    it('passes FM through as FM', () => assertEqual(mapModeForPolo("FM"), "FM"));
-    it('passes AM through as AM', () => assertEqual(mapModeForPolo("AM"), "AM"));
-    it('passes DATA through as DATA', () => assertEqual(mapModeForPolo("DATA"), "DATA"));
-    it('uppercases unknown mode', () => assertEqual(mapModeForPolo("rtty"), "RTTY"));
-    it('returns null for null', () => assertEqual(mapModeForPolo(null), null));
-    it('returns null for undefined', () => assertEqual(mapModeForPolo(undefined), null));
-    it('returns null for empty string', () => assertEqual(mapModeForPolo(""), null));
+describe('mapModeForHam2k', () => {
+    it('maps USB to SSB', () => assertEqual(mapModeForHam2k("USB"), "SSB"));
+    it('maps LSB to SSB', () => assertEqual(mapModeForHam2k("LSB"), "SSB"));
+    it('upcases lowercase usb to SSB', () => assertEqual(mapModeForHam2k("usb"), "SSB"));
+    it('maps CW to CW', () => assertEqual(mapModeForHam2k("CW"), "CW"));
+    it('maps CW_R to CW', () => assertEqual(mapModeForHam2k("CW_R"), "CW"));
+    it('passes FT8 through as FT8 (not folded to DATA)', () => assertEqual(mapModeForHam2k("FT8"), "FT8"));
+    it('passes FT4 through as FT4 (not folded to DATA)', () => assertEqual(mapModeForHam2k("FT4"), "FT4"));
+    it('passes lowercase ft8 through as FT8', () => assertEqual(mapModeForHam2k("ft8"), "FT8"));
+    it('passes FM through as FM', () => assertEqual(mapModeForHam2k("FM"), "FM"));
+    it('passes AM through as AM', () => assertEqual(mapModeForHam2k("AM"), "AM"));
+    it('passes DATA through as DATA', () => assertEqual(mapModeForHam2k("DATA"), "DATA"));
+    it('uppercases unknown mode', () => assertEqual(mapModeForHam2k("rtty"), "RTTY"));
+    it('returns null for null', () => assertEqual(mapModeForHam2k(null), null));
+    it('returns null for undefined', () => assertEqual(mapModeForHam2k(undefined), null));
+    it('returns null for empty string', () => assertEqual(mapModeForHam2k(""), null));
 });
 
 // ============================================================================
@@ -197,13 +197,13 @@ describe('getSigFromReference', () => {
 });
 
 // ============================================================================
-// buildXotaDeepLink — Polo path (default baseUrl)
+// buildXotaDeepLink — Ham2K path (default baseUrl)
 // ============================================================================
 
-describe('buildXotaDeepLink (Polo default baseUrl)', () => {
-    it('uses com.ham2k.polo://qso when baseUrl absent', () => {
+describe('buildXotaDeepLink (Ham2K default baseUrl)', () => {
+    it('uses com.ham2k://qso when baseUrl absent', () => {
         const url = buildXotaDeepLink({ myRef: "W6/NC-298", mySig: "sota" });
-        assertTrue(url.startsWith("com.ham2k.polo://qso?"), `expected polo prefix, got ${url}`);
+        assertTrue(url.startsWith("com.ham2k://qso?"), `expected ham2k prefix, got ${url}`);
     });
 
     it('encodes our.refs as <sig>:<ref> with slash and colon escaped', () => {
@@ -343,7 +343,7 @@ describe('SOTAmat URL build (launchSOTAmat-equivalent)', () => {
         assertEqual(p.get("our.refs"), "sota:W6/NC-298");
         assertEqual(p.get("our.call"), "W6XYZ");
         assertEqual(p.get("frequency"), "14285000");
-        assertEqual(p.get("mode"), "SSB");  // USB → SSB via mapModeForPolo
+        assertEqual(p.get("mode"), "SSB");  // USB → SSB via mapModeForHam2k
     });
 
     it('valid POTA ref → URL contains our.refs=pota:<ref>', () => {

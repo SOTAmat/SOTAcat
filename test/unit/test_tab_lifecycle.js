@@ -7,7 +7,7 @@
  * - openTab ignores re-entrant calls while a switch is in flight.
  * - A manual firmware version check records its bookkeeping (timestamps,
  *   retry-timer stop) before reporting.
- * - The run page's PoLo button is enabled only when a VFO frequency exists.
+ * - The run page's Ham2K button is enabled only when a VFO frequency exists.
  * - The visibility handler aborts requests frozen mid-flight so its
  *   refreshes are not skipped by the pollers' in-flight guards.
  *
@@ -156,11 +156,11 @@ itAsync('manual version check records bookkeeping before reporting', async () =>
     assertEqual(calls.retryStop, 1, 'retry timer stopped');
 });
 
-// ---- run-page PoLo gating -------------------------------------------------
-console.log('\nRun-page PoLo gating');
+// ---- run-page Ham2K gating -------------------------------------------------
+console.log('\nRun-page Ham2K gating');
 const spotBtnMatch = runJs.match(/function updateSpotButtonStates\(\)[\s\S]*?\n\}/);
 if (spotBtnMatch) {
-    function poloDisabledWith(freq) {
+    function ham2kDisabledWith(freq) {
         const btns = {};
         const mk = (id) => (btns[id] = { disabled: undefined });
         const sandbox = {
@@ -173,10 +173,10 @@ if (spotBtnMatch) {
         vm.createContext(sandbox);
         vm.runInContext(spotBtnMatch[0], sandbox);
         vm.runInContext('updateSpotButtonStates()', sandbox);
-        return btns['polo-spot-button'].disabled;
+        return btns['ham2k-spot-button'].disabled;
     }
-    it('PoLo disabled while no VFO frequency is known', () => assertEqual(poloDisabledWith(null), true));
-    it('PoLo enabled once a frequency exists', () => assertEqual(poloDisabledWith(14074000), false));
+    it('Ham2K disabled while no VFO frequency is known', () => assertEqual(ham2kDisabledWith(null), true));
+    it('Ham2K enabled once a frequency exists', () => assertEqual(ham2kDisabledWith(14074000), false));
 } else {
     it('updateSpotButtonStates found in run.js', () => assertTrue(false, 'extraction failed'));
 }

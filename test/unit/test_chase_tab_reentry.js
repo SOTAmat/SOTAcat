@@ -101,7 +101,7 @@ function loadSandbox() {
         // names must resolve at attachChaseEventListeners call time, so they
         // need to exist in the sandbox even though we don't invoke them.
         onMyCallClick() {},
-        launchPoloChase() {},
+        launchHam2kChase() {},
         toggleScan() {},
         onModeFilterChange() {},
         onTypeFilterChange() {},

@@ -880,7 +880,7 @@ function onRunVfoChanged(frequency, mode) {
     updateBandDisplay();
     updateModeDisplay();
     queuePrivilegeRedraw();   // fires per drag move and per poll tick; coalesce
-    updateSpotButtonStates(); // PoLo enables once a frequency is known
+    updateSpotButtonStates(); // Ham2K enables once a frequency is known
 }
 
 // Re-read the radio immediately (e.g. after a failed set): lift any
@@ -1191,7 +1191,7 @@ function loadCollapsibleStates() {
 // ============================================================================
 
 // Launch SOTAmat app with current activation evidence (ref, callsign, freq, mode).
-// Uses the same xOTA encoder as the Polo deep link for vocabulary parity:
+// Uses the same xOTA encoder as the Ham2K deep link for vocabulary parity:
 //   our.refs=<sig>:<ref>, our.call, frequency (Hz), mode (uppercase),
 //   returnpath (bare origin).
 // Each field is omitted when its source is missing, so SOTAmat (>=2.2) can
@@ -1207,7 +1207,7 @@ function launchSOTAmat() {
         mySig:  validRef ? getSigFromReference(myRef) : null,
         myCall: AppState.callSign || null,
         freq:   AppState.vfoFrequencyHz || null,
-        mode:   mapModeForPolo(AppState.vfoMode),
+        mode:   mapModeForHam2k(AppState.vfoMode),
     });
     Log.info("Spot")("Launching SOTAmat:", url);
     window.location.href = url;
@@ -1232,7 +1232,7 @@ function isSotaReference(ref) {
 // Update spot action buttons enabled state based on reference validity
 // SOTAmāt button is always enabled - the app has its own GPS and summit logic
 // SMS buttons require a valid reference (location-based)
-// Polo button only tells PoLo the VFO, so it needs no reference
+// Ham2K button only tells Ham2K the VFO, so it needs no reference
 function updateSpotButtonStates() {
     const ref = getLocationBasedReference() || "";
     const isValid = isValidSpotReference(ref);
@@ -1240,14 +1240,14 @@ function updateSpotButtonStates() {
     const sotamatBtn = document.getElementById("sotamat-button");
     const smsSpotBtn = document.getElementById("sms-spot-button");
     const smsQrtBtn = document.getElementById("sms-qrt-button");
-    const poloSpotBtn = document.getElementById("polo-spot-button");
+    const ham2kSpotBtn = document.getElementById("ham2k-spot-button");
 
     if (sotamatBtn) sotamatBtn.disabled = false; // SOTAmāt app handles location itself
     if (smsSpotBtn) smsSpotBtn.disabled = !isValid;
     if (smsQrtBtn) smsQrtBtn.disabled = !isValid;
-    if (poloSpotBtn) poloSpotBtn.disabled = !AppState.vfoFrequencyHz; // needs a VFO frequency to deep-link
+    if (ham2kSpotBtn) ham2kSpotBtn.disabled = !AppState.vfoFrequencyHz; // needs a VFO frequency to deep-link
 
-    Log.debug("Spot")(`SOTAmāt/Polo enabled, SMS ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
+    Log.debug("Spot")(`SOTAmāt/Ham2K enabled, SMS ${isValid ? "enabled" : "disabled"}, ref="${ref}"`);
 }
 
 // Map radio mode to SOTAMAT-compatible mode string
@@ -1308,35 +1308,35 @@ function sendQrtSms() {
 }
 
 // ============================================================================
-// Ham2K Polo Deep Link Integration
+// Ham2K Deep Link Integration
 // ============================================================================
-// Note: buildXotaDeepLink() and mapModeForPolo() are defined in main.js
+// Note: buildXotaDeepLink() and mapModeForHam2k() are defined in main.js
 
-// Build Polo deep link telling PoLo the current VFO (frequency + mode).
-// Spotting itself is handled by SOTAcat/SOTAmat/RBN; PoLo only needs its
+// Build Ham2K deep link telling Ham2K the current VFO (frequency + mode).
+// Spotting itself is handled by SOTAcat/SOTAmat/RBN; Ham2K only needs its
 // log to follow the radio, via the /vfo route.
-function buildPoloSpotLink() {
+function buildHam2kSpotLink() {
     const freq = AppState.vfoFrequencyHz || null;
     if (!freq) return null;
-    const mode = mapModeForPolo(AppState.vfoMode);
+    const mode = mapModeForHam2k(AppState.vfoMode);
 
     return buildXotaDeepLink({
-        baseUrl: POLO_DEEP_LINK_VFO_BASE,
+        baseUrl: HAM2K_DEEP_LINK_VFO_BASE,
         freq: freq,
         mode: mode,
     });
 }
 
-// Launch Ham2K Polo app so its log follows the radio's VFO
-function launchPoloSpot() {
-    const url = buildPoloSpotLink();
+// Launch Ham2K logger app so its log follows the radio's VFO
+function launchHam2kSpot() {
+    const url = buildHam2kSpotLink();
     if (url) {
-        Log.info("Spot")("Launching Polo with VFO:", url);
+        Log.info("Spot")("Launching Ham2K with VFO:", url);
         // Use location.href for mobile deep link compatibility
         window.location.href = url;
     } else {
-        Log.warn("Spot")("Cannot launch Polo - no frequency available");
-        alert("Cannot launch Polo - no frequency from the radio yet.");
+        Log.warn("Spot")("Cannot launch Ham2K - no frequency available");
+        alert("Cannot launch Ham2K logger - no frequency from the radio yet.");
     }
 }
 
@@ -1446,10 +1446,10 @@ function attachSpotEventListeners() {
         smsQrtBtn.addEventListener("click", sendQrtSms);
     }
 
-    // Polo spot button
-    const poloSpotBtn = document.getElementById("polo-spot-button");
-    if (poloSpotBtn) {
-        poloSpotBtn.addEventListener("click", launchPoloSpot);
+    // Ham2K spot button
+    const ham2kSpotBtn = document.getElementById("ham2k-spot-button");
+    if (ham2kSpotBtn) {
+        ham2kSpotBtn.addEventListener("click", launchHam2kSpot);
     }
 
     // Message playback buttons

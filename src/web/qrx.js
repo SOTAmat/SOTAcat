@@ -343,7 +343,7 @@ async function loadReference() {
     }
 
     updateNearestSotaButtonState();
-    updatePoloSetupButtonState();
+    updateHam2kSetupButtonState();
 }
 
 // Handle reference input changes - auto-uppercase and filter invalid chars
@@ -408,7 +408,7 @@ function saveReference() {
         saveBtn.className = "btn btn-secondary";
     }
 
-    updatePoloSetupButtonState();
+    updateHam2kSetupButtonState();
 }
 
 // Clear reference from input and localStorage
@@ -441,11 +441,11 @@ async function clearReference() {
         saveBtn.className = "btn btn-secondary";
     }
 
-    updatePoloSetupButtonState();
+    updateHam2kSetupButtonState();
 }
 
 // ============================================================================
-// PoLo Integration Functions
+// Ham2K Integration Functions
 // ============================================================================
 
 // Reference patterns defined in main.js: SOTA_REF_PATTERN, POTA_REF_PATTERN,
@@ -487,30 +487,30 @@ function inferAndFormatReference(input) {
     return input.toUpperCase().replace(/[^A-Z0-9/@-]/g, "");
 }
 
-// Check if reference is valid for PoLo
-function isValidPoloReference(ref) {
+// Check if reference is valid for Ham2K
+function isValidHam2kReference(ref) {
     if (!ref) return false;
     return SOTA_REF_PATTERN.test(ref) || POTA_REF_PATTERN.test(ref) || WWFF_REF_PATTERN.test(ref);
 }
 
 
-// Build Polo deep link for operation setup (myRef + mySig only)
-function buildPoloSetupLink() {
+// Build Ham2K deep link for operation setup (myRef + mySig only)
+function buildHam2kSetupLink() {
     const myRef = getLocationBasedReference();
-    if (!isValidPoloReference(myRef)) return null;
+    if (!isValidHam2kReference(myRef)) return null;
     const mySig = getSigFromReference(myRef);
     if (!mySig) return null;
-    return buildXotaDeepLink({ baseUrl: POLO_DEEP_LINK_OPERATION_BASE, myRef: myRef, mySig: mySig });
+    return buildXotaDeepLink({ baseUrl: HAM2K_DEEP_LINK_OPERATION_BASE, myRef: myRef, mySig: mySig });
 }
 
-// Launch Ham2K Polo app to setup operation
-function launchPoloSetup() {
-    const url = buildPoloSetupLink();
+// Launch Ham2K logger app to setup operation
+function launchHam2kSetup() {
+    const url = buildHam2kSetupLink();
     if (url) {
-        Log.info("QRX")("Launching Polo for operation setup:", url);
+        Log.info("QRX")("Launching Ham2K for operation setup:", url);
         window.location.href = url;
     } else {
-        Log.warn("QRX")("Cannot launch Polo - no valid reference set");
+        Log.warn("QRX")("Cannot launch Ham2K - no valid reference set");
     }
 }
 
@@ -524,12 +524,12 @@ function updateNearestSotaButtonState() {
     btn.disabled = !hasLocation;
 }
 
-// Update PoLo setup button state
-function updatePoloSetupButtonState() {
-    const btn = document.getElementById("setup-polo-button");
+// Update Ham2K setup button state
+function updateHam2kSetupButtonState() {
+    const btn = document.getElementById("setup-ham2k-button");
     if (!btn) return;
     const ref = getLocationBasedReference();
-    btn.disabled = !isValidPoloReference(ref);
+    btn.disabled = !isValidHam2kReference(ref);
 }
 
 // ============================================================================
@@ -588,10 +588,10 @@ function attachQrxEventListeners() {
         clearReferenceBtn.addEventListener("click", clearReference);
     }
 
-    // PoLo setup button
-    const setupPoloBtn = document.getElementById("setup-polo-button");
-    if (setupPoloBtn) {
-        setupPoloBtn.addEventListener("click", launchPoloSetup);
+    // Ham2K setup button
+    const setupHam2kBtn = document.getElementById("setup-ham2k-button");
+    if (setupHam2kBtn) {
+        setupHam2kBtn.addEventListener("click", launchHam2kSetup);
     }
 }
 
