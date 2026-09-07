@@ -14,6 +14,7 @@ class IRadioDriver {
 
     virtual bool supports_keyer () const  = 0;
     virtual bool supports_volume () const = 0;
+    virtual bool supports_smeter () const = 0;
 
     virtual bool get_frequency (KXRadio & radio, long & out_hz)      = 0;
     virtual bool set_frequency (KXRadio & radio, long hz, int tries) = 0;
@@ -25,6 +26,8 @@ class IRadioDriver {
     // out_achieved: the power the radio actually settled on (radios clamp a
     // request above their maximum, e.g. KX2 answers 10 for a requested 15).
     virtual bool set_power (KXRadio & radio, long power, long & out_achieved) = 0;
+
+    virtual bool get_smeter (KXRadio & radio, long & out_bars) = 0;
 
     virtual bool get_volume (KXRadio & radio, long & out_volume) = 0;
     virtual bool set_volume (KXRadio & radio, long volume)       = 0;

@@ -8,9 +8,11 @@
 - [LED Patterns](user/LED-Patterns.md) - Reading the blue and red lights
 - [Networking](user/Networking.md) - WiFi modes and troubleshooting
 - [USB Flashing](user/USB-Flashing.md) - Command-line install and rollback
+- [Rig Control Apps](user/Rig-Control-Apps.md) - Desktop rig control via rigctld (port 4532)
 - [Tune Targets](user/Tune-Targets.md) - WebSDR/KiwiSDR URL templates
 - [Troubleshooting](user/Troubleshooting.md) - Common issues
 - [FAQ](user/FAQ.md) - Slack invitation, common questions
+
 
 ## For Developers
 - [Build](dev/BUILD.md) - Compile and flash firmware

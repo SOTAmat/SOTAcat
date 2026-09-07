@@ -19,6 +19,7 @@ enum class RadioCmdType {
     REFRESH_XMIT,
     REFRESH_POWER,
     REFRESH_VOLUME,
+    REFRESH_SMETER,
     SET_FREQUENCY,
     SET_MODE,    // arg = radio_mode_t value, or RADIO_MODE_SSB_AUTO
     SET_VOLUME,  // arg = delta
@@ -28,7 +29,7 @@ enum class RadioCmdType {
     SET_MSG,     // arg = message bank
     SET_TIME,    // arg = UTC seconds since midnight (0..86399)
 };
-static constexpr int RADIO_REFRESH_KINDS = (int)RadioCmdType::REFRESH_VOLUME - (int)RadioCmdType::REFRESH_FREQUENCY + 1;
+static constexpr int RADIO_REFRESH_KINDS = (int)RadioCmdType::REFRESH_SMETER - (int)RadioCmdType::REFRESH_FREQUENCY + 1;
 static constexpr int RADIO_SET_KINDS     = (int)RadioCmdType::SET_TIME - (int)RadioCmdType::SET_FREQUENCY + 1;
 
 // Start the task. Call once, AFTER kxRadio.connect() has completed in
@@ -67,6 +68,23 @@ int radio_service_set (RadioCmdType type, long arg, uint32_t * gen_out = nullptr
 // pending (PUT freq 14.2 MHz, PUT mode SSB -> snapshot still 7.2 MHz -> LSB).
 static constexpr long RADIO_MODE_SSB_AUTO           = -1;
 static constexpr long RADIO_SSB_LSB_USB_BOUNDARY_HZ = 10'000'000;
+
+// --- blocking client API (rigctld task) -----------------------------
+// NEVER call these from the HTTP server task — handlers park instead
+// (radio_park_httpd.h). Clients on their own task may block.
+
+// Wait until the SET armed as `gen` (from radio_service_set) has been
+// drained by the worker. A completion with a NEWER generation of the same
+// type also settles the wait: the op was superseded, and the newer op's
+// outcome is reported. Returns 1 applied ok, 0 CAT failed or expired-
+// skipped, -1 not drained within timeout_ms.
+int radio_service_set_wait (RadioCmdType type, uint32_t gen, uint32_t timeout_ms);
+
+// Ensure `which`'s snapshot field is fresh: arm a refresh (which also arms
+// the link-down recovery probe) and wait for the worker to complete it.
+// Returns true when the snapshot is fresh — re-read it; false on timeout
+// or when the link goes down while waiting.
+bool radio_service_refresh_wait (RadioCmdType which, uint32_t timeout_ms);
 
 // Map a service op to the park-table kind whose parked HTTP request it
 // satisfies. Returns false only for unknown ops.

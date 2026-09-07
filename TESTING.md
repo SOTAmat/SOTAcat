@@ -65,6 +65,12 @@ Validates 3-tier mutex timeout system (500ms/2000ms/10000ms):
 - Tests frequency/mode/power GET/SET operations
 - Typical results: >95% success rate, zero deadlocks
 
+### rigctld Tests
+Cover the Hamlib NET rigctl server on TCP 4532 (`src/rigctld_server.cpp`), against hardware or the mock (`server.py --rigctld-port`).
+
+- **Contract** (`test_rigctld.py`, `make test-rigctld[-mock]`): the wire protocol. Terse and extended (`+`) responses, freq/mode/PTT/level GETs and SETs, HTTP-face coherence, error codes, session and two-client-plus-backlog behavior, and a gating check that the installed Hamlib `rigctl` binary accepts the advertised levels. Mock adds FT8 and dead-radio scenarios.
+- **Stress** (`test_rigctld_stress.py`, `make test-rigctld-stress[-mock]`): sustained load on the single-task select loop. Steady pollers at a Ham2K-shaped cadence (default = the 2 slots), connect/disconnect churn for fd-leak and slot-accounting, and a concurrent `/version` probe asserting HTTP is never starved. Run `--clients 1` to leave a slot free so churn exercises real connect/serve cycles; the default saturates both slots so extra connects exercise the backlog.
+
 ## Running Tests
 
 ### From Project Root
@@ -92,6 +98,8 @@ make test HOST=192.168.1.100           # Specific device
 make test ITERATIONS=5                 # Quick test (5 iterations)
 make test-performance ITERATIONS=20    # Extended performance test
 make test-mutex STRESS_DURATION=120    # 2-minute stress test
+make test-rigctld                       # rigctld contract test
+make test-rigctld-stress                # rigctld sustained-load test
 ```
 
 ## Test Results

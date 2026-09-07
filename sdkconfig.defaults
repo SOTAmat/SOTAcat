@@ -41,7 +41,9 @@ CONFIG_HTTPD_MAX_REQ_HDR_LEN=512
 CONFIG_LOG_COLORS=y
 
 # --- LWIP sizing / performance knobs ---
-CONFIG_LWIP_MAX_SOCKETS=16
+# 18: httpd worst case is 12 open + listen + control (14); rigctld adds a
+# listen + RIGCTLD_MAX_CLIENTS (2) sessions = 17, +1 spare.
+CONFIG_LWIP_MAX_SOCKETS=18
 CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
 CONFIG_LWIP_TCP_RECVMBOX_SIZE=16
 CONFIG_LWIP_TCP_SND_BUF_DEFAULT=16384

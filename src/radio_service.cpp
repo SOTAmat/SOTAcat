@@ -64,6 +64,20 @@ struct PendingSet {
 static PendingSet s_set_pending[RADIO_SET_KINDS];
 static uint32_t   s_set_gen[RADIO_SET_KINDS] = {};  // last armed generation per type
 
+// Completion journal for blocking waiters (radio_service_set_wait):
+// last drained generation + outcome per type. Guarded by s_req_mutex.
+struct SetDone {
+    uint32_t gen = 0;
+    bool     ok  = false;
+    bool     any = false;  // false until the first completion (gen 0 is not "done")
+};
+
+static SetDone s_set_done[RADIO_SET_KINDS];
+
+// Blocking waiters poll at this cadence; they run on their own tasks
+// (rigctld), never the HTTP server task, so a poll loop is fine.
+static constexpr uint32_t WAIT_POLL_MS = 10;
+
 bool radio_service_park_kind (RadioCmdType t, RadioParkKind & k) {
     switch (t) {
     case RadioCmdType::REFRESH_FREQUENCY: k = RadioParkKind::GET_FREQUENCY; return true;
@@ -71,6 +85,7 @@ bool radio_service_park_kind (RadioCmdType t, RadioParkKind & k) {
     case RadioCmdType::REFRESH_XMIT: k = RadioParkKind::GET_XMIT; return true;
     case RadioCmdType::REFRESH_POWER: k = RadioParkKind::GET_POWER; return true;
     case RadioCmdType::REFRESH_VOLUME: k = RadioParkKind::GET_VOLUME; return true;
+    case RadioCmdType::REFRESH_SMETER: k = RadioParkKind::GET_SMETER; return true;
     case RadioCmdType::SET_FREQUENCY: k = RadioParkKind::SET_FREQUENCY; return true;
     case RadioCmdType::SET_MODE: k = RadioParkKind::SET_MODE; return true;
     case RadioCmdType::SET_VOLUME: k = RadioParkKind::SET_VOLUME; return true;
@@ -149,6 +164,10 @@ static bool probe_link () {
 // does not touch the snapshot.
 static bool do_refresh (RadioCmdType which, bool & ok_out) {
     ok_out = false;
+    // Capability gate BEFORE any CAT: "unsupported" is a final answer, not
+    // a link failure — it must never feed the health machine.
+    if (which == RadioCmdType::REFRESH_SMETER && !kxRadio.supports_smeter())
+        return true;  // drained; ok_out stays false
     // The lock is bounded by WORKER_LOCK_TIMEOUT_MS, not portMAX_DELAY:
     // FT8 and the unconverted handler_cat/handler_time paths also contend
     // for the radio mutex, so an unbounded wait could sit past the 20 s
@@ -191,6 +210,12 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
         ok     = kxRadio.get_volume (v) && v >= 0;
         if (ok)
             radio_snapshot::set_volume (v, now);
+    }
+    else if (which == RadioCmdType::REFRESH_SMETER) {
+        long bars = -1;
+        ok        = kxRadio.get_smeter (bars) && bars >= 0;
+        if (ok)
+            radio_snapshot::set_smeter (bars, now);
     }
     if (ok)
         s_health.record_success();
@@ -380,6 +405,9 @@ static void radio_service_task (void *) {
                 RadioCmdType st = (RadioCmdType)((int)RadioCmdType::SET_FREQUENCY + i);
                 bool         ok = false;
                 if (do_set (st, ps.arg, ps.expires_at_us, ok)) {
+                    xSemaphoreTake (s_req_mutex, portMAX_DELAY);
+                    s_set_done[i] = {ps.gen, ok, true};
+                    xSemaphoreGive (s_req_mutex);
                     notify_done (st, ps.gen, ok);
                 }
                 else {
@@ -495,4 +523,57 @@ int radio_service_set (RadioCmdType type, long arg, uint32_t * gen_out) {
     if (w)
         xTaskNotifyGive (w);
     return 0;  // accepted; applies asynchronously
+}
+
+// --- blocking client API (rigctld task; see radio_service.h) --------
+
+int radio_service_set_wait (RadioCmdType type, uint32_t gen, uint32_t timeout_ms) {
+    int idx = (int)type - (int)RadioCmdType::SET_FREQUENCY;
+    if (idx < 0 || idx >= RADIO_SET_KINDS || !s_req_mutex)
+        return -1;
+    int64_t deadline = esp_timer_get_time() + (int64_t)timeout_ms * 1000;
+    for (;;) {
+        SetDone d;
+        xSemaphoreTake (s_req_mutex, portMAX_DELAY);
+        d = s_set_done[idx];
+        xSemaphoreGive (s_req_mutex);
+        // Wraparound-safe "done >= wanted", as in radio_park.h.
+        if (d.any && (int32_t)(d.gen - gen) >= 0)
+            return d.ok ? 1 : 0;
+        if (esp_timer_get_time() >= deadline)
+            return -1;
+        vTaskDelay (pdMS_TO_TICKS (WAIT_POLL_MS));
+    }
+}
+
+static bool snapshot_field_fresh (RadioCmdType which, int64_t now) {
+    RadioSnapshotData s = radio_snapshot::get();
+    switch (which) {
+    case RadioCmdType::REFRESH_FREQUENCY: return s.frequency_fresh (now);
+    case RadioCmdType::REFRESH_MODE: return s.mode_fresh (now);
+    case RadioCmdType::REFRESH_XMIT: return s.xmit_fresh (now);
+    case RadioCmdType::REFRESH_POWER: return s.power_fresh (now);
+    case RadioCmdType::REFRESH_VOLUME: return s.volume_fresh (now);
+    case RadioCmdType::REFRESH_SMETER: return s.smeter_fresh (now);
+    default: return false;
+    }
+}
+
+bool radio_service_refresh_wait (RadioCmdType which, uint32_t timeout_ms) {
+    int idx = (int)which - (int)RadioCmdType::REFRESH_FREQUENCY;
+    if (idx < 0 || idx >= RADIO_REFRESH_KINDS || !s_req_mutex)
+        return false;
+    if (snapshot_field_fresh (which, esp_timer_get_time()))
+        return true;
+    radio_service_request_refresh (which);
+    int64_t deadline = esp_timer_get_time() + (int64_t)timeout_ms * 1000;
+    for (;;) {
+        if (snapshot_field_fresh (which, esp_timer_get_time()))
+            return true;
+        // Link down: bail now rather than sit out the timeout — the armed
+        // refresh above already scheduled the recovery probe.
+        if (!radio_service_link_up() || esp_timer_get_time() >= deadline)
+            return false;
+        vTaskDelay (pdMS_TO_TICKS (WAIT_POLL_MS));
+    }
 }

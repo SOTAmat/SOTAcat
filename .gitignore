@@ -126,4 +126,8 @@ test/host/test_radio_set_gate
 test/host/test_battery_learned
 test/host/test_json_scan
 test/host/test_radio_get_gate
+test/host/test_rigctld_proto
+
+# Mock-server pid files left by aborted test-*-mock runs
+test/mock_server/.mock_*.pid
 

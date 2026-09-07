@@ -99,6 +99,7 @@ class KXRadio {
     bool set_mode (radio_mode_t mode, int tries);
     bool get_power (long & out_power);
     bool set_power (long power, long & out_achieved);
+    bool get_smeter (long & out_bars);
     bool get_volume (long & out_volume);
     bool set_volume (long volume);
     bool get_xmit_state (long & out_state);
@@ -107,6 +108,7 @@ class KXRadio {
     bool tune_atu ();
     bool supports_keyer () const;
     bool supports_volume () const;
+    bool supports_smeter () const;
     bool send_keyer_message (const char * message);
 
     // True while an HTTP-accepted CW keyer request is outstanding (between

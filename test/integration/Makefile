@@ -12,7 +12,7 @@ EXPECT_RADIO ?= healthy
 # Detect if venv exists
 VENV_EXISTS := $(shell [ -f $(PYTHON) ] && echo 1 || echo 0)
 
-.PHONY: help setup test test-performance test-mutex test-ui test-ui-mock test-contract test-contract-mock clean
+.PHONY: help setup test test-performance test-mutex test-ui test-ui-mock test-contract test-contract-mock test-rigctld test-rigctld-mock test-rigctld-stress test-rigctld-stress-mock clean
 
 help:
 	@echo "SOTAcat Integration Tests"
@@ -26,6 +26,10 @@ help:
 	@echo "  test-ui-mock     - Same, against a self-managed mock (no hardware)"
 	@echo "  test-contract    - Radio GET/SET HTTP contract test against HOST"
 	@echo "  test-contract-mock - Same, against the mock server (healthy + dead radio; no hardware)"
+	@echo "  test-rigctld     - rigctld (Hamlib TCP 4532) contract test against HOST"
+	@echo "  test-rigctld-mock - Same, against the mock server (incl. FT8/dead scenarios; no hardware)"
+	@echo "  test-rigctld-stress - Sustained rigctld load (pollers + churn + HTTP coexistence) against HOST"
+	@echo "  test-rigctld-stress-mock - Same, against the mock server (no hardware)"
 	@echo "  clean            - Remove test results and cache files"
 	@echo ""
 	@echo "Variables:"
@@ -84,8 +88,8 @@ test-contract: check-venv
 # --no-debug: the Flask reloader forks a child the pidfile kill would orphan.
 test-contract-mock: check-venv
 	@echo "Running radio HTTP contract test against the mock server..."
-	@cd ../mock_server && $(PYTHON) server.py --port 8099 --no-debug > /dev/null 2>&1 & echo $$! > .mock_healthy.pid
-	@cd ../mock_server && $(PYTHON) server.py --port 8098 --no-debug --radio-dead --radio-latency 2000 > /dev/null 2>&1 & echo $$! > .mock_dead.pid
+	@cd ../mock_server && $(PYTHON) server.py --port 8099 --no-debug --rigctld-port 0 > /dev/null 2>&1 & echo $$! > .mock_healthy.pid
+	@cd ../mock_server && $(PYTHON) server.py --port 8098 --no-debug --rigctld-port 0 --radio-dead --radio-latency 2000 > /dev/null 2>&1 & echo $$! > .mock_dead.pid
 	@sleep 3
 	@rc=0; \
 	$(PYTHON) test_radio_contract.py --host localhost:8099 --expect-radio healthy || rc=1; \
@@ -103,6 +107,35 @@ test-ui-mock: check-venv
 	@rc=0; \
 	$(PYTHON) test_ui.py --base-url http://localhost:8097 || rc=1; \
 	kill $$(cat .mock_ui.pid) 2>/dev/null; rm -f .mock_ui.pid; \
+	exit $$rc
+
+test-rigctld: check-venv
+	@echo "Running rigctld contract test against $(HOST)..."
+	@$(PYTHON) test_rigctld.py --host $(HOST) --expect-radio $(EXPECT_RADIO)
+
+# Spawns one mock (HTTP + rigctld), runs the rigctld contract test; the
+# FT8 and dead-radio scenarios flip state through the HTTP _debug endpoint.
+test-rigctld-mock: check-venv
+	@echo "Running rigctld contract test against the mock server..."
+	@cd ../mock_server && $(PYTHON) server.py --port 8097 --no-debug --rigctld-port 14532 > /dev/null 2>&1 & echo $$! > .mock_rigctld.pid
+	@sleep 3
+	@rc=0; \
+	$(PYTHON) test_rigctld.py --host localhost --port 14532 --http-port 8097 || rc=1; \
+	kill $$(cat .mock_rigctld.pid) 2>/dev/null; rm -f .mock_rigctld.pid; \
+	exit $$rc
+
+test-rigctld-stress: check-venv
+	@echo "Running rigctld stress test against $(HOST)..."
+	@$(PYTHON) test_rigctld_stress.py --host $(HOST) --duration $(STRESS_DURATION)
+
+# Spawns one mock (HTTP + rigctld), runs the rigctld stress test, tears down.
+test-rigctld-stress-mock: check-venv
+	@echo "Running rigctld stress test against the mock server..."
+	@cd ../mock_server && $(PYTHON) server.py --port 8097 --no-debug --rigctld-port 14532 > /dev/null 2>&1 & echo $$! > .mock_rigctld_stress.pid
+	@sleep 3
+	@rc=0; \
+	$(PYTHON) test_rigctld_stress.py --host localhost --port 14532 --http-port 8097 --duration 20 || rc=1; \
+	kill $$(cat .mock_rigctld_stress.pid) 2>/dev/null; rm -f .mock_rigctld_stress.pid; \
 	exit $$rc
 
 clean:
