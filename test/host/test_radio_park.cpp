@@ -128,6 +128,7 @@ static void test_is_set_kind() {
     assert (!RadioParkTable::is_set_kind (RadioParkKind::GET_XMIT));
     assert (RadioParkTable::is_set_kind (RadioParkKind::SET_FREQUENCY));
     assert (RadioParkTable::is_set_kind (RadioParkKind::SET_ATU));
+    assert (RadioParkTable::is_set_kind (RadioParkKind::SET_MANUAL_TUNE));
 }
 
 int main() {
