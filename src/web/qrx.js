@@ -310,40 +310,54 @@ async function loadReference() {
     const saveBtn = document.getElementById("save-reference-button");
     const summitInfoDiv = document.getElementById("summit-info");
 
-    // Ensure location is cached for sync helpers
-    const location = await getLocation();
-
-    // Load reference for current location (no fetch - only fetched on button press)
-    if (referenceInput) {
-        let stored = getLocationBasedReference();
-        if (!stored) {
-            const legacy = localStorage.getItem("qrxReference") || "";
-            if (legacy) {
-                setLocationBasedReference(legacy);
-                localStorage.removeItem("qrxReference");
-                stored = legacy;
+    // Fill from the best-known location before asking the device, so the
+    // field is usable while the gps request is pending or stalled.
+    const showStoredReference = () => {
+        if (referenceInput) {
+            let stored = getLocationBasedReference();
+            if (!stored) {
+                const legacy = localStorage.getItem("qrxReference") || "";
+                if (legacy) {
+                    setLocationBasedReference(legacy);
+                    localStorage.removeItem("qrxReference");
+                    stored = legacy;
+                }
             }
+            referenceInput.value = stored;
+            originalReferenceValue = stored;
         }
-        referenceInput.value = stored;
-        originalReferenceValue = stored;
-    }
-
-    // Display cached summit info for current location
-    if (summitInfoDiv) {
-        if (hasValidLocation(location)) {
+        if (summitInfoDiv) {
+            const location = knownLocation();
             summitInfoDiv.textContent = readCachedSummitInfo(location.latitude, location.longitude);
-        } else {
-            summitInfoDiv.textContent = "";
         }
-    }
-
-    if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.className = "btn btn-secondary";
-    }
-
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.className = "btn btn-secondary";
+        }
+        updateHam2kSetupButtonState();
+    };
+    showStoredReference();
     updateNearestSotaButtonState();
-    updateHam2kSetupButtonState();
+
+    // The device may report a different location than the interim one. A
+    // reference saved meanwhile follows it; one merely shown for the interim
+    // location does not; text still being typed is kept.
+    const referenceKey = () => {
+        const location = knownLocation();
+        return buildLocationKey("reference", location.latitude, location.longitude);
+    };
+    const interimKey = referenceKey();
+    const shownAtStart = originalReferenceValue;
+    await getLocation();
+    if (!referenceInput) return;
+    const untouched = referenceInput.value === originalReferenceValue;
+    const savedMeanwhile = originalReferenceValue && originalReferenceValue !== shownAtStart;
+    if (referenceKey() !== interimKey && untouched && savedMeanwhile) {
+        setLocationBasedReference(originalReferenceValue);
+    }
+    if (untouched) {
+        showStoredReference();
+    }
 }
 
 // Handle reference input changes - auto-uppercase and filter invalid chars

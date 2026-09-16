@@ -1195,6 +1195,93 @@ class SOTAcatUITests:
         dialogs = self._open_qrx_with_one_failure('/qrx.html')
         self._assert_qrx_functional(dialogs)
 
+    # =========================================================================
+    # Reference Save While Device Location Is Pending
+    # =========================================================================
+    # A summit-side stall can leave the device gps request unanswered for
+    # seconds or forever. A manually entered reference must still save, and
+    # the late answer must not overwrite what the user typed.
+
+    def test_reference_saves_while_gps_pending(self):
+        """Reference typed and saved before the device gps answers is stored and kept"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.evaluate("localStorage.setItem('activeTab', 'qrx')")
+        # First use on this browser: no location cached, so only the device can supply one
+        self.page.evaluate("localStorage.removeItem('cachedGpsLocation')")
+        held = []
+
+        def handler(route, request):
+            if request.url.endswith('/api/v1/gps') and request.method == 'GET':
+                held.append(route)  # answered only after release below
+                return
+            route.continue_()
+
+        self.context.route("**/*", handler)
+        try:
+            self.page.goto(self.url('/'))
+            self.page.wait_for_timeout(1500)
+            assert held, "test did not intercept the device gps request"
+            ref_input = self.page.locator('#reference-input')
+            ref_input.click()
+            self.page.keyboard.type("w6nc423")
+            self.page.locator('h2').first.click()  # blur formats
+            self.page.wait_for_timeout(200)
+            assert ref_input.input_value() == "W6/NC-423", f"got {ref_input.input_value()!r}"
+            self.page.click('#save-reference-button')
+            self.page.wait_for_timeout(300)
+            stored = self.page.evaluate(
+                "Object.keys(localStorage).filter(k => k.startsWith('reference_')).map(k => localStorage.getItem(k))")
+            assert "W6/NC-423" in stored, f"reference not stored while gps pending: {stored}"
+            assert ref_input.input_value() == "W6/NC-423", "typed reference vanished after Save"
+            # Device finally answers with a location unlike the interim default
+            for route in held:
+                route.fulfill(json={"gps_lat": "37.7", "gps_lon": "-119.6"})
+            self.page.wait_for_timeout(1500)
+        finally:
+            self.context.unroute("**/*", handler)
+        assert ref_input.input_value() == "W6/NC-423", \
+            f"late gps answer overwrote the reference: {ref_input.input_value()!r}"
+        assert self.page.evaluate("localStorage.getItem('reference_37.7000_-119.6000')") == "W6/NC-423", \
+            "reference did not follow the device-reported location"
+        assert self.page.locator('#save-reference-button').is_disabled(), "Save should read as saved"
+        assert not self.page.locator('#setup-ham2k-button').is_disabled(), "Setup Ham2K should enable"
+
+    def test_reference_not_copied_to_new_location(self):
+        """A reference shown for the cached location is not copied onto the device's location"""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.evaluate("""() => {
+            localStorage.setItem('activeTab', 'qrx');
+            localStorage.setItem('cachedGpsLocation', JSON.stringify({latitude: 40.0, longitude: -105.0}));
+            localStorage.setItem('reference_40.0000_-105.0000', 'W0C/FR-001');
+            localStorage.removeItem('reference_37.7000_-119.6000');
+        }""")
+        held = []
+
+        def handler(route, request):
+            if request.url.endswith('/api/v1/gps') and request.method == 'GET':
+                held.append(route)
+                return
+            route.continue_()
+
+        self.context.route("**/*", handler)
+        try:
+            self.page.goto(self.url('/'))
+            self.page.wait_for_timeout(1500)
+            assert held, "test did not intercept the device gps request"
+            ref_input = self.page.locator('#reference-input')
+            assert ref_input.input_value() == "W0C/FR-001", "cached location's reference should show while pending"
+            for route in held:
+                route.fulfill(json={"gps_lat": "37.7", "gps_lon": "-119.6"})
+            self.page.wait_for_timeout(1500)
+        finally:
+            self.context.unroute("**/*", handler)
+        assert ref_input.input_value() == "", \
+            f"device location has no reference yet, field shows {ref_input.input_value()!r}"
+        assert self.page.evaluate("localStorage.getItem('reference_37.7000_-119.6000')") is None, \
+            "reference was wrongly copied onto the device-reported location"
+
     def run_all(self) -> TestSuite:
         """Run all UI tests"""
         print(f"\nSOTAcat UI Tests")
@@ -1266,6 +1353,11 @@ class SOTAcatUITests:
             print("\nTab Load Resilience:")
             self.run_test("Tab load survives script 408", self.test_tab_load_survives_script_408)
             self.run_test("Tab load survives HTML 408", self.test_tab_load_survives_html_408)
+
+            # Reference save with device location pending
+            print("\nReference With Location Pending:")
+            self.run_test("Reference saves while gps pending", self.test_reference_saves_while_gps_pending)
+            self.run_test("Reference not copied to new location", self.test_reference_not_copied_to_new_location)
 
             # Location-based caching tests
             print("\nLocation-Based Caching Tests:")
