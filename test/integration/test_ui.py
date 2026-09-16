@@ -1133,6 +1133,68 @@ class SOTAcatUITests:
     # Run All Tests
     # =========================================================================
 
+
+    # =========================================================================
+    # Tab Load Resilience Tests
+    # =========================================================================
+    # The device answers a request whose headers stall past its 5s
+    # recv_wait_timeout with HTTP 408 (ESP-IDF httpd). A tab switch must ride
+    # through one such transient failure and still deliver a working page.
+
+    def _open_qrx_with_one_failure(self, path_suffix: str):
+        """Reload the app onto QRX while the first request for path_suffix
+        answers 408. Returns the list of alert dialogs seen."""
+        self.page.goto(self.url('/'))
+        self.page.wait_for_load_state('networkidle')
+        self.page.evaluate("localStorage.setItem('activeTab', 'qrx')")
+        dialogs = []
+        self.page.on("dialog", lambda d: (dialogs.append(d.message), d.dismiss()))
+        failed = {"done": False}
+
+        def handler(route, request):
+            if not failed["done"] and request.url.endswith(path_suffix):
+                failed["done"] = True
+                route.fulfill(status=408, body="Server closed this connection")
+                return
+            route.continue_()
+
+        self.context.route("**/*", handler)
+        try:
+            self.page.goto(self.url('/'))
+            # Not time.sleep: the sync API only serves route callbacks while
+            # a Playwright call is in progress, and the retry lands here.
+            self.page.wait_for_timeout(3000)
+        finally:
+            self.context.unroute("**/*", handler)
+        assert failed["done"], f"test did not intercept a request for {path_suffix}"
+        return dialogs
+
+    def _assert_qrx_functional(self, dialogs):
+        tab_alerts = [d for d in dialogs if "switching tabs" in d]
+        assert tab_alerts == [], f"tab load should recover silently, got alert: {tab_alerts}"
+        assert self.page.evaluate("typeof window.onQrxAppearing") == "function", \
+            "QRX page script never loaded"
+        ref_input = self.page.locator('#reference-input')
+        assert ref_input.count() > 0, "QRX page content not rendered"
+        ref_input.click()
+        self.page.keyboard.type("w6nc423")
+        self.page.locator('h2').first.click()  # blur
+        time.sleep(0.3)
+        assert ref_input.input_value() == "W6/NC-423", \
+            f"reference not formatted on blur: {ref_input.input_value()!r} (page has no script behind it)"
+        assert not self.page.locator('#save-reference-button').is_disabled(), \
+            "Save reference should enable after typing"
+
+    def test_tab_load_survives_script_408(self):
+        """A transient 408 on the page script still yields a working QRX page"""
+        dialogs = self._open_qrx_with_one_failure('/qrx.js')
+        self._assert_qrx_functional(dialogs)
+
+    def test_tab_load_survives_html_408(self):
+        """A transient 408 on the page HTML still yields a working QRX page"""
+        dialogs = self._open_qrx_with_one_failure('/qrx.html')
+        self._assert_qrx_functional(dialogs)
+
     def run_all(self) -> TestSuite:
         """Run all UI tests"""
         print(f"\nSOTAcat UI Tests")
@@ -1199,6 +1261,11 @@ class SOTAcatUITests:
             self.run_test("Nearest SOTA disabled without location", self.test_qrx_nearest_sota_button_disabled_without_location)
             self.run_test("Nearest SOTA enabled with location", self.test_qrx_nearest_sota_button_enabled_with_location)
             self.run_test("Summit info element", self.test_qrx_summit_info_element)
+
+            # Tab load resilience
+            print("\nTab Load Resilience:")
+            self.run_test("Tab load survives script 408", self.test_tab_load_survives_script_408)
+            self.run_test("Tab load survives HTML 408", self.test_tab_load_survives_html_408)
 
             # Location-based caching tests
             print("\nLocation-Based Caching Tests:")

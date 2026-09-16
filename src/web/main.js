@@ -1339,49 +1339,66 @@ async function tuneRadioHz(frequency, mode) {
 // Track loaded tab scripts to avoid duplicates
 const loadedTabScripts = new Set();
 
-// Load tab-specific JavaScript file if not already loaded (tabName: 'chase', 'cat', 'settings', 'about')
+// The device answers a request whose headers stall past its 5 s
+// recv_wait_timeout with HTTP 408 (a summit-side WiFi hiccup is enough); a
+// tab switch rides through a few of those before surfacing the failure.
+const TAB_LOAD_ATTEMPTS = 3;
+const TAB_LOAD_RETRY_DELAY_MS = 500;
+
+async function withTabLoadRetry(label, attemptFn) {
+    let lastError;
+    for (let attempt = 1; attempt <= TAB_LOAD_ATTEMPTS; attempt++) {
+        try {
+            return await attemptFn();
+        } catch (error) {
+            lastError = error;
+            Log.warn("Tab")(`${label}: attempt ${attempt}/${TAB_LOAD_ATTEMPTS} failed: ${error.message}`);
+            if (attempt < TAB_LOAD_ATTEMPTS) {
+                await new Promise((resolve) => setTimeout(resolve, TAB_LOAD_RETRY_DELAY_MS * attempt));
+            }
+        }
+    }
+    throw lastError;
+}
+
+// Fetch a tab's HTML; a non-OK status is a failed attempt, never content.
+async function fetchTabContent(contentPath) {
+    return withTabLoadRetry(contentPath, async () => {
+        const response = await fetch(contentPath);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch ${contentPath}: ${response.status} ${response.statusText}`);
+        }
+        return response.text();
+    });
+}
+
+// Load a tab's script once per page life. Every tab has one, so a script
+// that fails to load is a failed tab switch, never a page without behavior.
 async function loadTabScriptIfNeeded(tabName) {
     const scriptPath = `${tabName}.js`;
-    Log.debug("Script")(`Checking: ${scriptPath}`);
-
     if (loadedTabScripts.has(scriptPath)) {
-        // Script already loaded, resolve immediately
         Log.debug("Script")(`Already loaded: ${scriptPath}`);
         return;
     }
 
-    Log.debug("Script")(`Loading: ${scriptPath}`);
-
-    try {
-        const response = await fetch(scriptPath);
-
-        if (!response.ok) {
-            Log.warn("Script")(`Fetch failed: ${scriptPath} (${response.status})`);
-            // If the script doesn't need to be loaded (e.g., not found), resolve the promise
-            return;
-        }
-
-        // Create script tag and add to document
-        return new Promise((resolve, reject) => {
-            const scriptTag = document.createElement("script");
-            scriptTag.src = scriptPath;
-            scriptTag.onload = () => {
-                Log.debug("Script")(`Loaded: ${scriptPath}`);
-                loadedTabScripts.add(scriptPath);
-                resolve();
-            };
-            scriptTag.onerror = (error) => {
-                Log.error("Script")(`Load error: ${scriptPath}`, error);
-                reject(error);
-            };
-
-            // Add the script to the page
-            document.body.appendChild(scriptTag);
-        });
-    } catch (error) {
-        Log.error("Script")(`Fetch error: ${scriptPath}`, error);
-        throw error;
-    }
+    await withTabLoadRetry(
+        scriptPath,
+        () =>
+            new Promise((resolve, reject) => {
+                const scriptTag = document.createElement("script");
+                scriptTag.src = scriptPath;
+                scriptTag.onload = () => {
+                    Log.debug("Script")(`Loaded: ${scriptPath}`);
+                    loadedTabScripts.add(scriptPath);
+                    resolve();
+                };
+                scriptTag.onerror = () => {
+                    scriptTag.remove();
+                    reject(new Error(`Failed to load ${scriptPath}`));
+                };
+                document.body.appendChild(scriptTag);
+            })
+    );
 }
 
 // Switch to a different tab (tabName: 'chase', 'cat', 'settings', 'about')
@@ -1425,12 +1442,7 @@ async function openTab(tabName) {
         const contentPath = `${AppState.currentTabName}.html`;
         Log.debug("Tab")(`Fetching: ${contentPath}`);
 
-        const response = await fetch(contentPath);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch ${contentPath}: ${response.status} ${response.statusText}`);
-        }
-
-        const text = await response.text();
+        const text = await fetchTabContent(contentPath);
         document.getElementById("content-area").innerHTML = text;
         Log.debug("Tab")(`Content loaded: ${AppState.currentTabName}`);
 

@@ -63,6 +63,8 @@ if (loadTabMatch) {
 
 // ---- openTab re-entrancy -------------------------------------------------
 const openTabMatch = mainJs.match(/async function openTab\(tabName\)[\s\S]*?\n\}/);
+// openTab loads content through the retry helpers; run the real ones over the stubbed fetch.
+const tabLoadHelpersMatch = mainJs.match(/const TAB_LOAD_ATTEMPTS = [\s\S]*?async function fetchTabContent\([\s\S]*?\n\}/);
 
 function makeOpenTabSandbox() {
     let releaseFetch;
@@ -78,6 +80,7 @@ function makeOpenTabSandbox() {
         saveActiveTab: () => {},
         loadTabScriptIfNeeded: async () => {},
         alert: () => {},
+        setTimeout,
         document: {
             querySelectorAll: () => [],
             getElementById: () => el,
@@ -88,12 +91,14 @@ function makeOpenTabSandbox() {
         _releaseFetch: () => releaseFetch(),
     };
     vm.createContext(sandbox);
+    vm.runInContext(tabLoadHelpersMatch ? tabLoadHelpersMatch[0] : '', sandbox);
     vm.runInContext(openTabMatch ? openTabMatch[0] : 'function openTab(){}', sandbox);
     return sandbox;
 }
 
 itAsync('openTab ignores a second call while a switch is in flight', async () => {
     assertTrue(!!openTabMatch, 'openTab extraction failed');
+    assertTrue(!!tabLoadHelpersMatch, 'tab load helpers extraction failed');
     const sb = makeOpenTabSandbox();
     const first = vm.runInContext('openTab("chase")', sb);
     await new Promise((r) => setImmediate(r));           // let first reach its fetch
