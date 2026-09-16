@@ -12,7 +12,7 @@ EXPECT_RADIO ?= healthy
 # Detect if venv exists
 VENV_EXISTS := $(shell [ -f $(PYTHON) ] && echo 1 || echo 0)
 
-.PHONY: help setup test test-performance test-mutex test-ui test-ui-mock test-contract test-contract-mock test-rigctld test-rigctld-mock test-rigctld-stress test-rigctld-stress-mock clean
+.PHONY: help setup test test-performance test-mutex test-ui test-ui-mock test-contract test-contract-mock test-rigctld test-rigctld-mock test-rigctld-stress test-rigctld-stress-mock test-dual-stress test-dual-stress-mock clean
 
 help:
 	@echo "SOTAcat Integration Tests"
@@ -30,6 +30,8 @@ help:
 	@echo "  test-rigctld-mock - Same, against the mock server (incl. FT8/dead scenarios; no hardware)"
 	@echo "  test-rigctld-stress - Sustained rigctld load (pollers + churn + HTTP coexistence) against HOST"
 	@echo "  test-rigctld-stress-mock - Same, against the mock server (no hardware)"
+	@echo "  test-dual-stress - rigctld logger + browser tabs + page loads + tunes at once, against HOST"
+	@echo "  test-dual-stress-mock - Same, against the mock server (no hardware)"
 	@echo "  clean            - Remove test results and cache files"
 	@echo ""
 	@echo "Variables:"
@@ -136,6 +138,21 @@ test-rigctld-stress-mock: check-venv
 	@rc=0; \
 	$(PYTHON) test_rigctld_stress.py --host localhost --port 14532 --http-port 8097 --duration 20 || rc=1; \
 	kill $$(cat .mock_rigctld_stress.pid) 2>/dev/null; rm -f .mock_rigctld_stress.pid; \
+	exit $$rc
+
+# Ham2K-shaped rigctld traffic and browser-shaped HTTP traffic at the same
+# time (the field setup): the two single-interface stress tests never mix them.
+test-dual-stress: check-venv
+	@echo "Running dual-interface (rigctld + browser) stress test against $(HOST)..."
+	@$(PYTHON) test_dual_interface_stress.py --host $(HOST) --duration $(STRESS_DURATION)
+
+test-dual-stress-mock: check-venv
+	@echo "Running dual-interface stress test against the mock server..."
+	@cd ../mock_server && $(PYTHON) server.py --port 8097 --no-debug --rigctld-port 14532 > /dev/null 2>&1 & echo $$! > .mock_dual_stress.pid
+	@sleep 3
+	@rc=0; \
+	$(PYTHON) test_dual_interface_stress.py --host localhost --port 14532 --http-port 8097 --duration 20 --pageload-s 5 --tune-s 6 || rc=1; \
+	kill $$(cat .mock_dual_stress.pid) 2>/dev/null; rm -f .mock_dual_stress.pid; \
 	exit $$rc
 
 clean:
