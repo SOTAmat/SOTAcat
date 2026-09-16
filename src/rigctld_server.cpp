@@ -28,6 +28,12 @@ static constexpr int RIGCTLD_PORT        = 4532;
 static constexpr int RIGCTLD_MAX_LINE    = 256;
 static constexpr int RIGCTLD_STACK_SIZE  = 6144;
 static constexpr int RIGCTLD_MAX_CLIENTS = 2;  // sized into CONFIG_LWIP_MAX_SOCKETS (sdkconfig.defaults)
+// TCP keepalive on client sockets (same 5/5/3 as httpd): a silently vanished
+// peer frees its slot in ~20 s. A live Hamlib client polls at ~5 Hz, so a
+// healthy session never idles long enough to be probed.
+static constexpr int RIGCTLD_KEEPALIVE_IDLE_S  = 5;
+static constexpr int RIGCTLD_KEEPALIVE_INTVL_S = 5;
+static constexpr int RIGCTLD_KEEPALIVE_CNT     = 3;
 
 // The radio service task owns all CAT I/O (docs/dev/Radio-Access.md).
 // rigctld is a client of that service, never a radio-mutex user — GETs
@@ -711,6 +717,16 @@ static void rigctld_server_task (void *) {
             if (client_sock >= 0) {
                 int nodelay = 1;  // responsive command/response
                 setsockopt (client_sock, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof (nodelay));
+                // A peer that vanishes without a FIN (phone off WiFi) would
+                // otherwise hold its slot until reboot: this task only reads
+                // when select() says so, and never writes unprompted, so lwIP
+                // never learns the peer is gone. Keepalive probes make the
+                // socket readable-with-error after idle + interval x count.
+                int ka = 1, ka_idle = RIGCTLD_KEEPALIVE_IDLE_S, ka_intvl = RIGCTLD_KEEPALIVE_INTVL_S, ka_cnt = RIGCTLD_KEEPALIVE_CNT;
+                setsockopt (client_sock, SOL_SOCKET, SO_KEEPALIVE, &ka, sizeof (ka));
+                setsockopt (client_sock, IPPROTO_TCP, TCP_KEEPIDLE, &ka_idle, sizeof (ka_idle));
+                setsockopt (client_sock, IPPROTO_TCP, TCP_KEEPINTVL, &ka_intvl, sizeof (ka_intvl));
+                setsockopt (client_sock, IPPROTO_TCP, TCP_KEEPCNT, &ka_cnt, sizeof (ka_cnt));
                 for (auto & c : clients)
                     if (c.sock < 0) {
                         c.sock = client_sock;

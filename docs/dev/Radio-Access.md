@@ -457,7 +457,9 @@ copies), parked occupancy typically 0–1.
   takes the mutex directly, via the sanctioned keyer claim). It serves up to
   `RIGCTLD_MAX_CLIENTS` (2) concurrent TCP sessions on one task via `select()`
   — commands are serialized, so a slow SET/morse briefly stalls the other
-  client; further connects wait in the TCP backlog. `dump_state` advertises
+  client; further connects wait in the TCP backlog. Client sockets carry TCP
+  keepalive (5 s idle, 5 s interval, 3 probes), so a peer that vanishes without
+  a FIN frees its slot in ~20 s instead of holding it until reboot. `dump_state` advertises
   RFPOWER/AF/STRENGTH/RAWSTR levels and the TUNER func (Hamlib clients gate on
   those masks); the S-meter is a snapshot field (`REFRESH_SMETER`, KX only —
   gated by `supports_smeter()` so a KH1 poll never feeds the health machine).
