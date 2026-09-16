@@ -46,6 +46,9 @@ CONFIG_LOG_COLORS=y
 CONFIG_LWIP_MAX_SOCKETS=18
 CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
 CONFIG_LWIP_TCP_RECVMBOX_SIZE=16
+# Accept mailbox must cover the httpd listen backlog (webserver.cpp backlog_conn):
+# handshakes the backlog admits but the mailbox (default 6) cannot hold are RST.
+CONFIG_LWIP_TCP_ACCEPTMBOX_SIZE=12
 CONFIG_LWIP_TCP_SND_BUF_DEFAULT=16384
 CONFIG_LWIP_TCP_WND_DEFAULT=16384
 CONFIG_LWIP_TCP_TMR_INTERVAL=100

@@ -291,6 +291,7 @@ void start_webserver () {
     config.server_port         = 80;  // Explicitly set port 80 for mobile compatibility
     config.lru_purge_enable    = true;
     config.max_open_sockets    = 12;     // Accommodate 6+ parallel Chrome connections
+    config.backlog_conn        = 12;     // IDF default 5 drops the 6th simultaneous SYN (Chrome opens 6): a 1 s connect stall per page load. Paired with CONFIG_LWIP_TCP_ACCEPTMBOX_SIZE (sdkconfig.defaults)
     config.recv_wait_timeout   = 5;      // seconds - faster recovery from stalled requests
     config.send_wait_timeout   = 5;      // seconds - faster timeout detection
     config.stack_size          = 10240;  // bytes - increased from 8KB for complex handlers
