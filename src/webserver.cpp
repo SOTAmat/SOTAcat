@@ -115,6 +115,7 @@ static const api_handler_t api_handlers[] = {
     {HTTP_PUT,  "time",             handler_time_put,               true },
     {HTTP_PUT,  "xmit",             handler_xmit_put,               true },
     {HTTP_PUT,  "atu",              handler_atu_put,                true },
+    {HTTP_PUT,  "manualTune",       handler_manualTune_put,         true },
     {HTTP_POST, "prepareft8",       handler_prepareft8_post,        true },
     {HTTP_POST, "ft8",              handler_ft8_post,               true },
     {HTTP_POST, "cancelft8",        handler_cancelft8_post,         true },

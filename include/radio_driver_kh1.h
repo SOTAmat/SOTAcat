@@ -26,6 +26,7 @@ class KH1RadioDriver : public IRadioDriver {
 
     bool play_message_bank (KXRadio & radio, int bank) override;
     bool tune_atu (KXRadio & radio) override;
+    bool manual_tune (KXRadio & radio, bool active) override;
 
     bool send_keyer_message (KXRadio & radio, const char * message) override;
 
