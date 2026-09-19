@@ -109,7 +109,7 @@ clean:
 	@echo "Removing derived sdkconfig files..."
 	@rm -f sdkconfig.seeed_xiao_esp32c3_debug sdkconfig.seeed_xiao_esp32c3_release
 	@echo "Cleaning build artifacts..."
-	pio run -t clean
+	pio run -e seeed_xiao_esp32c3_debug -e seeed_xiao_esp32c3_release -t clean
 	@echo "Cleaning firmware directory..."
 	@rm -f $(FIRMWARE_DIR)/*.bin
 	@echo "Clean complete."

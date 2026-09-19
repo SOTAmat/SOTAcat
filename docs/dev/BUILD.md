@@ -164,7 +164,9 @@ stamp rather than trusting it.
 git status --porcelain          # must be empty
 git rev-parse HEAD origin/main  # must be identical
 
-# 2. Force a fresh stamp and build the artifacts.
+# 2. Build from a known state: remove both build trees and the derived sdkconfig
+#    files, then force a fresh stamp and build the artifacts.
+make clean
 touch src/web/main.js
 pio run -e seeed_xiao_esp32c3_release -t package_webtools
 #    Confirm the log says "Updated include/build_info.h ...", not "Skipped".
