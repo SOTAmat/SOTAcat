@@ -44,11 +44,20 @@ CONFIG_LOG_COLORS=y
 # 18: httpd worst case is 12 open + listen + control (14); rigctld adds a
 # listen + RIGCTLD_MAX_CLIENTS (2) sessions = 17, +1 spare.
 CONFIG_LWIP_MAX_SOCKETS=18
+# 32: backlogged handshakes hold a PCB but no socket. httpd 12 open + 12 backlog,
+# rigctld 2 + 1 backlog = 27, +5 for connections still closing. Below demand
+# (default 16) the SYN is dropped: a 1 s connect stall, "error in accept (113)".
+CONFIG_LWIP_MAX_ACTIVE_TCP=32
 CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
 CONFIG_LWIP_TCP_RECVMBOX_SIZE=16
 # Accept mailbox must cover the httpd listen backlog (webserver.cpp backlog_conn):
 # handshakes the backlog admits but the mailbox (default 6) cannot hold are RST.
 CONFIG_LWIP_TCP_ACCEPTMBOX_SIZE=12
+# TIME_WAIT lasts 2 x MSL. The device closes first after any handler error, LRU
+# purge or recv timeout, and until that entry expires a connect reusing the same
+# client port gets no SYN-ACK (RST or a silent timeout). 2 s: a 4 s window, not
+# the default 120 s; ample for a one-hop WiFi link.
+CONFIG_LWIP_TCP_MSL=2000
 CONFIG_LWIP_TCP_SND_BUF_DEFAULT=16384
 CONFIG_LWIP_TCP_WND_DEFAULT=16384
 CONFIG_LWIP_TCP_TMR_INTERVAL=100
