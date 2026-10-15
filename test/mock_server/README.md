@@ -62,6 +62,7 @@ mock to it (`make -C test/integration test-api-contract-mock`).
 | PUT | `/api/v1/msg?bank=X` | Play CW message (1, 2, or 3) |
 | PUT | `/api/v1/keyer?message=X` | Send CW text → 204 at once (firmware keys in the background) |
 | PUT | `/api/v1/atu` | Trigger ATU tune → 204 / 202 / 503 |
+| PUT | `/api/v1/manualTune?state=0|1` | Stop/start manual tune → 204 / 202 / 503 |
 | PUT | `/api/v1/volume?delta=X` | Adjust volume → 204 / 202 / 503 |
 | POST | `/api/v1/prepareft8?…` | Hold the radio for FT8 (sets `ft8` state) → 204 / 404 / 500 |
 | POST | `/api/v1/ft8?…` | Queue a repeat; tracks `requestToken` and `sequenceNumber` like the firmware |
