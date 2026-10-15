@@ -18,6 +18,7 @@
 - [Build](dev/BUILD.md) - Compile and flash firmware
 - [Architecture](dev/Architecture.md) - System overview
 - [Web UI](dev/Web-UI.md) - Asset pipeline and API mapping
+- [REST API](dev/REST-API.md) - OpenAPI document, rendered reference, and the contract test that keeps it true
 - [superpowers/](superpowers/) - In-progress feature specs and implementation plans
 
 ## Hardware

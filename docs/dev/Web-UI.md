@@ -123,6 +123,10 @@ buttons are *not* gated on radio capability today. Add escape hatches
 
 ## UI → API Mapping
 
+Which route each UI action calls. The routes themselves (parameters, bodies,
+status codes) are specified in [`openapi-v1.yaml`](openapi-v1.yaml); see
+[REST-API.md](REST-API.md).
+
 | User Action | API Call |
 |-------------|----------|
 | Tap spot in CHASE | `PUT /api/v1/frequency` + `PUT /api/v1/mode` |

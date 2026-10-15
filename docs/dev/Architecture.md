@@ -25,12 +25,9 @@
 - REST API for all radio/device operations
 
 ### REST API
-- `GET/PUT /api/v1/frequency` — VFO frequency
-- `GET/PUT /api/v1/mode` — Operating mode
-- `GET/PUT /api/v1/power` — TX power
-- `PUT /api/v1/keyer?message=<text>` — Send text as CW, or as RTTY/PSK31 when the radio is already in DATA mode with FSK-D or PSK-D sub-mode
-- `PUT /api/v1/xmit` — Toggle TX
-- See `src/` for full endpoint list
+- Every route under `/api/v1/`, with parameters, bodies, and status codes, is in [`openapi-v1.yaml`](openapi-v1.yaml); see [REST-API.md](REST-API.md) for the rendered page and the contract test
+- Route table: `api_handlers[]` in `src/webserver.cpp`; one handler file per area (`src/handler_*.cpp`)
+- Radio reads come from the snapshot and radio writes go through the service queue (next section); the YAML's introduction states the resulting 204/202/500/503 contract
 
 ### Radio service and async handlers
 `esp_http_server` runs every request on **one task**, so radio CAT I/O never

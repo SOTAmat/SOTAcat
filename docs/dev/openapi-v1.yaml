@@ -1,0 +1,1230 @@
+openapi: 3.1.0
+info:
+  title: SOTAcat REST API
+  version: v1
+  summary: HTTP control interface served by the SOTAcat firmware on port 80.
+  description: |
+    SOTAcat exposes a small HTTP API for radio control, device status, and
+    user settings. Every route lives under `/api/v1/`. Query-string
+    parameters carry inputs for radio commands; settings routes exchange JSON
+    bodies. The source of truth is the route table in `src/webserver.cpp`
+    and the handler each row names; this document is kept in step with it by
+    `test/integration/test_api_contract.py`.
+
+    ## Response conventions
+
+    * **Bare text** replies (frequency, mode, version, ...) carry the value
+      and nothing else, with no trailing newline. The firmware does not set a
+      `Content-Type` on these replies, so ESP-IDF's default (`text/html`)
+      applies. Clients should read the body as text and not dispatch on the
+      header. This document lists them as `text/plain` for tooling.
+    * **JSON** replies set `Content-Type: application/json`.
+    * **204 No Content** means the firmware applied the request.
+    * **202 Accepted** means a radio command was queued but not confirmed
+      within the wait bound; the body is `{"message": "..."}`. Confirm with a
+      later GET.
+    * **Error** replies (400, 404, 408, 500) carry a JSON body of the form
+      `{"error": "..."}`. ESP-IDF's error sender overrides the content type
+      to `text/html`, so parse the body as JSON regardless of the header.
+    * **503 Service Unavailable** carries `{"error": "..."}` with
+      `Content-Type: application/json` and means the radio cannot take the
+      request right now: the CAT link is down, or FT8 or the CW keyer holds
+      the radio for a transmission.
+    * All `/api/v1/` replies are `Cache-Control: no-store`.
+
+    ## Radio GET and SET semantics
+
+    Radio reads (frequency, mode, power, volume) are served from a snapshot
+    the radio-service task keeps fresh. A stale snapshot arms a refresh and
+    the request waits up to 300 ms for it; a fresh value is at most a few
+    hundred milliseconds old. While FT8 holds the radio the last-known value
+    is returned without a refresh. When the CAT link is down the reply is 503
+    rather than a stale value presented as live.
+
+    Radio writes (frequency, mode, power, volume, xmit, msg, atu, time) are
+    enqueued on the radio-service task and the request waits up to 1500 ms
+    for confirmation. A newer write of the same kind supersedes a waiting one,
+    which then completes with 202. Design notes:
+    `docs/superpowers/specs/2026-08-17-radio-async-handlers-design.md`.
+
+    ## Routes that need a radio
+
+    Routes tagged `radio` and `ft8` are gated on a radio having been detected
+    at boot. Without one they answer `500 {"error": "radio not connected"}`
+    before the handler runs. `connectionStatus` and `radioType` are not gated:
+    a missing radio is a status worth reporting.
+
+    ## Unknown routes
+
+    Any `/api/v1/` path not listed here answers `404 {"error": "handler not
+    found"}`. Matching is exact on the path (`/api/v1/reb` does not reach
+    `reboot`).
+  license:
+    name: See repository LICENSE
+    url: https://github.com/SOTAmat/SOTAcat/blob/main/LICENSE
+externalDocs:
+  description: SOTAcat repository and developer docs
+  url: https://github.com/SOTAmat/SOTAcat/tree/main/docs
+
+servers:
+  - url: http://{host}/api/v1
+    description: The SOTAcat device. Reach it by mDNS name or by IP.
+    variables:
+      host:
+        default: sotacat.local
+        description: Device hostname or IP address, with optional port.
+
+tags:
+  - name: radio
+    description: VFO, mode, power, keying, and transmit control. Gated on a connected radio.
+  - name: device
+    description: Firmware identity, Wi-Fi signal, battery, reboot, and firmware update.
+  - name: settings
+    description: Persistent user settings stored in NVS and echoed back as JSON.
+  - name: ft8
+    description: |
+      FT8 transmission as driven by the SOTAmat app. Gated on a connected
+      radio. The flow is `prepareft8`, then one or more `ft8` repeats, then
+      `cancelft8` (or let the cleanup deadline expire). While prepared, FT8
+      holds the radio exclusively: other radio writes answer 503 and radio
+      reads return last-known values.
+
+paths:
+  /frequency:
+    get:
+      tags: [radio]
+      operationId: getFrequency
+      summary: VFO A frequency in Hz
+      description: Served from the radio snapshot; see *Radio GET and SET semantics*.
+      responses:
+        "200":
+          description: Frequency in Hz as bare text.
+          content:
+            text/plain:
+              schema:
+                type: string
+                pattern: '^[0-9]+$'
+              example: "14285000"
+        "500":
+          description: |
+            `frequency unavailable` when nothing has been read from the radio
+            yet; `radio not connected` when no radio was detected at boot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/LinkDown"
+    put:
+      tags: [radio]
+      operationId: setFrequency
+      summary: Set VFO A frequency
+      parameters:
+        - name: frequency
+          in: query
+          required: true
+          description: Frequency in Hz. Positive decimal integer; anything else is rejected.
+          schema:
+            type: integer
+            minimum: 1
+          example: 14285000
+      responses:
+        "204":
+          $ref: "#/components/responses/SetApplied"
+        "202":
+          $ref: "#/components/responses/SetAccepted"
+        "404":
+          description: Missing query string, or `invalid frequency` (not a positive integer).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/SetFailed"
+        "503":
+          $ref: "#/components/responses/RadioBusyOrDown"
+
+  /mode:
+    get:
+      tags: [radio]
+      operationId: getMode
+      summary: Operating mode
+      description: Served from the radio snapshot; see *Radio GET and SET semantics*.
+      responses:
+        "200":
+          description: Canonical mode name as bare text.
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ModeName"
+              example: "USB"
+        "500":
+          description: |
+            `unrecognized mode` when the snapshot holds a value outside the
+            known set; `radio not connected` when no radio was detected at boot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/LinkDown"
+    put:
+      tags: [radio]
+      operationId: setMode
+      summary: Set operating mode
+      parameters:
+        - name: mode
+          in: query
+          required: true
+          description: |
+            Mode name, matched case-insensitively. Canonical names are the
+            values of `ModeName` except `UNKNOWN`. Aliases `FT8`, `JS8`,
+            `PK31`, `FT4`, and `RTTY` map to `DATA`. `SSB` is resolved to LSB
+            or USB from the VFO frequency when the command is applied, after
+            any frequency change queued ahead of it.
+          schema:
+            type: string
+            enum: [LSB, USB, CW, FM, AM, DATA, CW_R, DATA_R, SSB, FT8, JS8, PK31, FT4, RTTY]
+          example: CW
+      responses:
+        "204":
+          $ref: "#/components/responses/SetApplied"
+        "202":
+          $ref: "#/components/responses/SetAccepted"
+        "404":
+          description: Missing query string, or `invalid mode`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/SetFailed"
+        "503":
+          $ref: "#/components/responses/RadioBusyOrDown"
+
+  /power:
+    get:
+      tags: [radio]
+      operationId: getPower
+      summary: Transmit power in watts
+      description: Served from the radio snapshot; see *Radio GET and SET semantics*.
+      responses:
+        "200":
+          description: Power in watts as bare text.
+          content:
+            text/plain:
+              schema:
+                type: string
+                pattern: '^[0-9]+$'
+              example: "10"
+        "404":
+          description: "`power read not supported`: the radio has never answered a power read (unsupported model, or not yet probed)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/RadioNotConnected"
+        "503":
+          $ref: "#/components/responses/LinkDown"
+    put:
+      tags: [radio]
+      operationId: setPower
+      summary: Set transmit power
+      parameters:
+        - name: power
+          in: query
+          required: true
+          description: Power in watts. Non-negative decimal integer; the radio clamps to its own range.
+          schema:
+            type: integer
+            minimum: 0
+          example: 10
+      responses:
+        "204":
+          $ref: "#/components/responses/SetApplied"
+        "202":
+          $ref: "#/components/responses/SetAccepted"
+        "404":
+          description: Missing query string, or `invalid power`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/SetFailed"
+        "503":
+          $ref: "#/components/responses/RadioBusyOrDown"
+
+  /volume:
+    get:
+      tags: [radio]
+      operationId: getVolume
+      summary: AF gain (volume)
+      description: |
+        Served from the radio snapshot on the radio's AF-gain display scale.
+        See *Radio GET and SET semantics*.
+      responses:
+        "200":
+          description: AF gain as bare text.
+          content:
+            text/plain:
+              schema:
+                type: string
+                pattern: '^[0-9]+$'
+              example: "20"
+        "404":
+          description: "`volume not supported on this radio`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "`unable to read volume` when nothing is cached yet; `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/LinkDown"
+    put:
+      tags: [radio]
+      operationId: adjustVolume
+      summary: Adjust AF gain by a delta
+      parameters:
+        - name: delta
+          in: query
+          required: true
+          description: Signed decimal integer added to the current AF gain. The radio driver scales and clamps it.
+          schema:
+            type: integer
+          example: -2
+      responses:
+        "204":
+          $ref: "#/components/responses/SetApplied"
+        "202":
+          $ref: "#/components/responses/SetAccepted"
+        "404":
+          description: Missing query string, `invalid delta`, or `volume not supported on this radio`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/SetFailed"
+        "503":
+          $ref: "#/components/responses/RadioBusyOrDown"
+
+  /keyer:
+    put:
+      tags: [radio]
+      operationId: sendKeyerMessage
+      summary: Key a text message
+      description: |
+        Sends `message` with the radio's keyer: as CW in CW or CW-R, as RTTY
+        in DATA with the FSK-D sub-mode, as PSK31 in DATA with PSK-D, and
+        forces CW otherwise. The reply is sent as soon as the keying task is
+        started, before anything goes on the air; `connectionStatus` shows
+        🔴 while it runs. The keyer holds the radio for the whole message,
+        so radio writes answer 503 `radio busy (keyer)` meanwhile. This
+        route does not go through the radio-service queue, so it never
+        answers 202 or 503 itself.
+      parameters:
+        - name: message
+          in: query
+          required: true
+          description: Text to key, URL-encoded. At most 127 bytes in encoded form; the firmware decodes it.
+          schema:
+            type: string
+            maxLength: 127
+          example: "CQ SOTA DE N0CALL K"
+      responses:
+        "204":
+          description: Keying task started.
+        "404":
+          description: Missing query string, or `Morse keying not supported on this radio`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "`keyer busy, please retry` while a previous message is still keying; `failed to start keyer task`; `heap allocation failed`; `radio not connected`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /msg:
+    put:
+      tags: [radio]
+      operationId: playMessageBank
+      summary: Play a stored voice or CW message bank
+      parameters:
+        - name: bank
+          in: query
+          required: true
+          description: Message bank number on the radio. Positive decimal integer.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+      responses:
+        "204":
+          $ref: "#/components/responses/SetApplied"
+        "202":
+          $ref: "#/components/responses/SetAccepted"
+        "404":
+          description: Missing query string, or `invalid bank`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/SetFailed"
+        "503":
+          $ref: "#/components/responses/RadioBusyOrDown"
+
+  /xmit:
+    put:
+      tags: [radio]
+      operationId: setTransmit
+      summary: Key or unkey the transmitter
+      parameters:
+        - name: state
+          in: query
+          required: true
+          description: "`0` unkeys; any other decimal integer keys the transmitter."
+          schema:
+            type: integer
+          example: 0
+      responses:
+        "204":
+          $ref: "#/components/responses/SetApplied"
+        "202":
+          $ref: "#/components/responses/SetAccepted"
+        "404":
+          description: Missing query string, or `invalid state`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/SetFailed"
+        "503":
+          $ref: "#/components/responses/RadioBusyOrDown"
+
+  /atu:
+    put:
+      tags: [radio]
+      operationId: tuneAtu
+      summary: Start an antenna tuner cycle
+      description: Sends the model-specific ATU tune command (KX3 `SWT44`, KX2 `SWT20`, KH1 `SW3T`). No parameters.
+      responses:
+        "204":
+          $ref: "#/components/responses/SetApplied"
+        "202":
+          $ref: "#/components/responses/SetAccepted"
+        "500":
+          $ref: "#/components/responses/SetFailed"
+        "503":
+          $ref: "#/components/responses/RadioBusyOrDown"
+
+  /time:
+    put:
+      tags: [radio]
+      operationId: syncRadioClock
+      summary: Set the radio's clock
+      description: The hours, minutes, and seconds of the given UTC instant are written to the radio.
+      parameters:
+        - name: time
+          in: query
+          required: true
+          description: Seconds since the Unix epoch, UTC. Non-negative decimal integer.
+          schema:
+            type: integer
+            minimum: 0
+          example: 1760562000
+      responses:
+        "204":
+          $ref: "#/components/responses/SetApplied"
+        "202":
+          $ref: "#/components/responses/SetAccepted"
+        "400":
+          description: "`invalid time value`. Note this route answers 400, not 404, for a bad value."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Missing query string or missing `time` parameter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/SetFailed"
+        "503":
+          $ref: "#/components/responses/RadioBusyOrDown"
+
+  /connectionStatus:
+    get:
+      tags: [radio]
+      operationId: getConnectionStatus
+      summary: Radio link and transmit state as one glyph
+      description: |
+        Never touches the radio synchronously. Not gated on a connected
+        radio. When the link is down this poll also arms the recovery probe,
+        so a client that polls only this route still sees the link come back.
+      responses:
+        "200":
+          description: |
+            One glyph: ⚫ link down, ⚪ FT8 holds the radio or state unknown,
+            🔴 transmitting (CW keyer or TX), 🟢 idle.
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum: ["⚫", "⚪", "🔴", "🟢"]
+              example: "🟢"
+
+  /radioType:
+    get:
+      tags: [radio]
+      operationId: getRadioType
+      summary: Detected radio model
+      description: Not gated on a connected radio.
+      responses:
+        "200":
+          description: Model name as bare text.
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum: [KX2, KX3, KH1, Unknown]
+              example: KX2
+
+  /version:
+    get:
+      tags: [device]
+      operationId: getVersion
+      summary: Firmware version string
+      description: |
+        `{hardware}:{YYMMDD}:{HHMM}-{R|D}`: hardware type, build date and
+        time, and build type (Release or Debug). Also published as the mDNS
+        `_device-info._tcp` TXT record `version`, and used as the ETag on
+        every embedded web asset.
+      responses:
+        "200":
+          description: Version as bare text.
+          content:
+            text/plain:
+              schema:
+                type: string
+                pattern: '^[^:]+:[0-9]{6}:[0-9]{4}-[RD]$'
+              example: "AB6D_1:260918:1710-R"
+
+  /rssi:
+    get:
+      tags: [device]
+      operationId: getRssi
+      summary: Wi-Fi signal strength
+      responses:
+        "200":
+          description: RSSI in dBm as bare text (negative integer when connected to an access point).
+          content:
+            text/plain:
+              schema:
+                type: string
+                pattern: '^-?[0-9]+$'
+              example: "-62"
+
+  /batteryInfo:
+    get:
+      tags: [device]
+      operationId: getBatteryInfo
+      summary: Battery state
+      description: A smart (fuel-gauge) battery reports the full object; an analog battery reports only `is_smart`, `voltage_v`, and `state_of_charge_pct`.
+      responses:
+        "200":
+          description: Battery state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatteryInfo"
+              examples:
+                smart:
+                  value:
+                    is_smart: true
+                    voltage_v: 4.17
+                    current_ma: -84.9
+                    temp_c: 34.5
+                    state_of_charge_pct: 85.2
+                    capacity_mah: 496.5
+                    time_to_empty_hrs: 5.25
+                    time_to_full_hrs: 0.0
+                    charging: false
+                analog:
+                  value:
+                    is_smart: false
+                    voltage_v: 3.98
+                    state_of_charge_pct: 72.0
+        "503":
+          description: "`timed out getting bat_info mutex`: the smart-battery reading was busy. Retry."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /reboot:
+    get:
+      tags: [device]
+      operationId: reboot
+      summary: Reboot the device
+      description: Replies first, then restarts about two seconds later. Yes, this is a GET.
+      responses:
+        "204":
+          description: Reboot scheduled.
+
+  /ota:
+    post:
+      tags: [device]
+      operationId: uploadFirmware
+      summary: Upload a firmware image
+      description: |
+        The request body is the raw application image (`firmware.bin`). It is
+        written to the inactive OTA partition and, on success, the device
+        replies and restarts into it about two seconds later. Supported only
+        on the Seeed XIAO build; other hardware answers 500. Not available
+        on the mock server beyond the reply.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: Image written and boot partition switched; reboot scheduled.
+        "500":
+          description: "`OTA update not supported on this platform`, `OTA begin failed`, `OTA data reception error`, `OTA write failed`, `OTA end failed`, `Setting boot partition failed`, or partition lookup failures."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /settings:
+    get:
+      tags: [settings]
+      operationId: getWifiSettings
+      summary: Wi-Fi credentials and IP-pin flags
+      responses:
+        "200":
+          description: Current Wi-Fi settings. Passwords are returned in clear.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WifiSettings"
+    post:
+      tags: [settings]
+      operationId: setWifiSettings
+      summary: Store Wi-Fi settings and reboot
+      description: |
+        Accepts any subset of the `WifiSettings` keys; unknown keys are
+        dropped. The parser is flat: string and boolean values only, no
+        nesting. The reply echoes the stored settings, then the device
+        restarts about two seconds later to apply them.
+      requestBody:
+        $ref: "#/components/requestBodies/SettingsJson"
+      responses:
+        "200":
+          description: Stored settings; reboot scheduled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WifiSettings"
+        "400":
+          $ref: "#/components/responses/BodyTooLarge"
+        "408":
+          $ref: "#/components/responses/BodyTimeout"
+        "500":
+          $ref: "#/components/responses/NvsCommitFailed"
+
+  /gps:
+    get:
+      tags: [settings]
+      operationId: getGps
+      summary: Stored operator position
+      responses:
+        "200":
+          description: Latitude and longitude as decimal-degree strings, empty when unset.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GpsSettings"
+    post:
+      tags: [settings]
+      operationId: setGps
+      summary: Store operator position
+      requestBody:
+        $ref: "#/components/requestBodies/SettingsJson"
+      responses:
+        "200":
+          description: Stored values.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GpsSettings"
+        "400":
+          $ref: "#/components/responses/BodyTooLarge"
+        "408":
+          $ref: "#/components/responses/BodyTimeout"
+        "500":
+          $ref: "#/components/responses/NvsCommitFailed"
+
+  /callsign:
+    get:
+      tags: [settings]
+      operationId: getCallsign
+      summary: Stored callsign
+      responses:
+        "200":
+          description: Callsign, empty when unset. Stored as sent; the firmware does not change case.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallsignSettings"
+    post:
+      tags: [settings]
+      operationId: setCallsign
+      summary: Store callsign
+      requestBody:
+        $ref: "#/components/requestBodies/SettingsJson"
+      responses:
+        "200":
+          description: Stored value.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallsignSettings"
+        "400":
+          $ref: "#/components/responses/BodyTooLarge"
+        "408":
+          $ref: "#/components/responses/BodyTimeout"
+        "500":
+          $ref: "#/components/responses/NvsCommitFailed"
+
+  /license:
+    get:
+      tags: [settings]
+      operationId: getLicenseClass
+      summary: Stored license class
+      responses:
+        "200":
+          description: License class letter, empty when unlicensed or unset.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseSettings"
+    post:
+      tags: [settings]
+      operationId: setLicenseClass
+      summary: Store license class
+      requestBody:
+        $ref: "#/components/requestBodies/SettingsJson"
+      responses:
+        "200":
+          description: Stored value.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LicenseSettings"
+        "400":
+          $ref: "#/components/responses/BodyTooLarge"
+        "408":
+          $ref: "#/components/responses/BodyTimeout"
+        "500":
+          $ref: "#/components/responses/NvsCommitFailed"
+
+  /tuneTargets:
+    get:
+      tags: [settings]
+      operationId: getTuneTargets
+      summary: WebSDR / KiwiSDR tune-target URLs
+      responses:
+        "200":
+          description: Stored targets and the mobile flag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TuneTargets"
+    post:
+      tags: [settings]
+      operationId: setTuneTargets
+      summary: Store tune targets
+      description: |
+        `targets` replaces the stored list when present; `mobile` is stored
+        when present. The `targets` array is stored verbatim (up to 1599
+        bytes of JSON) and returned as sent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TuneTargets"
+      responses:
+        "200":
+          description: Stored targets and mobile flag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TuneTargets"
+        "400":
+          description: "`request body too large` (over 4096 bytes), `too many tune targets` (over 5), or `tune targets too large`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "408":
+          $ref: "#/components/responses/BodyTimeout"
+        "500":
+          $ref: "#/components/responses/NvsCommitFailed"
+
+  /cwMacros:
+    get:
+      tags: [settings]
+      operationId: getCwMacros
+      summary: Keyer macro buttons
+      responses:
+        "200":
+          description: Stored macros.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CwMacros"
+    post:
+      tags: [settings]
+      operationId: setCwMacros
+      summary: Store keyer macros
+      description: |
+        `macros` replaces the stored list when present. Templates may contain
+        placeholders such as `{MYCALL}` and `{MYREF}`, which the web UI
+        expands before calling `PUT /keyer`; the firmware stores them
+        verbatim.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CwMacros"
+      responses:
+        "200":
+          description: Stored macros.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CwMacros"
+        "400":
+          description: "`request body too large` (over 4096 bytes), `too many CW macros` (over 8), or `CW macros too large`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "408":
+          $ref: "#/components/responses/BodyTimeout"
+        "500":
+          $ref: "#/components/responses/NvsCommitFailed"
+
+  /prepareft8:
+    post:
+      tags: [ft8]
+      operationId: prepareFt8
+      summary: Encode a message and put the radio in FT8 transmit setup
+      description: |
+        Sets the device clock from `timeNow`, encodes `messageText` into FT8
+        tones, saves the radio's state, and configures the radio for tone
+        transmission at `rfFrequency + audioFrequency`. The radio stays
+        prepared until `cancelft8` or until a deadline (at least 20 s, or
+        one second past the next FT8 window, whichever is later) expires;
+        each `ft8` repeat extends it. Repeating the identical request while
+        prepared just extends the deadline and answers 204. All parameters
+        travel in the query string; the body is ignored.
+      parameters:
+        - name: messageText
+          in: query
+          required: true
+          description: FT8 message text, URL-encoded, at most 13 characters after decoding.
+          schema:
+            type: string
+            maxLength: 13
+          example: "CQ N0CAL CM87"
+        - name: timeNow
+          in: query
+          required: true
+          description: Client's current UTC time in milliseconds since the Unix epoch. The device clock is set from it.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1760562000000
+        - name: rfFrequency
+          in: query
+          required: true
+          description: Dial frequency in Hz.
+          schema:
+            type: integer
+            minimum: 1
+          example: 14074000
+        - name: audioFrequency
+          in: query
+          required: true
+          description: Audio offset in Hz added to `rfFrequency`.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1500
+        - name: requestToken
+          in: query
+          required: true
+          description: Opaque client workflow token (up to 63 bytes). Later `ft8` calls must carry the same token.
+          schema:
+            type: string
+            maxLength: 63
+          example: "a1b2c3"
+      responses:
+        "204":
+          description: Radio prepared (or already prepared with the same request; deadline extended).
+        "404":
+          description: Missing query string, or `parameter parsing error` (any parameter missing, non-numeric, non-positive, or message over 13 characters).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "`prepare called while another command already in progress`, `ft8 cleanup in progress`, `ft8 already prepared with different parameters`, `can't parse FT8 message`, `radio busy, please retry`, `failed to read radio state`, `failed to prepare radio for ft8`, or `radio not connected`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /ft8:
+    post:
+      tags: [ft8]
+      operationId: transmitFt8
+      summary: Transmit (or queue) one FT8 repeat
+      description: |
+        Starts the transmit task at the next FT8 window, or queues the repeat
+        (queue depth 4) if a transmission is already running. If nothing is
+        prepared and no cleanup is pending, the full `prepareft8` parameter
+        set may be supplied on this call and the firmware prepares first.
+        `sequenceNumber` must be the last accepted number plus one; a repeat
+        of the last accepted number answers 204 without queuing again. All
+        parameters travel in the query string; the body is ignored.
+      parameters:
+        - name: rfFrequency
+          in: query
+          required: true
+          description: Dial frequency in Hz.
+          schema:
+            type: integer
+            minimum: 1
+          example: 14074000
+        - name: audioFrequency
+          in: query
+          required: true
+          description: Audio offset in Hz.
+          schema:
+            type: integer
+            minimum: 1
+          example: 1500
+        - name: requestToken
+          in: query
+          required: true
+          description: The token given to `prepareft8`.
+          schema:
+            type: string
+            maxLength: 63
+          example: "a1b2c3"
+        - name: sequenceNumber
+          in: query
+          required: true
+          description: Repeat counter within the workflow, starting at 1 and incrementing by one per accepted repeat.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 4294967295
+          example: 1
+        - name: messageText
+          in: query
+          required: false
+          description: Only when auto-preparing; see `prepareft8`.
+          schema:
+            type: string
+            maxLength: 13
+        - name: timeNow
+          in: query
+          required: false
+          description: Only when auto-preparing; see `prepareft8`.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Transmission started or queued, or duplicate of the last accepted repeat.
+        "404":
+          description: Missing query string, `parameter parsing error`, `missing or invalid requestToken`, or `missing or invalid sequenceNumber`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "`prepare in progress`, `ft8 request token mismatch`, `stale ft8 sequenceNumber`, `out-of-order ft8 sequenceNumber`, `ft8 cleanup in progress`, `ft8 not prepared`, `FT8 queue full`, `FT8 queue busy`, `failed to start FT8 transmission task`, a prepare failure (see `prepareft8`), or `radio not connected`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /cancelft8:
+    post:
+      tags: [ft8]
+      operationId: cancelFt8
+      summary: Cancel FT8 and restore the radio
+      description: Requests cancellation and clears the repeat queue. Cleanup restores the saved radio state asynchronously; the reply does not wait for it.
+      responses:
+        "204":
+          description: Cancellation requested.
+        "500":
+          $ref: "#/components/responses/RadioNotConnected"
+
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable reason.
+      additionalProperties: false
+      examples:
+        - error: invalid frequency
+
+    Accepted:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: "`<what> accepted, applying` or `<what> superseded`."
+      additionalProperties: false
+      examples:
+        - message: frequency change accepted, applying
+
+    ModeName:
+      type: string
+      enum: [UNKNOWN, LSB, USB, CW, FM, AM, DATA, CW_R, DATA_R]
+
+    BatteryInfo:
+      type: object
+      required: [is_smart, voltage_v, state_of_charge_pct]
+      properties:
+        is_smart:
+          type: boolean
+          description: True when a fuel-gauge battery is present; the remaining fields are then populated.
+        voltage_v:
+          type: number
+        current_ma:
+          type: number
+          description: Negative while discharging.
+        temp_c:
+          type: number
+        state_of_charge_pct:
+          type: number
+        capacity_mah:
+          type: number
+        time_to_empty_hrs:
+          type: number
+        time_to_full_hrs:
+          type: number
+        charging:
+          type: boolean
+      additionalProperties: false
+
+    WifiSettings:
+      type: object
+      description: Three station profiles tried in order, plus the device's own access point.
+      properties:
+        sta1_ssid: { type: string, maxLength: 31 }
+        sta1_pass: { type: string, maxLength: 63 }
+        sta2_ssid: { type: string, maxLength: 31 }
+        sta2_pass: { type: string, maxLength: 63 }
+        sta3_ssid: { type: string, maxLength: 31 }
+        sta3_pass: { type: string, maxLength: 63 }
+        ap_ssid: { type: string, maxLength: 31 }
+        ap_pass: { type: string, maxLength: 63 }
+        sta1_ip_pin:
+          type: boolean
+          description: Request the same DHCP lease on this network each time.
+        sta2_ip_pin: { type: boolean }
+        sta3_ip_pin: { type: boolean }
+      additionalProperties: false
+      examples:
+        - sta1_ssid: ham-hotspot
+          sta1_pass: sotapota
+          sta2_ssid: ""
+          sta2_pass: ""
+          sta3_ssid: ""
+          sta3_pass: ""
+          ap_ssid: SOTAcat-A480
+          ap_pass: "12345678"
+          sta1_ip_pin: false
+          sta2_ip_pin: false
+          sta3_ip_pin: false
+
+    GpsSettings:
+      type: object
+      required: [gps_lat, gps_lon]
+      properties:
+        gps_lat: { type: string, maxLength: 31, description: Decimal degrees as a string, or empty. }
+        gps_lon: { type: string, maxLength: 31, description: Decimal degrees as a string, or empty. }
+      additionalProperties: false
+      examples:
+        - gps_lat: "38.0522"
+          gps_lon: "-122.9694"
+
+    CallsignSettings:
+      type: object
+      required: [callsign]
+      properties:
+        callsign: { type: string, maxLength: 15 }
+      additionalProperties: false
+      examples:
+        - callsign: N0CALL
+
+    LicenseSettings:
+      type: object
+      required: [license]
+      properties:
+        license:
+          type: string
+          description: US license class letter, or empty when unlicensed.
+          enum: ["", N, T, G, A, E]
+      additionalProperties: false
+      examples:
+        - license: G
+
+    TuneTarget:
+      type: object
+      required: [url, enabled]
+      properties:
+        url:
+          type: string
+          description: URL template; see `docs/user/Tune-Targets.md` for the placeholders the web UI substitutes.
+        enabled:
+          type: boolean
+      additionalProperties: false
+
+    TuneTargets:
+      type: object
+      required: [targets, mobile]
+      properties:
+        targets:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/TuneTarget"
+        mobile:
+          type: boolean
+          description: Open targets in the mobile-friendly form.
+      additionalProperties: false
+      examples:
+        - targets:
+            - url: "http://websdr.example.com/?tune={FREQ-KHZ}{MODE}"
+              enabled: true
+          mobile: false
+
+    CwMacro:
+      type: object
+      required: [label, template]
+      properties:
+        label: { type: string, description: Button text. }
+        template: { type: string, description: Text to key, with optional placeholders. }
+      additionalProperties: false
+
+    CwMacros:
+      type: object
+      required: [macros]
+      properties:
+        macros:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/CwMacro"
+      additionalProperties: false
+      examples:
+        - macros:
+            - label: CQ
+              template: "CQ SOTA DE {MYCALL} {MYCALL} K"
+
+  requestBodies:
+    SettingsJson:
+      description: Flat JSON object; only the route's own keys are stored, the rest are dropped. At most 4096 bytes.
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties:
+              oneOf:
+                - type: string
+                - type: boolean
+
+  responses:
+    SetApplied:
+      description: The radio applied the command.
+    SetAccepted:
+      description: |
+        Queued but not confirmed within 1500 ms (`<what> accepted, applying`),
+        or a newer command of the same kind replaced it (`<what> superseded`).
+        Confirm with a later GET.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Accepted"
+    SetFailed:
+      description: "`<what> failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RadioBusyOrDown:
+      description: "`radio busy (FT8)`, `radio busy (keyer)`, or `radio link down`. Not queued; retry later."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    LinkDown:
+      description: "`radio link down`: the CAT link is down and no stale value is served as live. The request arms a recovery probe."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RadioNotConnected:
+      description: "`radio not connected`: no radio was detected at boot."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BodyTooLarge:
+      description: "`request body too large`: over 4096 bytes."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BodyTimeout:
+      description: The body did not arrive in time. Empty reply.
+    NvsCommitFailed:
+      description: "`failed commit settings to nvs`."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
