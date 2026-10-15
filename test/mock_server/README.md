@@ -44,8 +44,15 @@ Then open http://localhost:8080 in your browser.
 | GET | `/api/v1/mode` | Current mode (bare text) |
 | PUT | `/api/v1/mode?mode=X` | Set mode (CW, USB, LSB, SSB=auto sideband, …) |
 | GET | `/api/v1/batteryInfo` | Battery information (JSON) |
-| GET | `/api/v1/rssi` | WiFi signal strength |
+| GET | `/api/v1/rssi` | WiFi signal strength (bare text, dBm) |
 | GET | `/api/v1/connectionStatus` | Radio link glyph: ⚫ down · ⚪ FT8/unknown · 🔴 TX · 🟢 idle |
+| GET | `/api/v1/radioType` | `KX2`, `KX3`, `KH1`, or `Unknown` (bare text) |
+| GET | `/api/v1/reboot` | 204; the mock does not restart |
+| POST | `/api/v1/ota` | 204; the body is discarded |
+
+The full contract, with every status code and body shape, is
+`docs/dev/openapi-v1.yaml`; `test/integration/test_api_contract.py` holds the
+mock to it (`make -C test/integration test-api-contract-mock`).
 
 ### Radio Control
 | Method | Endpoint | Description |
@@ -53,9 +60,12 @@ Then open http://localhost:8080 in your browser.
 | PUT | `/api/v1/power?power=X` | Set power (0 or 15) |
 | PUT | `/api/v1/xmit?state=X` | TX toggle (0=RX, 1=TX) |
 | PUT | `/api/v1/msg?bank=X` | Play CW message (1, 2, or 3) |
-| PUT | `/api/v1/keyer?message=X` | Send CW text |
+| PUT | `/api/v1/keyer?message=X` | Send CW text → 204 at once (firmware keys in the background) |
 | PUT | `/api/v1/atu` | Trigger ATU tune → 204 / 202 / 503 |
 | PUT | `/api/v1/volume?delta=X` | Adjust volume → 204 / 202 / 503 |
+| POST | `/api/v1/prepareft8?…` | Hold the radio for FT8 (sets `ft8` state) → 204 / 404 / 500 |
+| POST | `/api/v1/ft8?…` | Queue a repeat; tracks `requestToken` and `sequenceNumber` like the firmware |
+| POST | `/api/v1/cancelft8` | Release the radio → 204 |
 
 The radio endpoints follow the firmware's async-handler contract
 (`docs/dev/Radio-Access.md`): GETs answer within ~300 ms with a fresh or
@@ -86,9 +96,11 @@ asserts that contract against the mock or hardware
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET/POST | `/api/v1/callsign` | Operator callsign |
+| GET/POST | `/api/v1/license` | License class |
 | GET/POST | `/api/v1/gps` | GPS location override |
-| GET/POST | `/api/v1/tuneTargets` | WebSDR/KiwiSDR targets |
-| GET/POST | `/api/v1/settings` | WiFi configuration |
+| GET/POST | `/api/v1/tuneTargets` | WebSDR/KiwiSDR targets (POST echoes; 400 over 5) |
+| GET/POST | `/api/v1/cwMacros` | Keyer macros (POST echoes; 400 over 8) |
+| GET/POST | `/api/v1/settings` | WiFi configuration (POST echoes) |
 | PUT | `/api/v1/time?time=X` | Sync device time |
 
 ### Debug (Mock Server Only)

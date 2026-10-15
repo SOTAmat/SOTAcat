@@ -822,13 +822,15 @@ class MockSOTAcatServer:
         def set_tune_targets():
             data = request.get_json() or {}
             if "targets" in data:
+                if len(data["targets"]) > 5:  # MAX_TUNE_TARGETS
+                    return radio_reply(400, "too many tune targets")
                 self.state["tune_targets"] = data["targets"]
             if "mobile" in data:
                 self.state["tune_targets_mobile"] = data["mobile"]
             print(
                 f"[MOCK] Tune targets updated: {len(self.state['tune_targets'])} targets"
             )
-            return "", 200
+            return get_tune_targets()
 
         # CW Macros
         @self.app.route("/api/v1/cwMacros", methods=["GET"])
@@ -839,45 +841,36 @@ class MockSOTAcatServer:
         def set_cw_macros():
             data = request.get_json() or {}
             if "macros" in data:
+                if len(data["macros"]) > 8:  # MAX_CW_MACROS
+                    return radio_reply(400, "too many CW macros")
                 self.state["cw_macros"] = data["macros"]
             print(
                 f"[MOCK] CW macros updated: {len(self.state['cw_macros'])} macros"
             )
-            return "", 200
+            return get_cw_macros()
 
         # WiFi Settings
+        WIFI_KEYS = [
+            "sta1_ssid", "sta1_pass",
+            "sta2_ssid", "sta2_pass",
+            "sta3_ssid", "sta3_pass",
+            "ap_ssid", "ap_pass",
+            "sta1_ip_pin", "sta2_ip_pin", "sta3_ip_pin",
+        ]
+
         @self.app.route("/api/v1/settings", methods=["GET"])
         def get_settings():
-            return jsonify(
-                {
-                    "sta1_ssid": self.state["sta1_ssid"],
-                    "sta1_pass": self.state["sta1_pass"],
-                    "sta2_ssid": self.state["sta2_ssid"],
-                    "sta2_pass": self.state["sta2_pass"],
-                    "sta3_ssid": self.state["sta3_ssid"],
-                    "sta3_pass": self.state["sta3_pass"],
-                    "ap_ssid": self.state["ap_ssid"],
-                    "ap_pass": self.state["ap_pass"],
-                }
-            )
+            return jsonify({key: self.state.get(key, False if key.endswith("_ip_pin") else "")
+                            for key in WIFI_KEYS})
 
         @self.app.route("/api/v1/settings", methods=["POST"])
         def set_settings():
             data = request.get_json() or {}
-            for key in [
-                "sta1_ssid",
-                "sta1_pass",
-                "sta2_ssid",
-                "sta2_pass",
-                "sta3_ssid",
-                "sta3_pass",
-                "ap_ssid",
-                "ap_pass",
-            ]:
+            for key in WIFI_KEYS:
                 if key in data:
                     self.state[key] = data[key]
             print(f"[MOCK] WiFi settings updated")
-            return "", 200
+            return get_settings()  # firmware echoes, then reboots
 
         # Battery and Signal
         @self.app.route("/api/v1/batteryInfo", methods=["GET"])
@@ -887,7 +880,7 @@ class MockSOTAcatServer:
 
         @self.app.route("/api/v1/rssi", methods=["GET"])
         def get_rssi():
-            return jsonify({"rssi": self.state["rssi"]})
+            return str(self.state["rssi"])  # bare text, like the firmware
 
         @self.app.route("/api/v1/connectionStatus", methods=["GET"])
         def get_connection_status():
@@ -977,9 +970,11 @@ class MockSOTAcatServer:
         # CW keyer
         @self.app.route("/api/v1/keyer", methods=["PUT"])
         def send_keyer():
-            message = request.args.get("message", "")
+            message = request.args.get("message")
+            if message is None:
+                return radio_reply(404, "parameter parsing error")
             print(f"[MOCK] Keying CW: {message}")
-            return "", 200
+            return radio_reply(204, "")  # firmware replies before keying starts
 
         # ATU tune
         @self.app.route("/api/v1/atu", methods=["PUT"])
@@ -994,7 +989,97 @@ class MockSOTAcatServer:
         @self.app.route("/api/v1/ota", methods=["POST"])
         def ota_update():
             print(f"[MOCK] OTA update received (ignored in mock mode)")
-            return "", 200
+            return radio_reply(204, "")
+
+        @self.app.route("/api/v1/reboot", methods=["GET"])
+        def reboot():
+            print(f"[MOCK] Reboot requested (ignored in mock mode)")
+            return radio_reply(204, "")
+
+        # --- FT8 (SOTAmat flow): prepare holds the radio exclusive (state
+        # "ft8", which MockRadio already honors: GETs stale, PUTs 503) until
+        # cancel. Tracks the prepared token and last accepted sequence number
+        # the way handler_ft8.cpp does.
+        self.ft8_token = None
+        self.ft8_last_seq = 0
+
+        def ft8_parse_prepare(args):
+            try:
+                ok = (0 < len(args["messageText"]) <= 13
+                      and int(args["timeNow"]) > 0
+                      and int(args["rfFrequency"]) > 0
+                      and int(args["audioFrequency"]) > 0
+                      and args["requestToken"] != "")
+            except (KeyError, ValueError):
+                ok = False
+            return ok
+
+        @self.app.route("/api/v1/prepareft8", methods=["POST"])
+        def prepare_ft8():
+            if not request.query_string:
+                return radio_reply(404, "missing query string")
+            if not ft8_parse_prepare(request.args):
+                return radio_reply(404, "parameter parsing error")
+            if self.state.get("ft8") and self.ft8_token != request.args["requestToken"]:
+                return radio_reply(500, "ft8 already prepared with different parameters")
+            self.ft8_token = request.args["requestToken"]
+            self.ft8_last_seq = 0
+            self.state["ft8"] = True
+            print(f"[MOCK] FT8 prepared: {request.args['messageText']!r}")
+            return radio_reply(204, "")
+
+        @self.app.route("/api/v1/ft8", methods=["POST"])
+        def transmit_ft8():
+            if not request.query_string:
+                return radio_reply(404, "missing query string")
+            try:
+                if int(request.args["rfFrequency"]) <= 0 or int(request.args["audioFrequency"]) <= 0:
+                    raise ValueError
+            except (KeyError, ValueError):
+                return radio_reply(404, "parameter parsing error")
+            token = request.args.get("requestToken", "")
+            if token == "":
+                return radio_reply(404, "missing or invalid requestToken")
+            try:
+                seq = int(request.args["sequenceNumber"])
+                if not 0 < seq <= 0xFFFFFFFF:
+                    raise ValueError
+            except (KeyError, ValueError):
+                return radio_reply(404, "missing or invalid sequenceNumber")
+            if not self.state.get("ft8"):
+                if not ft8_parse_prepare(request.args):
+                    return radio_reply(404, "parameter parsing error")
+                self.ft8_token = token
+                self.ft8_last_seq = 0
+                self.state["ft8"] = True
+            if token != self.ft8_token:
+                return radio_reply(500, "ft8 request token mismatch")
+            if self.ft8_last_seq:
+                if seq == self.ft8_last_seq:
+                    return radio_reply(204, "")  # duplicate retry: no-op success
+                if seq < self.ft8_last_seq:
+                    return radio_reply(500, "stale ft8 sequenceNumber")
+                if seq != self.ft8_last_seq + 1:
+                    return radio_reply(500, "out-of-order ft8 sequenceNumber")
+            self.ft8_last_seq = seq
+            print(f"[MOCK] FT8 transmit queued, sequence {seq}")
+            return radio_reply(204, "")
+
+        @self.app.route("/api/v1/cancelft8", methods=["POST"])
+        def cancel_ft8():
+            self.state["ft8"] = False
+            self.ft8_token = None
+            self.ft8_last_seq = 0
+            print(f"[MOCK] FT8 cancelled")
+            return radio_reply(204, "")
+
+        # Firmware answers any unmatched /api/v1/ method+path with 404 JSON.
+        @self.app.errorhandler(404)
+        @self.app.errorhandler(405)
+        def api_not_found(err):
+            if request.path.startswith("/api/"):
+                return radio_reply(404, "handler not found")
+            return err
 
         # Debug endpoint to view/modify state
         @self.app.route("/api/v1/_debug/state", methods=["GET"])
