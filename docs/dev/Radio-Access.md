@@ -454,7 +454,8 @@ copies), parked occupancy typically 0–1.
 - **rigctld** (`feature/rigctld-server`) is a client of this service: GETs use
   `radio_service_refresh_wait` + the snapshot, SETs `radio_service_set` +
   `radio_service_set_wait` (blocking is fine on its own task; only `send_morse`
-  takes the mutex directly, via the sanctioned keyer claim). It serves up to
+  takes the mutex directly, via the sanctioned keyer claim; `send_voice_mem`
+  is an ordinary SET_MSG like the web UI's bank buttons). It serves up to
   `RIGCTLD_MAX_CLIENTS` (2) concurrent TCP sessions on one task via `select()`
   — commands are serialized, so a slow SET/morse briefly stalls the other
   client; further connects wait in the TCP backlog. Client sockets carry TCP

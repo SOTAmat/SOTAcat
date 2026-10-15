@@ -447,6 +447,18 @@ static void cmd_send_morse (Resp & r, const char * arg) {
     resp_end (r, ok ? RIG_OK : RIG_EIO);
 }
 
+// Message-bank playback (KX M1/M2, KH1 banks 1/2): the radio transmits
+// whatever the bank holds, CW or voice, so this is a plain SET through the
+// service like set_ptt — no keyer claim, no direct mutex.
+static void cmd_send_voice_mem (Resp & r, const char * arg) {
+    long bank = arg ? atol (arg) : 0;
+    if (bank < 1 || bank > 2) {
+        resp_end (r, RIG_EINVAL);
+        return;
+    }
+    resp_end (r, rigctld_apply (RadioCmdType::SET_MSG, bank));
+}
+
 static void cmd_get_info (Resp & r) {
     char info[48];
     snprintf (info, sizeof (info), "SOTAcat %s", kxRadio.get_radio_type_string());
@@ -550,6 +562,10 @@ static bool rigctld_handle_command (int sock, const char * line) {
     case RigctlCmd::SEND_MORSE:
         r.name = "send_morse";
         cmd_send_morse (r, arg);
+        break;
+    case RigctlCmd::SEND_VOICE_MEM:
+        r.name = "send_voice_mem";
+        cmd_send_voice_mem (r, arg);
         break;
     case RigctlCmd::GET_INFO:
         r.name = "get_info";

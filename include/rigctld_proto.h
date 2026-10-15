@@ -25,6 +25,7 @@ enum class RigctlCmd {
     GET_LEVEL,
     SET_LEVEL,
     SEND_MORSE,
+    SEND_VOICE_MEM,
     GET_INFO,
     DUMP_STATE,
     CHK_VFO,
@@ -171,6 +172,8 @@ inline RigctlCmd rigctld_parse_line (const char * line, const char ** arg_out) {
             return RigctlCmd::SET_LEVEL;
         if (cmd_is (cmd, "send_morse"))
             return RigctlCmd::SEND_MORSE;
+        if (cmd_is (cmd, "send_voice_mem"))
+            return RigctlCmd::SEND_VOICE_MEM;
         if (cmd_is (cmd, "get_info"))
             return RigctlCmd::GET_INFO;
         if (cmd_is (cmd, "get_powerstat"))
@@ -209,6 +212,7 @@ inline RigctlCmd rigctld_parse_line (const char * line, const char ** arg_out) {
     case 0x8f: return RigctlCmd::DUMP_STATE;     // hamlib binary alias
     case 0xf0: return RigctlCmd::CHK_VFO;        // hamlib binary alias
     case 0x88: return RigctlCmd::GET_POWERSTAT;  // hamlib binary alias (0x87 set_powerstat stays UNKNOWN)
+    case 0x94: return RigctlCmd::SEND_VOICE_MEM;  // hamlib binary alias
     default: return RigctlCmd::UNKNOWN;
     }
 }

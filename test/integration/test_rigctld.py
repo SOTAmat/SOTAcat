@@ -23,8 +23,9 @@ hardware or the mock (test/mock_server/server.py --rigctld-port):
     levels — proving the dump_state bitmasks, not just the raw wire.
   * (mock only, via HTTP _debug/state) radio-dead -> GET/SET RPRT -6;
     FT8 -> GET serves the stale snapshot, SET RPRT -9, morse RPRT -9;
-    PTT set/readback; ATU tune via set_func TUNER; morse RPRT 0. Never
-    keys or tunes real hardware.
+    PTT set/readback; ATU tune via set_func TUNER; morse RPRT 0;
+    send_voice_mem 1/2 RPRT 0, other banks -1. Never keys or tunes real
+    hardware.
 
 Usage:
     python3 test_rigctld.py --host sotacat.local
@@ -76,7 +77,9 @@ class Rigctl:
     def cmd(self, line, reply_lines=1):
         """Send one command, return the reply lines. RPRT replies are always
         a single line regardless of reply_lines."""
-        self.sock.sendall((line + "\n").encode())
+        # latin-1: Hamlib's binary command aliases (0x8f, 0x94...) go out
+        # as single raw bytes, as a real client sends them.
+        self.sock.sendall((line + "\n").encode("latin-1"))
         first = self._readline()
         if first.startswith("RPRT"):
             return [first]
@@ -371,6 +374,21 @@ class RigctldTest:
         finally:
             c.close()
 
+    def t_voice_mem(self):
+        # Message-bank playback (M1/M2): the long form is what Hamlib's
+        # netrigctl backend sends; 0x94 is rigctl's binary alias.
+        c = Rigctl(self.host, self.port)
+        try:
+            self.expect(c.rprt("\\send_voice_mem 1") == 0, "send_voice_mem 1 RPRT != 0")
+            self.expect(c.rprt("\\send_voice_mem 2") == 0, "send_voice_mem 2 RPRT != 0")
+            self.expect(c.rprt("\x94 1") == 0, "0x94 alias RPRT != 0")
+            self.expect(c.rprt("\\send_voice_mem") == -1, "send_voice_mem w/o bank != -1")
+            self.expect(c.rprt("\\send_voice_mem 0") == -1, "send_voice_mem 0 != -1")
+            self.expect(c.rprt("\\send_voice_mem 3") == -1, "send_voice_mem 3 != -1")
+            self.expect(c.rprt("\\send_voice_mem x") == -1, "send_voice_mem x != -1")
+        finally:
+            c.close()
+
     def t_ft8_exclusive(self):
         self.mock_state(ft8=True)
         try:
@@ -383,6 +401,7 @@ class RigctldTest:
                 self.expect(c.rprt("F 14074000") == -9, "SET during FT8 != -9")
                 self.expect(c.rprt("T 1") == -9, "PTT during FT8 != -9")
                 self.expect(c.rprt("b CQ") == -9, "morse during FT8 != -9")
+                self.expect(c.rprt("\\send_voice_mem 1") == -9, "voice_mem during FT8 != -9")
             finally:
                 c.close()
         finally:
@@ -452,10 +471,11 @@ class RigctldTest:
                 self.check("PTT set/readback, HTTP shows 🔴", self.t_ptt_roundtrip)
                 self.check("ATU tune via set_func TUNER", self.t_atu_tune)
                 self.check("morse accepted (mock only)", self.t_morse)
+                self.check("send_voice_mem banks 1/2, others -1", self.t_voice_mem)
                 self.check("FT8: stale GETs, SETs -9", self.t_ft8_exclusive)
                 self.check("dead radio: -6, then recovery", self.t_link_down)
             else:
-                for name in ("PTT set/readback", "ATU tune", "morse", "FT8 scenario", "dead-radio scenario"):
+                for name in ("PTT set/readback", "ATU tune", "morse", "send_voice_mem", "FT8 scenario", "dead-radio scenario"):
                     self.skip(name, "never keys/tunes real hardware; run against the mock")
         else:  # dead: the radio is expected to be off/unreachable right now
             self.check("link down: GET and SET report -6", self.t_down_now)

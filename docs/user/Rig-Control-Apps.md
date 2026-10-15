@@ -50,6 +50,7 @@ one disconnects.
 | Power level | `RFPOWER`, read/set, scaled to 12 W max |
 | AF gain | `AF`, read/set (KX2/KX3 only) |
 | CW keying | `send_morse` — same keyer path as the web UI |
+| Message bank playback | `send_voice_mem 1` / `2` — presses the radio's M1/M2 bank, the same as the web UI's message buttons; long-form command only, no single-letter shortcut. Verified on a KX2 in CW and USB (bank 1, via Hamlib 4.5.5 rigctl); bank 2 and the KH1 untested |
 | ATU tune | `set_func TUNER 1` |
 
 Not (yet) supported: split / VFO B, RIT/XIT, keyer speed, filter bandwidth.

@@ -336,7 +336,7 @@ class MockRigctld:
             buf += chunk
             while b"\n" in buf:
                 line, buf = buf.split(b"\n", 1)
-                line = line.rstrip(b"\r").decode("utf-8", "replace")
+                line = line.rstrip(b"\r").decode("latin-1")  # byte-for-byte, like the firmware; keeps 0x8f-style aliases matchable
                 with self.cmd_lock:
                     keep = self._handle(sock, line)
                 if not keep:
@@ -357,6 +357,7 @@ class MockRigctld:
         "l": "get_level", "get_level": "get_level",
         "L": "set_level", "set_level": "set_level",
         "b": "send_morse", "send_morse": "send_morse",
+        "\x94": "send_voice_mem", "send_voice_mem": "send_voice_mem",
         "_": "get_info", "get_info": "get_info",
         "V": "set_vfo", "set_vfo": "set_vfo",
         "u": "get_func", "get_func": "get_func",
@@ -548,6 +549,18 @@ class MockRigctld:
                 self._end(self.RIG_ERJCTED)
             else:  # sanctioned direct path: one CAT for the whole keying
                 self._end(self.RIG_OK if self.radio._cat() else self.RIG_EIO)
+        elif cmd in ("\x94", "send_voice_mem"):
+            try:
+                bank = int(arg)
+            except (TypeError, ValueError):
+                bank = 0
+            if bank not in (1, 2):
+                self._end(self.RIG_EINVAL)
+            else:
+                def mutate():
+                    print(f"[MOCK] Playing message bank {bank}")
+                    return True
+                self._end(self._apply("message play", mutate))
         elif cmd in ("_", "get_info"):
             self._field("Info", f"SOTAcat {self.state.get('radio_type', 'Unknown')}")
             self._end(self.RIG_OK)

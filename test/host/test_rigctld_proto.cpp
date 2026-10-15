@@ -114,6 +114,13 @@ static void test_parse_long_forms () {
     assert (arg && !strcmp (arg, "RFPOWER 0.8"));
     assert (rigctld_parse_line ("\\send_morse HI", &arg) == RigctlCmd::SEND_MORSE);
     assert (arg && !strcmp (arg, "HI"));
+    // send_voice_mem: Hamlib's netrigctl sends the long form; rigctl's own
+    // table also carries binary alias 0x94.
+    assert (rigctld_parse_line ("\\send_voice_mem 1", &arg) == RigctlCmd::SEND_VOICE_MEM);
+    assert (arg && !strcmp (arg, "1"));
+    assert (rigctld_parse_line ("\\send_voice_mem", &arg) == RigctlCmd::SEND_VOICE_MEM && arg == nullptr);
+    assert (rigctld_parse_line ("\x94 2", &arg) == RigctlCmd::SEND_VOICE_MEM);
+    assert (arg && !strcmp (arg, "2"));
     // Case-insensitive names.
     assert (rigctld_parse_line ("\\Get_Freq", &arg) == RigctlCmd::GET_FREQ);
     assert (rigctld_parse_line ("\\DUMP_STATE", &arg) == RigctlCmd::DUMP_STATE);
