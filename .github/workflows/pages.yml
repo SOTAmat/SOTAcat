@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      - 'docs/dev/openapi-v1.yaml'
       - '.github/workflows/pages.yml'
   release:
     types: [published]
@@ -44,6 +45,11 @@ jobs:
           test -s website/flash/esp32c3.bin
           [ "$(jq -r '.builds[0].parts[0].path' website/flash/manifest.json)" = "esp32c3.bin" ]
           [ "$(jq -r '.version' website/flash/manifest.json)" = "$TAG" ]
+      # /api/ renders the OpenAPI document with Redoc. The YAML's home is
+      # docs/dev/ (one source, kept honest by test_api_contract.py); it is
+      # staged here so the page fetches it same-origin.
+      - name: Stage the OpenAPI document for the API page
+        run: cp docs/dev/openapi-v1.yaml website/api/openapi-v1.yaml
       - uses: actions/upload-pages-artifact@v5
         with:
           path: ./website

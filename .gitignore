@@ -107,6 +107,7 @@ firmware/
 # Flasher artifacts: staged by the Pages deploy from the release, never committed
 website/flash/esp32c3.bin
 website/flash/manifest.json
+website/api/openapi-v1.yaml
 
 # Per-release hand-written notes: transient input to `make github-release`;
 # content is published to the GitHub release body, not tracked here.

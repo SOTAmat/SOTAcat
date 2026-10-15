@@ -1,8 +1,17 @@
 # website/ - GitHub Pages Site
 
 This directory is published to <https://sotamat.github.io/SOTAcat/> by
-`.github/workflows/pages.yml`. It holds two things, both of which exist because
-they need an **HTTPS origin** that the HTTP-only embedded device cannot provide.
+`.github/workflows/pages.yml`. It holds two things that exist because they need
+an **HTTPS origin** that the HTTP-only embedded device cannot provide, plus the
+rendered REST API reference.
+
+## api/ - REST API Reference
+
+A Redoc viewer for the REST API at `/api/`. Only `index.html` is committed; the
+deploy stages `docs/dev/openapi-v1.yaml` beside it so the page fetches the
+document same-origin. The YAML under `docs/dev/` is the source, and the Pages
+workflow also runs when that file changes. See
+[docs/dev/REST-API.md](../docs/dev/REST-API.md).
 
 ## geolocation/ - Geolocation Bridge
 
