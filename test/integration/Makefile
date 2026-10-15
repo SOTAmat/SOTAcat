@@ -12,7 +12,7 @@ EXPECT_RADIO ?= healthy
 # Detect if venv exists
 VENV_EXISTS := $(shell [ -f $(PYTHON) ] && echo 1 || echo 0)
 
-.PHONY: help setup test test-performance test-mutex test-ui test-ui-mock test-contract test-contract-mock test-rigctld test-rigctld-mock test-rigctld-stress test-rigctld-stress-mock test-dual-stress test-dual-stress-mock clean
+.PHONY: help setup test test-performance test-mutex test-ui test-ui-mock test-contract test-contract-mock test-api-contract test-api-contract-mock test-rigctld test-rigctld-mock test-rigctld-stress test-rigctld-stress-mock test-dual-stress test-dual-stress-mock clean
 
 help:
 	@echo "SOTAcat Integration Tests"
@@ -26,6 +26,8 @@ help:
 	@echo "  test-ui-mock     - Same, against a self-managed mock (no hardware)"
 	@echo "  test-contract    - Radio GET/SET HTTP contract test against HOST"
 	@echo "  test-contract-mock - Same, against the mock server (healthy + dead radio; no hardware)"
+	@echo "  test-api-contract - Every route in docs/dev/openapi-v1.yaml against HOST (skips TX/reboot probes)"
+	@echo "  test-api-contract-mock - Same, against the mock server (all probes; no hardware)"
 	@echo "  test-rigctld     - rigctld (Hamlib TCP 4532) contract test against HOST"
 	@echo "  test-rigctld-mock - Same, against the mock server (incl. FT8/dead scenarios; no hardware)"
 	@echo "  test-rigctld-stress - Sustained rigctld load (pollers + churn + HTTP coexistence) against HOST"
@@ -97,6 +99,23 @@ test-contract-mock: check-venv
 	$(PYTHON) test_radio_contract.py --host localhost:8099 --expect-radio healthy || rc=1; \
 	$(PYTHON) test_radio_contract.py --host localhost:8098 --expect-radio dead || rc=1; \
 	kill $$(cat .mock_healthy.pid .mock_dead.pid) 2>/dev/null; rm -f .mock_healthy.pid .mock_dead.pid; \
+	exit $$rc
+
+# Breadth counterpart to test-contract: every operation in the OpenAPI file,
+# status and body shape, plus YAML-vs-firmware route-table equality. On
+# hardware the probes that transmit or reboot are skipped unless
+# --allow-tx / --allow-reboot are added by hand.
+test-api-contract: check-venv
+	@echo "Running OpenAPI contract test against $(HOST)..."
+	@$(PYTHON) test_api_contract.py --host $(HOST)
+
+test-api-contract-mock: check-venv
+	@echo "Running OpenAPI contract test against the mock server..."
+	@cd ../mock_server && $(PYTHON) server.py --port 8096 --no-debug --rigctld-port 0 > /dev/null 2>&1 & echo $$! > .mock_api.pid
+	@sleep 3
+	@rc=0; \
+	$(PYTHON) test_api_contract.py --host localhost:8096 || rc=1; \
+	kill $$(cat .mock_api.pid) 2>/dev/null; rm -f .mock_api.pid; \
 	exit $$rc
 
 # Runs the Playwright UI suite against a self-managed mock (no hardware

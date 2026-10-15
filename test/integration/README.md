@@ -17,6 +17,14 @@ This directory contains integration tests for the SOTAcat firmware and UI.
   - Ham2K-shaped rigctld polling, main.js-cadence tabs, page bundle loads (connect vs total per asset), spot tunes
   - Reports per-window latency so a sluggish stretch shows with its timestamp
 
+### Contract Tests (mock or device)
+
+- **`test_radio_contract.py`** - Radio GET/SET timing and status semantics in depth
+- **`test_api_contract.py`** - Every route in `docs/dev/openapi-v1.yaml`: status and body shape
+  - Also asserts the YAML's route set equals `api_handlers[]` in `src/webserver.cpp`
+  - On a device, TX and reboot probes are skipped unless `--allow-tx` / `--allow-reboot`
+- **`test_rigctld.py`** - Hamlib NET rigctl contract on TCP 4532
+
 ### UI Tests (can run offline with mock server)
 
 - **`test_ui.py`** - Browser-based UI tests using Playwright
