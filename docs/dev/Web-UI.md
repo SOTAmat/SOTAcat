@@ -32,7 +32,7 @@ src/web/
 ├── main.js            # Core app logic, AppState, tuneRadioHz, RADIO_CAPABILITIES
 ├── qrx.js             # QRX functionality
 ├── chase.js           # CHASE functionality (consumes spots.js)
-├── chase_api.js       # Spothole API client (used by spots.js)
+├── chase_api.js       # Spothole API v3 client (used by spots.js)
 ├── run.js             # RUN functionality + band-range chart + spot ticks
 ├── settings.js        # Settings functionality
 ├── style.css          # All styling

@@ -158,6 +158,27 @@ it("uses the no-location sentinel in kilometers", () => {
     assertEqual(spot.distanceKm, 99999);
 });
 
+it("maps Spothole v3 activities and activity_refs onto the row", () => {
+    const s = makeTransformSandbox();
+    const raw = {
+        ...RAW_SPOT,
+        activities: ["SOTA"],
+        activity_refs: [{ activity: "SOTA", id: "VK1/AC-040", name: "Mount Ainslie" }],
+    };
+    const [spot] = s.spothole_transformSpots([raw], null);
+    assertEqual(spot.sig, "SOTA");
+    assertEqual(spot.locationID, "VK1/AC-040");
+    assertEqual(spot.details, "Mount Ainslie");
+});
+
+it("treats a spot with no activities as a Cluster spot", () => {
+    const s = makeTransformSandbox();
+    const [spot] = s.spothole_transformSpots([{ ...RAW_SPOT, activities: [], activity_refs: [] }], null);
+    assertEqual(spot.sig, "Cluster");
+    assertEqual(spot.locationID, "-");
+    assertEqual(spot.details, "");
+});
+
 it("migrates a persisted 'distance' sort field to 'distanceKm'", () => {
     const sandbox = {
         ChaseState: { sortField: "timestamp", lastSortField: "timestamp", descending: true },

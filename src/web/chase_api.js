@@ -4,9 +4,9 @@
 // This module provides a clean interface to the Spothole API for fetching
 // unified xOTA (SOTA, POTA, WWFF, etc.) spot data.
 //
-// API Documentation: https://spothole.app/apidocs/openapi.yml
+// API Documentation: https://spothole.app/apidocs
 
-const SPOTHOLE_BASE_URL = "https://spothole.app/api/v1";
+const SPOTHOLE_BASE_URL = "https://spothole.app/api/v3";
 const SPOTHOLE_API_TIMEOUT_MS = 10000; // 10 seconds
 
 // Cache for reference details (summit/park names, etc.)
@@ -21,7 +21,7 @@ const SPOTHOLE_API_TIMEOUT_MS = 10000; // 10 seconds
  * @param {number} options.limit - Maximum number of spots to return (default: 200)
  * @param {number} options.max_age - Maximum age in seconds (3600=1hr, 10800=3hrs, 86400=24hrs)
  * @param {string} options.mode - Filter by mode (CW, SSB, FM, FT8, FT4, etc.)
- * @param {string} options.sig - Filter by source (SOTA, POTA, WWFF, etc.)
+ * @param {string} options.activity - Filter by activity (SOTA, POTA, WWFF, etc.)
  * @param {boolean} options.dedupe - Remove duplicate callsigns (default: true)
  * @param {boolean} options.allow_qrt - Allow spots that are known to be QRT. (default: false)
  * @param {number} options.received_since - Unix timestamp for incremental updates
@@ -40,8 +40,8 @@ async function fetchSpots(options = {}) {
     if (options.mode) {
         params.append("mode", options.mode);
     }
-    if (options.sig) {
-        params.append("sig", options.sig);
+    if (options.activity) {
+        params.append("activity", options.activity);
     }
     if (options.received_since) {
         params.append("received_since", options.received_since);
@@ -141,11 +141,12 @@ function spothole_transformSpots(spotsData, location) {
         // Convert timestamp to Date object
         const timestamp = new Date(spot.time * 1000); // Spothole uses Unix timestamp in seconds
 
-        // Extract reference ID from sig_refs array (first one if multiple)
-        const locationID = spot.sig_refs && spot.sig_refs.length > 0 ? spot.sig_refs[0].id : "-";
-
-        // Extract reference details from sig_refs
-        const refDetails = spot.sig_refs && spot.sig_refs.length > 0 ? spot.sig_refs[0].name : "";
+        // v3 lists activities (a dual POTA+WWFF activation has two); the row
+        // model carries one, so the first activity and reference win.
+        const activities = Array.isArray(spot.activities) ? spot.activities : [];
+        const refs = Array.isArray(spot.activity_refs) ? spot.activity_refs : [];
+        const locationID = refs.length > 0 ? refs[0].id : "-";
+        const refDetails = refs.length > 0 ? refs[0].name : "";
 
         return {
             // Original Spothole fields (prefixed for clarity)
@@ -153,8 +154,8 @@ function spothole_transformSpots(spotsData, location) {
             spothole_de_call: spot.de_call,
             spothole_freq: spot.freq,
             spothole_mode: spot.mode,
-            spothole_sig: spot.sig,
-            spothole_sig_refs: spot.sig_refs,
+            spothole_activities: activities,
+            spothole_activity_refs: refs,
             spothole_comment: spot.comment,
             spothole_time: spot.time,
             spothole_dx_latitude: spot.dx_latitude,
@@ -171,13 +172,13 @@ function spothole_transformSpots(spotsData, location) {
             mode: mode,
             modeType: modeType,
             locationID: locationID,
-            sig: spot.sig || "Cluster", // Source type (SOTA, POTA, or Cluster for DX spots)
+            sig: activities[0] || "Cluster", // Source type (SOTA, POTA, or Cluster for DX spots)
             distanceKm: distanceKm,
             timestamp: timestamp,
             comments: spot.comment || "",
 
             activatorName: spot.dx_name || "", // Name from API
-            details: refDetails, // Reference name from sig_refs
+            details: refDetails, // Reference name from activity_refs
         };
     });
 }
@@ -192,7 +193,7 @@ function spothole_transformSpots(spotsData, location) {
  * @param {Object} options - Fetch options
  * @param {number} options.max_age - Maximum age in seconds
  * @param {string} options.mode - Filter by mode
- * @param {string} options.sig - Filter by source type
+ * @param {string} options.activity - Filter by activity
  * @param {Object} location - User location {latitude, longitude}
  * @returns {Promise<Array>} Processed spots
  */
