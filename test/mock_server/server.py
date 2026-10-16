@@ -413,6 +413,8 @@ class MockRigctld:
             self.radio._start_refresh()  # probe stays armed, like the firmware
             self._end(self.RIG_EIO)
             return None
+        if self.state.get("keyer"):
+            return self.state[key]  # keyer holds the radio: last-known at once, no refresh
         value = self.radio.get_value(key)  # stale during FT8, like the firmware
         if value is None:
             self._end(self.RIG_EIO)
@@ -421,8 +423,8 @@ class MockRigctld:
 
     def _apply(self, kind, mutate):
         """Firmware rigctld_apply: mock 204/500/202 -> RPRT code."""
-        if self.state.get("ft8"):
-            return self.RIG_ERJCTED
+        if self.state.get("ft8") or self.state.get("keyer"):
+            return self.RIG_ERJCTED  # the shared set gate (radio_set_gate.h)
         status, message = self.radio.apply(kind, mutate)
         if status == 204 or "superseded" in message:  # superseded: settled by the newer op
             return self.RIG_OK
@@ -528,6 +530,10 @@ class MockRigctld:
                     return True
                 self._end(self._apply("mode change", mutate))
         elif cmd in ("t", "get_ptt"):
+            if self.state.get("keyer"):
+                self._field("PTT", "1")  # keyer on the air: no CAT poll needed
+                self._end(self.RIG_OK)
+                return True
             v = self._fetch("xmit")
             if v is not None:
                 self._field("PTT", v)
@@ -556,8 +562,8 @@ class MockRigctld:
         elif cmd in ("b", "send_morse"):
             if not arg:
                 self._end(self.RIG_EINVAL)
-            elif self.state.get("ft8"):
-                self._end(self.RIG_ERJCTED)
+            elif self.state.get("ft8") or self.state.get("keyer"):
+                self._end(self.RIG_ERJCTED)  # FT8 owns the radio, or the keyer is busy
             else:  # sanctioned direct path: one CAT for the whole keying
                 self._end(self.RIG_OK if self.radio._cat() else self.RIG_EIO)
         elif cmd in ("\x94", "send_voice_mem"):

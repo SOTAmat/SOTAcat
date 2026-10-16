@@ -455,7 +455,13 @@ copies), parked occupancy typically 0–1.
   `radio_service_refresh_wait` + the snapshot, SETs `radio_service_set` +
   `radio_service_set_wait` (blocking is fine on its own task; only `send_morse`
   takes the mutex directly, via the sanctioned keyer claim; `send_voice_mem`
-  is an ordinary SET_MSG like the web UI's bank buttons). It serves up to
+  is an ordinary SET_MSG like the web UI's bank buttons). While FT8 or the CW
+  keyer owns the radio, GETs serve the snapshot at once without arming a
+  refresh and SETs are refused `-9` through the shared set gate
+  (`radio_set_gate.h`), the same as the web GETs and PUTs: the task is serial,
+  so waiting out the keyer (measured 3 s then `-5` per GET, 5 s per SET on a
+  KX2) would queue every poll from both clients behind it. A command already
+  inside its wait when the keyer claims the radio still blocks once. It serves up to
   `RIGCTLD_MAX_CLIENTS` (2) concurrent TCP sessions on one task via `select()`
   — commands are serialized, so a slow SET/morse briefly stalls the other
   client; further connects wait in the TCP backlog. Client sockets carry TCP

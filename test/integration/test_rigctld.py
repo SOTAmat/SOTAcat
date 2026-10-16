@@ -23,6 +23,7 @@ hardware or the mock (test/mock_server/server.py --rigctld-port):
     levels — proving the dump_state bitmasks, not just the raw wire.
   * (mock only, via HTTP _debug/state) radio-dead -> GET/SET RPRT -6;
     FT8 -> GET serves the stale snapshot, SET RPRT -9, morse RPRT -9;
+    keyer active -> GET serves last-known at once, PTT 1, SET RPRT -9;
     PTT set/readback; ATU tune via set_func TUNER; morse RPRT 0;
     send_voice_mem 1/2 RPRT 0, other banks -1. Never keys or tunes real
     hardware.
@@ -427,6 +428,35 @@ class RigctldTest:
         finally:
             self.mock_state(ft8=False)
 
+    def t_keyer_overlap(self):
+        # While the web keyer holds the radio (up to ~15 s), rigctld must
+        # not wait it out: GETs serve last-known at once (as during FT8 and
+        # as the HTTP GETs do), PTT reads 1, and SETs are refused -9 (as the
+        # HTTP PUTs are, via the shared set gate). Reproduced on a KX2 on
+        # 2026-10-15: #147 (+f/+m 3 s then -5) and #153 (F 5 s then -5).
+        self.mock_state(keyer=True)
+        try:
+            c = Rigctl(self.host, self.port)
+            try:
+                t0 = time.time()
+                hdr, f, rc = c.cmd_ext("+f")
+                self.expect(f.get("Frequency", "").isdigit() and int(f["Frequency"]) > 0 and rc == 0,
+                            f"+f during keying {hdr!r} {f!r} rprt {rc}")
+                hdr, f, rc = c.cmd_ext("+m")
+                self.expect(f.get("Mode") in MODES and rc == 0, f"+m during keying {f!r} rprt {rc}")
+                self.expect(time.time() - t0 < 1.0, "GETs during keying blocked instead of serving last-known")
+                hdr, f, rc = c.cmd_ext("+t")
+                self.expect(f.get("PTT") == "1" and rc == 0, f"+t during keying {f!r} rprt {rc}")
+                for cmd in ("F 14074000", "M USB 0", "T 1", "L RFPOWER 0.5", "U TUNER 1", "b CQ"):
+                    t0 = time.time()
+                    code = c.rprt(cmd)
+                    self.expect(code == -9, f"{cmd!r} during keying != -9 (got {code})")
+                    self.expect(time.time() - t0 < 1.0, f"{cmd!r} during keying blocked")
+            finally:
+                c.close()
+        finally:
+            self.mock_state(keyer=False)
+
     def t_link_down(self):
         self.mock_state(radio_dead=True)
         try:
@@ -493,9 +523,10 @@ class RigctldTest:
                 self.check("morse accepted (mock only)", self.t_morse)
                 self.check("send_voice_mem banks 1/2, others -1", self.t_voice_mem)
                 self.check("FT8: stale GETs, SETs -9", self.t_ft8_exclusive)
+                self.check("keyer active: last-known GETs, PTT 1, SETs -9", self.t_keyer_overlap)
                 self.check("dead radio: -6, then recovery", self.t_link_down)
             else:
-                for name in ("PTT set/readback", "ATU tune", "morse", "send_voice_mem", "FT8 scenario", "dead-radio scenario"):
+                for name in ("PTT set/readback", "ATU tune", "morse", "send_voice_mem", "FT8 scenario", "keyer scenario", "dead-radio scenario"):
                     self.skip(name, "never keys/tunes real hardware; run against the mock")
         else:  # dead: the radio is expected to be off/unreachable right now
             self.check("link down: GET and SET report -6", self.t_down_now)

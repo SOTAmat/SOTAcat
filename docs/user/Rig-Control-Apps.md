@@ -93,9 +93,10 @@ the reply then carries the command name, labelled fields and a trailing
 | `-9` | RIG_ERJCTED | refused: an FT8 transmission or a CW keyer message owns the radio |
 
 Not (yet) supported: split / VFO B, RIT/XIT, keyer speed, filter bandwidth.
-While the radio link is down the server answers `RPRT -6`; during an FT8
-transmission started from the web UI, reads return the last-known state and
-changes are refused until the transmission ends.
+While the radio link is down the server answers `RPRT -6`. While the web UI
+has the radio on the air, during an FT8 transmission or while a CW keyer
+message is being sent, reads return the last-known state at once and
+changes are refused with `RPRT -9` until the transmission ends.
 
 The web UI and desktop apps share one radio picture — a frequency set from
 WSJT-X shows up in the SOTAcat header, and vice versa.

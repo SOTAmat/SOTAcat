@@ -8,6 +8,7 @@
 #include "globals.h"
 #include "kx_radio.h"
 #include "radio_service.h"
+#include "radio_set_gate.h"
 #include "radio_snapshot.h"
 #include "rigctld_proto.h"
 #include "timed_lock.h"
@@ -159,20 +160,29 @@ static void resp_end (Resp & r, int code) {
 }
 
 // Fetch a fresh snapshot for `which`'s field, blocking briefly while the
-// service refreshes it. During FT8 the service does no CAT work, so serve
-// the (possibly stale) snapshot instead of blocking out the transmission —
-// same contract as the web GETs. Returns RIG_OK with *out filled (the
-// caller still checks the field's has_*()), or a negative Hamlib error.
+// service refreshes it. During FT8 the service does no CAT work, and while
+// the CW keyer holds the radio mutex (up to ~15 s) the worker cannot get
+// in: in both cases serve the (possibly stale) snapshot at once, the same
+// contract as the web GETs. Waiting out the keyer would stall this serial
+// task for RIGCTLD_GET_WAIT_MS per GET with every queued poll behind it.
+// No refresh is armed; the first GET after release takes the normal path.
+// Returns RIG_OK with *out filled (the caller still checks the field's
+// has_*()), or a negative Hamlib error.
 static int rigctld_fetch (RadioCmdType which, RadioSnapshotData & out) {
-    if (!Ft8RadioExclusive && !radio_service_refresh_wait (which, RIGCTLD_GET_WAIT_MS))
+    const bool radio_held = Ft8RadioExclusive || kxRadio.is_keyer_active();
+    if (!radio_held && !radio_service_refresh_wait (which, RIGCTLD_GET_WAIT_MS))
         return radio_service_link_up() ? RIG_ETIMEOUT : RIG_EIO;
     out = radio_snapshot::get();
     return RIG_OK;
 }
 
 // Enqueue a SET on the radio service and wait for the worker to drain it.
+// Apply a SET through the service and wait for it to land. The shared set
+// gate refuses at once while FT8 or the CW keyer owns the radio, as the
+// HTTP PUTs do: rigctld has no "accepted, still applying" reply, and
+// waiting on the keyer would hold this task for SET_APPLY_DEADLINE_MS.
 static int rigctld_apply (RadioCmdType type, long arg) {
-    if (Ft8RadioExclusive)
+    if (radio_set_refusal (Ft8RadioExclusive, kxRadio.is_keyer_active()) != RadioSetRefusal::NONE)
         return RIG_ERJCTED;
     uint32_t gen = 0;
     if (radio_service_set (type, arg, &gen) < 0)
