@@ -14,6 +14,7 @@
 #include "timed_lock.h"
 
 #include <cctype>
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <esp_task_wdt.h>
@@ -77,12 +78,6 @@ static bool rigctld_send (int sock, const char * data) {
 // Command handlers
 // ====================================================================================================
 
-static void rigctld_rprt (int sock, int code) {
-    char resp[16];
-    snprintf (resp, sizeof (resp), "RPRT %d\n", code);
-    rigctld_send (sock, resp);
-}
-
 // Per-command response context. Ham2K and other Hamlib clients poll in the
 // extended-response protocol (a '+' or punctuation prefix, see
 // rigctld_ext_prefix): the reply is then a "name:<sep>" header, one or more
@@ -90,7 +85,10 @@ static void rigctld_rprt (int sock, int code) {
 // as Hamlib prints them), and a trailing "RPRT <code><sep>". Terse mode
 // (no prefix) is unchanged: bare values for GETs, "RPRT <code>" for SETs and
 // errors. One command runs at a time on the server task, so this is built
-// per command and passed by reference to the handler.
+// per command and passed by reference to the handler. The reply accumulates
+// in `buf` and leaves as one send() from resp_end: with TCP_NODELAY every
+// send() is its own segment, so piecewise sends would cost a poller three
+// or four segments (and ACKs) per reply.
 struct Resp {
     int          sock;
     bool         ext         = false;
@@ -99,64 +97,75 @@ struct Resp {
     const char * hdrarg      = nullptr;  // echoed after "name:" (level/func name)
     bool         header_done = false;
     bool         valued      = false;  // a GET field was emitted
+    size_t       len         = 0;
+    char         buf[256];  // longest reply (get_info) is under 80 bytes
 };
+
+// Append one formatted piece to the pending reply. Overflow is a sizing
+// bug: log it and drop the piece, so the malformed reply shows at the client.
+static void __attribute__ ((format (printf, 2, 3))) resp_append (Resp & r, const char * fmt, ...) {
+    va_list ap;
+    va_start (ap, fmt);
+    int n = vsnprintf (r.buf + r.len, sizeof (r.buf) - r.len, fmt, ap);
+    va_end (ap);
+    if (n < 0 || (size_t)n >= sizeof (r.buf) - r.len) {
+        ESP_LOGE (TAG8, "reply overflow for %s", r.name ? r.name : "?");
+        r.buf[r.len] = '\0';
+        return;
+    }
+    r.len += n;
+}
 
 // Emit the "name:[ hdrarg]<sep>" header once, extended mode only.
 static void resp_hdr (Resp & r) {
     if (!r.ext || r.header_done || !r.name)
         return;
     r.header_done = true;
-    char h[64];
     if (r.hdrarg)
-        snprintf (h, sizeof (h), "%s: %s%c", r.name, r.hdrarg, r.sep);
+        resp_append (r, "%s: %s%c", r.name, r.hdrarg, r.sep);
     else
-        snprintf (h, sizeof (h), "%s:%c", r.name, r.sep);
-    rigctld_send (r.sock, h);
+        resp_append (r, "%s:%c", r.name, r.sep);
 }
 
 // One GET result field. Terse: the bare value on its own line. Extended:
 // "Label: value<sep>" under the once-emitted header.
 static void resp_field (Resp & r, const char * label, const char * value) {
     r.valued = true;
-    char line[96];
     if (r.ext) {
         resp_hdr (r);
-        snprintf (line, sizeof (line), "%s: %s%c", label, value, r.sep);
+        resp_append (r, "%s: %s%c", label, value, r.sep);
     }
     else
-        snprintf (line, sizeof (line), "%s\n", value);
-    rigctld_send (r.sock, line);
+        resp_append (r, "%s\n", value);
 }
 
 // One GET result with no label in either mode. Hamlib's get_level and
 // get_func print the bare value under the extended header.
 static void resp_value (Resp & r, const char * value) {
     r.valued = true;
-    char line[32];
     if (r.ext) {
         resp_hdr (r);
-        snprintf (line, sizeof (line), "%s%c", value, r.sep);
+        resp_append (r, "%s%c", value, r.sep);
     }
     else
-        snprintf (line, sizeof (line), "%s\n", value);
-    rigctld_send (r.sock, line);
+        resp_append (r, "%s\n", value);
 }
 
-// Terminate. Extended: header (if not yet) then "RPRT <code><sep>", plus a
-// closing newline when the separator is not itself a newline. Terse: a GET
-// that produced a value needs no RPRT; SETs and every error send "RPRT
-// <code>".
+// Terminate and send the whole reply. Extended: header (if not yet) then
+// "RPRT <code><sep>", plus a closing newline when the separator is not
+// itself a newline. Terse: a GET that produced a value needs no RPRT; SETs
+// and every error send "RPRT <code>".
 static void resp_end (Resp & r, int code) {
     if (r.ext) {
         resp_hdr (r);
-        char e[24];
-        snprintf (e, sizeof (e), "RPRT %d%c", code, r.sep);
-        rigctld_send (r.sock, e);
+        resp_append (r, "RPRT %d%c", code, r.sep);
         if (r.sep != '\n')
-            rigctld_send (r.sock, "\n");
+            resp_append (r, "\n");
     }
     else if (!(r.valued && code == RIG_OK))
-        rigctld_rprt (r.sock, code);
+        resp_append (r, "RPRT %d\n", code);
+    if (r.len)
+        rigctld_send (r.sock, r.buf);
 }
 
 // Fetch a fresh snapshot for `which`'s field, blocking briefly while the
