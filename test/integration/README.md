@@ -14,7 +14,7 @@ This directory contains integration tests for the SOTAcat firmware and UI.
   - Tests concurrent access handling
 
 - **`test_dual_interface_stress.py`** - rigctld logger + browser at the same time
-  - Ham2K-shaped rigctld polling, main.js-cadence tabs, page bundle loads (connect vs total per asset), spot tunes
+  - Ham2K-shaped rigctld polling (with its pipelined five-command TX burst for part of each period), main.js-cadence tabs, page bundle loads (connect vs total per asset), spot tunes
   - Reports per-window latency so a sluggish stretch shows with its timestamp
 
 ### Contract Tests (mock or device)

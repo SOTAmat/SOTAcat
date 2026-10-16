@@ -11,7 +11,10 @@ the web UI, load pages, and tune to spots.
 
 Traffic model (each is a knob):
   * Ham2K sessions: +t at --ptt-hz; +f/+m/+l RFPOWER_METER_WATTS at
-    --slow-hz; optionally +l STRENGTH at --smeter-hz.
+    --slow-hz; optionally +l STRENGTH at --smeter-hz. For the last --tx-s
+    of every --tx-every-s (a simulated transmission) each fast tick is
+    instead Ham2K's transmit burst: five commands written back to back in
+    one segment, then five replies read and checked in order.
   * Browser tabs (main.js cadence): GET frequency + GET mode in parallel
     every 3 s, GET connectionStatus every 2 s, batteryInfo + rssi every 60 s.
   * Page loads: every --pageload-s, fetch a tab's HTML/JS/CSS bundle with 6
@@ -141,6 +144,19 @@ class ExtSession:
         return (latency_ms, RPRT code)."""
         t0 = time.time()
         self.sock.sendall(("+" + short_cmd + "\n").encode())
+        return self._reply(t0, expect_header)
+
+    def burst(self, cmds):
+        """Pipeline: write every (short_cmd, expect_header) command in one
+        sendall, then read the replies in order. Returns (latency_ms of the
+        whole exchange, [RPRT codes]). A reply out of order shows up as a
+        header mismatch."""
+        t0 = time.time()
+        self.sock.sendall("".join("+" + c + "\n" for c, _ in cmds).encode())
+        codes = [self._reply(t0, hdr)[1] for _, hdr in cmds]
+        return (time.time() - t0) * 1000.0, codes
+
+    def _reply(self, t0, expect_header):
         header = self._readline()
         if not header.startswith(expect_header):
             raise ValueError(f"header {header!r} != {expect_header!r}")
@@ -152,18 +168,34 @@ class ExtSession:
                 raise ValueError(f"unlabeled line {ln!r}")
 
 
+# What Ham2K Next (build 174, from its rigctld driver source; not yet seen on
+# the wire) writes on every fast tick while its transmit flag is set: five
+# lines back to back, no wait for replies. The level names are echoed in
+# each reply header, so reading them in order checks reply ordering, not
+# the radio: every level here answers RPRT -4 today.
+TX_BURST = [
+    ("t", "get_ptt:"),
+    ("l RFPOWER_METER_WATTS", "get_level: RFPOWER_METER_WATTS"),
+    ("l SWR", "get_level: SWR"),
+    ("l ALC", "get_level: ALC"),
+    ("l VD_METER", "get_level: VD_METER"),
+]
+
+
 class Ham2KSession(threading.Thread):
     """One logger connection: PTT at ptt_hz; freq/mode/meter at slow_hz;
-    optional S-meter at smeter_hz. An RPRT other than 0 or -4 (unsupported
-    meter) is a failure: the server answered but could not serve the value
-    (timeout -5, I/O -6)."""
+    optional S-meter at smeter_hz. For the last tx_s of every tx_every_s
+    the fast tick is the TX_BURST pipeline instead of a lone +t. An RPRT
+    other than 0 or -4 (unsupported meter) is a failure: the server
+    answered but could not serve the value (timeout -5, I/O -6)."""
 
-    def __init__(self, host, port, stats, stop, ptt_hz, slow_hz, smeter_hz):
+    def __init__(self, host, port, stats, stop, ptt_hz, slow_hz, smeter_hz, tx_s=0.0, tx_every_s=20.0):
         super().__init__(daemon=True)
         self.host, self.port, self.stats, self.stop = host, port, stats, stop
         self.ptt_period = 1.0 / ptt_hz if ptt_hz > 0 else None
         self.slow_period = 1.0 / slow_hz if slow_hz > 0 else None
         self.smeter_period = 1.0 / smeter_hz if smeter_hz > 0 else None
+        self.tx_s, self.tx_every_s = tx_s, tx_every_s
 
     def _one(self, sess, cmd, hdr):
         lat, code = sess.poll(cmd, hdr)
@@ -171,6 +203,17 @@ class Ham2KSession(threading.Thread):
             self.stats.record_ok(lat, f"+{cmd}")
         else:
             self.stats.record_fail(f"RPRT {code}", f"+{cmd} after {lat:.0f} ms")
+
+    def _burst(self, sess):
+        lat, codes = sess.burst(TX_BURST)
+        bad = [(c, code) for (c, _), code in zip(TX_BURST, codes) if code not in (0, -4)]
+        if bad:
+            self.stats.record_fail(f"RPRT {bad[0][1]}", f"burst +{bad[0][0]} after {lat:.0f} ms")
+        else:
+            self.stats.record_ok(lat, "tx burst x5")
+
+    def _transmitting(self):
+        return self.tx_s > 0 and (now_s() % self.tx_every_s) >= self.tx_every_s - self.tx_s
 
     def run(self):
         sess = None
@@ -182,7 +225,9 @@ class Ham2KSession(threading.Thread):
                     sess = ExtSession(self.host, self.port)
                     self.stats.record_ok(0.0, "connect")
                     tick = time.time()
-                if self.ptt_period:
+                if self.ptt_period and self._transmitting():
+                    self._burst(sess)
+                elif self.ptt_period:
                     self._one(sess, "t", "get_ptt:")
                 now = time.time()
                 if self.slow_period and now - last_slow >= self.slow_period:
@@ -456,6 +501,8 @@ def main():
     p.add_argument("--ptt-hz", type=float, default=5.0, help="+t poll rate per logger")
     p.add_argument("--slow-hz", type=float, default=1.0, help="+f/+m/+l poll rate per logger")
     p.add_argument("--smeter-hz", type=float, default=0.0, help="+l STRENGTH poll rate per logger (0 = off)")
+    p.add_argument("--tx-s", type=float, default=8.0, help="seconds of pipelined TX burst per period (0 = off)")
+    p.add_argument("--tx-every-s", type=float, default=20.0, help="TX burst period")
     p.add_argument("--tabs", type=int, default=1, help="browser tabs polling main.js-style")
     p.add_argument("--pageload-s", type=float, default=10.0, help="seconds between page bundle loads (0 = off)")
     p.add_argument("--tune-s", type=float, default=15.0, help="seconds between spot tunes (0 = off)")
@@ -471,8 +518,8 @@ def main():
     print("=" * 72)
     print(f"Target: {args.host} rigctld:{args.port} http:{root}")
     print(f"Duration {args.duration}s | loggers={args.loggers} (+t {args.ptt_hz} Hz, +f/+m/+l {args.slow_hz} Hz, "
-          f"+l STRENGTH {args.smeter_hz} Hz) | tabs={args.tabs} | pageload every {args.pageload_s}s | "
-          f"tune every {args.tune_s}s")
+          f"+l STRENGTH {args.smeter_hz} Hz, TX burst {args.tx_s}s of every {args.tx_every_s}s) | "
+          f"tabs={args.tabs} | pageload every {args.pageload_s}s | tune every {args.tune_s}s")
     print("=" * 72)
 
     try:
@@ -502,7 +549,8 @@ def main():
     }
     threads = []
     for _ in range(args.loggers):
-        threads.append(Ham2KSession(args.host, args.port, cats["rigctld"], stop, args.ptt_hz, args.slow_hz, args.smeter_hz))
+        threads.append(Ham2KSession(args.host, args.port, cats["rigctld"], stop, args.ptt_hz, args.slow_hz, args.smeter_hz,
+                                    args.tx_s, args.tx_every_s))
     for i in range(args.tabs):
         threads.append(BrowserTab(base, cats["browser"], stop, i + 1))
     if args.pageload_s > 0:
