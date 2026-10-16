@@ -77,7 +77,9 @@ long forms take a leading backslash (`\get_freq`). Any other command answers
 
 An extended-response prefix (`+`, `;`, `|` or `,`) on any command is honoured:
 the reply then carries the command name, labelled fields and a trailing
-`RPRT`, as Hamlib's rigctld does.
+`RPRT`, as Hamlib's rigctld does. Three replies follow Hamlib's exceptions:
+`get_level` and `get_func` give the value unlabelled under their header, and
+`chk_vfo` answers `ChkVFO: 0` alone, with no header and no `RPRT`.
 
 ### Reply codes
 

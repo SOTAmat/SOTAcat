@@ -85,7 +85,8 @@ static void rigctld_rprt (int sock, int code) {
 // Per-command response context. Ham2K and other Hamlib clients poll in the
 // extended-response protocol (a '+' or punctuation prefix, see
 // rigctld_ext_prefix): the reply is then a "name:<sep>" header, one or more
-// "Label: value<sep>" fields, and a trailing "RPRT <code><sep>". Terse mode
+// "Label: value<sep>" fields (bare "value<sep>" for get_level and get_func,
+// as Hamlib prints them), and a trailing "RPRT <code><sep>". Terse mode
 // (no prefix) is unchanged: bare values for GETs, "RPRT <code>" for SETs and
 // errors. One command runs at a time on the server task, so this is built
 // per command and passed by reference to the handler.
@@ -120,6 +121,20 @@ static void resp_field (Resp & r, const char * label, const char * value) {
     if (r.ext) {
         resp_hdr (r);
         snprintf (line, sizeof (line), "%s: %s%c", label, value, r.sep);
+    }
+    else
+        snprintf (line, sizeof (line), "%s\n", value);
+    rigctld_send (r.sock, line);
+}
+
+// One GET result with no label in either mode. Hamlib's get_level and
+// get_func print the bare value under the extended header.
+static void resp_value (Resp & r, const char * value) {
+    r.valued = true;
+    char line[32];
+    if (r.ext) {
+        resp_hdr (r);
+        snprintf (line, sizeof (line), "%s%c", value, r.sep);
     }
     else
         snprintf (line, sizeof (line), "%s\n", value);
@@ -293,7 +308,7 @@ static void cmd_get_func (Resp & r, const char * arg) {
         return;
     }
     if (!strcmp (func, "TUNER")) {
-        resp_field (r, "Func Status", "0");
+        resp_value (r, "0");
         resp_end (r, RIG_OK);
     }
     else
@@ -333,7 +348,7 @@ static void cmd_get_level (Resp & r, const char * arg) {
         if (rc == RIG_OK && s.has_power()) {
             char v[16];
             snprintf (v, sizeof (v), "%.4f", rigctld_rfpower_from_watts (s.power));
-            resp_field (r, "Level Value", v);
+            resp_value (r, v);
             resp_end (r, RIG_OK);
         }
         else
@@ -349,7 +364,7 @@ static void cmd_get_level (Resp & r, const char * arg) {
         if (rc == RIG_OK && s.has_volume()) {
             char v[16];
             snprintf (v, sizeof (v), "%.4f", rigctld_af_from_volume (s.volume));
-            resp_field (r, "Level Value", v);
+            resp_value (r, v);
             resp_end (r, RIG_OK);
         }
         else
@@ -366,7 +381,7 @@ static void cmd_get_level (Resp & r, const char * arg) {
             char v[16];
             // RAWSTR: the raw KX bar count. STRENGTH: calibrated dB rel S9.
             snprintf (v, sizeof (v), "%ld", level[0] == 'R' ? s.smeter : rigctld_strength_db_from_bars (s.smeter));
-            resp_field (r, "Level Value", v);
+            resp_value (r, v);
             resp_end (r, RIG_OK);
         }
         else
@@ -498,10 +513,12 @@ static void cmd_dump_state (int sock) {
     rigctld_send (sock, dump);
 }
 
-// chk_vfo (Hamlib 0xf0) is excluded from the extended header/RPRT wrapping
-// even under a '+' prefix, so it always replies with the bare VFO-mode flag.
-static void cmd_chk_vfo (int sock) {
-    rigctld_send (sock, "0\n");
+// chk_vfo (Hamlib 0xf0) is excluded from the extended header/RPRT wrapping,
+// but under a '+' prefix Hamlib still labels the VFO-mode flag ("ChkVFO: 0",
+// what Ham2K looks for on connect), and ends it with a newline whatever the
+// separator.
+static void cmd_chk_vfo (Resp & r) {
+    rigctld_send (r.sock, r.ext ? "ChkVFO: 0\n" : "0\n");
 }
 
 // ====================================================================================================
@@ -572,7 +589,7 @@ static bool rigctld_handle_command (int sock, const char * line) {
         cmd_get_info (r);
         break;
     case RigctlCmd::DUMP_STATE: cmd_dump_state (sock); break;
-    case RigctlCmd::CHK_VFO: cmd_chk_vfo (sock); break;
+    case RigctlCmd::CHK_VFO: cmd_chk_vfo (r); break;
     case RigctlCmd::GET_POWERSTAT:
         r.name = "get_powerstat";
         cmd_get_powerstat (r);

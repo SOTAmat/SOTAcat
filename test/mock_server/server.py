@@ -385,6 +385,16 @@ class MockRigctld:
         else:
             self._sock.sendall(f"{value}\n".encode())
 
+    def _value(self, value):
+        """One GET result with no label in either mode: Hamlib's get_level
+        and get_func print the bare value under the ext header."""
+        self._valued = True
+        if self._ext:
+            self._hdr()
+            self._sock.sendall(f"{value}{self._sep}".encode())
+        else:
+            self._sock.sendall(f"{value}\n".encode())
+
     def _end(self, code):
         if self._ext:
             self._hdr()
@@ -438,13 +448,14 @@ class MockRigctld:
         else:
             cmd, arg = line[0], (line[1:].lstrip(" ") or None)
 
-        # chk_vfo (0xf0) and dump_state are bare even under '+' (Hamlib
-        # excludes them from ext wrapping); handle before _begin.
+        # dump_state is bare even under '+'. chk_vfo (0xf0) gets the
+        # "ChkVFO: " label under '+' but, like Hamlib, no header and no
+        # trailing RPRT, and always ends with a newline; handle before _begin.
         if cmd in ("\x8f", "dump_state"):
             sock.sendall(self.DUMP_STATE.encode())
             return True
         if cmd in ("\xf0", "chk_vfo"):
-            sock.sendall(b"0\n")
+            sock.sendall(b"ChkVFO: 0\n" if ext else b"0\n")
             return True
         if cmd in ("q", "Q", "quit"):
             self._begin(sock, "quit", None, ext, sep)
@@ -469,7 +480,7 @@ class MockRigctld:
             if not name:
                 self._end(self.RIG_EINVAL)
             elif name == "TUNER":
-                self._field("Func Status", "0")  # ATU tune is momentary, never latched
+                self._value("0")  # ATU tune is momentary, never latched
                 self._end(self.RIG_OK)
             else:
                 self._end(self.RIG_ENIMPL)
@@ -574,17 +585,17 @@ class MockRigctld:
         if name == "RFPOWER":
             v = self._fetch("power")
             if v is not None:
-                self._field("Level Value", f"{min(max(v / self.MAX_WATTS, 0.0), 1.0):.4f}")
+                self._value(f"{min(max(v / self.MAX_WATTS, 0.0), 1.0):.4f}")
                 self._end(self.RIG_OK)
         elif name == "AF":
             v = self._fetch("volume")
             if v is not None:
-                self._field("Level Value", f"{min(max(v / self.AF_SCALE, 0.0), 1.0):.4f}")
+                self._value(f"{min(max(v / self.AF_SCALE, 0.0), 1.0):.4f}")
                 self._end(self.RIG_OK)
         elif name in ("STRENGTH", "RAWSTR"):
             v = self._fetch("smeter")
             if v is not None:
-                self._field("Level Value", f"{v if name == 'RAWSTR' else (v - 9) * 6}")
+                self._value(f"{v if name == 'RAWSTR' else (v - 9) * 6}")
                 self._end(self.RIG_OK)
         else:
             self._end(self.RIG_ENIMPL)

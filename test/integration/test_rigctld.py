@@ -33,6 +33,7 @@ Usage:
 """
 
 import argparse
+import re
 import shutil
 import socket
 import subprocess
@@ -87,6 +88,12 @@ class Rigctl:
         for _ in range(reply_lines - 1):
             lines.append(self._readline())
         return lines
+
+    def lines(self, line, n):
+        """Send one command, return exactly n raw reply lines: no RPRT
+        short-circuit and no label parsing, for byte-exact wire checks."""
+        self.sock.sendall((line + "\n").encode("latin-1"))
+        return [self._readline() for _ in range(n)]
 
     def rprt(self, line):
         """Send a command that must reply RPRT; return the numeric code."""
@@ -256,6 +263,19 @@ class RigctldTest:
             self.expect(f.get("Mode") in MODES, f"+m Mode {f!r}")
             self.expect("Passband" in f, f"+m Passband missing {f!r}")
             self.expect(rc == 0, f"+m rprt {rc}")
+
+            # Byte-exact against Hamlib's rigctl_parse.c (4.5.5 and master
+            # agree): chk_vfo is labelled under '+' but carries neither the
+            # header nor a trailing RPRT; get_level and get_func carry the
+            # header, then the BARE value, then RPRT 0.
+            ls = c.lines("+\\chk_vfo", 1)
+            self.expect(ls == ["ChkVFO: 0"], f"+chk_vfo {ls!r}")
+            self.expect(c.cmd("f")[0].isdigit(), "stray output after +chk_vfo")
+            ls = c.lines("+l RFPOWER", 3)
+            self.expect(ls[0] == "get_level: RFPOWER" and re.fullmatch(r"[01]\.\d{4}", ls[1]) is not None
+                        and ls[2] == "RPRT 0", f"+l RFPOWER {ls!r}")
+            ls = c.lines("+u TUNER", 3)
+            self.expect(ls == ["get_func: TUNER", "0", "RPRT 0"], f"+u TUNER {ls!r}")
 
             # Terse still works alongside extended on the same session.
             self.expect(int(c.cmd("f")[0]) > 0, "terse f after ext failed")
@@ -461,7 +481,7 @@ class RigctldTest:
             self.check("set_freq round-trip, HTTP face agrees", self.t_set_freq_roundtrip)
             self.check("set_mode to current mode", self.t_set_mode_same)
             self.check("set AF to current value is a no-op", self.t_set_af_noop)
-            self.check("extended response protocol (+t/+f/+m)", self.t_extended_protocol)
+            self.check("extended response protocol (+t/+f/+m, chk_vfo/l/u exact)", self.t_extended_protocol)
             self.check("protocol polish (powerstat/vfo/func)", self.t_protocol_polish)
             self.check("error codes (-1 bad args, -4 unknown)", self.t_errors)
             self.check("sequential sessions and quit", self.t_sessions)
