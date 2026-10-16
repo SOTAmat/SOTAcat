@@ -28,29 +28,45 @@ pio run --target upload
 
 ### Build
 
-| Target | Description |
-|--------|-------------|
-| `make build` | Build firmware (release) |
-| `make debug` | Build debug firmware |
-| `make release` | Build release firmware |
-| `make upload` | Build and upload via USB |
-| `make ota` | Build OTA-ready binary |
+| Target                                     | Description                                                           |
+|--------------------------------------------|-----------------------------------------------------------------------|
+| `make build`                               | Build `ENV` (default: release)                                        |
+| `make debug`                               | Build debug (`make build ENV=seeed_xiao_esp32c3_debug`)               |
+| `make release`                             | Build release                                                         |
+| `make upload`                              | Build `ENV` (default: release), then flash it over USB                |
+| `make upload ENV=seeed_xiao_esp32c3_debug` | Build debug, then flash it over USB                                   |
+| `make ota`                                 | Build release, copy it to `firmware/webtools/SOTACAT-ESP32C3-OTA.bin` |
+
+Every build is an incremental PlatformIO build of the named environment, so `make upload`
+always flashes a binary that matches the current source, not whatever was built last.
+`make flash` is an alias for `make upload`. The Quick Start's bare `pio run --target upload`
+uses PlatformIO's `default_envs`, which is **debug**.
 
 ### OTA Updates
 
-| Target | Description |
-|--------|-------------|
-| `make ota-upload` | Upload via WiFi to `sotacat.local` |
-| `make ota-upload IP=192.168.1.100` | Upload to specific IP |
+| Target                             | Description                                                   |
+|------------------------------------|---------------------------------------------------------------|
+| `make ota-upload`                  | Upload the binary from the last `make ota` to `sotacat.local` |
+| `make ota-upload IP=192.168.1.100` | Same, to a specific IP                                        |
+
+`make ota-upload` does not build. It POSTs `firmware/webtools/SOTACAT-ESP32C3-OTA.bin`,
+which only `make ota` writes, so it is always the release build from the last `make ota`.
+There is no Makefile path to OTA a debug build; POST the debug binary directly:
+
+```bash
+make debug
+curl -X POST --data-binary @.pio/build/seeed_xiao_esp32c3_debug/firmware.bin \
+     -H 'Content-Type: application/octet-stream' http://sotacat.local/api/v1/ota
+```
 
 ### Testing
 
-| Target | Description |
-|--------|-------------|
-| `make test-setup` | Create Python venv and install deps |
-| `make test` | Run integration tests |
-| `make test HOST=192.168.1.100` | Test specific device |
-
+| Target                         | Description                         |
+|--------------------------------|-------------------------------------|
+| `make test-setup`              | Create Python venv and install deps |
+| `make test`                    | Run integration tests               |
+| `make test HOST=192.168.1.100` | Test specific device                |
+    
 ### Release
 
 | Target | Description |
@@ -59,11 +75,11 @@ pio run --target upload
 
 ### Utility
 
-| Target | Description |
-|--------|-------------|
-| `make monitor` | Open serial monitor |
-| `make clean` | Clean build artifacts |
-| `make help` | Show all targets |
+| Target         | Description                                                                  |
+|----------------|------------------------------------------------------------------------------|
+| `make monitor` | Open serial monitor                                                          |
+| `make clean`   | Clean build artifacts and the derived `sdkconfig.seeed_xiao_esp32c3_*` files |
+| `make help`    | Show all targets                                                             |
 
 ## Environment Variables
 
@@ -72,6 +88,27 @@ pio run --target upload
 | `ENV` | `seeed_xiao_esp32c3_release` | Build environment |
 | `IP` | `sotacat.local` | Device for OTA upload |
 | `HOST` | `sotacat.local` | Device for testing |
+
+## Logging
+
+Two independent settings decide what a build can print:
+
+| Build   | Compile-time ceiling (`CONFIG_LOG_MAXIMUM_LEVEL`)      | Runtime default | Set by                                                                                        |
+|---------|--------------------------------------------------------|-----------------|-----------------------------------------------------------------------------------------------|
+| release | INFO (3): `ESP_LOGD`/`ESP_LOGV` calls are compiled out | INFO            | `sdkconfig.defaults`                                                                          |
+| debug   | VERBOSE (5): everything is compiled in                 | INFO            | `sdkconfig.defaults.debug`, layered on via `board_build.cmake_extra_args` in `platformio.ini` |
+|         |                                                        |                 |                                                                                               |
+
+The debug runtime default stays INFO so WiFi/lwIP do not flood the port. Tags are
+raised individually at startup under `#ifdef DEBUG` in `src/setup.cpp`; `sc:kx_radio`
+is on by default, which traces every CAT command and response. To watch another
+subsystem, add its tag there (tags are the `TAG8` strings in each source file,
+e.g. `sc:rigctld.`). Compiling a build with `-DESP_LOG_DEFAULT_LEVEL` does nothing:
+ESP-IDF's log component never reads that macro.
+
+Changes to either `sdkconfig.defaults*` file take effect only after the derived
+`sdkconfig.seeed_xiao_esp32c3_*` files are removed (`make clean` does this), and the
+derived files are the ones to check when a level does not behave as expected.
 
 ## Common Issues
 
@@ -127,21 +164,21 @@ sudo usermod -aG dialout $USER
 A release is not just a tarball - every SOTACAT in the field polls it daily. Violating any
 of these silently breaks the update path for *all* users, not just new ones:
 
-| Invariant | Enforced by | Failure mode |
-|-----------|-------------|--------------|
-| Tag is exactly `vYYMMDD.HHMM` - no suffix, no semver | `normalizeVersion` in `src/web/main.js` | "Invalid version format in release tag"; update check dead |
-| Assets named exactly `SOTACAT-ESP32C3-OTA.bin`, `esp32c3.bin`, `manifest.json` | exact-name asset lookup in `src/web/main.js`; fallback URL in `src/web/settings.js` | Update prompt appears, download 404s |
-| Release is **not** a draft and **not** a prerelease | GitHub's `/releases/latest` skips both | Release invisible to every consumer |
-| `manifest.json`'s parts path is the **relative** `esp32c3.bin` | asserted by `make github-release` before `gh release create`, and again by the Pages deploy | Pages flasher can't fetch the binary (release assets send no CORS headers); deploy fails at the assertion |
-| `include/build_info.h` in the **tagged commit** equals the tag | `src/hardware_specific.cpp` builds the device version string from it | Device version never matches the tag → perpetual update prompt, or permanent false "up to date" |
+| Invariant                                                                      | Enforced by                                                                                 | Failure mode                                                                                              |
+|--------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| Tag is exactly `vYYMMDD.HHMM` - no suffix, no semver                           | `normalizeVersion` in `src/web/main.js`                                                     | "Invalid version format in release tag"; update check dead                                                |
+| Assets named exactly `SOTACAT-ESP32C3-OTA.bin`, `esp32c3.bin`, `manifest.json` | exact-name asset lookup in `src/web/main.js`; fallback URL in `src/web/settings.js`         | Update prompt appears, download 404s                                                                      |
+| Release is **not** a draft and **not** a prerelease                            | GitHub's `/releases/latest` skips both                                                      | Release invisible to every consumer                                                                       |
+| `manifest.json`'s parts path is the **relative** `esp32c3.bin`                 | asserted by `make github-release` before `gh release create`, and again by the Pages deploy | Pages flasher can't fetch the binary (release assets send no CORS headers); deploy fails at the assertion |
+| `include/build_info.h` in the **tagged commit** equals the tag                 | `src/hardware_specific.cpp` builds the device version string from it                        | Device version never matches the tag → perpetual update prompt, or permanent false "up to date"           |
 
 The three assets, all built into `firmware/webtools/` by the `package_webtools` target:
 
-| Asset | Purpose |
-|-------|---------|
-| `SOTACAT-ESP32C3-OTA.bin` | OTA update binary |
-| `esp32c3.bin` | Full merged flash image (for ESP Web Tools) |
-| `manifest.json` | ESP Web Tools install manifest |
+| Asset                     | Purpose                                     |
+|---------------------------|---------------------------------------------|
+| `SOTACAT-ESP32C3-OTA.bin` | OTA update binary                           |
+| `esp32c3.bin`             | Full merged flash image (for ESP Web Tools) |
+| `manifest.json`           | ESP Web Tools install manifest              |
 
 ### The tag is discovered, not chosen
 

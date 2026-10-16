@@ -1,0 +1,8 @@
+# Debug-environment overlay, layered after sdkconfig.defaults via
+# board_build.cmake_extra_args in platformio.ini. Same regeneration rule as
+# sdkconfig.defaults: remove sdkconfig.seeed_xiao_esp32c3_debug after editing.
+
+# --- Logging: compile in DEBUG/VERBOSE calls (runtime default stays INFO) ---
+# Per-tag verbosity is then enabled at runtime in setup.cpp.
+CONFIG_LOG_MAXIMUM_LEVEL_VERBOSE=y
+CONFIG_LOG_MAXIMUM_LEVEL=5

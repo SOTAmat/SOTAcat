@@ -264,9 +264,8 @@ cursors don't apply on touch.
 ## Modifying the UI
 
 1. Edit files in `src/web/`
-2. Build: `make build`
-3. Upload: `make upload` or `make ota-upload`
-4. Hard-refresh browser (Ctrl+Shift+R)
+2. Flash: `make upload` (builds release, flashes via USB) or `make ota && make ota-upload` (WiFi)
+3. Hard-refresh browser (Ctrl+Shift+R)
 
 ---
 

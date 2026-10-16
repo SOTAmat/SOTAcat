@@ -72,12 +72,11 @@ void start_radio_connection_task (TaskNotifyConfig * config) {
 
 // ====================================================================================================
 void setup () {
-    // We no longer need to set the log level here, as it is set in the platformio.ini file
-    // differently for each build target.  I only leave it here if in the future you want
-    // to have the platformio.ini use "Debug" or "Informational" for debug builds, and
-    // "Informational" or "Warning" for release builds.  In that case for deep debug you can set
-    // "ESP_LOG_VERBOSE" here.
-    // esp_log_level_set ("*", ESP_LOG_VERBOSE);
+#ifdef DEBUG
+    // Runtime default stays INFO (sdkconfig); the debug sdkconfig compiles in
+    // VERBOSE so the CAT wire can be traced per tag without flooding WiFi/lwIP.
+    esp_log_level_set ("sc:kx_radio", ESP_LOG_VERBOSE);
+#endif
     ESP_LOGV (TAG8, "trace: %s()", __func__);
 
     set_hardware_specific();

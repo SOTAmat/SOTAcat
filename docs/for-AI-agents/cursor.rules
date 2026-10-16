@@ -39,7 +39,9 @@ SOTAcat/
 |-- docs/                    # Canonical user/dev docs
 |-- website/                 # GitHub Pages source (geolocation bridge)
 |-- platformio.ini           # PlatformIO configuration
-|-- sdkconfig.seeed_xiao_esp32c3_*  # ESP-IDF configs
+|-- sdkconfig.defaults        # ESP-IDF config overrides (tracked)
+|-- sdkconfig.defaults.debug  # Debug-env overlay: VERBOSE log ceiling (tracked)
+|-- sdkconfig.seeed_xiao_esp32c3_*  # Derived ESP-IDF configs (generated, ignored)
 `-- partition_definitions/   # Partition tables
 ```
 
@@ -82,9 +84,10 @@ If you skip #1 the build fails. If you skip #2 the file is in the binary but unr
 See `docs/dev/BUILD.md` for full detail. Quick examples:
 
 ```bash
-make build
-make upload
-make ota-upload
+make build        # release, incremental
+make upload       # build release, then flash via USB (ENV=seeed_xiao_esp32c3_debug for debug)
+make ota          # build release into firmware/webtools/
+make ota-upload   # OTA the binary from the last `make ota`; does not build
 ```
 
 PlatformIO environments:
