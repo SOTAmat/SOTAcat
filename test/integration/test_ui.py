@@ -60,12 +60,6 @@ class TestSuite:
         self.results.append(result)
 
     @property
-    def unexpected_alerts(self) -> List[str]:
-        # The mock reports an old build, so every page load there raises the
-        # firmware-update prompt.
-        return [a for a in self.alerts if not a.startswith("A new firmware version is available")]
-
-    @property
     def passed(self) -> int:
         return sum(1 for r in self.results if r.passed)
 
@@ -101,6 +95,11 @@ def spothole_fixture_spots():
             "dx_latitude": 44.4, "dx_longitude": -68.2,
         },
     ]
+
+
+# Older than any build under test, so the automatic version check finds
+# nothing to offer and raises no prompt.
+FIXTURE_RELEASE = {"tag_name": "v200101.0000", "assets": []}
 
 
 class SOTAcatUITests:
@@ -145,6 +144,12 @@ class SOTAcatUITests:
         # Spothole is served from a fixture: the run needs no internet and the
         # chase table holds known rows.
         self.context.route("https://spothole.app/**", self._serve_spothole)
+
+        # So is the GitHub release the version check asks for on page load:
+        # unauthenticated GitHub allows 60 requests per IP per hour.
+        self.context.route(
+            "https://api.github.com/**",
+            lambda route: route.fulfill(json=FIXTURE_RELEASE, headers={"access-control-allow-origin": "*"}))
 
         # The one dialog handler for the run: record every alert, then dismiss it
         self.page.on("dialog", lambda d: (self.suite.alerts.append(d.message), d.dismiss()))
@@ -1198,7 +1203,7 @@ class SOTAcatUITests:
 
     def test_no_alerts(self):
         """No test left the page raising an alert"""
-        assert self.suite.unexpected_alerts == [], f"Alerts raised: {self.suite.unexpected_alerts}"
+        assert self.suite.alerts == [], f"Alerts raised: {self.suite.alerts}"
 
     # =========================================================================
     # Run All Tests
@@ -1487,9 +1492,9 @@ class SOTAcatUITests:
             print(f"JS Errors: {len(self.suite.js_errors)}")
             for err in self.suite.js_errors[:5]:
                 print(f"  - {err[:80]}")
-        if self.suite.unexpected_alerts:
-            print(f"Alerts: {len(self.suite.unexpected_alerts)}")
-            for message in self.suite.unexpected_alerts[:5]:
+        if self.suite.alerts:
+            print(f"Alerts: {len(self.suite.alerts)}")
+            for message in self.suite.alerts[:5]:
                 print(f"  - {message.splitlines()[0][:80]}")
         print("=" * 60)
 
