@@ -256,6 +256,64 @@ paths:
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
+  /keyerSpeed:
+    get:
+      tags: [radio]
+      operationId: getKeyerSpeed
+      summary: CW keyer speed in words per minute
+      description: Served from the radio snapshot; see *Radio GET and SET semantics*.
+      responses:
+        "200":
+          description: Keyer speed in wpm as bare text.
+          content:
+            text/plain:
+              schema:
+                type: string
+                pattern: '^[0-9]+$'
+              example: "20"
+        "404":
+          description: "`keyer speed not supported on this radio` (KH1)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: "`unable to read keyer speed` when nothing is cached yet; `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/LinkDown"
+    put:
+      tags: [radio]
+      operationId: setKeyerSpeed
+      summary: Set CW keyer speed
+      parameters:
+        - name: wpm
+          in: query
+          required: true
+          description: Speed in words per minute. Positive decimal integer; a value outside 8 to 50 is clamped to that range.
+          schema:
+            type: integer
+            minimum: 1
+          example: 20
+      responses:
+        "204":
+          $ref: "#/components/responses/SetApplied"
+        "202":
+          $ref: "#/components/responses/SetAccepted"
+        "404":
+          description: Missing query string, `invalid wpm`, or `keyer speed not supported on this radio` (KH1).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/SetFailed"
+        "503":
+          $ref: "#/components/responses/RadioBusyOrDown"
+
   /volume:
     get:
       tags: [radio]

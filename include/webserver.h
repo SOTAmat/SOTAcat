@@ -14,6 +14,8 @@ extern esp_err_t schedule_deferred_reboot (httpd_req_t * req);
 extern esp_err_t handler_frequency_get (httpd_req_t *);
 extern esp_err_t handler_frequency_put (httpd_req_t *);
 extern esp_err_t handler_keyer_put (httpd_req_t *);
+extern esp_err_t handler_keyerSpeed_get (httpd_req_t *);
+extern esp_err_t handler_keyerSpeed_put (httpd_req_t *);
 extern esp_err_t handler_mode_get (httpd_req_t *);
 extern esp_err_t handler_mode_put (httpd_req_t *);
 extern esp_err_t handler_msg_put (httpd_req_t *);

@@ -119,6 +119,53 @@ esp_err_t handler_power_put (httpd_req_t * req) {
     return radio_set_via_http (req, RadioCmdType::SET_POWER, desired_power, "power change");
 }
 
+static void send_keyer_speed (httpd_req_t * req, const RadioSnapshotData & snap) {
+    if (!snap.has_keyer_speed()) {
+        ESP_LOGE (TAG8, "unable to read keyer speed");
+        http_send_error_json (req, HTTPD_500_INTERNAL_SERVER_ERROR, "unable to read keyer speed");
+        return;
+    }
+    char buf[16];
+    snprintf (buf, sizeof (buf), "%ld", snap.keyer_speed);
+    ESP_LOGI (TAG8, "returning keyer speed: %s", buf);
+    http_send_string (req, buf);
+}
+
+static void keyer_speed_get_complete (httpd_req_t * req, RadioParkOutcome, bool) {
+    send_keyer_speed (req, radio_snapshot::get());
+}
+
+// GET keyerSpeed: the CW keyer speed in wpm, from the radio snapshot.
+esp_err_t handler_keyerSpeed_get (httpd_req_t * req) {
+    showActivity();
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    if (!kxRadio.supports_keyer_speed())
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "keyer speed not supported on this radio");
+
+    RadioSnapshotData snap = radio_snapshot::get();
+    int64_t           now  = esp_timer_get_time();
+    return radio_get_via_http (req, RadioCmdType::REFRESH_KEYER_SPEED, RadioParkKind::GET_KEYER_SPEED, snap, snap.keyer_speed_fresh (now), snap.has_keyer_speed(), send_keyer_speed, keyer_speed_get_complete);
+}
+
+// PUT keyerSpeed?wpm=N: set the CW keyer speed. The driver clamps to the radio's range.
+esp_err_t handler_keyerSpeed_put (httpd_req_t * req) {
+    showActivity();
+    ESP_LOGV (TAG8, "trace: %s()", __func__);
+
+    STANDARD_DECODE_SOLE_PARAMETER (req, "wpm", param_value);
+    ESP_LOGI (TAG8, "setting keyer speed to '%s'", param_value);
+
+    long wpm = 0;
+    if (!parse_long_param (param_value, wpm) || wpm < 1)
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "invalid wpm");
+
+    if (!kxRadio.supports_keyer_speed())
+        REPLY_WITH_FAILURE (req, HTTPD_404_NOT_FOUND, "keyer speed not supported on this radio");
+
+    return radio_set_via_http (req, RadioCmdType::SET_KEYER_SPEED, wpm, "keyer speed change");
+}
+
 /**
  * Background task that actually transmits a CW keyer message. Spawned from the
  * httpd server task so the single httpd worker stays free to service status,
