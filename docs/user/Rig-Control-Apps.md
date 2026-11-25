@@ -63,12 +63,19 @@ Ham2K connects as a rigctld client. Each line below says how it is known.
   reads it again when its CW messages dialog reopens.
 - A CW message sent from Ham2K keys the KX2, and Ham2K's on-screen pacing
   follows the sidetone.
+- Tuning from Ham2K's Spots page sets frequency and mode together on a KX2.
+  The radio followed to 7.284 and 7.239 MHz LSB and to 7.0055 MHz CW
+  (Ham2K 26.11.0 build 196 on a Pixel 7, firmware 261125:1508-R).
+- Voice memory playback, on a KX2: both message banks, M1 and M2, play from
+  Ham2K and key the radio (same Ham2K build and firmware).
 
 ### Known not to work (from source)
 
 - **Transmit meters.** While transmitting, Ham2K asks for
   `RFPOWER_METER_WATTS`, `SWR`, `ALC` and `VD_METER`. SOTAcat answers each
-  with `RPRT -4`, after which Ham2K stops asking for that connection.
+  with `RPRT -4`, after which Ham2K stops asking for that connection. Seen
+  on the wire with firmware 261125:1508-R: one request for each on the
+  first voice playback of a connection, and none on the next.
 - **Stopping a CW message or a voice memory in progress.** SOTAcat does not
   implement `stop_morse`
   ([#156](https://github.com/SOTAmat/SOTAcat/issues/156)) or
@@ -80,24 +87,29 @@ Ham2K connects as a rigctld client. Each line below says how it is known.
 
 ### Not tested with Ham2K
 
-- Setting frequency and mode from Ham2K. A frequency set was seen to work
-  during early bench work, but neither has a recorded check.
-- Voice memory playback. `send_voice_mem` is verified with `rigctl` only.
 - What Ham2K shows when SOTAcat refuses a change with `RPRT -9` during an
   FT8 transmission or a CW keyer message.
 - Ham2K with a KX3 or a KH1.
 
 ### Ham2K power setting
 
-Setting power from Ham2K is expected to land far below the value asked for.
-This comes from reading both sides' source and has **not been tested on
-hardware** ([#150](https://github.com/SOTAmat/SOTAcat/issues/150)).
+Setting power from Ham2K lands far below the value asked for
+([#150](https://github.com/SOTAmat/SOTAcat/issues/150)).
 
 Ham2K's rigctld driver (`ham2k/halo` at commit `56e775d`) sends
 `RFPOWER` as watts divided by an assumed 100 W maximum. SOTAcat follows
-Hamlib and reads `RFPOWER` as a fraction of the radio's maximum, 12 W. By
-that arithmetic, asking Ham2K for 1 W sets 0 W, and asking for 5, 10 or
-12 W sets 1 W.
+Hamlib and reads `RFPOWER` as a fraction of the radio's maximum, 12 W.
+
+Verified on a KX2 that was set to 10 W (Ham2K 26.11.0 build 196, firmware
+261125:1508-R): asking Ham2K for 7 W sent `L RFPOWER 0.070` and the radio
+went to 1 W, and asking for 5 W sent `L RFPOWER 0.050` and it stayed at
+1 W. By the same arithmetic, asking for 1 W sets 0 W and asking for 10 or
+12 W sets 1 W. Those values are not tested.
+
+Ham2K sends power only when the value entered differs from the last one it
+holds (from source). In the same session, 5 W entered again while Ham2K
+was connected sent nothing, and 7 W, a value not yet used, was sent at
+once.
 
 Until Ham2K uses a 12 W scale for SOTAcat, set power at the radio.
 
@@ -132,7 +144,7 @@ long forms take a leading backslash (`\get_freq`). Any other command answers
 | `u` | `get_func` | `TUNER` | `0` | the ATU tune is a momentary press, never latched; other names → `-4` |
 | `U` | `set_func` | `TUNER 1` | `RPRT` | starts an ATU tune and returns at once; `TUNER 0` is a no-op `0`; other names → `-4` |
 | `b` | `send_morse` | text | `RPRT` | same keyer path as the web UI; blocks until sent; `-9` if the keyer or FT8 holds the radio |
-| | `send_voice_mem` | `1` or `2` | `RPRT` | plays the radio's M1/M2 message bank; no single-letter form; verified bank 1 on a KX2, bank 2 and KH1 untested |
+| | `send_voice_mem` | `1` or `2` | `RPRT` | plays the radio's M1/M2 message bank; no single-letter form; verified banks 1 and 2 on a KX2; KH1 untested |
 | `_` | `get_info` | | `SOTAcat <radio>` | radio type as detected, e.g. `SOTAcat KX2` |
 | | `get_powerstat` | | `1` or `0` | `1` while the radio link is up; `set_powerstat` is deliberately `-4` (it could switch the radio off) |
 | | `dump_state` | | capability block | Hamlib protocol 1; advertises 500 kHz–54 MHz, funcs TUNER, levels AF, RFPOWER, KEYSPD, RAWSTR, STRENGTH |
