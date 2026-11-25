@@ -178,7 +178,8 @@ class RigctldTest:
                 self.expect(len(dump) < 60, "dump_state unterminated")
             self.expect(dump[0] == "1", f"protocol version {dump[0]!r} != 1")
             self.expect(dump[1] == "2", f"rig model {dump[1]!r} != 2 (netrigctl)")
-            self.expect("0x44001008" in dump, "has_get_level mask not advertised")
+            self.expect("0x44005008" in dump, "has_get_level mask not advertised")
+            self.expect("0x5008" in dump, "has_set_level mask not advertised")
             self.expect(c.cmd("\\get_powerstat") == ["1"], "get_powerstat != 1 with live radio")
         finally:
             c.close()
@@ -208,6 +209,9 @@ class RigctldTest:
                 db = int(c.cmd("l STRENGTH")[0])
                 self.expect(db == (int(raw) - 9) * 6 or -60 <= db <= 60,
                             f"STRENGTH {db} inconsistent with RAWSTR {raw}")
+            v = c.cmd("l KEYSPD")[0]
+            if "KX" in info or v != "RPRT -4":  # -4 is legitimate only on a radio without a keyer speed read (KH1)
+                self.expect(v.isdigit() and 8 <= int(v) <= 50, f"KEYSPD {v!r} not an integer in 8..50")
         finally:
             c.close()
 
@@ -275,6 +279,12 @@ class RigctldTest:
             ls = c.lines("+l RFPOWER", 3)
             self.expect(ls[0] == "get_level: RFPOWER" and re.fullmatch(r"[01]\.\d{4}", ls[1]) is not None
                         and ls[2] == "RPRT 0", f"+l RFPOWER {ls!r}")
+            ls = c.lines("+l KEYSPD", 2)
+            if ls[1] == "RPRT -4":  # legitimate only on a radio without a keyer speed read (KH1)
+                self.expect("KX" not in c.cmd("_")[0], f"+l KEYSPD refused on a KX radio: {ls!r}")
+            else:
+                ls.append(c._readline())
+                self.expect(ls[0] == "get_level: KEYSPD" and ls[1].isdigit() and ls[2] == "RPRT 0", f"+l KEYSPD {ls!r}")
             ls = c.lines("+u TUNER", 3)
             self.expect(ls == ["get_func: TUNER", "0", "RPRT 0"], f"+u TUNER {ls!r}")
 
@@ -367,6 +377,11 @@ class RigctldTest:
         self.expect(r.returncode == 0, f"rigctl l RFPOWER failed: {r.stderr.strip()[:200]}")
         self.expect(0.0 <= float(r.stdout.strip().splitlines()[-1]) <= 1.0,
                     f"rigctl RFPOWER output {r.stdout!r}")
+        r = subprocess.run(
+            [rigctl, "-m", "2", "-r", f"{self.host}:{self.port}", "l", "KEYSPD"],
+            capture_output=True, text=True, timeout=30)
+        self.expect(r.returncode == 0, f"rigctl l KEYSPD failed: {r.stderr.strip()[:200]}")
+        self.expect(8 <= int(r.stdout.strip().splitlines()[-1]) <= 50, f"rigctl KEYSPD output {r.stdout!r}")
 
     # -- mock-only scenario checks ---------------------------------------
     def t_ptt_roundtrip(self):
@@ -377,6 +392,21 @@ class RigctldTest:
             self.expect("🔴" in self.http_get("connectionStatus").text, "HTTP status not 🔴 during TX")
             self.expect(c.rprt("T 0") == 0, "set_ptt 0 RPRT != 0")
             self.expect(c.cmd("t") == ["0"], "ptt readback != 0")
+        finally:
+            c.close()
+
+    def t_keyspd_set(self):
+        c = Rigctl(self.host, self.port)
+        try:
+            orig = c.cmd("l KEYSPD")[0]
+            for asked, want in (("25", "25"), ("22.6", "23"), ("5", "8"), ("60", "50")):
+                self.expect(c.rprt(f"L KEYSPD {asked}") == 0, f"L KEYSPD {asked} refused")
+                got = c.cmd("l KEYSPD")[0]
+                self.expect(got == want, f"KEYSPD after set {asked}: {got!r}, want {want}")
+            for bad in ("abc", "0", "-3"):
+                self.expect(c.rprt(f"L KEYSPD {bad}") == -1, f"L KEYSPD {bad} not -1")
+                self.expect(c.cmd("l KEYSPD")[0] == "50", f"L KEYSPD {bad} changed the speed")
+            self.expect(c.rprt(f"L KEYSPD {orig}") == 0, "restoring KEYSPD refused")
         finally:
             c.close()
 
@@ -444,10 +474,13 @@ class RigctldTest:
                             f"+f during keying {hdr!r} {f!r} rprt {rc}")
                 hdr, f, rc = c.cmd_ext("+m")
                 self.expect(f.get("Mode") in MODES and rc == 0, f"+m during keying {f!r} rprt {rc}")
+                ls = c.lines("+l KEYSPD", 3)
+                self.expect(ls[0] == "get_level: KEYSPD" and ls[1].isdigit() and int(ls[1]) >= 8 and ls[2] == "RPRT 0",
+                            f"+l KEYSPD during keying {ls!r}")
                 self.expect(time.time() - t0 < 1.0, "GETs during keying blocked instead of serving last-known")
                 hdr, f, rc = c.cmd_ext("+t")
                 self.expect(f.get("PTT") == "1" and rc == 0, f"+t during keying {f!r} rprt {rc}")
-                for cmd in ("F 14074000", "M USB 0", "T 1", "L RFPOWER 0.5", "U TUNER 1", "b CQ"):
+                for cmd in ("F 14074000", "M USB 0", "T 1", "L RFPOWER 0.5", "L KEYSPD 20", "U TUNER 1", "b CQ"):
                     t0 = time.time()
                     code = c.rprt(cmd)
                     self.expect(code == -9, f"{cmd!r} during keying != -9 (got {code})")
@@ -519,6 +552,7 @@ class RigctldTest:
             self.check("real Hamlib client accepts our levels", self.t_hamlib_client_gating)
             if self.mock:
                 self.check("PTT set/readback, HTTP shows 🔴", self.t_ptt_roundtrip)
+                self.check("KEYSPD set: rounds, clamps 8..50, -1 on malformed", self.t_keyspd_set)
                 self.check("ATU tune via set_func TUNER", self.t_atu_tune)
                 self.check("morse accepted (mock only)", self.t_morse)
                 self.check("send_voice_mem banks 1/2, others -1", self.t_voice_mem)
@@ -526,7 +560,7 @@ class RigctldTest:
                 self.check("keyer active: last-known GETs, PTT 1, SETs -9", self.t_keyer_overlap)
                 self.check("dead radio: -6, then recovery", self.t_link_down)
             else:
-                for name in ("PTT set/readback", "ATU tune", "morse", "send_voice_mem", "FT8 scenario", "keyer scenario", "dead-radio scenario"):
+                for name in ("PTT set/readback", "KEYSPD set", "ATU tune", "morse", "send_voice_mem", "FT8 scenario", "keyer scenario", "dead-radio scenario"):
                     self.skip(name, "never keys/tunes real hardware; run against the mock")
         else:  # dead: the radio is expected to be off/unreachable right now
             self.check("link down: GET and SET report -6", self.t_down_now)

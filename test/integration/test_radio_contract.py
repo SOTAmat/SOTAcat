@@ -154,6 +154,8 @@ class ContractTest:
             # and "" would previously have parsed as 0 / partial values.
             for ep, want in (("power?power=abc", 404), ("power?power=12abc", 404),
                              ("power?power=", 404), ("power?power=-1", 404),
+                             ("keyerSpeed?wpm=abc", 404), ("keyerSpeed?wpm=12abc", 404),
+                             ("keyerSpeed?wpm=", 404), ("keyerSpeed?wpm=0", 404),
                              ("volume?delta=abc", 404), ("frequency?frequency=14e6", 404),
                              ("frequency?frequency=-5", 404), ("time?time=abc", 400),
                              ("time?time=-1", 400)):
@@ -313,6 +315,22 @@ class ContractTest:
             # parses with atoi(), so power=abc means power=0 and WOULD change
             # the operator's setting on a real radio.
 
+        def keyer_speed():
+            kx = "KX" in self.get("radioType")[0].text
+            r, _ = self.get("keyerSpeed")
+            if r.status_code == 404 and not kx:
+                return  # no keyer speed read on this radio (KH1)
+            self.expect(r.status_code == 200 and r.text.strip().isdigit() and 8 <= int(r.text) <= 50,
+                        f"GET keyerSpeed: HTTP {r.status_code} {r.text!r}")
+            cur = int(r.text.strip())
+            # Re-assert the current value: exercises the SET path with no
+            # side effect on the operator's keyer speed.
+            r, dt = self.put(f"keyerSpeed?wpm={cur}")
+            self.expect(r.status_code in (204, 202), f"expected 204/202, got {r.status_code}")
+            self.expect(dt <= SET_BOUND_S, f"PUT took {dt*1000:.0f} ms > bound")
+            g, _ = self.get("keyerSpeed")
+            self.expect(g.text.strip() == str(cur), f"GET keyerSpeed after PUT read {g.text.strip()!r}, want {cur}")
+
         def volume_get():
             r, dt = self.get("volume")
             self.expect(r.status_code in (200, 404), f"GET volume: HTTP {r.status_code}")
@@ -329,6 +347,7 @@ class ContractTest:
         self.check("PUT mode -> 204 and read-your-write", mode)
         self.check("PUT mode=SSB resolves against the just-tuned frequency", ssb_after_tune)
         self.check("GET/PUT power -> 204 and read-your-write (or 404 unsupported)", power)
+        self.check("GET/PUT keyerSpeed -> 204 and read-your-write (404 only off KX)", keyer_speed)
         self.check("GET volume -> bounded, numeric (or 404 unsupported)", volume_get)
         self.check("PUT time -> 204/202, bounded", time_sync)
 

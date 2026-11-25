@@ -47,6 +47,7 @@ DEFAULT_STATE = {
     "xmit": 0,  # 0 = RX, 1 = TX
     "volume": 120,  # AF gain 0-255
     "smeter": 7,    # S-meter bar-graph units 0-15 (S7)
+    "keyer_speed": 20,  # CW keyer speed, wpm (KX range 8-50)
     "radio_type": "KX2",  # "KX2", "KX3", or "Unknown"
     # Radio-link emulation (see MockRadio). Settable live via _debug/state.
     "radio_latency_ms": 50,  # simulated CAT round-trip per operation
@@ -285,8 +286,8 @@ class MockRigctld:
         "0 0\n0 0\n0\n0\n0\n0\n\n\n"
         "0x40000000\n"  # has_get_func: TUNER
         "0x40000000\n"  # has_set_func: TUNER
-        "0x44001008\n"  # has_get_level: AF|RFPOWER|RAWSTR|STRENGTH
-        "0x1008\n"      # has_set_level: AF|RFPOWER
+        "0x44005008\n"  # has_get_level: AF|RFPOWER|KEYSPD|RAWSTR|STRENGTH
+        "0x5008\n"      # has_set_level: AF|RFPOWER|KEYSPD
         "0x0\n0x0\ndone\n"
     )
 
@@ -603,6 +604,11 @@ class MockRigctld:
             if v is not None:
                 self._value(f"{v if name == 'RAWSTR' else (v - 9) * 6}")
                 self._end(self.RIG_OK)
+        elif name == "KEYSPD":
+            v = self._fetch("keyer_speed")
+            if v is not None:
+                self._value(f"{v}")
+                self._end(self.RIG_OK)
         else:
             self._end(self.RIG_ENIMPL)
 
@@ -623,6 +629,16 @@ class MockRigctld:
                 self.state["power"] = watts
                 return True
             self._end(self._apply("power change", mutate))
+        elif name == "KEYSPD":
+            wpm = int(val + 0.5) if val > 0 else 0
+            if wpm < 1:
+                self._end(self.RIG_EINVAL)
+                return
+
+            def mutate():
+                self.state["keyer_speed"] = min(max(wpm, 8), 50)  # the driver clamps
+                return True
+            self._end(self._apply("keyer speed change", mutate))
         elif name == "AF":
             if not self.radio.link_up:
                 self._end(self.RIG_EIO)
@@ -926,6 +942,26 @@ class MockSOTAcatServer:
                 return True
 
             return radio_reply(*self.radio.apply("time sync", mutate))
+
+        # Keyer speed
+        @self.app.route("/api/v1/keyerSpeed", methods=["GET"])
+        def get_keyer_speed():
+            return text_reply(self.radio.get_value("keyer_speed"))
+
+        @self.app.route("/api/v1/keyerSpeed", methods=["PUT"])
+        def set_keyer_speed():
+            try:
+                wpm = int(request.args.get("wpm", ""))
+            except ValueError:
+                wpm = 0
+            if wpm < 1:
+                return radio_reply(404, "invalid wpm")
+
+            def mutate():
+                self.state["keyer_speed"] = min(max(wpm, 8), 50)  # the driver clamps
+                return True
+
+            return radio_reply(*self.radio.apply("keyer speed change", mutate))
 
         # Power control
         @self.app.route("/api/v1/power", methods=["GET"])

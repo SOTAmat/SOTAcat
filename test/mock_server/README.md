@@ -58,6 +58,8 @@ mock to it (`make -C test/integration test-api-contract-mock`).
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | PUT | `/api/v1/power?power=X` | Set power (0 or 15) |
+| GET | `/api/v1/keyerSpeed` | CW keyer speed in wpm (bare text) |
+| PUT | `/api/v1/keyerSpeed?wpm=X` | Set keyer speed (clamped to 8-50; below 1 → 404) |
 | PUT | `/api/v1/xmit?state=X` | TX toggle (0=RX, 1=TX) |
 | PUT | `/api/v1/msg?bank=X` | Play CW message (1, 2, or 3) |
 | PUT | `/api/v1/keyer?message=X` | Send CW text → 204 at once (firmware keys in the background) |
@@ -87,7 +89,7 @@ The mock also serves the firmware's rigctld face (Hamlib NET rigctl,
 `src/rigctld_server.cpp`) on TCP `--rigctld-port` (default 4532; 0 disables):
 up to 2 concurrent clients (commands serialized, further connects wait in the
 backlog), GETs from the same simulated radio state (incl. the `smeter` key for
-STRENGTH/RAWSTR), SETs through the same queue as HTTP PUTs, `RPRT -6` while
+STRENGTH/RAWSTR and `keyer_speed` for KEYSPD), SETs through the same queue as HTTP PUTs, `RPRT -6` while
 the link is down and `-9` during FT8. `test/integration/test_rigctld.py`
 asserts that contract against the mock or hardware
 (`make -C test/integration test-rigctld-mock`).
