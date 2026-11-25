@@ -14,6 +14,7 @@
 #include "timed_lock.h"
 
 #include <cctype>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -406,6 +407,22 @@ static void cmd_get_level (Resp & r, const char * arg) {
         else
             resp_end (r, rc == RIG_OK ? RIG_EIO : rc);
     }
+    else if (!strcmp (level, "KEYSPD")) {
+        if (!kxRadio.supports_keyer_speed()) {
+            resp_end (r, RIG_ENIMPL);
+            return;
+        }
+        RadioSnapshotData s;
+        int               rc = rigctld_fetch (RadioCmdType::REFRESH_KEYER_SPEED, s);
+        if (rc == RIG_OK && s.has_keyer_speed()) {
+            char v[16];
+            snprintf (v, sizeof (v), "%ld", s.keyer_speed);  // wpm
+            resp_value (r, v);
+            resp_end (r, RIG_OK);
+        }
+        else
+            resp_end (r, rc == RIG_OK ? RIG_EIO : rc);
+    }
     else
         resp_end (r, RIG_ENIMPL);
 }
@@ -422,6 +439,18 @@ static void cmd_set_level (Resp & r, const char * arg) {
 
     if (!strcmp (level, "RFPOWER")) {
         resp_end (r, rigctld_apply (RadioCmdType::SET_POWER, rigctld_watts_from_rfpower (val)));
+    }
+    else if (!strcmp (level, "KEYSPD")) {
+        if (!kxRadio.supports_keyer_speed()) {
+            resp_end (r, RIG_ENIMPL);
+            return;
+        }
+        long wpm = lroundf (val);
+        if (wpm < 1) {  // also the non-numeric case: strtof gave 0
+            resp_end (r, RIG_EINVAL);
+            return;
+        }
+        resp_end (r, rigctld_apply (RadioCmdType::SET_KEYER_SPEED, wpm));  // the driver clamps to the radio's range
     }
     else if (!strcmp (level, "AF")) {
         if (!kxRadio.supports_volume()) {
@@ -520,11 +549,11 @@ static void cmd_dump_state (int sock) {
         "\n"                                               // attenuator
         // Bit values from Hamlib 4.5.5 rig.h. Hamlib clients refuse any
         // level/func not advertised here, so these masks are load-bearing.
-        // A radio lacking one at runtime (KH1: AF, SM) still answers -4.
+        // A radio lacking one at runtime (KH1: AF, SM, KS) still answers -4.
         "0x40000000\n"  // has_get_func: TUNER
         "0x40000000\n"  // has_set_func: TUNER
-        "0x44001008\n"  // has_get_level: AF|RFPOWER|RAWSTR|STRENGTH
-        "0x1008\n"      // has_set_level: AF|RFPOWER
+        "0x44005008\n"  // has_get_level: AF|RFPOWER|KEYSPD|RAWSTR|STRENGTH
+        "0x5008\n"      // has_set_level: AF|RFPOWER|KEYSPD
         "0x0\n"         // has_get_parm
         "0x0\n"         // has_set_parm
         "done\n";
