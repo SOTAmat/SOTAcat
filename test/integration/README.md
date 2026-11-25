@@ -24,6 +24,7 @@ This directory contains integration tests for the SOTAcat firmware and UI.
   - Also asserts the YAML's route set equals `api_handlers[]` in `src/webserver.cpp`
   - On a device, TX and reboot probes are skipped unless `--allow-tx` / `--allow-reboot`
 - **`test_rigctld.py`** - Hamlib NET rigctl contract on TCP 4532
+- **`test_mdns.py`** - `_sotacat._tcp` mDNS advertisement that Ham2K browses for (device only; the mock does not speak mDNS)
 
 ### UI Tests (can run offline with mock server)
 

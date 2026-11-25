@@ -12,7 +12,7 @@ EXPECT_RADIO ?= healthy
 # Detect if venv exists
 VENV_EXISTS := $(shell [ -f $(PYTHON) ] && echo 1 || echo 0)
 
-.PHONY: help setup test test-performance test-mutex test-ui test-ui-mock test-contract test-contract-mock test-api-contract test-api-contract-mock test-rigctld test-rigctld-mock test-rigctld-stress test-rigctld-stress-mock test-dual-stress test-dual-stress-mock clean
+.PHONY: help setup test test-performance test-mutex test-ui test-ui-mock test-contract test-contract-mock test-api-contract test-api-contract-mock test-rigctld test-rigctld-mock test-rigctld-stress test-rigctld-stress-mock test-dual-stress test-dual-stress-mock test-mdns clean
 
 help:
 	@echo "SOTAcat Integration Tests"
@@ -34,6 +34,7 @@ help:
 	@echo "  test-rigctld-stress-mock - Same, against the mock server (no hardware)"
 	@echo "  test-dual-stress - rigctld logger + browser tabs + page loads + tunes at once, against HOST"
 	@echo "  test-dual-stress-mock - Same, against the mock server (no hardware)"
+	@echo "  test-mdns        - _sotacat._tcp mDNS advertisement (Ham2K discovery) against HOST; hardware only"
 	@echo "  clean            - Remove test results and cache files"
 	@echo ""
 	@echo "Variables:"
@@ -173,6 +174,11 @@ test-dual-stress-mock: check-venv
 	$(PYTHON) test_dual_interface_stress.py --host localhost --port 14532 --http-port 8097 --duration 20 --pageload-s 5 --tune-s 6 || rc=1; \
 	kill $$(cat .mock_dual_stress.pid) 2>/dev/null; rm -f .mock_dual_stress.pid; \
 	exit $$rc
+
+# Hardware only: the mock does not speak mDNS. Run from the unit's network segment.
+test-mdns: check-venv
+	@echo "Running mDNS advertisement test against $(HOST)..."
+	@$(PYTHON) test_mdns.py --host $(HOST)
 
 clean:
 	@echo "Cleaning test results..."

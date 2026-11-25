@@ -1,8 +1,11 @@
 #include "wifi.h"
+#include "build_info.h"
 #include "globals.h"
 #include "hardware_specific.h"
+#include "rigctld_server.h"
 #include "settings.h"
 
+#include <cstdio>
 #include <cstring>
 #include <esp_mac.h>
 #include <esp_netif.h>
@@ -533,6 +536,24 @@ bool start_mdns_service () {
         ESP_LOGE (TAG8, "mDNS device-info service add failed: %s", esp_err_to_name (err));
         // Don't fail completely if device-info service fails
         ESP_LOGW (TAG8, "Continuing without device-info service");
+    }
+
+    // rigctld service, browsed for by Ham2K: instance is the AP SSID, id is the factory MAC
+    if (g_ap_ssid[0] == '\0') {
+        ESP_LOGE (TAG8, "AP SSID is empty; not advertising _sotacat._tcp");
+    }
+    else {
+        uint8_t mac[6];
+        ESP_ERROR_CHECK (esp_read_mac (mac, ESP_MAC_EFUSE_FACTORY));
+        char id[13];
+        snprintf (id, sizeof (id), "%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        mdns_txt_item_t sotacat_txt[] = {
+            {"id", id                                },
+            {"fw", BUILD_DATE_TIME "-" SC_BUILD_TYPE}
+        };
+        err = mdns_service_add (g_ap_ssid, "_sotacat", "_tcp", RIGCTLD_PORT, sotacat_txt, sizeof (sotacat_txt) / sizeof (sotacat_txt[0]));
+        if (err != ESP_OK)
+            ESP_LOGE (TAG8, "mDNS sotacat service add failed: %s; continuing without it", esp_err_to_name (err));
     }
 
     ESP_LOGI (TAG8, "mDNS service started successfully");

@@ -27,7 +27,6 @@
 #include <esp_log.h>
 static const char * TAG8 = "sc:rigctld.";
 
-static constexpr int RIGCTLD_PORT        = 4532;
 static constexpr int RIGCTLD_MAX_LINE    = 256;
 static constexpr int RIGCTLD_STACK_SIZE  = 6144;
 static constexpr int RIGCTLD_MAX_CLIENTS = 2;  // sized into CONFIG_LWIP_MAX_SOCKETS (sdkconfig.defaults)
