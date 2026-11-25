@@ -23,6 +23,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -630,7 +631,9 @@ class MockRigctld:
                 return True
             self._end(self._apply("power change", mutate))
         elif name == "KEYSPD":
-            wpm = int(val + 0.5) if val > 0 else 0
+            # Plain decimal only, as the firmware: no exponent, hex, nan or inf.
+            plain = re.fullmatch(r"\d+(\.\d*)?|\.\d+", val_str)
+            wpm = int(min(val, 1000.0) + 0.5) if plain else 0
             if wpm < 1:
                 self._end(self.RIG_EINVAL)
                 return

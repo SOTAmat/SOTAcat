@@ -13,6 +13,7 @@
 #include "rigctld_proto.h"
 #include "timed_lock.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdarg>
@@ -445,8 +446,12 @@ static void cmd_set_level (Resp & r, const char * arg) {
             resp_end (r, RIG_ENIMPL);
             return;
         }
-        long wpm = lroundf (val);
-        if (wpm < 1) {  // also the non-numeric case: strtof gave 0
+        // Plain decimal only: strtof alone would take nan, inf, hex and exponents.
+        char * end   = nullptr;
+        float  speed = strtof (val_str, &end);
+        bool   plain = *end == '\0' && val_str[strspn (val_str, "0123456789.")] == '\0';
+        long   wpm   = plain ? lroundf (std::min (speed, 1000.0f)) : 0;  // capped so lroundf cannot overflow
+        if (wpm < 1) {
             resp_end (r, RIG_EINVAL);
             return;
         }

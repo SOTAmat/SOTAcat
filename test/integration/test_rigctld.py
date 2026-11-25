@@ -403,7 +403,7 @@ class RigctldTest:
                 self.expect(c.rprt(f"L KEYSPD {asked}") == 0, f"L KEYSPD {asked} refused")
                 got = c.cmd("l KEYSPD")[0]
                 self.expect(got == want, f"KEYSPD after set {asked}: {got!r}, want {want}")
-            for bad in ("abc", "0", "-3"):
+            for bad in ("abc", "0", "-3", "nan", "inf", "1e30", "12abc", "0x19", "25 6", "1.2.3"):
                 self.expect(c.rprt(f"L KEYSPD {bad}") == -1, f"L KEYSPD {bad} not -1")
                 self.expect(c.cmd("l KEYSPD")[0] == "50", f"L KEYSPD {bad} changed the speed")
             self.expect(c.rprt(f"L KEYSPD {orig}") == 0, "restoring KEYSPD refused")
