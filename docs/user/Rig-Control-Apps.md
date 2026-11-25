@@ -61,9 +61,11 @@ long forms take a leading backslash (`\get_freq`). Any other command answers
 | | | `AF` | 0.0–1.0 | 1.0 = AF knob 60; KX2/KX3 verified, KH1 untested |
 | | | `STRENGTH` | dB relative to S9 | 6 dB per S-meter bar; `-4` on the KH1 (no S-meter CAT) |
 | | | `RAWSTR` | 0–15 | raw KX S-meter bars; `-4` on the KH1 |
+| | | `KEYSPD` | wpm, integer | the radio's CW keyer speed; `-4` on the KH1; verified on a KX2 against the radio's display, including after a dial change, and with Ham2K; KX3 and KH1 untested |
 | | | any other | `RPRT -4` | |
 | `L` | `set_level` | `RFPOWER` 0.0–1.0 | `RPRT` | rounded to whole watts, 12 W max |
 | | | `AF` 0.0–1.0 | `RPRT` | steps the AF knob toward the nearest 5-count step |
+| | | `KEYSPD` wpm | `RPRT` | rounded to a whole wpm, clamped to 8–50; below 1 or non-numeric → `-1`; `-4` on the KH1; verified on a KX2 (the display follows; 5 reads back 8, 60 reads back 50); KX3 and KH1 untested |
 | | | any other | `RPRT -4` | missing value → `-1` |
 | `u` | `get_func` | `TUNER` | `0` | the ATU tune is a momentary press, never latched; other names → `-4` |
 | `U` | `set_func` | `TUNER 1` | `RPRT` | starts an ATU tune and returns at once; `TUNER 0` is a no-op `0`; other names → `-4` |
@@ -71,7 +73,7 @@ long forms take a leading backslash (`\get_freq`). Any other command answers
 | | `send_voice_mem` | `1` or `2` | `RPRT` | plays the radio's M1/M2 message bank; no single-letter form; verified bank 1 on a KX2, bank 2 and KH1 untested |
 | `_` | `get_info` | | `SOTAcat <radio>` | radio type as detected, e.g. `SOTAcat KX2` |
 | | `get_powerstat` | | `1` or `0` | `1` while the radio link is up; `set_powerstat` is deliberately `-4` (it could switch the radio off) |
-| | `dump_state` | | capability block | Hamlib protocol 1; advertises 500 kHz–54 MHz, funcs TUNER, levels AF, RFPOWER, RAWSTR, STRENGTH |
+| | `dump_state` | | capability block | Hamlib protocol 1; advertises 500 kHz–54 MHz, funcs TUNER, levels AF, RFPOWER, KEYSPD, RAWSTR, STRENGTH |
 | | `chk_vfo` | | `0` | |
 | `q`, `Q` | `quit` | | `RPRT 0` | closes the connection |
 
@@ -89,14 +91,19 @@ the reply then carries the command name, labelled fields and a trailing
 | `-1` | RIG_EINVAL | missing or malformed argument |
 | `-4` | RIG_ENIMPL | command, level or func not implemented, or not available on this radio |
 | `-5` | RIG_ETIMEOUT | the radio did not answer in time |
-| `-6` | RIG_EIO | radio link down, or the radio rejected the CAT command |
+| `-6` | RIG_EIO | radio link down, the radio rejected the CAT command, or the value has not been read from the radio yet |
 | `-9` | RIG_ERJCTED | refused: an FT8 transmission or a CW keyer message owns the radio |
 
-Not (yet) supported: split / VFO B, RIT/XIT, keyer speed, filter bandwidth.
+Not (yet) supported: split / VFO B, RIT/XIT, filter bandwidth.
 While the radio link is down the server answers `RPRT -6`. While the web UI
 has the radio on the air, during an FT8 transmission or while a CW keyer
 message is being sent, reads return the last-known state at once and
 changes are refused with `RPRT -9` until the transmission ends.
+
+A message sent with `send_morse` is different. The server handles its
+clients' commands one at a time, so while that message keys, commands from
+every rigctld connection wait and are applied once it ends. A `KEYSPD`
+set sent during the message takes effect after it (seen on a KX2).
 
 The web UI and desktop apps share one radio picture — a frequency set from
 WSJT-X shows up in the SOTAcat header, and vice versa.

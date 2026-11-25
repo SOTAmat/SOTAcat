@@ -467,10 +467,10 @@ copies), parked occupancy typically 0–1.
   client; further connects wait in the TCP backlog. Client sockets carry TCP
   keepalive (5 s idle, 5 s interval, 3 probes), so a peer that vanishes without
   a FIN frees its slot in ~20 s instead of holding it until reboot. `dump_state` advertises
-  RFPOWER/AF/STRENGTH/RAWSTR levels and the TUNER func (Hamlib clients gate on
+  RFPOWER/AF/KEYSPD/STRENGTH/RAWSTR levels and the TUNER func (Hamlib clients gate on
   those masks); the S-meter is a snapshot field (`REFRESH_SMETER`, KX only —
   gated by `supports_smeter()` so a KH1 poll never feeds the health machine).
-  Deferred rigctld work: keyer speed (KS), split/VFO B (FB/FT/FR), RIT/XIT,
+  Deferred rigctld work: split/VFO B (FB/FT/FR), RIT/XIT,
   real passband (BW), SWR (no confirmed KX CAT read), and `set_powerstat`
   (never: PS0 powers the radio off).
 - **USB-host radios** (`rdarden/feat/esp32-s3-usb-otg`, QMX and IC-705): the model
