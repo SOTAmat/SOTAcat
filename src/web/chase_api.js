@@ -8,6 +8,8 @@
 
 const SPOTHOLE_BASE_URL = "https://spothole.app/api/v3";
 const SPOTHOLE_API_TIMEOUT_MS = 10000; // 10 seconds
+const SPOTHOLE_SOURCES_KEY = "spotholeDefaultSources";
+const SPOTHOLE_SOURCES_TTL_MS = 24 * 3600 * 1000;
 
 // Cache for reference details (summit/park names, etc.)
 
@@ -25,6 +27,7 @@ const SPOTHOLE_API_TIMEOUT_MS = 10000; // 10 seconds
  * @param {boolean} options.dedupe - Remove duplicate callsigns (default: true)
  * @param {boolean} options.allow_qrt - Allow spots that are known to be QRT. (default: false)
  * @param {number} options.received_since - Unix timestamp for incremental updates
+ * @param {Array<string>} options.source - Only spots from these sources
  * @returns {Promise<Array>} Array of spot objects
  */
 async function fetchSpots(options = {}) {
@@ -46,38 +49,73 @@ async function fetchSpots(options = {}) {
     if (options.received_since) {
         params.append("received_since", options.received_since);
     }
+    if (options.source) {
+        params.append("source", options.source.join(","));
+    }
 
     const url = `${SPOTHOLE_BASE_URL}/spots?${params.toString()}`;
     Log.debug("Spothole")("Fetching spots from:", url);
 
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), SPOTHOLE_API_TIMEOUT_MS);
+        const data = await spotholeGetJson(url);
+        Log.debug("Spothole")(`Received ${data.length} spots`);
+        return data;
+    } catch (error) {
+        Log.error("Spothole")("Error fetching spots:", error);
+        throw error;
+    }
+}
 
-        const response = await fetch(url, {
+/**
+ * The sources Spothole shows by default. Its full feed also carries RBN
+ * skimmer spots, about a thousand an hour, which push everything else out of
+ * a limited fetch within minutes.
+ * @returns {Promise<Array<string>>} Source names for the `source` filter
+ */
+async function fetchDefaultSources() {
+    const stored = JSON.parse(localStorage.getItem(SPOTHOLE_SOURCES_KEY));
+    if (stored && Date.now() - stored.timestamp < SPOTHOLE_SOURCES_TTL_MS) return stored.sources;
+
+    let sources;
+    try {
+        const options = await spotholeGetJson(`${SPOTHOLE_BASE_URL}/options`);
+        sources = options.spot_providers_enabled_by_default;
+        if (!Array.isArray(sources) || sources.length === 0) {
+            throw new Error("Spothole options name no default spot providers");
+        }
+    } catch (error) {
+        if (!stored) throw error;
+        Log.warn("Spothole")("No fresh source list; keeping the stored one:", error);
+        return stored.sources;
+    }
+    localStorage.setItem(SPOTHOLE_SOURCES_KEY, JSON.stringify({ sources, timestamp: Date.now() }));
+    return sources;
+}
+
+async function spotholeGetJson(url) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SPOTHOLE_API_TIMEOUT_MS);
+    let response;
+    try {
+        response = await fetch(url, {
             signal: controller.signal,
             headers: {
                 Accept: "application/json",
                 "Accept-Encoding": "gzip, deflate, br",
             },
         });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        Log.debug("Spothole")(`Received ${data.length} spots`);
-        return data;
     } catch (error) {
         if (error.name === "AbortError") {
             throw new Error("Spothole API request timed out");
         }
-        Log.error("Spothole")("Error fetching spots:", error);
         throw error;
+    } finally {
+        clearTimeout(timeoutId); // the timeout bounds the wait for headers, not the body download
     }
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
 }
 
 // ============================================================================
@@ -200,7 +238,8 @@ function spothole_transformSpots(spotsData, location) {
 async function fetchAndProcessSpots(options, location) {
     try {
         // Fetch raw spots from Spothole
-        const rawSpots = await fetchSpots(options);
+        const source = await fetchDefaultSources();
+        const rawSpots = await fetchSpots({ ...options, source });
 
         // Transform to our internal format
         let spots = spothole_transformSpots(rawSpots, location);

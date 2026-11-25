@@ -92,6 +92,14 @@ the `Spots` global.
 `CHASE_HISTORY_DURATION_SECONDS`). The key name is preserved for
 compatibility with caches from earlier chase-only versions.
 
+**Source filter:** `chase_api.js` requests only the sources Spothole
+lists in `/options` as `spot_providers_enabled_by_default`, which
+excludes the RBN skimmer feeds. Unfiltered, those feeds fill the
+500-spot limit in about two minutes. The list is kept in
+`localStorage["spotholeDefaultSources"]` and refetched after 24 h. If
+`/options` cannot be read, the stored list is used; with none stored
+the refresh fails.
+
 **Design context:** `docs/superpowers/specs/2026-05-06-spot-ticks-design.md`
 and `docs/superpowers/plans/2026-05-06-spot-ticks.md`.
 
