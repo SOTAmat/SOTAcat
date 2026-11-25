@@ -52,6 +52,8 @@ For each Client network, you can enable **Pin IP to x.x.x.222** in Settings. Whe
 1. In Settings, enable "Pin IP to x.x.x.222" for your hotspot network
 2. Use [Bonjour Browser](https://play.google.com/store/apps/details?id=de.wellenvogel.bonjourbrowser) to discover SOTAcat's `x.x.x.222` address
 
+**Logging apps over rigctld:** Ham2K finds a SOTAcat on your hotspot by itself and connects by the name `sotacat.local`, so there is no address to type or bookmark. This was tested with Ham2K 26.11.0 (build 195) on a Pixel 7 acting as the hotspot. Other logging apps have not been tested on a hotspot. If one cannot reach `sotacat.local`, enable the pin and give it the `x.x.x.222` address. See [Rig Control from Desktop Apps](Rig-Control-Apps.md).
+
 ## Symptoms and Fixes
 
 | Symptom | Likely Cause | Fix |

@@ -53,9 +53,10 @@ Ham2K connects as a rigctld client. Each line below says how it is known.
 - Ham2K finds a SOTAcat by itself. Ham2K listed the unit under "Detected
   Equipment" and connected to it once added, both with the SOTAcat joined
   to the Android phone's own hotspot and with phone and SOTAcat on a home
-  network (firmware 261125:1424-R). SOTAcat advertises the mDNS service
-  `_sotacat._tcp` that Ham2K browses for; the name shown is the unit's
-  hotspot name.
+  network (Ham2K 26.11.0 build 195 on a Pixel 7, firmware 261125:1424-R).
+  The saved radio's host reads `sotacat.local`. SOTAcat advertises the
+  mDNS service `_sotacat._tcp` that Ham2K browses for; the name shown is
+  the unit's hotspot name.
 - Ham2K connects and holds a steady poll of PTT, frequency and mode (serial
   capture, firmware 260907:1424-R).
 - Keyer speed, on a KX2: Ham2K reads the speed at connect, sets it, and
