@@ -65,7 +65,7 @@ long forms take a leading backslash (`\get_freq`). Any other command answers
 | | | any other | `RPRT -4` | |
 | `L` | `set_level` | `RFPOWER` 0.0–1.0 | `RPRT` | rounded to whole watts, 12 W max |
 | | | `AF` 0.0–1.0 | `RPRT` | steps the AF knob toward the nearest 5-count step |
-| | | `KEYSPD` wpm | `RPRT` | rounded to a whole wpm, clamped to 8–50; below 1 or non-numeric → `-1`; `-4` on the KH1; verified on a KX2 (the display follows; 5 reads back 8, 60 reads back 50); KX3 and KH1 untested |
+| | | `KEYSPD` wpm | `RPRT` | rounded to a whole wpm, clamped to 8–50; below 1 → `-1`; `-4` on the KH1; verified on a KX2 (the display follows; 5 reads back 8, 60 reads back 50); KX3 and KH1 untested |
 | | | any other | `RPRT -4` | missing value → `-1` |
 | `u` | `get_func` | `TUNER` | `0` | the ATU tune is a momentary press, never latched; other names → `-4` |
 | `U` | `set_func` | `TUNER 1` | `RPRT` | starts an ATU tune and returns at once; `TUNER 0` is a no-op `0`; other names → `-4` |
@@ -93,6 +93,10 @@ the reply then carries the command name, labelled fields and a trailing
 | `-5` | RIG_ETIMEOUT | the radio did not answer in time |
 | `-6` | RIG_EIO | radio link down, the radio rejected the CAT command, or the value has not been read from the radio yet |
 | `-9` | RIG_ERJCTED | refused: an FT8 transmission or a CW keyer message owns the radio |
+
+A `set_level` value must be a plain decimal number such as `0.5` or `25`. A
+sign, an exponent, hex, `nan`, `inf` or trailing text gets `RPRT -1` and
+changes nothing (verified on a KX2).
 
 Not (yet) supported: split / VFO B, RIT/XIT, filter bandwidth.
 While the radio link is down the server answers `RPRT -6`. While the web UI

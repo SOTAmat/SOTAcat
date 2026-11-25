@@ -9,6 +9,7 @@
 // static_asserts the correspondence.
 #include <cctype>
 #include <cstddef>
+#include <cstdlib>
 #include <cstring>
 
 // One entry per supported wire command; UNKNOWN replies RPRT ENIMPL.
@@ -248,6 +249,20 @@ inline constexpr long RIGCTLD_AF_STEP   = 5;
 inline float rigctld_rfpower_from_watts (long watts) {
     float v = (float)watts / (float)RIGCTLD_MAX_WATTS;
     return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+}
+
+// A set_level value is a plain decimal. strtof alone would also take nan,
+// inf, hex, exponents and trailing junk. Capped so a later integer cast
+// cannot overflow.
+inline bool rigctld_parse_level_value (const char * s, float & out) {
+    if (s[strspn (s, "0123456789.")] != '\0')
+        return false;
+    char * end = nullptr;
+    float  v   = strtof (s, &end);
+    if (end == s || *end != '\0')
+        return false;
+    out = v > 1000.0f ? 1000.0f : v;
+    return true;
 }
 
 inline long rigctld_watts_from_rfpower (float val) {

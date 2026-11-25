@@ -13,7 +13,6 @@
 #include "rigctld_proto.h"
 #include "timed_lock.h"
 
-#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdarg>
@@ -436,9 +435,14 @@ static void cmd_set_level (Resp & r, const char * arg) {
         return;
     }
 
-    float val = strtof (val_str, nullptr);
+    float val   = 0.0f;
+    bool  plain = rigctld_parse_level_value (val_str, val);
 
     if (!strcmp (level, "RFPOWER")) {
+        if (!plain) {
+            resp_end (r, RIG_EINVAL);
+            return;
+        }
         resp_end (r, rigctld_apply (RadioCmdType::SET_POWER, rigctld_watts_from_rfpower (val)));
     }
     else if (!strcmp (level, "KEYSPD")) {
@@ -446,11 +450,7 @@ static void cmd_set_level (Resp & r, const char * arg) {
             resp_end (r, RIG_ENIMPL);
             return;
         }
-        // Plain decimal only: strtof alone would take nan, inf, hex and exponents.
-        char * end   = nullptr;
-        float  speed = strtof (val_str, &end);
-        bool   plain = *end == '\0' && val_str[strspn (val_str, "0123456789.")] == '\0';
-        long   wpm   = plain ? lroundf (std::min (speed, 1000.0f)) : 0;  // capped so lroundf cannot overflow
+        long wpm = plain ? lroundf (val) : 0;
         if (wpm < 1) {
             resp_end (r, RIG_EINVAL);
             return;
@@ -460,6 +460,10 @@ static void cmd_set_level (Resp & r, const char * arg) {
     else if (!strcmp (level, "AF")) {
         if (!kxRadio.supports_volume()) {
             resp_end (r, RIG_ENIMPL);
+            return;
+        }
+        if (!plain) {
+            resp_end (r, RIG_EINVAL);
             return;
         }
         // Hamlib AF is absolute, but SET_VOLUME's arg is a delta in web-UI

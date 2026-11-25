@@ -619,10 +619,12 @@ class MockRigctld:
         if not name or not val_str.strip():
             self._end(self.RIG_EINVAL)
             return
-        try:
-            val = float(val_str)
-        except ValueError:
-            val = 0.0
+        # Plain decimal only, as the firmware: no sign, exponent, hex, nan or inf.
+        plain = re.fullmatch(r"\d+(\.\d*)?|\.\d+", val_str) is not None
+        val = min(float(val_str), 1000.0) if plain else 0.0
+        if name in ("RFPOWER", "AF") and not plain:
+            self._end(self.RIG_EINVAL)
+            return
         if name == "RFPOWER":
             watts = min(max(int(val * self.MAX_WATTS + 0.5), 0), self.MAX_WATTS)
 
@@ -631,9 +633,7 @@ class MockRigctld:
                 return True
             self._end(self._apply("power change", mutate))
         elif name == "KEYSPD":
-            # Plain decimal only, as the firmware: no exponent, hex, nan or inf.
-            plain = re.fullmatch(r"\d+(\.\d*)?|\.\d+", val_str)
-            wpm = int(min(val, 1000.0) + 0.5) if plain else 0
+            wpm = int(val + 0.5)
             if wpm < 1:
                 self._end(self.RIG_EINVAL)
                 return

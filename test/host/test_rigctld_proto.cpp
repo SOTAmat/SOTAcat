@@ -206,6 +206,21 @@ static void test_af_conversions () {
     assert (rigctld_af_target (-0.1f) == 0);
 }
 
+static void test_parse_level_value () {
+    float v = -1.0f;
+    assert (rigctld_parse_level_value ("0.5", v) && feq (v, 0.5f));
+    assert (rigctld_parse_level_value ("25.000000", v) && feq (v, 25.0f));
+    assert (rigctld_parse_level_value (".5", v) && feq (v, 0.5f));
+    assert (rigctld_parse_level_value ("3.", v) && feq (v, 3.0f));
+    // Huge but plain: capped, so a later integer cast cannot overflow.
+    assert (rigctld_parse_level_value ("9999999999999999999999999999999999999999999999", v) && feq (v, 1000.0f));
+    for (const char * bad : {"", ".", "abc", "nan", "inf", "1e30", "0.5abc", "0x1", "0.5 6", "0.1.2", "-1", "+1", " 1"}) {
+        v = 7.0f;
+        assert (!rigctld_parse_level_value (bad, v));
+        assert (feq (v, 7.0f));  // untouched on refusal
+    }
+}
+
 static void test_af_step_delta () {
     // Exactly there and within half a step (2 counts): no delta.
     assert (rigctld_af_step_delta (30, 30) == 0);
@@ -283,6 +298,7 @@ int main () {
     test_split_level();
     test_rfpower_conversions();
     test_af_conversions();
+    test_parse_level_value();
     test_af_step_delta();
     test_strength_from_bars();
     test_ext_prefix();

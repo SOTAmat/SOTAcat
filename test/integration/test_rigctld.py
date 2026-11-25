@@ -316,6 +316,11 @@ class RigctldTest:
             self.expect(c.rprt("F abc") == -1, "set_freq junk != -1")
             self.expect(c.rprt("M NOSUCHMODE 0") == -1, "bad mode != -1")
             self.expect(c.rprt("L AF") == -1, "set_level w/o value != -1")
+            # Only a plain decimal is a level value; anything else is refused
+            # before it can reach the radio.
+            for level in ("RFPOWER", "AF"):
+                for bad in ("abc", "nan", "inf", "1e30", "0.5abc", "0x1", "0.5 6", "0.1.2", "-1", "."):
+                    self.expect(c.rprt(f"L {level} {bad}") == -1, f"L {level} {bad} != -1")
             # After all that abuse the session still answers.
             self.expect(int(c.cmd("f")[0]) > 0, "session wedged after errors")
         finally:
