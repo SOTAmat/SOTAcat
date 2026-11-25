@@ -1,9 +1,10 @@
 # Rig Control from Desktop Apps (rigctld)
 
 SOTAcat speaks the Hamlib **NET rigctl** protocol on TCP port **4532**, so
-desktop ham apps can control your radio over WiFi — no serial cable, no extra
-software on the SOTAcat side. Anything that offers a "Hamlib NET rigctl"
-(model 2) rig type works.
+ham apps can control your radio over WiFi. No serial cable is needed, and no
+extra software on the SOTAcat side. Apps that offer a "Hamlib NET rigctl"
+(model 2) rig type target this protocol. The ones tested so far are listed
+under [Verified clients](#verified-clients).
 
 ## Connecting
 
@@ -20,11 +21,13 @@ rigctl -m 2 -r sotacat.local:4532 F 14285000   # set frequency
 rigctl -m 2 -r sotacat.local:4532 l STRENGTH   # S-meter, dB relative to S9
 ```
 
-## Verified client
+## Verified clients
 
 - **rigctl** (Hamlib 4.5.5 command-line client) — tested against SOTAcat
   hardware: frequency/mode get and set, PTT read, S-meter, power and AF
   levels, and the session handshake.
+- **Ham2K**: partly verified. See [Ham2K](#ham2k) for what was tested and
+  what is known not to work.
 
 ## Untested
 
@@ -39,7 +42,49 @@ which some digital-mode workflows expect.
 Two apps can be connected at the same time; a third connection waits until
 one disconnects.
 
-## Ham2K power setting
+## Ham2K
+
+Ham2K connects as a rigctld client. Each line below says how it is known.
+"From source" means read from the SOTAcat firmware and from Ham2K's driver
+(`ham2k/halo` at commit `1cd2b43`), not observed in the app.
+
+### Verified on hardware
+
+- Ham2K connects and holds a steady poll of PTT, frequency and mode (serial
+  capture, firmware 260907:1424-R).
+- Keyer speed, on a KX2: Ham2K reads the speed at connect, sets it, and
+  reads it again when its CW messages dialog reopens.
+- A CW message sent from Ham2K keys the KX2, and Ham2K's on-screen pacing
+  follows the sidetone.
+
+### Known not to work (from source)
+
+- **Transmit meters.** While transmitting, Ham2K asks for
+  `RFPOWER_METER_WATTS`, `SWR`, `ALC` and `VD_METER`. SOTAcat answers each
+  with `RPRT -4`, after which Ham2K stops asking for that connection.
+- **Stopping a CW message or a voice memory in progress.** SOTAcat does not
+  implement `stop_morse`
+  ([#156](https://github.com/SOTAmat/SOTAcat/issues/156)) or
+  `stop_voice_mem` ([#162](https://github.com/SOTAmat/SOTAcat/issues/162))
+  and answers `RPRT -4`.
+- **RF gain and mute.** Ham2K sends `set_level RF` and `set_func MUTE`.
+  SOTAcat implements neither and answers `RPRT -4`.
+- **Finding a SOTAcat automatically.** Ham2K browses for the mDNS service
+  `_sotacat._tcp`, which SOTAcat does not advertise
+  ([#163](https://github.com/SOTAmat/SOTAcat/issues/163)). Enter the host
+  by hand.
+- **Power setting.** See [below](#ham2k-power-setting).
+
+### Not tested with Ham2K
+
+- Setting frequency and mode from Ham2K. A frequency set was seen to work
+  during early bench work, but neither has a recorded check.
+- Voice memory playback. `send_voice_mem` is verified with `rigctl` only.
+- What Ham2K shows when SOTAcat refuses a change with `RPRT -9` during an
+  FT8 transmission or a CW keyer message.
+- Ham2K with a KX3 or a KH1.
+
+### Ham2K power setting
 
 Setting power from Ham2K is expected to land far below the value asked for.
 This comes from reading both sides' source and has **not been tested on
@@ -123,5 +168,5 @@ clients' commands one at a time, so while that message keys, commands from
 every rigctld connection wait and are applied once it ends. A `KEYSPD`
 set sent during the message takes effect after it (seen on a KX2).
 
-The web UI and desktop apps share one radio picture — a frequency set from
-WSJT-X shows up in the SOTAcat header, and vice versa.
+The web UI and rigctld clients share one radio picture. A frequency set over
+rigctld shows up in the SOTAcat header, and vice versa.
