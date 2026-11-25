@@ -39,6 +39,20 @@ which some digital-mode workflows expect.
 Two apps can be connected at the same time; a third connection waits until
 one disconnects.
 
+## Ham2K power setting
+
+Setting power from Ham2K is expected to land far below the value asked for.
+This comes from reading both sides' source and has **not been tested on
+hardware** ([#150](https://github.com/SOTAmat/SOTAcat/issues/150)).
+
+Ham2K's rigctld driver (`ham2k/halo` at commit `56e775d`) sends
+`RFPOWER` as watts divided by an assumed 100 W maximum. SOTAcat follows
+Hamlib and reads `RFPOWER` as a fraction of the radio's maximum, 12 W. By
+that arithmetic, asking Ham2K for 1 W sets 0 W, and asking for 5, 10 or
+12 W sets 1 W.
+
+Until Ham2K uses a 12 W scale for SOTAcat, set power at the radio.
+
 ## Supported commands
 
 Every command the server understands, from the dispatcher in
@@ -63,7 +77,7 @@ long forms take a leading backslash (`\get_freq`). Any other command answers
 | | | `RAWSTR` | 0–15 | raw KX S-meter bars; `-4` on the KH1 |
 | | | `KEYSPD` | wpm, integer | the radio's CW keyer speed; `-4` on the KH1; verified on a KX2 against the radio's display, including after a dial change, and with Ham2K; KX3 and KH1 untested |
 | | | any other | `RPRT -4` | |
-| `L` | `set_level` | `RFPOWER` 0.0–1.0 | `RPRT` | rounded to whole watts, 12 W max |
+| `L` | `set_level` | `RFPOWER` 0.0–1.0 | `RPRT` | rounded to whole watts, 12 W max; see [Ham2K power setting](#ham2k-power-setting) |
 | | | `AF` 0.0–1.0 | `RPRT` | steps the AF knob toward the nearest 5-count step |
 | | | `KEYSPD` wpm | `RPRT` | rounded to a whole wpm, clamped to 8–50; below 1 → `-1`; `-4` on the KH1; verified on a KX2 (the display follows; 5 reads back 8, 60 reads back 50); KX3 and KH1 untested |
 | | | any other | `RPRT -4` | missing value → `-1` |
