@@ -54,9 +54,16 @@ class TestSuite:
     """Collection of test results"""
     results: List[TestResult] = field(default_factory=list)
     js_errors: List[str] = field(default_factory=list)
+    alerts: List[str] = field(default_factory=list)
 
     def add(self, result: TestResult):
         self.results.append(result)
+
+    @property
+    def unexpected_alerts(self) -> List[str]:
+        # The mock reports an old build, so every page load there raises the
+        # firmware-update prompt.
+        return [a for a in self.alerts if not a.startswith("A new firmware version is available")]
 
     @property
     def passed(self) -> int:
@@ -69,6 +76,31 @@ class TestSuite:
     @property
     def total(self) -> int:
         return len(self.results)
+
+
+FIXTURE_SOTA_CALL = "W1ABC"
+FIXTURE_POTA_CALL = "K2DEF"
+
+
+def spothole_fixture_spots():
+    """One SOTA and one POTA spot, a minute old, in Spothole's v3 shape"""
+    now = int(time.time())
+    return [
+        {
+            "id": "fixture-sota", "source": "SOTA", "dx_call": FIXTURE_SOTA_CALL, "de_call": "N3GHI",
+            "freq": 14062000, "mode": "CW", "time": now - 60, "comment": "fixture",
+            "activities": ["SOTA"],
+            "activity_refs": [{"activity": "SOTA", "id": "W6/NC-423", "name": "Fixture Summit"}],
+            "dx_latitude": 37.9, "dx_longitude": -122.6,
+        },
+        {
+            "id": "fixture-pota", "source": "POTA", "dx_call": FIXTURE_POTA_CALL, "de_call": "N3GHI",
+            "freq": 21300000, "mode": "SSB", "time": now - 60, "comment": "fixture",
+            "activities": ["POTA"],
+            "activity_refs": [{"activity": "POTA", "id": "US-0001", "name": "Fixture Park"}],
+            "dx_latitude": 44.4, "dx_longitude": -68.2,
+        },
+    ]
 
 
 class SOTAcatUITests:
@@ -109,6 +141,24 @@ class SOTAcatUITests:
 
         # Collect JS errors
         self.page.on("pageerror", lambda err: self.suite.js_errors.append(str(err)))
+
+        # Spothole is served from a fixture: the run needs no internet and the
+        # chase table holds known rows.
+        self.context.route("https://spothole.app/**", self._serve_spothole)
+
+        # The one dialog handler for the run: record every alert, then dismiss it
+        self.page.on("dialog", lambda d: (self.suite.alerts.append(d.message), d.dismiss()))
+
+    def _serve_spothole(self, route, request):
+        path = request.url.split("?")[0]
+        if path.endswith("/options"):
+            body = {"spot_providers_enabled_by_default": ["Cluster", "POTA", "SOTA"]}
+        elif path.endswith("/spots"):
+            body = spothole_fixture_spots()
+        else:
+            route.fulfill(status=404, body=f"no fixture for {path}")
+            return
+        route.fulfill(json=body, headers={"access-control-allow-origin": "*"})
 
     def teardown(self):
         """Cleanup browser"""
@@ -901,21 +951,26 @@ class SOTAcatUITests:
     # Chase Page Element Tests
     # =========================================================================
 
-    def test_chase_refresh_button(self):
-        """Chase page has refresh button"""
+    def _open_chase(self):
+        """Open the Chase tab and wait until the fixture spots are in its table"""
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
+        # The page reopens its last tab, and a click during that switch is
+        # ignored; a click after it reloads the tab. Wait out both.
+        self.page.wait_for_function("() => !AppState.tabSwitchInProgress")
         self.page.click('[data-tab="chase"]')
-        time.sleep(0.5)
+        self.page.wait_for_function("() => !AppState.tabSwitchInProgress && AppState.currentTabName === 'chase'")
+        self.page.locator('#chase-table tbody tr', has_text=FIXTURE_SOTA_CALL).first.wait_for(state='attached')
+
+    def test_chase_refresh_button(self):
+        """Chase page has refresh button"""
+        self._open_chase()
         refresh = self.page.locator('#refresh-button')
         assert refresh.count() > 0, "Refresh button should exist"
 
     def test_chase_filter_dropdowns(self):
         """Chase page has filter dropdowns"""
-        self.page.goto(self.url('/'))
-        self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="chase"]')
-        time.sleep(0.5)
+        self._open_chase()
         type_filter = self.page.locator('#type-filter')
         mode_filter = self.page.locator('#mode-filter')
         assert type_filter.count() > 0, "Type filter should exist"
@@ -923,45 +978,34 @@ class SOTAcatUITests:
 
     def test_chase_mode_filter_ssbcw_option(self):
         """Chase page mode filter has SSB+CW option as last entry"""
-        self.page.goto(self.url('/'))
-        self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="chase"]')
-        time.sleep(0.5)
+        self._open_chase()
         mode_filter = self.page.locator('#mode-filter')
         options = mode_filter.locator('option').all_text_contents()
         assert 'SSB+CW' in options, "SSB+CW option should exist"
         assert options[-1] == 'SSB+CW', "SSB+CW should be last option"
 
     def test_chase_table(self):
-        """Chase page has chase table"""
-        self.page.goto(self.url('/'))
-        self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="chase"]')
-        time.sleep(0.5)
-        table = self.page.locator('#chase-table')
-        assert table.count() > 0, "Chase table should exist"
+        """Chase table lists the spots Spothole returned"""
+        self._open_chase()
+        rows = self.page.locator('#chase-table tbody tr')
+        for call in (FIXTURE_SOTA_CALL, FIXTURE_POTA_CALL):
+            assert rows.filter(has_text=call).count() == 1, \
+                f"expected one row for {call}, table holds {rows.all_inner_texts()}"
 
     def test_chase_ham2k_button_exists(self):
         """Chase page has Ham2K button that is disabled by default"""
-        # The tuned-row highlight is frequency-proximity based against live
-        # spot data, so park the radio where no spot sits (a radio left on
-        # 14.074 MHz FT8 by earlier tests legitimately enables the button).
+        # The tuned-row highlight is frequency-proximity based, so park the
+        # radio away from both fixture spots.
         self.page.request.put(self.url('/api/v1/frequency?frequency=7012345'))
         time.sleep(1)  # let the SET apply before the page's first poll
-        self.page.goto(self.url('/'))
-        self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="chase"]')
-        time.sleep(0.5)
+        self._open_chase()
         ham2k_btn = self.page.locator('#ham2k-chase-button')
         assert ham2k_btn.count() > 0, "Ham2K button should exist"
         assert ham2k_btn.is_disabled(), "Ham2K button should be disabled when no spot is tuned"
 
     def test_chase_ham2k_validates_cluster_spot(self):
         """Ham2K validation accepts Cluster spots with freq/mode/callsign (no sig/ref)"""
-        self.page.goto(self.url('/'))
-        self.page.wait_for_load_state('networkidle')
-        self.page.click('[data-tab="chase"]')
-        time.sleep(0.5)
+        self._open_chase()
         # Test validation function with a Cluster spot (no valid sig, no reference)
         result = self.page.evaluate('''() => {
             // Mock a Cluster spot with freq, mode, callsign but no valid sig/ref
@@ -1129,6 +1173,10 @@ class SOTAcatUITests:
         assert len(self.suite.js_errors) == 0, \
             f"JavaScript errors: {self.suite.js_errors}"
 
+    def test_no_alerts(self):
+        """No test left the page raising an alert"""
+        assert self.suite.unexpected_alerts == [], f"Alerts raised: {self.suite.unexpected_alerts}"
+
     # =========================================================================
     # Run All Tests
     # =========================================================================
@@ -1147,8 +1195,7 @@ class SOTAcatUITests:
         self.page.goto(self.url('/'))
         self.page.wait_for_load_state('networkidle')
         self.page.evaluate("localStorage.setItem('activeTab', 'qrx')")
-        dialogs = []
-        self.page.on("dialog", lambda d: (dialogs.append(d.message), d.dismiss()))
+        alerts_before = len(self.suite.alerts)
         failed = {"done": False}
 
         def handler(route, request):
@@ -1156,7 +1203,7 @@ class SOTAcatUITests:
                 failed["done"] = True
                 route.fulfill(status=408, body="Server closed this connection")
                 return
-            route.continue_()
+            route.fallback()
 
         self.context.route("**/*", handler)
         try:
@@ -1167,7 +1214,7 @@ class SOTAcatUITests:
         finally:
             self.context.unroute("**/*", handler)
         assert failed["done"], f"test did not intercept a request for {path_suffix}"
-        return dialogs
+        return self.suite.alerts[alerts_before:]
 
     def _assert_qrx_functional(self, dialogs):
         tab_alerts = [d for d in dialogs if "switching tabs" in d]
@@ -1215,7 +1262,7 @@ class SOTAcatUITests:
             if request.url.endswith('/api/v1/gps') and request.method == 'GET':
                 held.append(route)  # answered only after release below
                 return
-            route.continue_()
+            route.fallback()
 
         self.context.route("**/*", handler)
         try:
@@ -1263,7 +1310,7 @@ class SOTAcatUITests:
             if request.url.endswith('/api/v1/gps') and request.method == 'GET':
                 held.append(route)
                 return
-            route.continue_()
+            route.fallback()
 
         self.context.route("**/*", handler)
         try:
@@ -1403,6 +1450,7 @@ class SOTAcatUITests:
             # Final JS error check
             print("\nJavaScript Error Check:")
             self.run_test("No JS errors", self.test_no_js_errors)
+            self.run_test("No alerts", self.test_no_alerts)
 
         finally:
             self.teardown()
@@ -1416,6 +1464,10 @@ class SOTAcatUITests:
             print(f"JS Errors: {len(self.suite.js_errors)}")
             for err in self.suite.js_errors[:5]:
                 print(f"  - {err[:80]}")
+        if self.suite.unexpected_alerts:
+            print(f"Alerts: {len(self.suite.unexpected_alerts)}")
+            for message in self.suite.unexpected_alerts[:5]:
+                print(f"  - {message.splitlines()[0][:80]}")
         print("=" * 60)
 
         return self.suite
