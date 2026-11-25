@@ -161,6 +161,9 @@ class ContractTest:
                              ("time?time=-1", 400)):
                 r, _ = self.put(ep)
                 self.expect(r.status_code == want, f"{ep}: expected {want}, got {r.status_code}")
+                if ep.startswith("keyerSpeed"):
+                    # A missing route is a 404 too; the body tells them apart.
+                    self.expect("invalid wpm" in r.text, f"{ep}: body {r.text!r}, want 'invalid wpm'")
         self.check("PUT frequency (invalid) -> 404", freq)
         self.check("PUT mode (invalid) -> 404", mode)
         self.check("PUT numeric params: junk/partial/negative rejected", numeric)
@@ -543,6 +546,11 @@ class ContractTest:
                 r, dt = self.put("frequency?frequency=14074000")
                 self.expect(r.status_code == 503, f"expected 503 during keyer TX, got {r.status_code}")
                 self.expect("keyer" in r.text, "503 body should say keyer")
+                r, _ = self.get("keyerSpeed")
+                self.expect(r.status_code == 200 and r.text.strip().isdigit(),
+                            f"GET keyerSpeed during keyer TX: HTTP {r.status_code} {r.text!r}")
+                r, _ = self.put(f"keyerSpeed?wpm={r.text.strip()}")
+                self.expect(r.status_code == 503, f"PUT keyerSpeed during keyer TX: expected 503, got {r.status_code}")
                 r, _ = self.get("connectionStatus")
                 self.expect(r.text.strip() == "🔴", f"expected 🔴 during keyer TX, got {r.text!r}")
             finally:

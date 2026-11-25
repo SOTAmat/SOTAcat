@@ -280,8 +280,8 @@ class RigctldTest:
             self.expect(ls[0] == "get_level: RFPOWER" and re.fullmatch(r"[01]\.\d{4}", ls[1]) is not None
                         and ls[2] == "RPRT 0", f"+l RFPOWER {ls!r}")
             ls = c.lines("+l KEYSPD", 2)
-            if ls[1] == "RPRT -4":  # legitimate only on a radio without a keyer speed read (KH1)
-                self.expect("KX" not in c.cmd("_")[0], f"+l KEYSPD refused on a KX radio: {ls!r}")
+            if ls[1].startswith("RPRT"):  # an error ends the reply here; only -4 off a KX radio (KH1) is legitimate
+                self.expect(ls[1] == "RPRT -4" and "KX" not in c.cmd("_")[0], f"+l KEYSPD refused: {ls!r}")
             else:
                 ls.append(c._readline())
                 self.expect(ls[0] == "get_level: KEYSPD" and ls[1].isdigit() and ls[2] == "RPRT 0", f"+l KEYSPD {ls!r}")
