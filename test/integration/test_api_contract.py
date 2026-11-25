@@ -50,6 +50,11 @@ class Failure(Exception):
     pass
 
 
+# Radio settings the probes overwrite, as (GET path, PUT parameter). Frequency
+# leads: a band change can bring its own mode and power with it.
+RADIO_SETTINGS = (("/frequency", "frequency"), ("/mode", "mode"), ("/power", "power"), ("/keyerSpeed", "wpm"))
+
+
 # ---------------------------------------------------------------------------
 # Probes: one request per row. `expect` narrows the acceptable statuses below
 # the YAML's declared set (for error-path probes). `tx` marks on-air probes,
@@ -211,6 +216,30 @@ class ContractTest:
         self.skipped += 1
         print(f"  SKIP  {name}: {why}")
 
+    # -- radio state -------------------------------------------------------
+    def read_radio_settings(self):
+        """Each RADIO_SETTINGS value the radio reports right now, keyed by path"""
+        state = {}
+        for path, _ in RADIO_SETTINGS:
+            r = requests.get(f"{self.base}{path}", timeout=10)
+            if r.status_code == 200 and r.text.strip() != "UNKNOWN":
+                state[path] = r.text.strip()
+        return state
+
+    def restore_radio_settings(self, want):
+        for path, param in RADIO_SETTINGS:
+            if path in want:
+                requests.put(f"{self.base}{path}", params={param: want[path]}, timeout=10)
+        deadline = time.time() + 5
+        while True:
+            now = self.read_radio_settings()
+            stale = [f"{p} wanted {v}, reads {now.get(p)}" for p, v in want.items() if now.get(p) != v]
+            if not stale:
+                return
+            if time.time() > deadline:
+                raise Failure("; ".join(stale))
+            time.sleep(0.2)
+
     # -- structural checks --------------------------------------------------
     def check_route_sets(self):
         spec_ops = set(self.spec.operations())
@@ -303,19 +332,28 @@ class ContractTest:
         self.check("every YAML operation has a probe", lambda: self.check_probe_coverage(probes))
 
         print("\nProbes")
-        for p in probes:
-            label = f"{p['method']} {p['path']}"
-            if "params" in p:
-                label += " " + "&".join(f"{k}={v}" for k, v in p["params"].items())
-            elif "expect" in p and not p.get("json"):
-                label += " (no query)"
-            if p.get("tx") and not (self.mock or self.allow_tx):
-                self.skip(label, "transmits; pass --allow-tx")
-                continue
-            if p.get("reboot") and not (self.mock or self.allow_reboot):
-                self.skip(label, "reboots the device; pass --allow-reboot")
-                continue
-            self.check(label, lambda p=p: self.run_probe(p))
+        saved = self.read_radio_settings()
+        try:
+            for p in probes:
+                label = f"{p['method']} {p['path']}"
+                if "params" in p:
+                    label += " " + "&".join(f"{k}={v}" for k, v in p["params"].items())
+                elif "expect" in p and not p.get("json"):
+                    label += " (no query)"
+                if p.get("tx") and not (self.mock or self.allow_tx):
+                    self.skip(label, "transmits; pass --allow-tx")
+                    continue
+                if p.get("reboot") and not (self.mock or self.allow_reboot):
+                    self.skip(label, "reboots the device; pass --allow-reboot")
+                    continue
+                self.check(label, lambda p=p: self.run_probe(p))
+        finally:
+            print("\nRadio state")
+            label = "restore " + ", ".join(f"{p[1:]}={v}" for p, v in saved.items())
+            if saved:
+                self.check(label, lambda: self.restore_radio_settings(saved))
+            else:
+                self.skip("restore", "no radio setting was readable before the probes")
 
         print(f"\n{self.passed} passed, {self.failed} failed, {self.skipped} skipped")
         return 0 if self.failed == 0 else 1

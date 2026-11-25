@@ -20,6 +20,8 @@ from pathlib import Path
 from random import choice, randint, random
 from typing import Dict, List, Tuple
 
+from test_dual_interface_stress import read_radio, restore_radio
+
 try:
     import requests
 except ImportError:
@@ -370,6 +372,21 @@ class MutexStressTest:
         cold_probe_decoupling(self.host)
         print()
 
+        # The Control client retunes the radio, so note where it starts.
+        api = f"http://{self.host}/api/v1"
+        start_state = read_radio(api)
+        try:
+            return self.run_load()
+        finally:
+            if start_state is None:
+                print("Radio state was unreadable at the start; nothing to restore")
+            elif restore_radio(api, *start_state):
+                print(f"✓ radio restored to {start_state[0]} Hz {start_state[1]}")
+            else:
+                raise RuntimeError(f"radio not restored to {start_state[0]} Hz {start_state[1]}")
+
+    def run_load(self) -> Dict:
+        """Run the client threads and the responsiveness probe; return the report"""
         # Start all client threads
         print("Starting multi-client stress test...")
         print()
