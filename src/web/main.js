@@ -1820,7 +1820,6 @@ function clearDistanceCache() {
 const GITHUB_RELEASES_API = "https://api.github.com/repos/SOTAmat/SOTAcat/releases/latest";
 const VERSION_CHECK_INTERVAL_DAYS = 1.0;
 const VERSION_CHECK_STORAGE_KEY = "sotacatVersionCheck";
-const VERSION_CHECK_SUCCESS_KEY = "sotacatVersionCheckSuccess";
 const VERSION_CHECK_TIMEOUT_MS = 5000;
 const VERSION_CHECK_RETRY_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -2029,14 +2028,11 @@ async function checkFirmwareVersion(manualCheck = false) {
         Log.info("Version")("Current version timestamp:", new Date(currentBuildTime * 1000).toISOString());
 
         // Handle different cases for manual vs automatic checks
-        let shouldUpdateTimestamp = false;
         let manualReport = null;
 
         if (manualCheck) {
-            // Manual check - always report with version strings and update
-            // timestamp; the report returns AFTER the shared bookkeeping below.
-            shouldUpdateTimestamp = true;
-
+            // Manual check - always report with version strings; the report
+            // returns AFTER the shared bookkeeping below.
             const versions = `\n\nYour version:\n${new Date(currentBuildTime * 1000).toISOString()}\nServer version:\n${new Date(latestVersion * 1000).toISOString()}`;
             if (latestVersion > currentBuildTime) {
                 manualReport = `A new firmware is available: please update using instructions on the Settings page.${versions}`;
@@ -2058,26 +2054,15 @@ async function checkFirmwareVersion(manualCheck = false) {
 
                 if (userResponse) {
                     openTab("Settings");
-                    // User accepted - update timestamp so we don't bug them again today
-                    shouldUpdateTimestamp = true;
                 } else {
-                    // User dismissed - don't update timestamp so we'll notify again tomorrow
                     Log.debug("Version")("User dismissed update notification - will retry tomorrow");
                 }
-            } else {
-                // No update needed - update timestamp
-                shouldUpdateTimestamp = true;
             }
         }
 
-        // Only update timestamp if appropriate
-        if (shouldUpdateTimestamp) {
-            localStorage.setItem(VERSION_CHECK_STORAGE_KEY, Date.now().toString());
-            Log.debug("Version")("Updated last check timestamp");
-        }
-
-        // Always track successful completion (even if we don't update the check timestamp)
-        localStorage.setItem(VERSION_CHECK_SUCCESS_KEY, Date.now().toString());
+        // Every completed check counts, whatever the answer: a dismissed
+        // prompt waits out the interval like any other result.
+        localStorage.setItem(VERSION_CHECK_STORAGE_KEY, Date.now().toString());
         Log.debug("Version")("Version check completed successfully");
 
         // Stop retry timer on successful check

@@ -5,8 +5,10 @@
  * - loadActiveTab maps every historical tab name onto a current one and
  *   falls back to the default for unknown values.
  * - openTab ignores re-entrant calls while a switch is in flight.
- * - A manual firmware version check records its bookkeeping (timestamps,
+ * - A manual firmware version check records its bookkeeping (timestamp,
  *   retry-timer stop) before reporting.
+ * - Dismissing the automatic update prompt records the check, so the prompt
+ *   waits out the check interval instead of returning on the next page load.
  * - The run page's Ham2K button is enabled only when a VFO frequency exists.
  * - The visibility handler aborts requests frozen mid-flight so its
  *   refreshes are not skipped by the pollers' in-flight guards.
@@ -121,13 +123,14 @@ itAsync('openTab accepts a new switch after the previous completes', async () =>
     assertEqual(sb._state.fetches, 2, 'subsequent switch fetches again');
 });
 
-// ---- manual version check bookkeeping ------------------------------------
+// ---- version check bookkeeping --------------------------------------------
 const versionMatch = mainJs.match(/async function checkFirmwareVersion\([\s\S]*?\n\}/);
 
-itAsync('manual version check records bookkeeping before reporting', async () => {
+// Device on an older build than the latest release; the update prompt is dismissed
+function makeVersionCheckSandbox() {
     assertTrue(!!versionMatch, 'checkFirmwareVersion extraction failed');
     const store = {};
-    const calls = { retryStop: 0 };
+    const calls = { retryStop: 0, confirm: 0 };
     const sandbox = {
         console,
         Log: { debug: () => () => {}, info: () => () => {}, warn: () => () => {}, error: () => () => {} },
@@ -142,7 +145,7 @@ itAsync('manual version check records bookkeeping before reporting', async () =>
         },
         normalizeVersion: (v) => (String(v).includes('260825') ? 2000 : 1000),
         localStorage: { setItem: (k, v) => { store[k] = v; }, getItem: () => null },
-        confirm: () => false,
+        confirm: () => { calls.confirm++; return false; },
         alert: () => {},
         openTab: () => {},
         stopVersionCheckRetryTimer: () => { calls.retryStop++; },
@@ -150,15 +153,25 @@ itAsync('manual version check records bookkeeping before reporting', async () =>
         VERSION_CHECK_TIMEOUT_MS: 1000,
         GITHUB_RELEASES_API: 'https://api.github.com/x',
         VERSION_CHECK_STORAGE_KEY: 'vck',
-        VERSION_CHECK_SUCCESS_KEY: 'vcs',
     };
     vm.createContext(sandbox);
     vm.runInContext(versionMatch[0], sandbox);
+    return { sandbox, store, calls };
+}
+
+itAsync('manual version check records bookkeeping before reporting', async () => {
+    const { sandbox, store, calls } = makeVersionCheckSandbox();
     const msg = await vm.runInContext('checkFirmwareVersion(true)', sandbox);
     assertTrue(typeof msg === 'string' && msg.includes('new firmware'), `report returned: ${JSON.stringify(msg)}`);
     assertTrue('vck' in store, 'check timestamp recorded');
-    assertTrue('vcs' in store, 'success timestamp recorded');
     assertEqual(calls.retryStop, 1, 'retry timer stopped');
+});
+
+itAsync('dismissing the automatic update prompt records the check', async () => {
+    const { sandbox, store, calls } = makeVersionCheckSandbox();
+    await vm.runInContext('checkFirmwareVersion(false)', sandbox);
+    assertEqual(calls.confirm, 1, 'update prompt shown');
+    assertTrue('vck' in store, 'check timestamp recorded');
 });
 
 // ---- run-page Ham2K gating -------------------------------------------------
