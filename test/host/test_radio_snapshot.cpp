@@ -41,6 +41,21 @@ int main() {
     // Same skew guard.
     assert(!s.xmit_fresh(0));
 
+    // Keyer speed: unknown by default, and a zero reading is not a speed.
+    {
+        RadioSnapshotData k;
+        assert(!k.has_keyer_speed());
+        assert(!k.keyer_speed_fresh(1'000'000));
+        k.keyer_speed          = 0;
+        k.keyer_speed_stamp_us = 1'000'000;
+        assert(!k.has_keyer_speed());
+        k.keyer_speed = 22;
+        assert(k.has_keyer_speed());
+        assert(k.keyer_speed_fresh(1'000'000 + RADIO_SNAPSHOT_FRESH_US - 1));
+        assert(!k.keyer_speed_fresh(1'000'000 + RADIO_SNAPSHOT_FRESH_US));
+        assert(!k.keyer_speed_fresh(999'999));
+    }
+
     printf("test_radio_snapshot: OK\n");
     return 0;
 }

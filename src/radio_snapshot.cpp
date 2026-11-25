@@ -69,6 +69,14 @@ void set_smeter (long bars, int64_t now_us) {
     xSemaphoreGive (mtx);
 }
 
+void set_keyer_speed (long wpm, int64_t now_us) {
+    SemaphoreHandle_t mtx = get_mutex();
+    xSemaphoreTake (mtx, portMAX_DELAY);
+    s_data.keyer_speed          = wpm;
+    s_data.keyer_speed_stamp_us = now_us;
+    xSemaphoreGive (mtx);
+}
+
 void set_power (long power, int64_t now_us) {
     SemaphoreHandle_t mtx = get_mutex();
     xSemaphoreTake (mtx, portMAX_DELAY);
