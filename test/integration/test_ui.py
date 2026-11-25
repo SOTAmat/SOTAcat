@@ -962,6 +962,25 @@ class SOTAcatUITests:
         self.page.wait_for_function("() => !AppState.tabSwitchInProgress && AppState.currentTabName === 'chase'")
         self.page.locator('#chase-table tbody tr', has_text=FIXTURE_SOTA_CALL).first.wait_for(state='attached')
 
+    def _read_radio(self):
+        """(frequency in Hz, mode) as the device reports them"""
+        f = self.page.request.get(self.url('/api/v1/frequency'))
+        m = self.page.request.get(self.url('/api/v1/mode'))
+        assert f.ok and m.ok, f"radio state unreadable: frequency {f.status}, mode {m.status}"
+        return int(f.text().strip()), m.text().strip()
+
+    def _restore_radio(self, freq, mode):
+        """Put the radio back on freq/mode and confirm it got there"""
+        # Frequency first: a band change can bring its own mode with it
+        self.page.request.put(self.url(f'/api/v1/frequency?frequency={freq}'))
+        self.page.request.put(self.url(f'/api/v1/mode?mode={mode.lower()}'))
+        for _ in range(25):
+            self.page.wait_for_timeout(200)
+            now = self._read_radio()
+            if now == (freq, mode):
+                return
+        raise AssertionError(f"radio not restored: wanted {freq} Hz {mode}, reads {now[0]} Hz {now[1]}")
+
     def test_chase_refresh_button(self):
         """Chase page has refresh button"""
         self._open_chase()
@@ -996,12 +1015,16 @@ class SOTAcatUITests:
         """Chase page has Ham2K button that is disabled by default"""
         # The tuned-row highlight is frequency-proximity based, so park the
         # radio away from both fixture spots.
-        self.page.request.put(self.url('/api/v1/frequency?frequency=7012345'))
-        time.sleep(1)  # let the SET apply before the page's first poll
-        self._open_chase()
-        ham2k_btn = self.page.locator('#ham2k-chase-button')
-        assert ham2k_btn.count() > 0, "Ham2K button should exist"
-        assert ham2k_btn.is_disabled(), "Ham2K button should be disabled when no spot is tuned"
+        freq, mode = self._read_radio()
+        try:
+            self.page.request.put(self.url('/api/v1/frequency?frequency=7012345'))
+            time.sleep(1)  # let the SET apply before the page's first poll
+            self._open_chase()
+            ham2k_btn = self.page.locator('#ham2k-chase-button')
+            assert ham2k_btn.count() > 0, "Ham2K button should exist"
+            assert ham2k_btn.is_disabled(), "Ham2K button should be disabled when no spot is tuned"
+        finally:
+            self._restore_radio(freq, mode)
 
     def test_chase_ham2k_validates_cluster_spot(self):
         """Ham2K validation accepts Cluster spots with freq/mode/callsign (no sig/ref)"""
