@@ -32,6 +32,7 @@ enum class RadioParkKind : int {
     GET_POWER,
     GET_VOLUME,
     GET_SMETER,
+    GET_KEYER_SPEED,
     SET_FREQUENCY,
     SET_MODE,
     SET_VOLUME,
@@ -40,6 +41,7 @@ enum class RadioParkKind : int {
     SET_XMIT,
     SET_MSG,
     SET_TIME,
+    SET_KEYER_SPEED,
     COUNT
 };
 

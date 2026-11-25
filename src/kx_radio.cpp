@@ -565,6 +565,7 @@ bool KXRadio::put_to_kx_command_string (const char * command, int tries) {
 // clang-format off
 DELEGATE_BOOL (ft8_prepare,         (long base_freq),                         base_freq)
 DELEGATE_BOOL (get_frequency,       (long & out_hz),                          out_hz)
+DELEGATE_BOOL (get_keyer_speed,     (long & out_wpm),                         out_wpm)
 DELEGATE_BOOL (get_mode,            (radio_mode_t & out_mode),                out_mode)
 DELEGATE_BOOL (get_power,           (long & out_power),                       out_power)
 DELEGATE_BOOL (get_radio_state,     (kx_state_t * in_state),                  in_state)
@@ -575,6 +576,7 @@ DELEGATE_BOOL (play_message_bank,   (int bank),                               ba
 DELEGATE_BOOL (restore_radio_state, (const kx_state_t * in_state, int tries), in_state, tries)
 DELEGATE_BOOL (send_keyer_message,  (const char * message),                   message)
 DELEGATE_BOOL (set_frequency,       (long hz, int tries),                     hz, tries)
+DELEGATE_BOOL (set_keyer_speed,     (long wpm, long & out_achieved),          wpm, out_achieved)
 DELEGATE_BOOL (set_mode,            (radio_mode_t mode, int tries),           mode, tries)
 DELEGATE_BOOL (set_power,           (long power, long & out_achieved),        power, out_achieved)
 DELEGATE_BOOL (set_volume,          (long volume),                            volume)
@@ -585,6 +587,7 @@ DELEGATE_BOOL (tune_atu,            ())
 DELEGATE_BOOL_CONST (supports_keyer)
 DELEGATE_BOOL_CONST (supports_volume)
 DELEGATE_BOOL_CONST (supports_smeter)
+DELEGATE_BOOL_CONST (supports_keyer_speed)
 
 DELEGATE_VOID (ft8_set_tone, (long base_freq, long frequency), base_freq, frequency)
 DELEGATE_VOID (ft8_tone_off, ())

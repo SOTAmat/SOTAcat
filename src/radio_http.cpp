@@ -67,6 +67,7 @@ static radio_park_completer_t completer_for (RadioParkKind kind) {
     case RadioParkKind::SET_XMIT: return set_complete_k<RadioParkKind::SET_XMIT>;
     case RadioParkKind::SET_MSG: return set_complete_k<RadioParkKind::SET_MSG>;
     case RadioParkKind::SET_TIME: return set_complete_k<RadioParkKind::SET_TIME>;
+    case RadioParkKind::SET_KEYER_SPEED: return set_complete_k<RadioParkKind::SET_KEYER_SPEED>;
     default: return nullptr;
     }
 }

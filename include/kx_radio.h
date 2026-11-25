@@ -100,6 +100,8 @@ class KXRadio {
     bool get_power (long & out_power);
     bool set_power (long power, long & out_achieved);
     bool get_smeter (long & out_bars);
+    bool get_keyer_speed (long & out_wpm);
+    bool set_keyer_speed (long wpm, long & out_achieved);
     bool get_volume (long & out_volume);
     bool set_volume (long volume);
     bool get_xmit_state (long & out_state);
@@ -109,6 +111,7 @@ class KXRadio {
     bool supports_keyer () const;
     bool supports_volume () const;
     bool supports_smeter () const;
+    bool supports_keyer_speed () const;
     bool send_keyer_message (const char * message);
 
     // True while an HTTP-accepted CW keyer request is outstanding (between

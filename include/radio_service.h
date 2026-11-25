@@ -20,17 +20,19 @@ enum class RadioCmdType {
     REFRESH_POWER,
     REFRESH_VOLUME,
     REFRESH_SMETER,
+    REFRESH_KEYER_SPEED,
     SET_FREQUENCY,
-    SET_MODE,    // arg = radio_mode_t value, or RADIO_MODE_SSB_AUTO
-    SET_VOLUME,  // arg = delta
-    SET_POWER,   // arg = power (watts)
-    SET_ATU,     // arg unused
-    SET_XMIT,    // arg = 0 (RX) / non-zero (TX)
-    SET_MSG,     // arg = message bank
-    SET_TIME,    // arg = UTC seconds since midnight (0..86399)
+    SET_MODE,         // arg = radio_mode_t value, or RADIO_MODE_SSB_AUTO
+    SET_VOLUME,       // arg = delta
+    SET_POWER,        // arg = power (watts)
+    SET_ATU,          // arg unused
+    SET_XMIT,         // arg = 0 (RX) / non-zero (TX)
+    SET_MSG,          // arg = message bank
+    SET_TIME,         // arg = UTC seconds since midnight (0..86399)
+    SET_KEYER_SPEED,  // arg = wpm
 };
-static constexpr int RADIO_REFRESH_KINDS = (int)RadioCmdType::REFRESH_SMETER - (int)RadioCmdType::REFRESH_FREQUENCY + 1;
-static constexpr int RADIO_SET_KINDS     = (int)RadioCmdType::SET_TIME - (int)RadioCmdType::SET_FREQUENCY + 1;
+static constexpr int RADIO_REFRESH_KINDS = (int)RadioCmdType::REFRESH_KEYER_SPEED - (int)RadioCmdType::REFRESH_FREQUENCY + 1;
+static constexpr int RADIO_SET_KINDS     = (int)RadioCmdType::SET_KEYER_SPEED - (int)RadioCmdType::SET_FREQUENCY + 1;
 
 // Start the task. Call once, AFTER kxRadio.connect() has completed in
 // setup(). Idempotent.

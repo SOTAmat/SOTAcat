@@ -7,6 +7,7 @@ class KXRadioDriver : public IRadioDriver {
     bool supports_keyer () const override;
     bool supports_volume () const override;
     bool supports_smeter () const override;
+    bool supports_keyer_speed () const override;
 
     bool get_frequency (KXRadio & radio, long & out_hz) override;
     bool set_frequency (KXRadio & radio, long hz, int tries) override;
@@ -16,6 +17,8 @@ class KXRadioDriver : public IRadioDriver {
 
     bool get_power (KXRadio & radio, long & out_power) override;
     bool get_smeter (KXRadio & radio, long & out_bars) override;
+    bool get_keyer_speed (KXRadio & radio, long & out_wpm) override;
+    bool set_keyer_speed (KXRadio & radio, long wpm, long & out_achieved) override;
     bool set_power (KXRadio & radio, long power, long & out_achieved) override;
 
     bool get_volume (KXRadio & radio, long & out_volume) override;

@@ -145,6 +145,18 @@ bool KH1RadioDriver::get_smeter (KXRadio &, long &) {
     return false;  // see supports_smeter
 }
 
+bool KH1RadioDriver::supports_keyer_speed() const {
+    return false;  // the speed is only readable by pressing buttons and scraping the display
+}
+
+bool KH1RadioDriver::get_keyer_speed (KXRadio &, long &) {
+    return false;  // see supports_keyer_speed
+}
+
+bool KH1RadioDriver::set_keyer_speed (KXRadio &, long, long &) {
+    return false;  // see supports_keyer_speed
+}
+
 bool KH1RadioDriver::get_frequency (KXRadio & radio, long & out_hz) {
     return get_kh1_display_frequency (radio, out_hz);
 }

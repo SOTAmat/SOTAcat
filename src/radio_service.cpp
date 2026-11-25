@@ -86,6 +86,7 @@ bool radio_service_park_kind (RadioCmdType t, RadioParkKind & k) {
     case RadioCmdType::REFRESH_POWER: k = RadioParkKind::GET_POWER; return true;
     case RadioCmdType::REFRESH_VOLUME: k = RadioParkKind::GET_VOLUME; return true;
     case RadioCmdType::REFRESH_SMETER: k = RadioParkKind::GET_SMETER; return true;
+    case RadioCmdType::REFRESH_KEYER_SPEED: k = RadioParkKind::GET_KEYER_SPEED; return true;
     case RadioCmdType::SET_FREQUENCY: k = RadioParkKind::SET_FREQUENCY; return true;
     case RadioCmdType::SET_MODE: k = RadioParkKind::SET_MODE; return true;
     case RadioCmdType::SET_VOLUME: k = RadioParkKind::SET_VOLUME; return true;
@@ -94,6 +95,7 @@ bool radio_service_park_kind (RadioCmdType t, RadioParkKind & k) {
     case RadioCmdType::SET_XMIT: k = RadioParkKind::SET_XMIT; return true;
     case RadioCmdType::SET_MSG: k = RadioParkKind::SET_MSG; return true;
     case RadioCmdType::SET_TIME: k = RadioParkKind::SET_TIME; return true;
+    case RadioCmdType::SET_KEYER_SPEED: k = RadioParkKind::SET_KEYER_SPEED; return true;
     default: return false;
     }
 }
@@ -168,6 +170,8 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
     // a link failure — it must never feed the health machine.
     if (which == RadioCmdType::REFRESH_SMETER && !kxRadio.supports_smeter())
         return true;  // drained; ok_out stays false
+    if (which == RadioCmdType::REFRESH_KEYER_SPEED && !kxRadio.supports_keyer_speed())
+        return true;  // drained; ok_out stays false
     // The lock is bounded by WORKER_LOCK_TIMEOUT_MS, not portMAX_DELAY:
     // FT8 and the unconverted handler_cat/handler_time paths also contend
     // for the radio mutex, so an unbounded wait could sit past the 20 s
@@ -216,6 +220,12 @@ static bool do_refresh (RadioCmdType which, bool & ok_out) {
         ok        = kxRadio.get_smeter (bars) && bars >= 0;
         if (ok)
             radio_snapshot::set_smeter (bars, now);
+    }
+    else if (which == RadioCmdType::REFRESH_KEYER_SPEED) {
+        long wpm = -1;
+        ok       = kxRadio.get_keyer_speed (wpm) && wpm > 0;
+        if (ok)
+            radio_snapshot::set_keyer_speed (wpm, now);
     }
     if (ok)
         s_health.record_success();
@@ -338,6 +348,13 @@ static bool do_set (RadioCmdType type, long arg, int64_t expires_at_us, bool & o
         t.min = (int)((arg / 60) % 60);
         t.sec = (int)(arg % 60);
         ok    = kxRadio.sync_time (t);
+        break;
+    }
+    case RadioCmdType::SET_KEYER_SPEED: {
+        long achieved = 0;
+        ok            = kxRadio.set_keyer_speed (arg, achieved);
+        if (ok)
+            radio_snapshot::set_keyer_speed (achieved, now);
         break;
     }
     default:
@@ -555,6 +572,7 @@ static bool snapshot_field_fresh (RadioCmdType which, int64_t now) {
     case RadioCmdType::REFRESH_POWER: return s.power_fresh (now);
     case RadioCmdType::REFRESH_VOLUME: return s.volume_fresh (now);
     case RadioCmdType::REFRESH_SMETER: return s.smeter_fresh (now);
+    case RadioCmdType::REFRESH_KEYER_SPEED: return s.keyer_speed_fresh (now);
     default: return false;
     }
 }

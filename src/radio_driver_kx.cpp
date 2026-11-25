@@ -1,6 +1,7 @@
 #include "radio_driver_kx.h"
 #include "hardware_specific.h"
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 
@@ -66,6 +67,33 @@ bool KXRadioDriver::get_smeter (KXRadio & radio, long & out_bars) {
     if (bars < 0)
         return false;
     out_bars = bars;
+    return true;
+}
+
+bool KXRadioDriver::supports_keyer_speed() const {
+    return true;
+}
+
+static constexpr long KEYER_SPEED_MIN_WPM = 8;
+static constexpr long KEYER_SPEED_MAX_WPM = 50;
+
+bool KXRadioDriver::get_keyer_speed (KXRadio & radio, long & out_wpm) {
+    long wpm = radio.get_from_kx ("KS", SC_KX_COMMUNICATION_RETRIES, 3);
+    if (wpm < 1)
+        return false;
+    out_wpm = wpm;
+    return true;
+}
+
+bool KXRadioDriver::set_keyer_speed (KXRadio & radio, long wpm, long & out_achieved) {
+    wpm = std::clamp (wpm, KEYER_SPEED_MIN_WPM, KEYER_SPEED_MAX_WPM);
+    radio.put_to_kx ("KS", 3, wpm, 0);
+    if (!get_keyer_speed (radio, out_achieved))
+        return false;
+    if (out_achieved != wpm) {  // the write was lost or ignored; out_achieved is still the radio's speed
+        ESP_LOGW (TAG8, "requested keyer speed %ld, radio reports %ld", wpm, out_achieved);
+        return false;
+    }
     return true;
 }
 
