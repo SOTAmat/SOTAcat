@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Unit tests for the Spothole source filter in chase_api.js.
+// Unit tests for the Spothole client in chase_api.js: source filter and referrer.
 //
 // Usage:
 //   node test/unit/test_spothole_sources.js
@@ -17,6 +17,7 @@ function assertEqual(a, b, m = "") {
     if (a !== b) throw new Error(`${m}: expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
 }
 
+const DEVICE_VERSION = "TEST_1:260101:0101-D";
 const DEFAULT_SOURCES = ["Cluster", "POTA", "SOTA"];
 const OPTIONS_BODY = {
     spot_providers: [...DEFAULT_SOURCES, "RBN CW/RTTY", "RBN FT8"],
@@ -24,10 +25,12 @@ const OPTIONS_BODY = {
 };
 
 // Loads the real chase_api.js against a fake Spothole. `optionsReply` builds
-// the /options response; every requested URL lands in `requests`.
-function makeSandbox({ optionsReply = () => jsonReply(OPTIONS_BODY) } = {}) {
+// the /options response and `versionReply` the device's /api/v1/version one;
+// every Spothole URL lands in `requests`, its referrer in `referrers`.
+function makeSandbox({ optionsReply = () => jsonReply(OPTIONS_BODY), versionReply = () => textReply(DEVICE_VERSION) } = {}) {
     const storage = {};
     const requests = [];
+    const referrers = [];
     const sandbox = {
         console,
         Date,
@@ -44,14 +47,20 @@ function makeSandbox({ optionsReply = () => jsonReply(OPTIONS_BODY) } = {}) {
             removeItem: (k) => { delete storage[k]; },
         },
         Log: { info: () => () => {}, warn: () => () => {}, error: () => () => {}, debug: () => () => {} },
-        fetch: async (url) => {
+        fetch: async (url, init = {}) => {
+            if (url === "/api/v1/version") return versionReply();
             requests.push(new URL(url));
+            referrers.push(init.referrer);
             return new URL(url).pathname.endsWith("/options") ? optionsReply() : jsonReply([]);
         },
     };
     vm.createContext(sandbox);
     vm.runInContext(fs.readFileSync(path.join(__dirname, "../../src/web/chase_api.js"), "utf8"), sandbox);
-    return { sandbox, requests, storage };
+    return { sandbox, requests, referrers, storage };
+}
+
+function textReply(body) {
+    return { ok: true, status: 200, statusText: "OK", text: async () => body };
 }
 
 function jsonReply(body) {
@@ -114,6 +123,13 @@ it("fails the refresh when Spothole's options name no default sources", async ()
     await rejection(sandbox.fetchAndProcessSpots({ limit: 500 }, null));
     assertEqual(spotsRequests(requests).length, 0, "spots requests");
     assertEqual("spotholeDefaultSources" in storage, false, "nothing stored");
+});
+
+it("still names SOTAcat when the device will not give its version", async () => {
+    const versionReply = () => ({ ok: false, status: 500, statusText: "Internal Server Error" });
+    const { sandbox, referrers } = makeSandbox({ versionReply });
+    await sandbox.fetchAndProcessSpots({ limit: 500 }, null);
+    assertEqual(referrers.join(","), "/SOTAcat,/SOTAcat", "referrers of the options and spots requests");
 });
 
 (async () => {

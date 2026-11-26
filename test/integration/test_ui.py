@@ -111,6 +111,7 @@ class SOTAcatUITests:
         self.suite = TestSuite()
         self.page: Optional[Page] = None
         self.browser: Optional[Browser] = None
+        self.spothole_referers = []  # Referer of each request the Spothole fixture served
 
     def url(self, path: str) -> str:
         """Build full URL from path"""
@@ -155,6 +156,7 @@ class SOTAcatUITests:
         self.page.on("dialog", lambda d: (self.suite.alerts.append(d.message), d.dismiss()))
 
     def _serve_spothole(self, route, request):
+        self.spothole_referers.append(request.headers.get("referer"))
         path = request.url.split("?")[0]
         if path.endswith("/options"):
             body = {"spot_providers_enabled_by_default": ["Cluster", "POTA", "SOTA"]}
@@ -1016,6 +1018,22 @@ class SOTAcatUITests:
             assert rows.filter(has_text=call).count() == 1, \
                 f"expected one row for {call}, table holds {rows.all_inner_texts()}"
 
+    def test_chase_identifies_to_spothole(self):
+        """Every Spothole request names SOTAcat and its firmware version in the Referer"""
+        version = self.page.request.get(self.url('/api/v1/version'))
+        assert version.ok, f"version unreadable: {version.status}"
+        self._open_chase()
+        self.spothole_referers.clear()
+        # A forced refresh with no stored source list asks for both /options and /spots
+        self.page.evaluate("""() => {
+            localStorage.removeItem('spotholeDefaultSources');
+            return Spots.refresh({ force: true }).then(() => null);
+        }""")
+        expected = self.url(f'/SOTAcat/{version.text()}')
+        assert self.spothole_referers, "the chase page made no Spothole request"
+        assert set(self.spothole_referers) == {expected}, \
+            f"expected every Referer to be {expected}, got {self.spothole_referers}"
+
     def test_chase_ham2k_button_exists(self):
         """Chase page has Ham2K button that is disabled by default"""
         # The tuned-row highlight is frequency-proximity based, so park the
@@ -1451,6 +1469,7 @@ class SOTAcatUITests:
             self.run_test("Filter dropdowns", self.test_chase_filter_dropdowns)
             self.run_test("Mode filter SSB+CW option", self.test_chase_mode_filter_ssbcw_option)
             self.run_test("Chase table", self.test_chase_table)
+            self.run_test("Chase identifies to Spothole", self.test_chase_identifies_to_spothole)
             self.run_test("Ham2K button exists", self.test_chase_ham2k_button_exists)
             self.run_test("Ham2K validates Cluster spot", self.test_chase_ham2k_validates_cluster_spot)
 

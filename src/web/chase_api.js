@@ -8,6 +8,7 @@
 
 const SPOTHOLE_BASE_URL = "https://spothole.app/api/v3";
 const SPOTHOLE_API_TIMEOUT_MS = 10000; // 10 seconds
+const SPOTHOLE_VERSION_TIMEOUT_MS = 5000; // an unresponsive device must not hold up the spots
 const SPOTHOLE_SOURCES_KEY = "spotholeDefaultSources";
 const SPOTHOLE_SOURCES_TTL_MS = 24 * 3600 * 1000;
 
@@ -92,13 +93,43 @@ async function fetchDefaultSources() {
     return sources;
 }
 
+let spotholeReferrerPromise = null;
+
+/**
+ * Spothole's client terms ask for a referrer that identifies the client
+ * software. The page's own address does not: it is often a bare IP.
+ * @returns {Promise<string>} Same-origin path naming SOTAcat and its firmware version
+ */
+function spotholeReferrer() {
+    if (!spotholeReferrerPromise) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), SPOTHOLE_VERSION_TIMEOUT_MS);
+        spotholeReferrerPromise = fetch("/api/v1/version", { signal: controller.signal })
+            .finally(() => clearTimeout(timeoutId))
+            .then((response) => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.text();
+            })
+            .then((version) => `/SOTAcat/${encodeURI(version.trim())}`)
+            .catch((error) => {
+                spotholeReferrerPromise = null; // ask again on the next request
+                Log.warn("Spothole")("Firmware version unavailable; identifying without it:", error);
+                return "/SOTAcat";
+            });
+    }
+    return spotholeReferrerPromise;
+}
+
 async function spotholeGetJson(url) {
+    const referrer = await spotholeReferrer();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), SPOTHOLE_API_TIMEOUT_MS);
     let response;
     try {
         response = await fetch(url, {
             signal: controller.signal,
+            referrer,
+            referrerPolicy: "unsafe-url", // the default policy would trim the referrer to its origin
             headers: {
                 Accept: "application/json",
                 "Accept-Encoding": "gzip, deflate, br",

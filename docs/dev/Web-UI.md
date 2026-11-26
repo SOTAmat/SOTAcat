@@ -100,6 +100,18 @@ excludes the RBN skimmer feeds. Unfiltered, those feeds fill the
 `/options` cannot be read, the stored list is used; with none stored
 the refresh fails.
 
+**Client identity:** Spothole's client terms
+(<https://spothole.app/help/usage/clients>) ask for a referrer or user
+agent that identifies the client software. Every Spothole request sets
+the fetch `referrer` to `/SOTAcat/<firmware version>` with
+`referrerPolicy: "unsafe-url"`, so the server sees, for example,
+`Referer: http://192.168.4.1/SOTAcat/AB6D_1:261125:1508-R`. The version
+is read once from `/api/v1/version`; if that read fails the referrer is
+`/SOTAcat` and the read is retried on the next request. Agreed by email
+with Spothole's author, 2026-11-26. Tested in headless Chromium only.
+Firefox and Safari are untested and may trim a cross-site referrer to
+its origin regardless of the policy.
+
 **Design context:** `docs/superpowers/specs/2026-05-06-spot-ticks-design.md`
 and `docs/superpowers/plans/2026-05-06-spot-ticks.md`.
 
