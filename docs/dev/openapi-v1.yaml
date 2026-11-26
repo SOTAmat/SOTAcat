@@ -113,6 +113,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unavailable:
+                  value:
+                    error: frequency unavailable
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/LinkDown"
     put:
@@ -132,15 +139,47 @@ paths:
         "204":
           $ref: "#/components/responses/SetApplied"
         "202":
-          $ref: "#/components/responses/SetAccepted"
+          description: |
+            Queued but not confirmed within 1500 ms (`frequency change accepted, applying`),
+            or a newer command of the same kind replaced it (`frequency change superseded`).
+            Confirm with a later GET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accepted"
+              examples:
+                applying:
+                  value:
+                    message: "frequency change accepted, applying"
+                superseded:
+                  value:
+                    message: frequency change superseded
         "404":
           description: Missing query string, or `invalid frequency` (not a positive integer).
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                invalid:
+                  value:
+                    error: invalid frequency
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
-          $ref: "#/components/responses/SetFailed"
+          description: "`frequency change failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                failed:
+                  value:
+                    error: frequency change failed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
@@ -166,6 +205,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unrecognized:
+                  value:
+                    error: unrecognized mode
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/LinkDown"
     put:
@@ -190,15 +236,47 @@ paths:
         "204":
           $ref: "#/components/responses/SetApplied"
         "202":
-          $ref: "#/components/responses/SetAccepted"
+          description: |
+            Queued but not confirmed within 1500 ms (`mode change accepted, applying`),
+            or a newer command of the same kind replaced it (`mode change superseded`).
+            Confirm with a later GET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accepted"
+              examples:
+                applying:
+                  value:
+                    message: "mode change accepted, applying"
+                superseded:
+                  value:
+                    message: mode change superseded
         "404":
           description: Missing query string, or `invalid mode`.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                invalid:
+                  value:
+                    error: invalid mode
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
-          $ref: "#/components/responses/SetFailed"
+          description: "`mode change failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                failed:
+                  value:
+                    error: mode change failed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
@@ -223,6 +301,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unsupported:
+                  value:
+                    error: power read not supported
         "500":
           $ref: "#/components/responses/RadioNotConnected"
         "503":
@@ -244,15 +326,47 @@ paths:
         "204":
           $ref: "#/components/responses/SetApplied"
         "202":
-          $ref: "#/components/responses/SetAccepted"
+          description: |
+            Queued but not confirmed within 1500 ms (`power change accepted, applying`),
+            or a newer command of the same kind replaced it (`power change superseded`).
+            Confirm with a later GET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accepted"
+              examples:
+                applying:
+                  value:
+                    message: "power change accepted, applying"
+                superseded:
+                  value:
+                    message: power change superseded
         "404":
           description: Missing query string, or `invalid power`.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                invalid:
+                  value:
+                    error: invalid power
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
-          $ref: "#/components/responses/SetFailed"
+          description: "`power change failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                failed:
+                  value:
+                    error: power change failed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
@@ -277,12 +391,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unsupported:
+                  value:
+                    error: keyer speed not supported on this radio
         "500":
           description: "`unable to read keyer speed` when nothing is cached yet; `radio not connected` when no radio was detected at boot."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unavailable:
+                  value:
+                    error: unable to read keyer speed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/LinkDown"
     put:
@@ -302,15 +427,50 @@ paths:
         "204":
           $ref: "#/components/responses/SetApplied"
         "202":
-          $ref: "#/components/responses/SetAccepted"
+          description: |
+            Queued but not confirmed within 1500 ms (`keyer speed change accepted, applying`),
+            or a newer command of the same kind replaced it (`keyer speed change superseded`).
+            Confirm with a later GET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accepted"
+              examples:
+                applying:
+                  value:
+                    message: "keyer speed change accepted, applying"
+                superseded:
+                  value:
+                    message: keyer speed change superseded
         "404":
           description: Missing query string, `invalid wpm`, or `keyer speed not supported on this radio` (KH1).
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                invalid:
+                  value:
+                    error: invalid wpm
+                unsupported:
+                  value:
+                    error: keyer speed not supported on this radio
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
-          $ref: "#/components/responses/SetFailed"
+          description: "`keyer speed change failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                failed:
+                  value:
+                    error: keyer speed change failed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
@@ -337,12 +497,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unsupported:
+                  value:
+                    error: volume not supported on this radio
         "500":
           description: "`unable to read volume` when nothing is cached yet; `radio not connected` when no radio was detected at boot."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unavailable:
+                  value:
+                    error: unable to read volume
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/LinkDown"
     put:
@@ -361,15 +532,50 @@ paths:
         "204":
           $ref: "#/components/responses/SetApplied"
         "202":
-          $ref: "#/components/responses/SetAccepted"
+          description: |
+            Queued but not confirmed within 1500 ms (`volume change accepted, applying`),
+            or a newer command of the same kind replaced it (`volume change superseded`).
+            Confirm with a later GET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accepted"
+              examples:
+                applying:
+                  value:
+                    message: "volume change accepted, applying"
+                superseded:
+                  value:
+                    message: volume change superseded
         "404":
           description: Missing query string, `invalid delta`, or `volume not supported on this radio`.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                invalid:
+                  value:
+                    error: invalid delta
+                unsupported:
+                  value:
+                    error: volume not supported on this radio
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
-          $ref: "#/components/responses/SetFailed"
+          description: "`volume change failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                failed:
+                  value:
+                    error: volume change failed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
@@ -405,12 +611,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unsupported:
+                  value:
+                    error: Morse keying not supported on this radio
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
           description: "`keyer busy, please retry` while a previous message is still keying; `failed to start keyer task`; `heap allocation failed`; `radio not connected`."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                busy:
+                  value:
+                    error: "keyer busy, please retry"
+                taskFailed:
+                  value:
+                    error: failed to start keyer task
+                noMemory:
+                  value:
+                    error: heap allocation failed
+                notConnected:
+                  value:
+                    error: radio not connected
 
   /msg:
     put:
@@ -430,15 +656,47 @@ paths:
         "204":
           $ref: "#/components/responses/SetApplied"
         "202":
-          $ref: "#/components/responses/SetAccepted"
+          description: |
+            Queued but not confirmed within 1500 ms (`message play accepted, applying`),
+            or a newer command of the same kind replaced it (`message play superseded`).
+            Confirm with a later GET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accepted"
+              examples:
+                applying:
+                  value:
+                    message: "message play accepted, applying"
+                superseded:
+                  value:
+                    message: message play superseded
         "404":
           description: Missing query string, or `invalid bank`.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                invalid:
+                  value:
+                    error: invalid bank
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
-          $ref: "#/components/responses/SetFailed"
+          description: "`message play failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                failed:
+                  value:
+                    error: message play failed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
@@ -459,15 +717,47 @@ paths:
         "204":
           $ref: "#/components/responses/SetApplied"
         "202":
-          $ref: "#/components/responses/SetAccepted"
+          description: |
+            Queued but not confirmed within 1500 ms (`TX/RX toggle accepted, applying`),
+            or a newer command of the same kind replaced it (`TX/RX toggle superseded`).
+            Confirm with a later GET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accepted"
+              examples:
+                applying:
+                  value:
+                    message: "TX/RX toggle accepted, applying"
+                superseded:
+                  value:
+                    message: TX/RX toggle superseded
         "404":
           description: Missing query string, or `invalid state`.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                invalid:
+                  value:
+                    error: invalid state
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
-          $ref: "#/components/responses/SetFailed"
+          description: "`TX/RX toggle failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                failed:
+                  value:
+                    error: TX/RX toggle failed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
@@ -481,9 +771,34 @@ paths:
         "204":
           $ref: "#/components/responses/SetApplied"
         "202":
-          $ref: "#/components/responses/SetAccepted"
+          description: |
+            Queued but not confirmed within 1500 ms (`ATU tune accepted, applying`),
+            or a newer command of the same kind replaced it (`ATU tune superseded`).
+            Confirm with a later GET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accepted"
+              examples:
+                applying:
+                  value:
+                    message: "ATU tune accepted, applying"
+                superseded:
+                  value:
+                    message: ATU tune superseded
         "500":
-          $ref: "#/components/responses/SetFailed"
+          description: "`ATU tune failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                failed:
+                  value:
+                    error: ATU tune failed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
@@ -506,21 +821,54 @@ paths:
         "204":
           $ref: "#/components/responses/SetApplied"
         "202":
-          $ref: "#/components/responses/SetAccepted"
+          description: |
+            Queued but not confirmed within 1500 ms (`time sync accepted, applying`),
+            or a newer command of the same kind replaced it (`time sync superseded`).
+            Confirm with a later GET.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accepted"
+              examples:
+                applying:
+                  value:
+                    message: "time sync accepted, applying"
+                superseded:
+                  value:
+                    message: time sync superseded
         "400":
           description: "`invalid time value`. Note this route answers 400, not 404, for a bad value."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                invalid:
+                  value:
+                    error: invalid time value
         "404":
           description: Missing query string or missing `time` parameter.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
-          $ref: "#/components/responses/SetFailed"
+          description: "`time sync failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                failed:
+                  value:
+                    error: time sync failed
+                notConnected:
+                  value:
+                    error: radio not connected
         "503":
           $ref: "#/components/responses/RadioBusyOrDown"
 
@@ -632,6 +980,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                busy:
+                  value:
+                    error: timed out getting bat_info mutex
 
   /reboot:
     get:
@@ -670,6 +1022,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                unsupported:
+                  value:
+                    error: OTA update not supported on this platform
+                beginFailed:
+                  value:
+                    error: OTA begin failed
+                receiveFailed:
+                  value:
+                    error: OTA data reception error
+                writeFailed:
+                  value:
+                    error: OTA write failed
+                endFailed:
+                  value:
+                    error: OTA end failed
+                bootPartitionFailed:
+                  value:
+                    error: Setting boot partition failed
 
   /settings:
     get:
@@ -843,6 +1214,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                bodyTooLarge:
+                  value:
+                    error: request body too large
+                tooMany:
+                  value:
+                    error: too many tune targets
+                tooLarge:
+                  value:
+                    error: tune targets too large
         "408":
           $ref: "#/components/responses/BodyTimeout"
         "500":
@@ -888,6 +1269,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                bodyTooLarge:
+                  value:
+                    error: request body too large
+                tooMany:
+                  value:
+                    error: too many CW macros
+                tooLarge:
+                  value:
+                    error: CW macros too large
         "408":
           $ref: "#/components/responses/BodyTimeout"
         "500":
@@ -957,12 +1348,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                parseError:
+                  value:
+                    error: parameter parsing error
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
           description: "`prepare called while another command already in progress`, `ft8 cleanup in progress`, `ft8 already prepared with different parameters`, `can't parse FT8 message`, `radio busy, please retry`, `failed to read radio state`, `failed to prepare radio for ft8`, or `radio not connected`."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                commandInProgress:
+                  value:
+                    error: prepare called while another command already in progress
+                cleanupInProgress:
+                  value:
+                    error: ft8 cleanup in progress
+                differentParameters:
+                  value:
+                    error: ft8 already prepared with different parameters
+                badMessage:
+                  value:
+                    error: "can't parse FT8 message"
+                radioBusy:
+                  value:
+                    error: "radio busy, please retry"
+                readFailed:
+                  value:
+                    error: failed to read radio state
+                prepareFailed:
+                  value:
+                    error: failed to prepare radio for ft8
+                notConnected:
+                  value:
+                    error: radio not connected
 
   /ft8:
     post:
@@ -1034,12 +1457,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                parseError:
+                  value:
+                    error: parameter parsing error
+                badToken:
+                  value:
+                    error: missing or invalid requestToken
+                badSequence:
+                  value:
+                    error: missing or invalid sequenceNumber
+                missingQuery:
+                  value:
+                    error: missing query string
         "500":
           description: "`prepare in progress`, `ft8 request token mismatch`, `stale ft8 sequenceNumber`, `out-of-order ft8 sequenceNumber`, `ft8 cleanup in progress`, `ft8 not prepared`, `FT8 queue full`, `FT8 queue busy`, `failed to start FT8 transmission task`, a prepare failure (see `prepareft8`), or `radio not connected`."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              examples:
+                prepareInProgress:
+                  value:
+                    error: prepare in progress
+                tokenMismatch:
+                  value:
+                    error: ft8 request token mismatch
+                staleSequence:
+                  value:
+                    error: stale ft8 sequenceNumber
+                outOfOrder:
+                  value:
+                    error: out-of-order ft8 sequenceNumber
+                cleanupInProgress:
+                  value:
+                    error: ft8 cleanup in progress
+                notPrepared:
+                  value:
+                    error: ft8 not prepared
+                queueFull:
+                  value:
+                    error: FT8 queue full
+                queueBusy:
+                  value:
+                    error: FT8 queue busy
+                taskFailed:
+                  value:
+                    error: failed to start FT8 transmission task
+                notConnected:
+                  value:
+                    error: radio not connected
 
   /cancelft8:
     post:
@@ -1063,8 +1530,6 @@ components:
           type: string
           description: Human-readable reason.
       additionalProperties: false
-      examples:
-        - error: invalid frequency
 
     Accepted:
       type: object
@@ -1074,8 +1539,6 @@ components:
           type: string
           description: "`<what> accepted, applying` or `<what> superseded`."
       additionalProperties: false
-      examples:
-        - message: frequency change accepted, applying
 
     ModeName:
       type: string
@@ -1239,45 +1702,52 @@ components:
   responses:
     SetApplied:
       description: The radio applied the command.
-    SetAccepted:
-      description: |
-        Queued but not confirmed within 1500 ms (`<what> accepted, applying`),
-        or a newer command of the same kind replaced it (`<what> superseded`).
-        Confirm with a later GET.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Accepted"
-    SetFailed:
-      description: "`<what> failed`: the radio refused the command; or `radio not connected` when no radio was detected at boot."
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
     RadioBusyOrDown:
       description: "`radio busy (FT8)`, `radio busy (keyer)`, or `radio link down`. Not queued; retry later."
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+          examples:
+            ft8:
+              value:
+                error: radio busy (FT8)
+            keyer:
+              value:
+                error: radio busy (keyer)
+            linkDown:
+              value:
+                error: radio link down
     LinkDown:
       description: "`radio link down`: the CAT link is down and no stale value is served as live. The request arms a recovery probe."
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+          examples:
+            linkDown:
+              value:
+                error: radio link down
     RadioNotConnected:
       description: "`radio not connected`: no radio was detected at boot."
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+          examples:
+            notConnected:
+              value:
+                error: radio not connected
     BodyTooLarge:
       description: "`request body too large`: over 4096 bytes."
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+          examples:
+            bodyTooLarge:
+              value:
+                error: request body too large
     BodyTimeout:
       description: The body did not arrive in time. Empty reply.
     NvsCommitFailed:
@@ -1286,3 +1756,7 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+          examples:
+            commitFailed:
+              value:
+                error: failed commit settings to nvs
